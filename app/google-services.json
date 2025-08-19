@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "307280624307",
+    "firebase_url": "https://rostry-rio-default-rtdb.firebaseio.com",
+    "project_id": "rostry-rio",
+    "storage_bucket": "rostry-rio.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:307280624307:android:df9d829ddce66327c64ec6",
+        "android_client_info": {
+          "package_name": "com.rio.rostry"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "307280624307-8vgabt88m3dpdla3rbf1l2vab7rtbpu5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAi4_m75SFUbzRPLrD6pLYK2okvxDbYf3w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "307280624307-8vgabt88m3dpdla3rbf1l2vab7rtbpu5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "307280624307-rq8m4d6ca6nqfc7tco3dr5sc9grlaf63.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.rostry.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
