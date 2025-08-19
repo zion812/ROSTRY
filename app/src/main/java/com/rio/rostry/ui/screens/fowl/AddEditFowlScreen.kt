@@ -6,16 +6,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.rio.rostry.data.models.Fowl
+import com.rio.rostry.utils.ImagePickerUtil
 import com.rio.rostry.utils.rememberImagePickerLauncher
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,6 +30,9 @@ fun AddEditFowlScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
     var name by remember { mutableStateOf(fowl?.name ?: "") }
     var breed by remember { mutableStateOf(fowl?.breed ?: "") }
     var birthDate by remember { mutableStateOf(fowl?.birthDate ?: System.currentTimeMillis()) }
@@ -35,6 +41,9 @@ fun AddEditFowlScreen(
     var parentIds by remember { mutableStateOf(fowl?.parentIds?.joinToString(", ") ?: "") }
     var photoUrl by remember { mutableStateOf(fowl?.photoUrl ?: "") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    
+    // Loading state for image upload
+    var isUploading by remember { mutableStateOf(false) }
     
     // Validation states
     var nameError by remember { mutableStateOf(false) }
@@ -49,9 +58,7 @@ fun AddEditFowlScreen(
     // Image picker launcher
     val imagePickerLauncher = rememberImagePickerLauncher { uri ->
         selectedImageUri = uri
-        // In a real implementation, you would upload the image and get a URL
-        // For now, we'll just use the local URI for display purposes
-        // In a production app, you would upload to Firebase Storage or similar service
+        // Store the local URI for immediate display
         photoUrl = uri.toString()
     }
     
@@ -66,7 +73,7 @@ fun AddEditFowlScreen(
                 title = { Text(if (fowl == null) "Add Fowl" else "Edit Fowl") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -77,32 +84,129 @@ fun AddEditFowlScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(scrollState)
         ) {
-            // Error message display
-            errorMessage?.let { message ->
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
+            // Name input
+            OutlinedTextField(
+                value = name,
+                onValueChange = { 
+                    name = it
+                    nameError = false
+                    errorMessage = null
+                },
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = nameError,
+                supportingText = {
+                    if (nameError) {
+                        Text("Name is required")
+                    }
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Breed input
+            OutlinedTextField(
+                value = breed,
+                onValueChange = { 
+                    breed = it
+                    breedError = false
+                    errorMessage = null
+                },
+                label = { Text("Breed") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = breedError,
+                supportingText = {
+                    if (breedError) {
+                        Text("Breed is required")
+                    }
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Birth date picker
+            OutlinedTextField(
+                value = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(birthDate)),
+                onValueChange = { },
+                label = { Text("Birth Date") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true },
+                readOnly = true,
+                isError = birthDateError,
+                supportingText = {
+                    if (birthDateError) {
+                        Text("Birth date is required")
+                    }
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Status dropdown
+            var expanded by remember { mutableStateOf(false) }
+            val statusOptions = listOf("growing", "breeder", "for sale", "sold", "deceased")
+            
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    readOnly = true,
+                    value = status,
+                    onValueChange = { },
+                    label = { Text("Status") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
+                        .menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
                 ) {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    statusOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                status = option
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
             
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Lineage notes
+            OutlinedTextField(
+                value = lineageNotes,
+                onValueChange = { lineageNotes = it },
+                label = { Text("Lineage Notes") },
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 3
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Parent IDs
+            OutlinedTextField(
+                value = parentIds,
+                onValueChange = { parentIds = it },
+                label = { Text("Parent IDs (comma separated)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             // Photo section
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -157,236 +261,168 @@ fun AddEditFowlScreen(
                     
                     Button(
                         onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isUploading
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Select photo")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (selectedImageUri != null || photoUrl.isNotBlank()) "Change Photo" else "Select Photo")
-                    }
-                }
-            }
-            
-            OutlinedTextField(
-                value = name,
-                onValueChange = { 
-                    name = it
-                    // Clear error when user starts typing
-                    if (nameError) nameError = false
-                    if (errorMessage != null) errorMessage = null
-                },
-                label = { Text("Name *") },
-                isError = nameError,
-                supportingText = {
-                    if (nameError) {
-                        Text("Name is required")
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = breed,
-                onValueChange = { 
-                    breed = it
-                    // Clear error when user starts typing
-                    if (breedError) breedError = false
-                    if (errorMessage != null) errorMessage = null
-                },
-                label = { Text("Breed *") },
-                isError = breedError,
-                supportingText = {
-                    if (breedError) {
-                        Text("Breed is required")
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Date picker implementation
-            OutlinedTextField(
-                value = formatDateInternal(birthDate),
-                onValueChange = { /* Handle date change */ },
-                label = { Text("Birth Date *") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showDatePicker = true },
-                readOnly = true,
-                isError = birthDateError,
-                supportingText = {
-                    if (birthDateError) {
-                        Text("Birth date cannot be in the future")
-                    }
-                }
-            )
-            
-            // Date picker dialog
-            if (showDatePicker) {
-                DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let { selectedDate ->
-                                    birthDate = selectedDate
-                                    // Clear error when user selects a date
-                                    if (birthDateError) birthDateError = false
-                                    if (errorMessage != null) errorMessage = null
-                                }
-                                showDatePicker = false
-                            }
-                        ) {
-                            Text("OK")
+                        if (isUploading) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                         }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                showDatePicker = false
-                            }
-                        ) {
-                            Text("Cancel")
-                        }
+                        Text(if (selectedImageUri != null) "Change Photo" else "Add Photo")
                     }
-                ) {
-                    DatePicker(state = datePickerState)
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Status dropdown
-            var expanded by remember { mutableStateOf(false) }
-            val statusOptions = listOf("growing", "breeder", "for sale", "sold", "deceased")
             
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    readOnly = true,
-                    value = status,
-                    onValueChange = { },
-                    label = { Text("Status") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(
-                            expanded = expanded
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    statusOptions.forEach { selectionOption ->
-                        DropdownMenuItem(
-                            text = { Text(selectionOption) },
-                            onClick = {
-                                status = selectionOption
-                                expanded = false
-                                // Clear error when user selects a status
-                                if (errorMessage != null) errorMessage = null
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = parentIds,
-                onValueChange = { 
-                    parentIds = it
-                    // Clear error when user starts typing
-                    if (errorMessage != null) errorMessage = null
-                },
-                label = { Text("Parent IDs (comma separated)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = lineageNotes,
-                onValueChange = { 
-                    lineageNotes = it
-                    // Clear error when user starts typing
-                    if (errorMessage != null) errorMessage = null
-                },
-                label = { Text("Lineage Notes") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 5
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
-
+            
+            // Display error message if there is one
+            errorMessage?.let { error ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            
+            // Save button
             Button(
                 onClick = {
-                    // Validate form
-                    var hasError = false
+                    // Validate inputs
+                    nameError = name.isBlank()
+                    breedError = breed.isBlank()
+                    birthDateError = birthDate <= 0
                     
-                    if (name.isBlank()) {
-                        nameError = true
-                        hasError = true
-                    }
-                    
-                    if (breed.isBlank()) {
-                        breedError = true
-                        hasError = true
-                    }
-                    
-                    // Check if birth date is in the future
-                    if (birthDate > System.currentTimeMillis()) {
-                        birthDateError = true
-                        errorMessage = "Birth date cannot be in the future"
-                        hasError = true
-                    }
-                    
-                    if (hasError) {
+                    if (nameError || breedError || birthDateError) {
+                        errorMessage = "Please fill in all required fields"
                         return@Button
                     }
                     
-                    val fowlToSave = (fowl ?: Fowl()).copy(
-                        name = name.trim(),
-                        breed = breed.trim(),
-                        birthDate = birthDate,
-                        status = status,
-                        lineageNotes = lineageNotes.trim(),
-                        parentIds = parentIds.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-                        photoUrl = photoUrl,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                    onAddEditFowl(fowlToSave)
+                    // If there's a selected image, upload it first
+                    if (selectedImageUri != null) {
+                        coroutineScope.launch {
+                            isUploading = true
+                            errorMessage = null
+                            
+                            val result = ImagePickerUtil.getInstance().uploadImage(context, selectedImageUri!!)
+                            if (result.isSuccess) {
+                                val downloadUrl = result.getOrNull()
+                                if (downloadUrl != null) {
+                                    photoUrl = downloadUrl
+                                    // Create fowl object with the uploaded image URL
+                                    val fowlToSave = fowl?.copy(
+                                        name = name,
+                                        breed = breed,
+                                        birthDate = birthDate,
+                                        status = status,
+                                        lineageNotes = lineageNotes,
+                                        parentIds = if (parentIds.isBlank()) emptyList() else parentIds.split(",").map { it.trim() },
+                                        photoUrl = photoUrl,
+                                        updatedAt = System.currentTimeMillis()
+                                    ) ?: Fowl(
+                                        name = name,
+                                        breed = breed,
+                                        birthDate = birthDate,
+                                        status = status,
+                                        lineageNotes = lineageNotes,
+                                        parentIds = if (parentIds.isBlank()) emptyList() else parentIds.split(",").map { it.trim() },
+                                        photoUrl = photoUrl,
+                                        createdAt = System.currentTimeMillis(),
+                                        updatedAt = System.currentTimeMillis()
+                                    )
+                                    
+                                    onAddEditFowl(fowlToSave)
+                                } else {
+                                    errorMessage = "Failed to get image URL"
+                                }
+                            } else {
+                                errorMessage = result.exceptionOrNull()?.message ?: "Failed to upload image"
+                            }
+                            
+                            isUploading = false
+                        }
+                    } else {
+                        // No image to upload, just save the fowl
+                        val fowlToSave = fowl?.copy(
+                            name = name,
+                            breed = breed,
+                            birthDate = birthDate,
+                            status = status,
+                            lineageNotes = lineageNotes,
+                            parentIds = if (parentIds.isBlank()) emptyList() else parentIds.split(",").map { it.trim() },
+                            photoUrl = photoUrl,
+                            updatedAt = System.currentTimeMillis()
+                        ) ?: Fowl(
+                            name = name,
+                            breed = breed,
+                            birthDate = birthDate,
+                            status = status,
+                            lineageNotes = lineageNotes,
+                            parentIds = if (parentIds.isBlank()) emptyList() else parentIds.split(",").map { it.trim() },
+                            photoUrl = photoUrl,
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        
+                        onAddEditFowl(fowlToSave)
+                    }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isUploading
             ) {
-                Text(if (fowl == null) "Add Fowl" else "Update Fowl")
+                if (isUploading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(if (fowl == null) "Add Fowl" else "Save Changes")
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = "* Required fields",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
-    }
-}
-
-private fun formatDateInternal(timestamp: Long): String {
-    return try {
-        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-        sdf.format(Date(timestamp))
-    } catch (e: Exception) {
-        "Unknown"
+        
+        // Date picker dialog
+        if (showDatePicker) {
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            datePickerState.selectedDateMillis?.let { selectedDate ->
+                                birthDate = selectedDate
+                                birthDateError = false
+                                errorMessage = null
+                            }
+                            showDatePicker = false
+                        }
+                    ) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(
+                    state = datePickerState
+                    // Note: dateValidator is not available in this version of Compose
+                    // We'll handle date validation in the business logic instead
+                )
+            }
+        }
     }
 }

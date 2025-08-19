@@ -8,7 +8,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.tasks.await
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.UUID
 
@@ -18,21 +21,51 @@ class ImagePickerUtil private constructor() {
     }
 
     /**
-     * Uploads an image to a remote storage service.
-     * In a real implementation, this would connect to Firebase Storage or another service.
-     * For now, it returns a mock URL.
+     * Uploads an image to Firebase Storage.
      */
     suspend fun uploadImage(context: Context, imageUri: Uri): Result<String> {
         return try {
-            // In a real implementation, you would:
-            // 1. Get the image from the URI
-            // 2. Upload it to a storage service like Firebase Storage
-            // 3. Return the download URL
+            // Get Firebase Storage reference
+            val storage = FirebaseStorage.getInstance()
+            val storageRef = storage.reference
             
-            // Mock implementation for now
-            Result.success("https://example.com/mock-image-${UUID.randomUUID()}.jpg")
+            // Create a reference to the image file
+            val imageRef = storageRef.child("fowl_photos/${UUID.randomUUID()}.jpg")
+            
+            // Get the file path from the URI
+            val imagePath = getPathFromUri(context, imageUri)
+            if (imagePath == null) {
+                return Result.failure(Exception("Failed to get image path"))
+            }
+            
+            // Upload the file
+            val uploadTask = imageRef.putFile(imageUri)
+            val downloadUri = uploadTask.await().storage.downloadUrl.await()
+            
+            Result.success(downloadUri.toString())
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+    
+    /**
+     * Gets the file path from a URI.
+     */
+    private fun getPathFromUri(context: Context, uri: Uri): String? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val tempFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+            val outputStream = FileOutputStream(tempFile)
+            
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            
+            tempFile.absolutePath
+        } catch (e: Exception) {
+            null
         }
     }
 }
