@@ -50,8 +50,9 @@ fun AddEditFowlScreen(
     val imagePickerLauncher = rememberImagePickerLauncher { uri ->
         selectedImageUri = uri
         // In a real implementation, you would upload the image and get a URL
-        // For now, we'll just use a placeholder URL
-        photoUrl = "https://example.com/temp-image-${System.currentTimeMillis()}.jpg"
+        // For now, we'll just use the local URI for display purposes
+        // In a production app, you would upload to Firebase Storage or similar service
+        photoUrl = uri.toString()
     }
     
     // For simplicity, we're not implementing health records in this UI yet

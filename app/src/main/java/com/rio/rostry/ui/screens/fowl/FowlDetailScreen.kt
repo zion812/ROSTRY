@@ -141,13 +141,24 @@ fun FowlDetailContent(
                         style = MaterialTheme.typography.headlineSmall,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    AsyncImage(
-                        model = fowl.photoUrl,
-                        contentDescription = "Fowl photo",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
+                    // Check if the photoUrl is a local URI or a web URL
+                    if (fowl.photoUrl.startsWith("content://") || fowl.photoUrl.startsWith("file://")) {
+                        // For local URIs, we might need to handle them differently
+                        // In a real app, you would upload to cloud storage and use the download URL
+                        Text("Local image: ${fowl.photoUrl}")
+                    } else {
+                        AsyncImage(
+                            model = fowl.photoUrl,
+                            contentDescription = "Fowl photo",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            // Add error handling
+                            onError = { error ->
+                                // Log the error for debugging
+                            }
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
