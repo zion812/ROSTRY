@@ -22,8 +22,26 @@ class UserRepositoryImpl @Inject constructor(
             val authResult = auth.signInWithEmailAndPassword(email, pass).await()
             val uid = authResult.user?.uid
             if (uid != null) {
-                val user = firestore.collection("users").document(uid).get().await().toObject(User::class.java)
-                if (user != null) {
+                val document = firestore.collection("users").document(uid).get().await()
+                if (document.exists()) {
+                    val data = document.data
+                    val userTypeMap = data?.get("userType") as? Map<*, *>
+                    val role = userTypeMap?.get("role") as? String
+                    val userType = when (role) {
+                        "farmer" -> com.rio.rostry.data.models.UserType.Farmer
+                        "high_level_enthusiast" -> com.rio.rostry.data.models.UserType.HighLevelEnthusiast
+                        else -> com.rio.rostry.data.models.UserType.General
+                    }
+                    val user = User(
+                        uid = document.getString("uid") ?: uid,
+                        name = document.getString("name") ?: "",
+                        email = document.getString("email") ?: "",
+                        phone = document.getString("phone"),
+                        location = document.getString("location") ?: "",
+                        userType = userType,
+                        language = document.getString("language") ?: "",
+                        isVerified = document.getBoolean("isVerified") ?: false
+                    )
                     userDao.insertUser(user)
                 }
             }

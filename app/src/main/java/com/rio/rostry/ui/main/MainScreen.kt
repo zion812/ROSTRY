@@ -31,7 +31,7 @@ import com.rio.rostry.ui.main.screens.FarmerHomeScreen
 import com.rio.rostry.ui.fowl.FowlListScreen
 import com.rio.rostry.ui.main.screens.GeneralHomeScreen
 import com.rio.rostry.ui.main.screens.PlaceholderScreen
-import com.rio.rostry.ui.main.screens.ProfileScreen
+import com.rio.rostry.ui.main.screens.profile.ProfileScreen
 import com.rio.rostry.ui.main.screens.SettingsScreen
 import com.rio.rostry.ui.market.MarketplaceScreen
 
@@ -39,20 +39,21 @@ import com.rio.rostry.ui.market.MarketplaceScreen
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel(),
     onNavigateToFowlRegistration: () -> Unit,
-    onNavigateToFowlDetail: (String) -> Unit
+    onNavigateToFowlDetail: (String) -> Unit,
+    onNavigateToAuth: () -> Unit
 ) {
     val user by viewModel.user.collectAsState()
     val navController = rememberNavController()
 
     val items = when (user?.userType) {
-        UserType.General.role -> listOf(
+        is UserType.General -> listOf(
             MainScreen.GeneralHome,
             MainScreen.GeneralFeed,
             MainScreen.GeneralCommunity,
             MainScreen.GeneralProfile,
             MainScreen.GeneralSettings
         )
-        UserType.Farmer.role -> listOf(
+        is UserType.Farmer -> listOf(
             MainScreen.FarmerHome,
             MainScreen.Fowls,
             MainScreen.FarmerMarketplace,
@@ -60,7 +61,7 @@ fun MainScreen(
             MainScreen.FarmerProfile,
             MainScreen.FarmerSettings
         )
-        UserType.HighLevelEnthusiast.role -> listOf(
+        is UserType.HighLevelEnthusiast -> listOf(
             MainScreen.EnthusiastHome,
             MainScreen.Fowls,
             MainScreen.EnthusiastAnalytics,
@@ -120,19 +121,19 @@ fun MainScreen(
                 composable(MainScreen.EnthusiastHome.route) { EnthusiastHomeScreen() }
                 composable(MainScreen.GeneralFeed.route) { PlaceholderScreen(name = "Feed") }
                 composable(MainScreen.GeneralCommunity.route) { PlaceholderScreen(name = "Community") }
-                composable(MainScreen.GeneralProfile.route) { ProfileScreen() }
+                composable(MainScreen.GeneralProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth) }
                 composable(MainScreen.GeneralSettings.route) { SettingsScreen() }
 
                 // Farmer
                                 composable(MainScreen.FarmerMarketplace.route) { MarketplaceScreen() }
                 composable(MainScreen.FarmerWeather.route) { PlaceholderScreen(name = "Weather") }
-                composable(MainScreen.FarmerProfile.route) { ProfileScreen() }
+                composable(MainScreen.FarmerProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth) }
                 composable(MainScreen.FarmerSettings.route) { SettingsScreen() }
 
                 // Enthusiast
                 composable(MainScreen.EnthusiastAnalytics.route) { PlaceholderScreen(name = "Analytics") }
                 composable(MainScreen.EnthusiastResearch.route) { PlaceholderScreen(name = "Research") }
-                composable(MainScreen.EnthusiastProfile.route) { ProfileScreen() }
+                composable(MainScreen.EnthusiastProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth) }
                 composable(MainScreen.EnthusiastSettings.route) { SettingsScreen() }
             }
         }

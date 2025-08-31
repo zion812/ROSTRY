@@ -48,7 +48,7 @@ class AuthViewModel @Inject constructor(
                 email = email,
                 phone = phone,
                 location = location,
-                userType = userType.role,
+                userType = userType,
                 language = language
             )
             userRepository.updateUserProfile(user)

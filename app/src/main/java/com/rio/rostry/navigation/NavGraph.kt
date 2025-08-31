@@ -82,7 +82,12 @@ fun NavGraph(startDestination: String = "auth_graph") {
                 MainScreen(
                     viewModel = mainViewModel,
                     onNavigateToFowlRegistration = { navController.navigate(Screen.FowlRegistration.route) },
-                    onNavigateToFowlDetail = { fowlId -> navController.navigate(Screen.FowlDetail.createRoute(fowlId)) }
+                    onNavigateToFowlDetail = { fowlId -> navController.navigate(Screen.FowlDetail.createRoute(fowlId)) },
+                    onNavigateToAuth = {
+                        navController.navigate("auth_graph") {
+                            popUpTo("main_graph") { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(Screen.FowlRegistration.route) {
