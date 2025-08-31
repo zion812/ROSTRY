@@ -19,6 +19,10 @@ zxing = "3.5.3"
 work = "2.9.0"
 hiltWork = "1.2.0"
 timber = "5.0.1"
+playServicesLocation = "21.3.0"
+mockk = "1.13.10"
+uiAutomator = "2.3.0"
+turbine = "1.1.0"
 
 [libraries]
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
@@ -40,6 +44,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+hilt-android-testing = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }
 
 # Room
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -53,7 +58,9 @@ androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", vers
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version = "33.1.1" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
-firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
@@ -64,6 +71,10 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
+androidx-ui-automator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiAutomator" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,0 +1,113 @@
+package com.rio.rostry.di
+
+import android.content.Context
+import androidx.room.Room
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.ktx.storage
+import com.google.firebase.ktx.Firebase
+import com.rio.rostry.data.local.RostryDatabase
+import com.rio.rostry.data.local.UserDao
+import com.rio.rostry.data.local.FowlDao
+import com.rio.rostry.data.local.FowlRecordDao
+import com.rio.rostry.data.local.FowlTransferDao
+import com.rio.rostry.data.local.MarketplaceDao
+import com.rio.rostry.data.repo.FowlRepository
+import com.rio.rostry.data.repo.FowlRepositoryImpl
+import com.rio.rostry.data.repo.StorageRepository
+import com.rio.rostry.data.repo.StorageRepositoryImpl
+import com.rio.rostry.data.repo.UserRepository
+import com.rio.rostry.data.repo.UserRepositoryImpl
+import com.rio.rostry.data.repo.MarketplaceRepository
+import com.rio.rostry.data.repo.MarketplaceRepositoryImpl
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+@Suppress("UNUSED_PARAMETER", "unused") // Suppress warnings for Hilt module
+object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore {
+        return Firebase.firestore
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return Firebase.storage
+    }
+
+    @Provides
+    @Singleton
+    fun provideRostryDatabase(@ApplicationContext context: Context): RostryDatabase {
+        return Room.databaseBuilder(
+            context,
+            RostryDatabase::class.java,
+            "rostry_database"
+        ).fallbackToDestructiveMigration().build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserDao(database: RostryDatabase): UserDao = database.userDao()
+
+    @Provides
+    @Singleton
+    fun provideFowlDao(database: RostryDatabase): FowlDao = database.fowlDao()
+
+    @Provides
+    @Singleton
+    fun provideFowlRecordDao(database: RostryDatabase): FowlRecordDao = database.fowlRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideFowlTransferDao(database: RostryDatabase): FowlTransferDao = database.fowlTransferDao()
+
+    @Provides
+    @Singleton
+    fun provideMarketplaceDao(database: RostryDatabase): MarketplaceDao = database.marketplaceDao()
+
+    @Provides
+    @Singleton
+    fun provideUserRepository(
+        auth: FirebaseAuth,
+        firestore: FirebaseFirestore,
+        userDao: UserDao
+    ): UserRepository = UserRepositoryImpl(auth, firestore, userDao)
+
+    @Provides
+    @Singleton
+    fun provideFowlRepository(
+        fowlDao: FowlDao,
+        fowlRecordDao: FowlRecordDao,
+        firestore: FirebaseFirestore,
+        auth: FirebaseAuth
+    ): FowlRepository = FowlRepositoryImpl(fowlDao, fowlRecordDao, firestore, auth)
+
+    @Provides
+    @Singleton
+    fun provideStorageRepository(storage: FirebaseStorage): StorageRepository = StorageRepositoryImpl(storage)
+
+    @Provides
+    @Singleton
+    fun provideMarketplaceRepository(
+        firestore: FirebaseFirestore,
+        auth: FirebaseAuth,
+        marketplaceDao: MarketplaceDao
+    ): MarketplaceRepository = MarketplaceRepositoryImpl(firestore, auth, marketplaceDao)
+}

@@ -1,0 +1,16 @@
+package com.rio.rostry.di
+
+import com.rio.rostry.data.repo.SyncRepository
+import com.rio.rostry.data.repo.SyncRepositoryImpl
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+
+    @Binds
+    abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
+}
