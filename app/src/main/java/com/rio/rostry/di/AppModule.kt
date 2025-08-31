@@ -7,12 +7,14 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.ktx.storage
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
 import com.rio.rostry.data.local.RostryDatabase
 import com.rio.rostry.data.local.UserDao
 import com.rio.rostry.data.local.FowlDao
 import com.rio.rostry.data.local.FowlRecordDao
-import com.rio.rostry.data.local.FowlTransferDao
+import com.rio.rostry.data.local.TransferDao
 import com.rio.rostry.data.local.MarketplaceDao
 import com.rio.rostry.data.repo.FowlRepository
 import com.rio.rostry.data.repo.FowlRepositoryImpl
@@ -48,6 +50,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideFirebaseFunctions(): FirebaseFunctions {
+        return Firebase.functions
+    }
+
+    @Provides
+    @Singleton
     fun provideFirebaseStorage(): FirebaseStorage {
         return Firebase.storage
     }
@@ -76,7 +84,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideFowlTransferDao(database: RostryDatabase): FowlTransferDao = database.fowlTransferDao()
+    fun provideTransferDao(database: RostryDatabase): TransferDao = database.transferDao()
 
     @Provides
     @Singleton

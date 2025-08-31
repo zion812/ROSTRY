@@ -5,8 +5,7 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    // Add the Crashlytics Gradle plugin
-    id("com.google.firebase.crashlytics")
+    alias(libs.plugins.firebase.crashlytics) // Apply using alias
 }
 
 android {
@@ -65,6 +64,11 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.coil.compose)
     implementation(libs.zxing.core)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
+
+    // Stripe
+    implementation("com.stripe:stripe-android:20.35.0")
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
@@ -82,19 +86,19 @@ dependencies {
 
     // Hilt-WorkManager
     implementation(libs.androidx.hilt.work)
-    ksp(libs.hilt.compiler)
     ksp(libs.androidx.room.compiler)
 
     // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
+    implementation(platform("com.google.firebase:firebase-bom:32.2.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.messaging)
-    // Add the dependencies for the Crashlytics NDK and Analytics libraries
-    // When using the BoM, you don't specify versions in Firebase library dependencies
-    implementation("com.google.firebase:firebase-crashlytics-ndk")
+    implementation(libs.firebase.functions)
+    implementation(libs.firebase.crashlytics.sdk) // Add Crashlytics SDK
     implementation("com.google.firebase:firebase-analytics")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
 
     // Location
     implementation(libs.play.services.location)

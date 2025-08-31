@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.models.User
 import com.rio.rostry.data.models.UserType
 import com.rio.rostry.data.repo.UserRepository
+import com.rio.rostry.utils.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,24 +19,28 @@ class AuthViewModel @Inject constructor(
 
     fun loginUser(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            userRepository.loginUser(email, pass)
-                .onSuccess { withContext(Dispatchers.Main) { onSuccess() } }
-                .onFailure { withContext(Dispatchers.Main) { onError(it.message ?: "An unknown error occurred.") } }
+            when (val result = userRepository.loginUser(email, pass)) {
+                is Result.Success -> withContext(Dispatchers.Main) { onSuccess() }
+                is Result.Error -> withContext(Dispatchers.Main) { onError(result.exception.message ?: "An unknown error occurred.") }
+                is Result.Loading -> {} // Handle loading state if needed
+            }
         }
     }
 
     fun registerUser(email: String, pass: String, phone: String?, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            userRepository.registerUser(email, pass, phone)
-                .onSuccess { authResult ->
-                    val uid = authResult.user?.uid
+            when (val result = userRepository.registerUser(email, pass, phone)) {
+                is Result.Success -> {
+                    val uid = result.data.user?.uid
                     if (uid != null) {
                         withContext(Dispatchers.Main) { onSuccess(uid) }
                     } else {
                         withContext(Dispatchers.Main) { onError("Could not get user ID.") }
                     }
                 }
-                .onFailure { withContext(Dispatchers.Main) { onError(it.message ?: "An unknown error occurred.") } }
+                is Result.Error -> withContext(Dispatchers.Main) { onError(result.exception.message ?: "An unknown error occurred.") }
+                is Result.Loading -> {} // Handle loading state if needed
+            }
         }
     }
 
@@ -51,9 +56,11 @@ class AuthViewModel @Inject constructor(
                 userType = userType,
                 language = language
             )
-            userRepository.updateUserProfile(user)
-                .onSuccess { withContext(Dispatchers.Main) { onSuccess() } }
-                .onFailure { withContext(Dispatchers.Main) { onError(it.message ?: "An unknown error occurred.") } }
+            when (val result = userRepository.updateUserProfile(user)) {
+                is Result.Success -> withContext(Dispatchers.Main) { onSuccess() }
+                is Result.Error -> withContext(Dispatchers.Main) { onError(result.exception.message ?: "An unknown error occurred.") }
+                is Result.Loading -> {} // Handle loading state if needed
+            }
         }
     }
 }

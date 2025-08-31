@@ -1,7 +1,9 @@
 package com.rio.rostry.data.repo
 
 import android.location.Location
-import com.rio.rostry.data.models.market.* 
+import com.rio.rostry.data.models.market.*
+import com.rio.rostry.data.models.messaging.Conversation
+import com.rio.rostry.data.models.messaging.Message 
 import com.rio.rostry.utils.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -14,6 +16,7 @@ interface MarketplaceRepository {
     ): Flow<Result<List<MarketplaceListing>>>
     fun getListingById(listingId: String): Flow<Result<MarketplaceListing?>>
     suspend fun createListing(listing: MarketplaceListing): Result<Unit>
+    suspend fun createListing(fowlId: String, price: Double, description: String): Result<Unit>
 
     // Wishlist
     fun getWishlistItems(userId: String): Flow<Result<List<WishlistItem>>>
@@ -30,6 +33,12 @@ interface MarketplaceRepository {
     // Messaging
     fun getConversations(userId: String): Flow<Result<List<Conversation>>>
     fun getMessages(conversationId: String): Flow<Result<List<Message>>>
-    suspend fun sendMessage(conversationId: String, message: Message): Result<Unit>
-    suspend fun createConversation(conversation: Conversation): Result<String>
+    suspend fun sendMessage(message: Message): Result<Unit>
+    suspend fun createConversation(participants: List<String>): Result<String>
+
+    // Orders
+    suspend fun createOrder(order: Order): Result<String>
+    fun getOrders(userId: String): Flow<Result<List<Order>>>
+    fun getOrderById(orderId: String): Flow<Result<Order?>>
+    suspend fun updateOrderStatus(orderId: String, status: String): Result<Unit>
 }

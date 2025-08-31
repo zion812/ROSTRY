@@ -15,6 +15,11 @@ import com.rio.rostry.ui.auth.RegisterScreen
 import com.rio.rostry.ui.fowl.FowlDetailScreen
 import com.rio.rostry.ui.fowl.FowlListScreen
 import com.rio.rostry.ui.fowl.FowlRecordCreationScreen
+import com.rio.rostry.ui.fowl.FowlHistoryScreen
+import com.rio.rostry.ui.transfer.TransferInitiationScreen
+import com.rio.rostry.ui.transfer.TransferVerificationScreen
+import com.rio.rostry.ui.transfer.TransferManagementScreen
+import com.rio.rostry.ui.transfer.TransferHistoryScreen
 import com.rio.rostry.ui.fowl.FowlRegistrationScreen
 import com.rio.rostry.ui.main.MainScreen
 import com.rio.rostry.ui.main.MainViewModel
@@ -82,7 +87,12 @@ fun NavGraph(startDestination: String = "auth_graph") {
                 MainScreen(
                     viewModel = mainViewModel,
                     onNavigateToFowlRegistration = { navController.navigate(Screen.FowlRegistration.route) },
-                    onNavigateToFowlDetail = { fowlId -> navController.navigate(Screen.FowlDetail.createRoute(fowlId)) },
+                    onNavigateToFowlDetail = { fowlId ->
+                        navController.navigate(Screen.FowlDetail.createRoute(fowlId))
+                    },
+                    onNavigateToTransferVerification = { transferId ->
+                        navController.navigate(Screen.TransferVerification.createRoute(transferId))
+                    },
                     onNavigateToAuth = {
                         navController.navigate("auth_graph") {
                             popUpTo("main_graph") { inclusive = true }
@@ -103,7 +113,9 @@ fun NavGraph(startDestination: String = "auth_graph") {
                 FowlDetailScreen(
                     fowlId = fowlId,
                     onNavigateToRecordCreation = { fId -> navController.navigate(Screen.FowlRecordCreation.createRoute(fId)) },
-                    onNavigateToFowlDetail = { fowlId -> navController.navigate(Screen.FowlDetail.createRoute(fowlId)) }
+                    onNavigateToFowlDetail = { fId -> navController.navigate(Screen.FowlDetail.createRoute(fId)) },
+                    onNavigateToTransfer = { fId -> navController.navigate(Screen.InitiateTransfer.createRoute(fId)) },
+                    onNavigateToHistory = { fId -> navController.navigate(Screen.FowlHistory.createRoute(fId)) }
                 )
             }
             composable(
@@ -114,6 +126,52 @@ fun NavGraph(startDestination: String = "auth_graph") {
                 FowlRecordCreationScreen(
                     fowlId = fowlId,
                     onRecordCreated = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.InitiateTransfer.route,
+                arguments = listOf(navArgument("fowlId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val fowlId = backStackEntry.arguments?.getString("fowlId")!!
+                TransferInitiationScreen(
+                    fowlId = fowlId,
+                    onTransferInitiated = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.TransferVerification.route,
+                arguments = listOf(navArgument("transferId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                TransferVerificationScreen(
+                    onActionCompleted = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.FowlHistory.route,
+                arguments = listOf(navArgument("fowlId") { type = NavType.StringType })
+            ) {
+                FowlHistoryScreen(onNavigateUp = { navController.popBackStack() })
+            }
+            composable("transfer_management") {
+                TransferManagementScreen()
+            }
+            composable(
+                route = "transfer_history/{fowlId}",
+                arguments = listOf(navArgument("fowlId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val fowlId = backStackEntry.arguments?.getString("fowlId")!!
+                TransferHistoryScreen(fowlId = fowlId)
+            }
+            composable(
+                route = "transfer_initiation/{fowlId}",
+                arguments = listOf(navArgument("fowlId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val fowlId = backStackEntry.arguments?.getString("fowlId")!!
+                TransferInitiationScreen(
+                    fowlId = fowlId,
+                    onTransferInitiated = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }

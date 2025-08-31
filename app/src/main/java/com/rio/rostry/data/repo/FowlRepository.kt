@@ -13,4 +13,5 @@ interface FowlRepository {
     suspend fun addFowlRecord(fowlRecord: FowlRecord)
     suspend fun sync()
     fun getOffspring(fowlId: String): Flow<List<Fowl>>
+    suspend fun updateFowlOwner(fowlId: String, newOwnerId: String)
 }

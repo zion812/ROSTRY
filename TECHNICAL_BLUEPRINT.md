@@ -126,6 +126,33 @@ This project relies on Firebase for authentication, database, storage, and analy
 
 ---
 
-### 11. Key Feature Implementation: Fowl Registration
+### 12. Build & Configuration Notes
+
+This section documents key issues encountered and resolved during development, serving as a reference for future troubleshooting.
+
+**12.1. Gradle Build Failures**
+
+- **Symptom**: The project experienced silent and unpredictable Gradle build failures, where the build process would terminate without any error messages. Even basic tasks like `./gradlew tasks` would fail silently.
+- **Root Cause**: The issue was traced to an incorrectly configured `JAVA_HOME` path within the `gradlew.bat` script. The path contained a mix of forward and backslashes, which is invalid in a Windows environment.
+- **Resolution**:
+    1.  The `gradlew.bat` script was modified to normalize the `JAVA_HOME` path by replacing all forward slashes (`/`) with backslashes (`\\`).
+    2.  The `JAVA_EXE` path was also corrected to use backslashes.
+    3.  As part of the diagnostic process, Gradle caches were cleared to rule out corruption.
+
+**12.2. Dependency Management**
+
+- **Inconsistency**: The Firebase Crashlytics plugin version was initially hardcoded in the root `build.gradle.kts` file, while all other dependencies were managed through the `libs.versions.toml` version catalog.
+- **Resolution**: The Crashlytics plugin was moved into the `libs.versions.toml` file and referenced via its alias in the build script to ensure a single source of truth for all dependency versions.
+
+**12.3. Kotlin Compilation Fixes**
+
+- **`PaymentViewModel` Name Conflict**: A compilation error (`Unresolved reference: Result`) occurred due to a naming conflict between Stripe's `PaymentSheet.Result` and the project's custom `utils.Result` class.
+    - **Resolution**: An import alias was used (`import com.stripe.android.paymentsheet.PaymentSheet.Result as StripePaymentResult`) to disambiguate the two classes.
+- **Experimental API Usage**: Build warnings were present for screens using experimental Material 3 APIs.
+    - **Resolution**: The `@OptIn(ExperimentalMaterial3Api::class)` annotation was added to the affected composable functions to acknowledge the experimental status and suppress the warnings.
+
+---
+
+### 13. Key Feature Implementation: Fowl Registration
 
 (Content from the original blueprint)

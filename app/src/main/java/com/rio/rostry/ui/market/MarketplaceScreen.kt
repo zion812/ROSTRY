@@ -9,8 +9,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -21,11 +30,19 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.rio.rostry.data.models.market.MarketplaceListing
+import com.rio.rostry.ui.market.cart.CartViewModel
+import com.rio.rostry.ui.messaging.MessagingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketplaceScreen(
-    viewModel: MarketplaceViewModel = hiltViewModel()
+    marketplaceViewModel: MarketplaceViewModel = hiltViewModel(),
+    cartViewModel: CartViewModel = hiltViewModel(),
+    messagingViewModel: MessagingViewModel = hiltViewModel(),
+    onSellFowl: () -> Unit,
+    onNavigateToCart: () -> Unit,
+    onNavigateToWishlist: () -> Unit,
+    onNavigateToChat: (String) -> Unit
 ) {
     val context = LocalContext.current
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -33,20 +50,60 @@ fun MarketplaceScreen(
         onResult = { permissions ->
             if (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
                 permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)) {
-                viewModel.fetchListingsNearMe(10.0) // Default radius 10km
+                marketplaceViewModel.fetchListingsNearMe(10.0) // Default radius 10km
             }
         }
     )
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by marketplaceViewModel.uiState.collectAsState()
+    val filters by marketplaceViewModel.filters.collectAsState()
 
     Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = onSellFowl) {
+                Icon(Icons.Default.Add, contentDescription = "Sell a Fowl")
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { Text("Marketplace") },
                 actions = {
+                    var showMenu by remember { mutableStateOf(false) }
+
+                    IconButton(onClick = onNavigateToCart) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = "Shopping Cart")
+                    }
+                    IconButton(onClick = onNavigateToWishlist) {
+                        Icon(Icons.Default.FavoriteBorder, contentDescription = "Wishlist")
+                    }
+                    IconButton(onClick = { showMenu = !showMenu }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Sort Options")
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(text = { Text("Price: Low to High") }, onClick = { 
+                            marketplaceViewModel.onSortOrderChanged(SortOrder.PRICE_ASC)
+                            showMenu = false 
+                        })
+                        DropdownMenuItem(text = { Text("Price: High to Low") }, onClick = { 
+                            marketplaceViewModel.onSortOrderChanged(SortOrder.PRICE_DESC)
+                            showMenu = false
+                        })
+                        DropdownMenuItem(text = { Text("Date: Newest First") }, onClick = { 
+                            marketplaceViewModel.onSortOrderChanged(SortOrder.DATE_NEWEST)
+                            showMenu = false
+                        })
+                        DropdownMenuItem(text = { Text("Date: Oldest First") }, onClick = { 
+                            marketplaceViewModel.onSortOrderChanged(SortOrder.DATE_OLDEST)
+                            showMenu = false
+                        })
+                    }
+
                     IconButton(onClick = {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                            viewModel.fetchListingsNearMe(10.0)
+                            marketplaceViewModel.fetchListingsNearMe(10.0)
                         } else {
                             locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                         }
@@ -70,12 +127,30 @@ fun MarketplaceScreen(
             }
             is MarketplaceUiState.Success -> {
                 Column(modifier = Modifier.padding(paddingValues)) {
+                    OutlinedTextField(
+                        value = filters.searchQuery,
+                        onValueChange = { marketplaceViewModel.onSearchQueryChanged(it) },
+                        label = { Text("Search by breed or description") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+
                     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = { viewModel.fetchMarketplaceListings() }) {
+                        Button(onClick = { marketplaceViewModel.fetchMarketplaceListings() }) {
                             Text("Clear Filter")
                         }
                     }
-                    MarketplaceList(listings = state.listings)
+                    MarketplaceList(
+                        listings = state.listings,
+                        onAddToCart = { cartViewModel.addToCart(it) },
+                        onAddToWishlist = { cartViewModel.addToWishlist(it) },
+                        onContactSeller = { sellerId ->
+                            messagingViewModel.createConversation(sellerId) { conversationId ->
+                                conversationId?.let { onNavigateToChat(it) }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -83,17 +158,32 @@ fun MarketplaceScreen(
 }
 
 @Composable
-fun MarketplaceList(listings: List<MarketplaceListing>) {
+fun MarketplaceList(
+    listings: List<MarketplaceListing>,
+    onAddToCart: (String) -> Unit,
+    onAddToWishlist: (String) -> Unit,
+    onContactSeller: (String) -> Unit
+) {
     LazyColumn(contentPadding = PaddingValues(16.dp)) {
         items(listings) { listing ->
-            MarketplaceListItem(listing = listing)
+            MarketplaceListItem(
+                listing = listing,
+                onAddToCart = { onAddToCart(listing.id) },
+                onAddToWishlist = { onAddToWishlist(listing.id) },
+                onContactSeller = { onContactSeller(listing.sellerId) }
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-fun MarketplaceListItem(listing: MarketplaceListing) {
+fun MarketplaceListItem(
+    listing: MarketplaceListing,
+    onAddToCart: () -> Unit,
+    onAddToWishlist: () -> Unit,
+    onContactSeller: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -110,6 +200,17 @@ fun MarketplaceListItem(listing: MarketplaceListing) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = listing.breed, style = MaterialTheme.typography.headlineSmall)
                 Text(text = "$${listing.price}", style = MaterialTheme.typography.bodyLarge)
+            Row {
+                IconButton(onClick = onAddToCart) {
+                    Icon(Icons.Default.ShoppingCart, contentDescription = "Add to Cart")
+                }
+                IconButton(onClick = onAddToWishlist) {
+                    Icon(Icons.Default.FavoriteBorder, contentDescription = "Add to Wishlist")
+                }
+                Button(onClick = onContactSeller) {
+                    Text("Contact Seller")
+                }
+            }
                 Text(text = listing.description, style = MaterialTheme.typography.bodyMedium)
             }
         }

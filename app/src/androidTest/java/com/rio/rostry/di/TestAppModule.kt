@@ -43,5 +43,9 @@ object TestAppModule {
 
     @Provides
     @Singleton
+    fun provideTransferRepository(): TransferRepository = mockk(relaxed = true)
+
+    @Provides
+    @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = mockk(relaxed = true)
 }

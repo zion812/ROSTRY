@@ -2,6 +2,8 @@ package com.rio.rostry.di
 
 import com.rio.rostry.data.repo.SyncRepository
 import com.rio.rostry.data.repo.SyncRepositoryImpl
+import com.rio.rostry.data.repo.TransferRepository
+import com.rio.rostry.data.repo.TransferRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -13,4 +15,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindSyncRepository(impl: SyncRepositoryImpl): SyncRepository
+
+    @Binds
+    abstract fun bindTransferRepository(impl: TransferRepositoryImpl): TransferRepository
 }

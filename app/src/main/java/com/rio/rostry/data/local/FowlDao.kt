@@ -23,4 +23,7 @@ interface FowlDao {
 
     @Query("SELECT * FROM fowl WHERE (sireId = :fowlId OR damId = :fowlId) AND userId = :userId")
     fun getOffspring(fowlId: String, userId: String): Flow<List<Fowl>>
+
+    @Query("UPDATE fowl SET userId = :newOwnerId WHERE id = :fowlId")
+    suspend fun updateFowlOwner(fowlId: String, newOwnerId: String)
 }

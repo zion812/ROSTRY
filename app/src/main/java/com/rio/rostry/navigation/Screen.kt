@@ -8,4 +8,13 @@ sealed class Screen(val route: String) {
     object FowlRecordCreation : Screen("fowl_record_creation/{fowlId}") {
         fun createRoute(fowlId: String) = "fowl_record_creation/$fowlId"
     }
+    object InitiateTransfer : Screen("initiate_transfer/{fowlId}") {
+        fun createRoute(fowlId: String) = "initiate_transfer/$fowlId"
+    }
+    object TransferVerification : Screen("transfer_verification/{transferId}") {
+        fun createRoute(transferId: String) = "transfer_verification/$transferId"
+    }
+    object FowlHistory : Screen("fowl_history/{fowlId}") {
+        fun createRoute(fowlId: String) = "fowl_history/$fowlId"
+    }
 }

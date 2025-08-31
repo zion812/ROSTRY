@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.rio.rostry.data.local.UserDao
 import com.rio.rostry.data.models.User
+import com.rio.rostry.utils.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -45,18 +46,18 @@ class UserRepositoryImpl @Inject constructor(
                     userDao.insertUser(user)
                 }
             }
-            Result.success(authResult)
+            Result.Success(authResult)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.Error(e)
         }
     }
 
     override suspend fun registerUser(email: String, pass: String, phone: String?): Result<AuthResult> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, pass).await()
-            Result.success(result)
+            Result.Success(result)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.Error(e)
         }
     }
 
@@ -65,11 +66,22 @@ class UserRepositoryImpl @Inject constructor(
             firestore.collection("users").document(user.uid).set(user).await()
             // Ensure the user is inserted into the local database after profile creation
             userDao.insertUser(user)
-            Result.success(Unit)
+            Result.Success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.Error(e)
         }
     }
 
     override fun getCurrentUserUid(): String? = auth.currentUser?.uid
+
+    override suspend fun updateFcmToken(token: String): Result<Unit> {
+        val userId = auth.currentUser?.uid ?: return Result.Error(Exception("User not logged in"))
+        return try {
+            firestore.collection("users").document(userId)
+                .update("fcmToken", token).await()
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
 }

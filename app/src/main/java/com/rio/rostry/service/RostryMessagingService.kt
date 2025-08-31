@@ -1,22 +1,37 @@
 package com.rio.rostry.service
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.rio.rostry.R
+import com.rio.rostry.data.repo.UserRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class RostryMessagingService : FirebaseMessagingService() {
 
-    // In a real app, you would inject a repository here to save the token
-    // @Inject lateinit var userRepository: UserRepository 
+    @Inject
+    lateinit var userRepository: UserRepository
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Timber.d("FCM Token: %s", token)
-        // Here you would typically send the token to your server or save it to Firestore
-        // e.g., viewModelScope.launch { userRepository.updateFcmToken(token) }
+        serviceScope.launch {
+            userRepository.updateFcmToken(token)
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -32,7 +47,34 @@ class RostryMessagingService : FirebaseMessagingService() {
         // Check if message contains a notification payload.
         remoteMessage.notification?.let {
             Timber.d("Message Notification Body: %s", it.body)
-            // Handle notification payload (e.g., show a local notification)
+            sendNotification(it.title, it.body)
         }
+    }
+
+    private fun sendNotification(title: String?, messageBody: String?) {
+        val channelId = "default_channel_id"
+        val notificationBuilder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // Using a default icon
+            .setContentTitle(title)
+            .setContentText(messageBody)
+            .setAutoCancel(true)
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Default Channel",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        notificationManager.notify(0, notificationBuilder.build())
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
     }
 }

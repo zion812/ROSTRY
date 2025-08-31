@@ -23,6 +23,9 @@ playServicesLocation = "21.3.0"
 mockk = "1.13.10"
 uiAutomator = "2.3.0"
 turbine = "1.1.0"
+coroutines = "1.8.0"
+firebaseCrashlyticsPlugin = "3.0.1"
+lifecycleCompose = "2.8.3"
 
 [libraries]
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
@@ -59,8 +62,10 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version =
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+firebase-crashlytics-sdk = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
+firebase-functions = { group = "com.google.firebase", name = "firebase-functions-ktx" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
@@ -75,6 +80,9 @@ mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
 androidx-ui-automator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiAutomator" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+androidx-lifecycle-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -83,3 +91,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGms" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }

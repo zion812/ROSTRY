@@ -111,4 +111,34 @@ class FowlRepositoryImpl @Inject constructor(
         val userId = auth.currentUser?.uid ?: return flowOf(emptyList())
         return fowlDao.getOffspring(fowlId, userId)
     }
+
+    override suspend fun updateFowlOwner(fowlId: String, newOwnerId: String) {
+        val currentOwnerId = auth.currentUser?.uid ?: return
+
+        val fowlRef = firestore.collection("users").document(currentOwnerId).collection("fowls").document(fowlId)
+
+        try {
+            val fowlDocument = fowlRef.get().await()
+            val fowl = fowlDocument.toObject<Fowl>()
+
+            if (fowl != null) {
+                val newFowl = fowl.copy(userId = newOwnerId)
+                val newFowlRef = firestore.collection("users").document(newOwnerId).collection("fowls").document(fowlId)
+
+                firestore.runBatch {
+                    it.set(newFowlRef, newFowl)
+                    it.delete(fowlRef)
+                }.await()
+
+                // Update local database
+                fowlDao.updateFowlOwner(fowlId, newOwnerId)
+
+            } else {
+                Log.e("FowlRepo", "Fowl with id $fowlId not found for user $currentOwnerId")
+            }
+        } catch (e: Exception) {
+            Log.e("FowlRepo", "Error updating fowl owner", e)
+            throw e // Re-throw to be handled by the caller
+        }
+    }
 }

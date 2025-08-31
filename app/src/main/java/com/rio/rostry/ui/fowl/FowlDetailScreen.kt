@@ -21,6 +21,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,7 +47,9 @@ fun FowlDetailScreen(
     fowlId: String,
     viewModel: FowlViewModel = hiltViewModel(),
     onNavigateToRecordCreation: (String) -> Unit,
-    onNavigateToFowlDetail: (String) -> Unit
+    onNavigateToFowlDetail: (String) -> Unit,
+    onNavigateToTransfer: (String) -> Unit,
+    onNavigateToHistory: (String) -> Unit
 ) {
     val fowl by viewModel.selectedFowl.collectAsState()
     val records by viewModel.fowlRecords.collectAsState()
@@ -77,7 +80,7 @@ fun FowlDetailScreen(
             if (fowl == null) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
             } else {
-                FowlDetailContent(fowl!!, records, sire, dam, offspring, onNavigateToFowlDetail)
+                FowlDetailContent(fowl!!, records, sire, dam, offspring, onNavigateToFowlDetail, onNavigateToTransfer, onNavigateToHistory)
             }
         }
     }
@@ -90,7 +93,9 @@ fun FowlDetailContent(
     sire: Fowl?,
     dam: Fowl?,
     offspring: List<Fowl>,
-    onNavigateToFowlDetail: (String) -> Unit
+    onNavigateToFowlDetail: (String) -> Unit,
+    onNavigateToTransfer: (String) -> Unit,
+    onNavigateToHistory: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -117,6 +122,24 @@ fun FowlDetailContent(
             Text(text = "Status: ${fowl.status}", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
             Text(text = "Group: ${fowl.group ?: "N/A"}", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
             Text(text = "Birth Date: ${fowl.birthDate}", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { onNavigateToTransfer(fowl.id) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Transfer Ownership")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { onNavigateToHistory(fowl.id) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("View Transfer History")
+            }
         }
         
         item { Spacer(modifier = Modifier.height(16.dp)) }

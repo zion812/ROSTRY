@@ -1,15 +1,22 @@
 rules_version = '2';
-
 service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      // User can read and update their own profile
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      // User can create their own profile document
-      allow create: if request.auth != null && request.auth.uid == userId;
+  database: {
+    // Helper function to get user role
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+    
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
-      // Rules for the 'fowls' subcollection
-      match /fowls/{fowlId} {
+    match /databases/{database}/documents {
+      match /users/{userId} {
+        // User can read and update their own profile
+        allow read, update: if request.auth != null && request.auth.uid == userId;
+        // User can create their own profile document
+        allow create: if request.auth != null && request.auth.uid == userId;
         allow read, delete: if request.auth != null && request.auth.uid == userId;
         allow create: if request.auth != null && request.auth.uid == userId
                       && request.resource.data.userId == userId;
@@ -37,6 +44,71 @@ service cloud.firestore {
     }
 
     // Conversations and Messages
+    match /transfers/{transferId} {
+      // A user can read a transfer if they are the sender or receiver.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.fromUserId || request.auth.uid == resource.data.toUserId);
+
+      // A user can create a transfer request if they are the sender and the status is PENDING.
+      allow create: if request.auth != null 
+                    && request.resource.data.fromUserId == request.auth.uid
+                    && request.resource.data.status == 'PENDING';
+
+      // Update rules for state transitions.
+      allow update: if request.auth != null && areFieldsImmutable() && (
+        // The sender can cancel a pending transfer
+        (isSender() && request.resource.data.status == 'CANCELED' && resource.data.status == 'PENDING') ||
+        // The receiver can reject a pending transfer
+        (isReceiver() && request.resource.data.status == 'REJECTED' && resource.data.status == 'PENDING') ||
+        // The receiver can accept a pending transfer
+        (isReceiver() && request.resource.data.status == 'VERIFIED' && resource.data.status == 'PENDING')
+      );
+
+      function isSender() {
+        return request.auth.uid == resource.data.fromUserId;
+      }
+
+      function isReceiver() {
+        return request.auth.uid == resource.data.toUserId;
+      }
+
+      function areFieldsImmutable() {
+        return request.resource.data.fromUserId == resource.data.fromUserId
+          && request.resource.data.toUserId == resource.data.toUserId
+          && request.resource.data.fowlId == resource.data.fowlId
+          && request.resource.data.requestTimestamp == resource.data.requestTimestamp;
+      }
+    }
+
+    match /transfers/{transferId} {
+      allow read, write: if request.auth != null 
+        && (request.auth.uid == resource.data.fromUserId 
+            || request.auth.uid == resource.data.toUserId);
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.fromUserId;
+    }
+
+    match /fraud_analysis/{analysisId} {
+      allow read, write: if request.auth != null 
+        && getUserRole(request.auth.uid) == 'admin';
+    }
+
+    match /transfer_audit_logs/{logId} {
+      allow read: if request.auth != null 
+        && getUserRole(request.auth.uid) == 'admin';
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    match /admin_alerts/{alertId} {
+      allow read, write: if request.auth != null 
+        && getUserRole(request.auth.uid) == 'admin';
+    }
+
+    match /admin_actions/{actionId} {
+      allow read: if request.auth != null 
+        && getUserRole(request.auth.uid) == 'admin';
+      allow write: if false; // Only Cloud Functions can write
+    }
+
     match /conversations/{conversationId} {
       allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
