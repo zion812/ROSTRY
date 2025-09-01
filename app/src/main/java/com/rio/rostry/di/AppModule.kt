@@ -18,6 +18,7 @@ import com.rio.rostry.data.local.FowlDao
 import com.rio.rostry.data.local.FowlRecordDao
 import com.rio.rostry.data.local.TransferDao
 import com.rio.rostry.data.local.MarketplaceDao
+import com.rio.rostry.data.local.migrations.MIGRATION_8_9
 import com.rio.rostry.data.repo.FowlRepository
 import com.rio.rostry.data.repo.FowlRepositoryImpl
 import com.rio.rostry.data.repo.StorageRepository
@@ -26,9 +27,13 @@ import com.rio.rostry.data.repo.UserRepository
 import com.rio.rostry.data.repo.UserRepositoryImpl
 import com.rio.rostry.data.repo.MarketplaceRepository
 import com.rio.rostry.data.repo.MarketplaceRepositoryImpl
+import com.rio.rostry.data.repo.ProfileRepository
+import com.rio.rostry.data.repo.ProfileRepositoryImpl
 import com.rio.rostry.utils.NetworkMonitor
 import com.rio.rostry.utils.NetworkMonitorImpl
 import com.rio.rostry.utils.PerformanceLogger
+import com.rio.rostry.data.profile.SpecialtiesProvider
+import com.rio.rostry.data.profile.DefaultSpecialtiesProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -84,7 +89,7 @@ object AppModule {
             context,
             RostryDatabase::class.java,
             "rostry_database"
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(MIGRATION_8_9).build()
     }
 
     @Provides
@@ -106,6 +111,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMarketplaceDao(database: RostryDatabase): MarketplaceDao = database.marketplaceDao()
+
+    @Provides
+    @Singleton
+    fun provideSpecialtiesProvider(): SpecialtiesProvider = DefaultSpecialtiesProvider()
 
     @Provides
     @Singleton
@@ -147,10 +156,19 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideProfileRepository(
+        auth: FirebaseAuth,
+        firestore: FirebaseFirestore,
+        functions: FirebaseFunctions,
+        storageRepository: StorageRepository
+    ): ProfileRepository = ProfileRepositoryImpl(auth, firestore, functions, storageRepository)
+
+    @Provides
+    @Singleton
     fun provideNetworkMonitor(@ApplicationContext context: Context): NetworkMonitor = NetworkMonitorImpl(context)
 
     @Provides
     @Singleton
-        fun providePerformanceLogger(firestore: FirebaseFirestore, auth: FirebaseAuth): PerformanceLogger = PerformanceLogger(firestore, auth)
+    fun providePerformanceLogger(firestore: FirebaseFirestore, auth: FirebaseAuth): PerformanceLogger = PerformanceLogger(firestore, auth)
 
 }

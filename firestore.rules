@@ -8,7 +8,18 @@ service cloud.firestore {
 
     // CORRECTED USER RULES (deduplicated)
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Owner can update own profile EXCEPT server-only fields
+      allow update: if request.auth != null && request.auth.uid == userId &&
+        !(('kycStatus' in request.resource.data.diff(resource.data).changedKeys()) ||
+          ('trustScore' in request.resource.data.diff(resource.data).changedKeys()) ||
+          ('farmCertification' in request.resource.data.diff(resource.data).changedKeys()) ||
+          ('verifiedTransfersCount' in request.resource.data.diff(resource.data).changedKeys()) ||
+          ('profileBadges' in request.resource.data.diff(resource.data).changedKeys()));
+      // Creation allowed for self
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Note: Region-level privacy enforcement is handled in app logic; sensitive
+      // location precision should not be written when regionPrivacy == true.
     }
 
     // CORRECTED FOWL RULES + RECORDS NESTING

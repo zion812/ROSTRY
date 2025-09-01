@@ -29,6 +29,7 @@ import com.rio.rostry.ui.analytics.AnalyticsScreen
 import com.rio.rostry.ui.main.MainViewModel
 import android.util.Log // Added for logging
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 
 @Composable
@@ -191,12 +192,45 @@ fun NavGraph(startDestination: String = "auth_graph") {
             composable("edit_profile_screen") {
                 val profileViewModel: ProfileViewModel = hiltViewModel()
                 val uiState by profileViewModel.uiState.collectAsState()
+                LaunchedEffect(Unit) { profileViewModel.logScreenView("edit_profile") }
 
                 EditProfileScreen(
                     currentBio = uiState.bio,
                     currentProfileImageUrl = uiState.profileImageUrl,
-                    onSave = { bio: String, imageUri: android.net.Uri? ->
-                        profileViewModel.updateProfile(bio, imageUri)
+                    userType = uiState.userType,
+                    availableSpecialties = uiState.availableSpecialties,
+                    currentLanguages = uiState.languages,
+                    currentRegionPrivacy = uiState.regionPrivacy,
+                    currentFarmName = uiState.farmName,
+                    currentFarmRegistrationId = uiState.farmRegistrationId,
+                    currentBrandName = uiState.brandName,
+                    currentSpecialties = uiState.specialties,
+                    currentExperienceYears = uiState.experienceYears,
+                    isRequestingFarmCert = uiState.isRequestingFarmCert,
+                    errorMessage = uiState.errorMessage,
+                    onRequestFarmCert = { request ->
+                        profileViewModel.requestFarmCertification(request)
+                    },
+                    onSave = { bio: String,
+                        imageUri: android.net.Uri?,
+                        languages: List<String>,
+                        regionPrivacy: Boolean,
+                        farmName: String?,
+                        farmRegistrationId: String?,
+                        brandName: String?,
+                        specialties: List<String>,
+                        experienceYears: Int? ->
+                        profileViewModel.updateProfile(
+                            bio,
+                            imageUri,
+                            languages,
+                            regionPrivacy,
+                            farmName,
+                            farmRegistrationId,
+                            brandName,
+                            specialties,
+                            experienceYears
+                        )
                         navController.popBackStack()
                     },
                     onNavigateUp = { navController.popBackStack() }
