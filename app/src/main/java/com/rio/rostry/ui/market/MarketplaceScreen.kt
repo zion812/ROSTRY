@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import com.rio.rostry.data.models.market.MarketplaceListing
 import com.rio.rostry.ui.market.cart.CartViewModel
 import com.rio.rostry.ui.messaging.MessagingViewModel
+import com.rio.rostry.ui.components.REmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,31 +127,42 @@ fun MarketplaceScreen(
                 }
             }
             is MarketplaceUiState.Success -> {
-                Column(modifier = Modifier.padding(paddingValues)) {
-                    OutlinedTextField(
-                        value = filters.searchQuery,
-                        onValueChange = { marketplaceViewModel.onSearchQueryChanged(it) },
-                        label = { Text("Search by breed or description") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = { marketplaceViewModel.fetchMarketplaceListings() }) {
-                            Text("Clear Filter")
-                        }
+                if (state.listings.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                        REmptyState(
+                            title = "No listings found",
+                            subtitle = "Try adjusting filters or come back later.",
+                            primaryCtaLabel = "Clear Filter",
+                            onPrimaryCta = { marketplaceViewModel.fetchMarketplaceListings() }
+                        )
                     }
-                    MarketplaceList(
-                        listings = state.listings,
-                        onAddToCart = { cartViewModel.addToCart(it) },
-                        onAddToWishlist = { cartViewModel.addToWishlist(it) },
-                        onContactSeller = { sellerId ->
-                            messagingViewModel.createConversation(sellerId) { conversationId ->
-                                conversationId?.let { onNavigateToChat(it) }
+                } else {
+                    Column(modifier = Modifier.padding(paddingValues)) {
+                        OutlinedTextField(
+                            value = filters.searchQuery,
+                            onValueChange = { marketplaceViewModel.onSearchQueryChanged(it) },
+                            label = { Text("Search by breed or description") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
+                            Button(onClick = { marketplaceViewModel.fetchMarketplaceListings() }) {
+                                Text("Clear Filter")
                             }
                         }
-                    )
+                        MarketplaceList(
+                            listings = state.listings,
+                            onAddToCart = { cartViewModel.addToCart(it) },
+                            onAddToWishlist = { cartViewModel.addToWishlist(it) },
+                            onContactSeller = { sellerId ->
+                                messagingViewModel.createConversation(sellerId) { conversationId ->
+                                    conversationId?.let { onNavigateToChat(it) }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

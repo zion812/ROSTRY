@@ -52,6 +52,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.rio.rostry.R
 import com.rio.rostry.data.models.Fowl
+import com.rio.rostry.ui.components.REmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,49 +84,63 @@ fun FowlListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                items(count = fowls.itemCount, key = fowls.itemKey { it.id }) { index ->
-                    val fowl = fowls[index]
-                    fowl?.let {
-                        FowlListItem(fowl = it, onClick = { onFowlClick(it.id) })
-                    }
+            val isRefreshing = fowls.loadState.refresh is LoadState.Loading
+            val hasError = fowls.loadState.refresh is LoadState.Error
+            if (!isRefreshing && !hasError && fowls.itemCount == 0) {
+                // Empty state
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    REmptyState(
+                        title = "No fowls yet",
+                        subtitle = "Register your first fowl to get started.",
+                        primaryCtaLabel = "Register Fowl",
+                        onPrimaryCta = onNavigateToRegistration
+                    )
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    items(count = fowls.itemCount, key = fowls.itemKey { it.id }) { index ->
+                        val fowl = fowls[index]
+                        fowl?.let {
+                            FowlListItem(fowl = it, onClick = { onFowlClick(it.id) })
+                        }
+                    }
 
-                fowls.loadState.apply {
-                    when {
-                        refresh is LoadState.Loading -> {
-                            item {
-                                Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator()
+                    fowls.loadState.apply {
+                        when {
+                            refresh is LoadState.Loading -> {
+                                item {
+                                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
                                 }
                             }
-                        }
-                        append is LoadState.Loading -> {
-                            item {
-                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                            append is LoadState.Loading -> {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                                    }
                                 }
                             }
-                        }
-                        refresh is LoadState.Error -> {
-                            val e = fowls.loadState.refresh as LoadState.Error
-                            item {
-                                Text(
-                                    text = "Error: ${e.error.localizedMessage}",
-                                    modifier = Modifier.fillParentMaxSize(),
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                            refresh is LoadState.Error -> {
+                                val e = fowls.loadState.refresh as LoadState.Error
+                                item {
+                                    Text(
+                                        text = "Error: ${e.error.localizedMessage}",
+                                        modifier = Modifier.fillParentMaxSize(),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
-                        }
-                        append is LoadState.Error -> {
-                             val e = fowls.loadState.append as LoadState.Error
-                             item {
-                                Text(text = "Error: ${e.error.localizedMessage}", color = MaterialTheme.colorScheme.error)
-                             }
+                            append is LoadState.Error -> {
+                                 val e = fowls.loadState.append as LoadState.Error
+                                 item {
+                                    Text(text = "Error: ${e.error.localizedMessage}", color = MaterialTheme.colorScheme.error)
+                                 }
+                            }
                         }
                     }
                 }

@@ -1,114 +1,63 @@
 rules_version = '2';
 service cloud.firestore {
-  database: {
-    // Helper function to get user role
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
-    }
-    
+  match /databases/{database}/documents {
     // Default deny all
     match /{document=**} {
       allow read, write: if false;
     }
 
-    match /databases/{database}/documents {
-      match /users/{userId} {
-        // User can read and update their own profile
-        allow read, update: if request.auth != null && request.auth.uid == userId;
-        // User can create their own profile document
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow read, delete: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId
-                      && request.resource.data.userId == userId;
-        allow update: if request.auth != null && request.auth.uid == userId
-                      && request.resource.data.userId == userId;
+    // CORRECTED USER RULES (deduplicated)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
 
-        // Rules for the 'records' subcollection nested under 'fowls'
-        match /records/{recordId} {
-          allow read, delete: if request.auth != null && request.auth.uid == userId;
-          allow create: if request.auth != null && request.auth.uid == userId
-                        && request.resource.data.userId == userId
-                        && request.resource.data.fowlId == fowlId;
-          allow update: if request.auth != null && request.auth.uid == userId
-                        && request.resource.data.userId == userId
-                        && request.resource.data.fowlId == fowlId;
-        }
+    // CORRECTED FOWL RULES + RECORDS NESTING
+    match /fowls/{fowlId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      match /records/{recordId} {
+        allow read, write: if request.auth != null &&
+          request.auth.uid == get(/databases/$(database)/documents/fowls/$(fowlId)).data.ownerId &&
+          request.resource.data.fowlId == fowlId;
       }
     }
 
-    // Marketplace Listings
+    // Marketplace Listings (unchanged)
     match /marketplace_listings/{listingId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
       allow update, delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
     }
 
-    // Conversations and Messages
+    // UNIFIED TRANSFER RULES
     match /transfers/{transferId} {
-      // A user can read a transfer if they are the sender or receiver.
-      allow read: if request.auth != null && (request.auth.uid == resource.data.fromUserId || request.auth.uid == resource.data.toUserId);
+      // Read access: only transfer participants
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.fromUserId || request.auth.uid == resource.data.toUserId);
 
-      // A user can create a transfer request if they are the sender and the status is PENDING.
-      allow create: if request.auth != null 
-                    && request.resource.data.fromUserId == request.auth.uid
-                    && request.resource.data.status == 'PENDING';
+      // Create: only sender can initiate with PENDING status
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.fromUserId &&
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.keys().hasAll(['fowlId', 'toUserId', 'requestTimestamp']);
 
-      // Update rules for state transitions.
-      allow update: if request.auth != null && areFieldsImmutable() && (
-        // The sender can cancel a pending transfer
-        (isSender() && request.resource.data.status == 'CANCELED' && resource.data.status == 'PENDING') ||
-        // The receiver can reject a pending transfer
-        (isReceiver() && request.resource.data.status == 'REJECTED' && resource.data.status == 'PENDING') ||
-        // The receiver can accept a pending transfer
-        (isReceiver() && request.resource.data.status == 'VERIFIED' && resource.data.status == 'PENDING')
-      );
-
-      function isSender() {
-        return request.auth.uid == resource.data.fromUserId;
-      }
-
-      function isReceiver() {
-        return request.auth.uid == resource.data.toUserId;
-      }
-
-      function areFieldsImmutable() {
-        return request.resource.data.fromUserId == resource.data.fromUserId
-          && request.resource.data.toUserId == resource.data.toUserId
-          && request.resource.data.fowlId == resource.data.fowlId
-          && request.resource.data.requestTimestamp == resource.data.requestTimestamp;
-      }
+      // Update: controlled state transitions only
+      allow update: if request.auth != null &&
+        (
+          // Sender can cancel pending transfers
+          (request.auth.uid == resource.data.fromUserId && resource.data.status == 'PENDING' && request.resource.data.status == 'CANCELED') ||
+          // Receiver can reject pending transfers
+          (request.auth.uid == resource.data.toUserId && resource.data.status == 'PENDING' && request.resource.data.status == 'REJECTED')
+        ) &&
+        // Prevent modification of immutable fields
+        request.resource.data.fromUserId == resource.data.fromUserId &&
+        request.resource.data.toUserId == resource.data.toUserId &&
+        request.resource.data.fowlId == resource.data.fowlId &&
+        request.resource.data.requestTimestamp == resource.data.requestTimestamp;
+      // Note: COMPLETED is set by Cloud Functions only (approveTransfer)
     }
 
-    match /transfers/{transferId} {
-      allow read, write: if request.auth != null 
-        && (request.auth.uid == resource.data.fromUserId 
-            || request.auth.uid == resource.data.toUserId);
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.fromUserId;
-    }
-
-    match /fraud_analysis/{analysisId} {
-      allow read, write: if request.auth != null 
-        && getUserRole(request.auth.uid) == 'admin';
-    }
-
-    match /transfer_audit_logs/{logId} {
-      allow read: if request.auth != null 
-        && getUserRole(request.auth.uid) == 'admin';
-      allow write: if false; // Only Cloud Functions can write
-    }
-
-    match /admin_alerts/{alertId} {
-      allow read, write: if request.auth != null 
-        && getUserRole(request.auth.uid) == 'admin';
-    }
-
-    match /admin_actions/{actionId} {
-      allow read: if request.auth != null 
-        && getUserRole(request.auth.uid) == 'admin';
-      allow write: if false; // Only Cloud Functions can write
-    }
-
+    // Conversations and Messages (unchanged)
     match /conversations/{conversationId} {
       allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
@@ -119,17 +68,31 @@ service cloud.firestore {
       }
     }
 
-    // Analytics daily snapshots per user
+    // Analytics daily snapshots per user (keep as-is)
     match /analytics/{userId}/daily/{date} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // User analytics event logs (written by Cloud Functions only)
     match /user_analytics/{userId}/events/{eventId} {
-      // Users may read their own analytics events
       allow read: if request.auth != null && request.auth.uid == userId;
-      // Deny client writes; only Cloud Functions (Admin SDK) can write
-      allow write: if false;
+      allow write: if false; // Cloud Functions only
+    }
+
+    // ADMIN COLLECTIONS (locked to Functions/admin infra only)
+    // If you later need console access, consider role-based checks.
+    match /fraud_analysis/{document=**} {
+      allow read, write: if false;
+    }
+    match /admin_alerts/{document=**} {
+      allow read, write: if false;
+    }
+    match /admin_actions/{document=**} {
+      allow read, write: if false;
+    }
+    match /transfer_audit_logs/{logId} {
+      allow read: if false; // Admin-only via backend tools
+      allow write: if false; // Cloud Functions (Admin SDK) only
     }
   }
 }

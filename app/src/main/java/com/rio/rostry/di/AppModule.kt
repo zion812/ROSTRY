@@ -10,6 +10,7 @@ import com.google.firebase.storage.ktx.storage
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.gson.Gson
 import com.rio.rostry.data.local.RostryDatabase
 import com.rio.rostry.data.local.UserDao
@@ -68,6 +69,12 @@ object AppModule {
     @Singleton
     fun provideGson(): Gson {
         return Gson()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAnalytics(@ApplicationContext context: Context): FirebaseAnalytics {
+        return FirebaseAnalytics.getInstance(context)
     }
 
     @Provides
