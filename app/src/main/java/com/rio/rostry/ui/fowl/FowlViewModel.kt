@@ -8,6 +8,7 @@ import androidx.paging.cachedIn
 import com.rio.rostry.data.models.Fowl
 import androidx.work.WorkInfo
 import com.rio.rostry.data.models.FowlRecord
+import com.rio.rostry.data.analytics.AnalyticsTracker
 import com.rio.rostry.data.repo.FowlRepository
 import com.rio.rostry.data.repo.StorageRepository
 import com.rio.rostry.data.repo.SyncRepository
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Date
 import java.util.UUID
 import javax.inject.Inject
@@ -28,7 +30,8 @@ import javax.inject.Inject
 class FowlViewModel @Inject constructor(
     private val fowlRepository: FowlRepository,
     private val storageRepository: StorageRepository,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
 
     val syncWorkInfo: StateFlow<WorkInfo?> = syncRepository.syncWorkInfo
@@ -54,6 +57,17 @@ class FowlViewModel @Inject constructor(
 
     private val _offspring = MutableStateFlow<List<Fowl>>(emptyList())
     val offspring: StateFlow<List<Fowl>> = _offspring.asStateFlow()
+
+    // Registration state to coordinate UI navigation and feedback
+    sealed interface RegistrationState {
+        object Idle : RegistrationState
+        object Loading : RegistrationState
+        object Success : RegistrationState
+        data class Error(val message: String) : RegistrationState
+    }
+
+    private val _registrationState = MutableStateFlow<RegistrationState>(RegistrationState.Idle)
+    val registrationState: StateFlow<RegistrationState> = _registrationState.asStateFlow()
 
     fun getFowlRecords(fowlId: String) {
         viewModelScope.launch {
@@ -134,23 +148,40 @@ class FowlViewModel @Inject constructor(
         imageUri: Uri?
     ) {
         viewModelScope.launch {
-            val fowlId = UUID.randomUUID().toString()
-            val imageUrl = imageUri?.let { storageRepository.uploadImage(it) }
-            val qrCodeBitmap = QrCodeGenerator.generate(fowlId)
-            val qrCodeUrl = qrCodeBitmap?.let { storageRepository.uploadBitmap(it) }
+            try {
+                _registrationState.value = RegistrationState.Loading
+                val fowlId = UUID.randomUUID().toString()
+                val imageUrl = imageUri?.let {
+                    // If upload takes too long, skip and continue
+                    withTimeoutOrNull(5_000) { storageRepository.uploadImage(it) }
+                }
+                val qrCodeBitmap = QrCodeGenerator.generate(fowlId)
+                val qrCodeUrl = qrCodeBitmap?.let {
+                    withTimeoutOrNull(5_000) { storageRepository.uploadBitmap(it) }
+                }
 
-            val newFowl = Fowl(
-                id = fowlId,
-                name = name,
-                group = group,
-                sireId = sireId,
-                damId = damId,
-                birthDate = birthDate,
-                status = status,
-                imageUrl = imageUrl,
-                qrCodeUrl = qrCodeUrl
-            )
-            fowlRepository.addFowl(newFowl, imageUri)
+                val newFowl = Fowl(
+                    id = fowlId,
+                    name = name,
+                    group = group,
+                    sireId = sireId,
+                    damId = damId,
+                    birthDate = birthDate,
+                    status = status,
+                    imageUrl = imageUrl,
+                    qrCodeUrl = qrCodeUrl
+                )
+                fowlRepository.addFowl(newFowl, imageUri)
+                // Log registration event (breed/sex unknown in this context)
+                analyticsTracker.logFowlRegistration(
+                    fowlId = fowlId,
+                    breed = null,
+                    sex = null,
+                )
+                _registrationState.value = RegistrationState.Success
+            } catch (t: Throwable) {
+                _registrationState.value = RegistrationState.Error(t.message ?: "Failed to register fowl")
+            }
         }
     }
 }

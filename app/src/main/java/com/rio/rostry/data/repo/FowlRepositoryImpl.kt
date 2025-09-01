@@ -12,6 +12,7 @@ import com.rio.rostry.utils.NetworkMonitor
 import com.rio.rostry.utils.PerformanceLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.system.measureTimeMillis
 import androidx.paging.Pager
 import kotlinx.coroutines.flow.first
@@ -35,25 +36,36 @@ class FowlRepositoryImpl @Inject constructor(
     private val userId: String
         get() = auth.currentUser?.uid ?: ""
 
+    private val ioScope = CoroutineScope(Dispatchers.IO)
+
 
 
 
 
     override suspend fun addFowl(fowl: Fowl, photoUri: android.net.Uri?) {
-        // This is a placeholder implementation. The actual implementation should handle photo upload.
+        // Local-first: insert immediately and return; sync Firestore in background
         val fowlWithUser = fowl.copy(userId = userId)
         fowlDao.insertFowl(fowlWithUser)
+
         if (networkMonitor.isConnected().first()) {
-            var success = false
-            val duration = measureTimeMillis {
-                try {
-                    firestore.collection("users").document(userId).collection("fowls").document(fowl.id).set(fowlWithUser).await()
-                    success = true
-                } catch (e: Exception) {
-                    Log.e("FowlRepo", "Error adding fowl to Firestore", e)
+            ioScope.launch {
+                var success = false
+                val duration = measureTimeMillis {
+                    withTimeoutOrNull(8_000) {
+                        try {
+                            firestore.collection("users").document(userId)
+                                .collection("fowls").document(fowl.id)
+                                .set(fowlWithUser).await()
+                            success = true
+                        } catch (e: Exception) {
+                            Log.e("FowlRepo", "Error adding fowl to Firestore", e)
+                        }
+                    } ?: run {
+                        Log.w("FowlRepo", "addFowl Firestore write timed out")
+                    }
                 }
+                performanceLogger.logNetworkRequest("addFowl", duration, success)
             }
-            performanceLogger.logNetworkRequest("addFowl", duration, success)
         }
     }
 

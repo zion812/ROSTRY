@@ -37,6 +37,7 @@ import com.rio.rostry.ui.fowl.FowlListScreen
 import com.rio.rostry.ui.main.screens.GeneralHomeScreen
 import com.rio.rostry.ui.main.screens.PlaceholderScreen
 import com.rio.rostry.ui.main.screens.admin.AdminDashboardScreen
+import com.rio.rostry.ui.main.screens.analytics.AnalyticsScreen
 import com.rio.rostry.ui.main.screens.profile.ProfileScreen
 import com.rio.rostry.ui.main.screens.settings.SettingsScreen
 import com.rio.rostry.ui.market.MarketplaceScreen
@@ -79,6 +80,7 @@ fun MainScreen(
             MainScreen.FarmerHome,
             MainScreen.Fowls,
             MainScreen.FarmerMarketplace,
+            MainScreen.Analytics,
             MainScreen.Conversations,
             MainScreen.Orders,
             MainScreen.Transfers,
@@ -90,7 +92,7 @@ fun MainScreen(
             MainScreen.Conversations,
             MainScreen.Orders,
             MainScreen.Transfers,
-            MainScreen.EnthusiastAnalytics,
+            MainScreen.Analytics,
             MainScreen.EnthusiastProfile
         )
         else -> emptyList()
@@ -231,7 +233,7 @@ fun MainScreen(
                 }
 
                 // Enthusiast
-                composable(MainScreen.EnthusiastAnalytics.route) { PlaceholderScreen(name = "Analytics") }
+                composable(MainScreen.Analytics.route) { AnalyticsScreen() }
                 composable(MainScreen.EnthusiastResearch.route) { PlaceholderScreen(name = "Research") }
                 composable(MainScreen.EnthusiastProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth, onNavigateToSettings = onNavigateToSettings, onNavigateToEditProfile = onNavigateToEditProfile, onNavigateToAdminDashboard = { navController.navigate("admin_dashboard") }) }
                 composable(MainScreen.EnthusiastSettings.route) { SettingsScreen(onNavigateUp = { navController.navigateUp() }) }

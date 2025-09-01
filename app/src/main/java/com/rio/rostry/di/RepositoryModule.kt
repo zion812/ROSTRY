@@ -3,6 +3,8 @@ package com.rio.rostry.di
 import com.rio.rostry.data.repo.SyncRepository
 import com.rio.rostry.data.repo.AdminRepository
 import com.rio.rostry.data.repo.AdminRepositoryImpl
+import com.rio.rostry.data.repo.AnalyticsRepository
+import com.rio.rostry.data.repo.AnalyticsRepositoryImpl
 import com.rio.rostry.data.repo.SyncRepositoryImpl
 import com.rio.rostry.data.repo.TransferRepository
 import com.rio.rostry.data.repo.TransferRepositoryImpl
@@ -23,4 +25,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindAdminRepository(impl: AdminRepositoryImpl): AdminRepository
+
+    @Binds
+    abstract fun bindAnalyticsRepository(impl: AnalyticsRepositoryImpl): AnalyticsRepository
 }

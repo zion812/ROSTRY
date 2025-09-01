@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation("com.google.code.gson:gson:2.10.1")
 
     // Stripe
@@ -104,12 +105,19 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
 
+    // DataStore (for analytics event queue)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
     // Paging
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
 
     // Location
     implementation(libs.play.services.location)
+
+    // Charting (Vico)
+    implementation("com.patrykandpatrick.vico:core:1.14.0")
+    implementation("com.patrykandpatrick.vico:compose:1.14.0")
 
     // Testing
     testImplementation(libs.junit)

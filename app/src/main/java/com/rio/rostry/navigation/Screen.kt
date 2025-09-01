@@ -1,6 +1,7 @@
 package com.rio.rostry.navigation
 
 sealed class Screen(val route: String) {
+    object Analytics : Screen("analytics")
     object FowlRegistration : Screen("fowl_registration")
     object FowlDetail : Screen("fowl_detail/{fowlId}") {
         fun createRoute(fowlId: String) = "fowl_detail/$fowlId"

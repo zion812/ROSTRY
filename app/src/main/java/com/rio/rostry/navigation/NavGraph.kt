@@ -25,6 +25,7 @@ import com.rio.rostry.ui.main.MainScreen
 import com.rio.rostry.ui.main.screens.profile.EditProfileScreen
 import com.rio.rostry.ui.main.screens.profile.ProfileViewModel
 import com.rio.rostry.ui.main.screens.settings.SettingsScreen
+import com.rio.rostry.ui.analytics.AnalyticsScreen
 import com.rio.rostry.ui.main.MainViewModel
 import android.util.Log // Added for logging
 import androidx.compose.runtime.collectAsState
@@ -106,6 +107,9 @@ fun NavGraph(startDestination: String = "auth_graph") {
                     onNavigateToSettings = { navController.navigate("settings_screen") },
                     onNavigateToEditProfile = { navController.navigate("edit_profile_screen") }
                 )
+            }
+            composable(Screen.Analytics.route) {
+                AnalyticsScreen()
             }
             composable(Screen.FowlRegistration.route) {
                 FowlRegistrationScreen(

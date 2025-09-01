@@ -146,7 +146,7 @@ fun SyncStatusIcon(workInfo: WorkInfo?) {
     when (workInfo?.state) {
         WorkInfo.State.RUNNING -> {
             Icon(
-                imageVector = Icons.Default.Sync,
+                imageVector = Icons.Filled.Sync,
                 contentDescription = "Syncing",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.rotate(angle).padding(end = 8.dp)
@@ -154,7 +154,7 @@ fun SyncStatusIcon(workInfo: WorkInfo?) {
         }
         WorkInfo.State.SUCCEEDED -> {
             Icon(
-                imageVector = Icons.Default.CloudDone,
+                imageVector = Icons.Filled.CloudDone,
                 contentDescription = "Synced",
                 tint = Color.Green,
                 modifier = Modifier.padding(end = 8.dp)
@@ -162,7 +162,7 @@ fun SyncStatusIcon(workInfo: WorkInfo?) {
         }
         WorkInfo.State.FAILED -> {
             Icon(
-                imageVector = Icons.Default.SyncProblem,
+                imageVector = Icons.Filled.SyncProblem,
                 contentDescription = "Sync Failed",
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(end = 8.dp)
@@ -170,7 +170,7 @@ fun SyncStatusIcon(workInfo: WorkInfo?) {
         }
         WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> {
             Icon(
-                imageVector = Icons.Default.Sync,
+                imageVector = Icons.Filled.Sync,
                 contentDescription = "Sync Pending",
                 tint = Color.Gray,
                 modifier = Modifier.padding(end = 8.dp)
@@ -178,7 +178,7 @@ fun SyncStatusIcon(workInfo: WorkInfo?) {
         }
         WorkInfo.State.CANCELLED -> {
             Icon(
-                imageVector = Icons.Default.CloudOff,
+                imageVector = Icons.Filled.CloudOff,
                 contentDescription = "Sync Cancelled",
                 tint = Color.Gray,
                 modifier = Modifier.padding(end = 8.dp)

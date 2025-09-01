@@ -144,5 +144,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePerformanceLogger(firestore: FirebaseFirestore, auth: FirebaseAuth): PerformanceLogger = PerformanceLogger(firestore, auth)
+        fun providePerformanceLogger(firestore: FirebaseFirestore, auth: FirebaseAuth): PerformanceLogger = PerformanceLogger(firestore, auth)
+
 }

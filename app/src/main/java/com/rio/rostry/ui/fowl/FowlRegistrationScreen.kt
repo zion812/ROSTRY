@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +27,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,6 +67,9 @@ fun FowlRegistrationScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
+
+    // Observe registration state to handle UI feedback and navigation
+    val regState by viewModel.registrationState.collectAsState()
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -123,13 +129,17 @@ fun FowlRegistrationScreen(
         Spacer(modifier = Modifier.height(8.dp))
         RostryTextField(value = damId, onValueChange = { damId = it }, label = "Dam ID")
         Spacer(modifier = Modifier.height(8.dp))
+        // Make date selection explicit to avoid unreliable clicks inside readOnly field
         RostryTextField(
             value = birthDate?.let { SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(it) } ?: "",
             onValueChange = { },
             label = "Birth Date",
             readOnly = true,
-            modifier = Modifier.clickable { showDatePicker = true }
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { showDatePicker = true }, enabled = regState !is FowlViewModel.RegistrationState.Loading) {
+            Text("Select Birth Date")
+        }
         Spacer(modifier = Modifier.height(8.dp))
         RostryDropdown(label = "Status", items = fowlStatuses, selectedItem = status, onItemSelected = { status = it })
         Spacer(modifier = Modifier.height(16.dp))
@@ -145,13 +155,32 @@ fun FowlRegistrationScreen(
                         status = status,
                         imageUri = imageUri
                     )
-                    onFowlRegistered()
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank() && status.isNotBlank() && birthDate != null
+            enabled = name.isNotBlank() && status.isNotBlank() && birthDate != null && regState !is FowlViewModel.RegistrationState.Loading
         ) {
             Text("Register Fowl")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        when (regState) {
+            is FowlViewModel.RegistrationState.Loading -> {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(8.dp))
+                Text("Saving...")
+            }
+            is FowlViewModel.RegistrationState.Error -> {
+                val msg = (regState as FowlViewModel.RegistrationState.Error).message
+                Text("Error: $msg", color = Color.Red)
+            }
+            else -> Unit
+        }
+    }
+
+    // Navigate after successful registration
+    LaunchedEffect(regState) {
+        if (regState is FowlViewModel.RegistrationState.Success) {
+            onFowlRegistered()
         }
     }
 }

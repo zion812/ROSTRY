@@ -4,17 +4,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.Feed
+import androidx.compose.material.icons.automirrored.filled.Feed
+import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Message
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class MainScreen(
@@ -24,7 +24,7 @@ sealed class MainScreen(
 ) {
     // General User
     data object GeneralHome : MainScreen("general_home", "Home", Icons.Filled.Home)
-    data object GeneralFeed : MainScreen("general_feed", "Feed", Icons.Filled.Feed)
+    data object GeneralFeed : MainScreen("general_feed", "Feed", icon = Icons.AutoMirrored.Filled.Feed)
     data object GeneralCommunity : MainScreen("general_community", "Community", Icons.Filled.Groups)
     data object GeneralProfile : MainScreen("general_profile", "Profile", Icons.Filled.AccountCircle)
     data object GeneralSettings : MainScreen("general_settings", "Settings", Icons.Filled.Settings)
@@ -39,7 +39,7 @@ sealed class MainScreen(
 
     // High-Level Enthusiast
     data object EnthusiastHome : MainScreen("enthusiast_home", "Home", Icons.Filled.Home)
-    data object EnthusiastAnalytics : MainScreen("enthusiast_analytics", "Analytics", Icons.Filled.Analytics)
+    data object Analytics : MainScreen("analytics", "Analytics", Icons.Filled.Analytics)
     data object EnthusiastResearch : MainScreen("enthusiast_research", "Research", Icons.Filled.Science)
     data object EnthusiastProfile : MainScreen("enthusiast_profile", "Profile", Icons.Filled.AccountCircle)
     data object EnthusiastSettings : MainScreen("enthusiast_settings", "Settings", Icons.Filled.Settings)
@@ -51,16 +51,16 @@ sealed class MainScreen(
     object Wishlist : MainScreen("wishlist_screen")
     data object SelectFowl : MainScreen("select_fowl", "Select Fowl", Icons.Filled.Pets)
     data object CreateListing : MainScreen("create_listing/{fowlId}", "Create Listing", Icons.Filled.Add)
-    data object Conversations : MainScreen("conversations_screen", "Messages", Icons.Filled.Message)
+    data object Conversations : MainScreen("conversations_screen", "Messages", icon = Icons.AutoMirrored.Filled.Message)
     data object Chat : MainScreen("chat_screen/{conversationId}", "Chat") {
         fun createRoute(conversationId: String) = "chat_screen/$conversationId"
     }
-    data object Orders : MainScreen("orders_screen", "Orders", Icons.Filled.Receipt)
+                data object Orders : MainScreen("orders_screen", "Orders", Icons.Filled.Receipt)
     data object OrderDetail : MainScreen("order_detail/{orderId}", "Order Detail") {
         fun createRoute(orderId: String) = "order_detail/$orderId"
     }
     data object Payment : MainScreen("payment_screen", "Payment")
 
-    data object Transfers : MainScreen("transfers_screen", "Transfers", Icons.Filled.SwapHoriz)
+                    data object Transfers : MainScreen("transfers_screen", "Transfers", icon = Icons.Filled.SwapHoriz)
 
 }
