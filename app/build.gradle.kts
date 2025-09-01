@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Stripe
     implementation("com.stripe:stripe-android:20.35.0")
@@ -82,10 +83,13 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.paging) // Added this line
     implementation(libs.androidx.work.runtime.ktx)
 
     // Hilt-WorkManager
     implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler) // For Hilt's Jetpack integrations (e.g., WorkManager)
+
     ksp(libs.androidx.room.compiler)
 
     // Firebase
@@ -99,6 +103,10 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+
+    // Paging
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
 
     // Location
     implementation(libs.play.services.location)

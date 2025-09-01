@@ -8,8 +8,12 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rio.rostry.BuildConfig
+import com.rio.rostry.utils.PrefetchStrategy
 import com.rio.rostry.worker.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -20,12 +24,18 @@ class RostryApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var prefetchStrategy: PrefetchStrategy
+
+    private val applicationScope = CoroutineScope(Dispatchers.Default)
+
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
         setupRecurringWork()
+        delayedInit()
     }
 
     override val workManagerConfiguration: Configuration
@@ -43,5 +53,11 @@ class RostryApplication : Application(), Configuration.Provider {
             ExistingPeriodicWorkPolicy.KEEP,
             repeatingRequest
         )
+    }
+
+    private fun delayedInit() {
+        applicationScope.launch {
+            prefetchStrategy.prefetchFowls()
+        }
     }
 }

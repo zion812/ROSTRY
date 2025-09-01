@@ -1,158 +1,123 @@
-# ROSTRY: Developer's Guide & Technical Blueprint
+# ROSTRY - Technical Blueprint
 
-This document provides a comprehensive overview of the ROSTRY Android application, detailing its architecture, components, and implementation. It is intended to serve as a complete guide for developers working on the project.
+## 1. Introduction
 
----
-
-### 1. Getting Started
-
-**1.1. Prerequisites**
-- Android Studio (latest stable version)
-- Java Development Kit (JDK) 11 or higher
-- A Firebase project
-
-**1.2. Project Setup**
-1.  Clone the repository from the source control.
-2.  Open the project in Android Studio.
-3.  **Firebase Configuration**: Follow the steps in the "Firebase Setup" section below to connect the app to your Firebase project.
-4.  Build the project. Gradle will automatically download all the required dependencies.
-5.  Run the application on an emulator or a physical device.
+This document provides a comprehensive technical overview of the ROSTRY Android application. It is intended as an end-to-end guide for developers, covering the project's architecture, features, data management, and backend services. ROSTRY is a specialized platform for fowl enthusiasts and farmers to manage, trade, and track poultry.
 
 ---
 
-### 2. Navigation and UI Implementation
+## 2. Technical Stack
 
-**2.1. Navigation Architecture**
-- Utilizes Jetpack Navigation Compose for in-app navigation
-- Implements a nested navigation graph structure with `auth_graph` and `main_graph`
-- Handles deep linking and back stack management
-- Supports different navigation flows based on user authentication state
-
-**2.2. Authentication Flow**
-- Implements a complete authentication system with Firebase Auth
-- Handles user registration, login, and profile setup
-- Maintains user session state across app restarts
-- Validates user input and provides appropriate feedback
-
-**2.3. Screen Implementation Status**
-- ✅ Implemented Screens:
-  - Fowl Registration
-  - Fowl List
-  - Fowl Details
-  - Fowl Record Creation
-  - Login
-  - Registration
-  - Profile Setup
-
-- ⏳ Placeholder Screens (Basic UI implemented, functionality pending):
-  - Profile Screen
-  - Settings Screen
-  - Farm Dashboard
-  - Weather Information
-
-**2.4. UI Components**
-- Uses Material 3 design system
-- Implements custom theme with app-specific colors and typography
-- Reusable UI components in the `ui.components` package
-- Responsive layouts that adapt to different screen sizes
-
-### 3. Firebase Setup
-
-This project relies on Firebase for authentication, database, storage, and analytics.
-
-1.  **Create a Firebase Project**: Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
-2.  **Register Your App**: In the project dashboard, add a new Android app. Use the `applicationId` found in `app/build.gradle.kts` (`com.rio.rostry`).
-3.  **Download `google-services.json`**: Download the `google-services.json` configuration file provided by Firebase.
-4.  **Add Config File to Project**: Place the downloaded `google-services.json` file in the `app/` directory of the project.
-5.  **Enable Firebase Services**:
-    *   **Authentication**: Go to the "Authentication" section and enable the "Email/Password" sign-in method.
-    *   **Firestore**: Go to the "Firestore Database" section and create a new database. Start in **test mode** for initial development (you should secure it with rules later).
-    *   **Storage**: Go to the "Storage" section and set it up.
+- **UI**: Jetpack Compose (with Material 3) for a modern, declarative UI.
+- **Architecture**: Model-View-ViewModel (MVVM).
+- **Asynchronous Programming**: Kotlin Coroutines & Flows for managing background tasks and data streams.
+- **Dependency Injection**: Hilt for managing dependencies throughout the app.
+- **Navigation**: Jetpack Navigation Compose for handling in-app screen transitions.
+- **Local Storage**: Room Persistence Library for offline data caching.
+- **Backend**: Firebase Suite
+  - **Authentication**: Firebase Auth for user management.
+  - **Database**: Firestore for real-time data storage.
+  - **File Storage**: Firebase Storage for user-uploaded images.
+  - **Serverless Logic**: Firebase Cloud Functions for secure, server-side operations.
+- **Image Loading**: Coil for efficient image loading from URLs.
 
 ---
 
-### 3. Technical Stack
+## 3. Application Architecture
 
-(Content from the original blueprint)
+The application follows the MVVM (Model-View-ViewModel) architecture pattern, promoting a separation of concerns:
 
----
-
-### 4. Project Structure
-
-(Content from the original blueprint)
+- **View (UI Layer)**: Composable functions (`...Screen.kt`) that observe state from ViewModels and render the UI. They are responsible for displaying data and forwarding user events.
+- **ViewModel**: Acts as a bridge between the UI and the Data Layer. It holds and manages UI-related state, handles user interactions, and calls repositories to fetch or update data.
+- **Model (Data Layer)**: Composed of Repositories, DAOs (Data Access Objects), and data model classes. It's responsible for all data operations, abstracting the data sources (local database and remote backend) from the rest of the app.
 
 ---
 
-### 5. Application Architecture (MVVM)
+## 4. Project Structure
 
-(Content from the original blueprint)
-
----
-
-### 6. Data Layer Deep Dive
-
-(Content from the original blueprint)
-
----
-
-### 7. Dependency Injection (Hilt)
-
-(Content from the original blueprint)
-
----
-
-### 8. UI Layer and State Management
-
-(Content from the original blueprint)
-
----
-
-### 9. Coding Style and Conventions
-
-*   **Language**: Follow the official [Kotlin style guide](https://kotlinlang.org/docs/coding-conventions.html).
-*   **Compose**: Adhere to the best practices outlined in the [Jetpack Compose documentation](https://developer.android.com/jetpack/compose/documentation).
-*   **Naming**: 
-    *   `ViewModels` should be named after the screen they serve, suffixed with `ViewModel` (e.g., `FowlListViewModel`).
-    *   `Composable` screens should be suffixed with `Screen` (e.g., `FowlListScreen`).
-*   **Logging**: Use the `Timber` library for all logging. Avoid using `android.util.Log` directly.
+```
+app/src/main/java/com/rio/rostry/
+├── data/                 # Data layer
+│   ├── local/            # Room DB: DAOs, Database class
+│   ├── models/           # Data models (Entities, Firestore objects)
+│   └── repo/             # Repositories (single source of truth)
+├── di/                   # Dependency Injection (Hilt modules)
+│   └── AppModule.kt
+├── navigation/           # Navigation graph setup
+│   └── NavGraph.kt
+├── ui/                   # UI Layer (Jetpack Compose)
+│   ├── auth/             # Auth screens (Login, Register)
+│   ├── fowl/             # Fowl management screens
+│   ├── main/             # Main app container and core screens (Profile, Settings)
+│   ├── market/           # Marketplace features
+│   ├── messaging/        # Chat and conversation screens
+│   ├── theme/            # App theme, colors, typography
+│   └── transfer/         # Fowl transfer screens
+├── utils/                # Utility classes and helpers
+└── ...
+```
 
 ---
 
-### 10. Testing Strategy
+## 5. Data Layer In-Depth
 
-*   **Unit Tests**: Place unit tests for `ViewModels` and `Repositories` in the `src/test/java` directory. Use a testing framework like JUnit and a mocking library like Mockito if needed.
-*   **UI Tests**: Place Jetpack Compose UI tests in the `src/androidTest/java` directory. Use the `androidx.compose.ui.test` APIs to interact with and verify UI components.
-*   **Instrumentation Tests**: For tests requiring an Android context (like testing the Room database), place them in `src/androidTest/java`.
+### 5.1. Local Persistence (Room)
 
----
+- **Database**: `RostryDatabase.kt` defines the database, its entities, and provides access to DAOs.
+- **Entities**: Data classes annotated with `@Entity` (e.g., `User.kt`, `Fowl.kt`, `Transfer.kt`) that represent tables in the database.
+- **DAOs (Data Access Objects)**: Interfaces (e.g., `UserDao.kt`, `FowlDao.kt`) that define the SQL queries for interacting with the database tables.
 
-### 12. Build & Configuration Notes
+### 5.2. Remote Backend (Firebase)
 
-This section documents key issues encountered and resolved during development, serving as a reference for future troubleshooting.
+- **Firestore**: The primary remote database. Data is structured in collections like `users`, `fowls`, `transfers`, and `marketplace_listings`.
+- **Firebase Storage**: Used for storing user-generated content, specifically profile images under the `profile_images/{userId}` path.
+- **Cloud Functions**: Server-side logic for security-sensitive operations. A key example is `initiateTransfer`, which validates and processes fowl transfer requests securely.
 
-**12.1. Gradle Build Failures**
+### 5.3. Repositories
 
-- **Symptom**: The project experienced silent and unpredictable Gradle build failures, where the build process would terminate without any error messages. Even basic tasks like `./gradlew tasks` would fail silently.
-- **Root Cause**: The issue was traced to an incorrectly configured `JAVA_HOME` path within the `gradlew.bat` script. The path contained a mix of forward and backslashes, which is invalid in a Windows environment.
-- **Resolution**:
-    1.  The `gradlew.bat` script was modified to normalize the `JAVA_HOME` path by replacing all forward slashes (`/`) with backslashes (`\\`).
-    2.  The `JAVA_EXE` path was also corrected to use backslashes.
-    3.  As part of the diagnostic process, Gradle caches were cleared to rule out corruption.
-
-**12.2. Dependency Management**
-
-- **Inconsistency**: The Firebase Crashlytics plugin version was initially hardcoded in the root `build.gradle.kts` file, while all other dependencies were managed through the `libs.versions.toml` version catalog.
-- **Resolution**: The Crashlytics plugin was moved into the `libs.versions.toml` file and referenced via its alias in the build script to ensure a single source of truth for all dependency versions.
-
-**12.3. Kotlin Compilation Fixes**
-
-- **`PaymentViewModel` Name Conflict**: A compilation error (`Unresolved reference: Result`) occurred due to a naming conflict between Stripe's `PaymentSheet.Result` and the project's custom `utils.Result` class.
-    - **Resolution**: An import alias was used (`import com.stripe.android.paymentsheet.PaymentSheet.Result as StripePaymentResult`) to disambiguate the two classes.
-- **Experimental API Usage**: Build warnings were present for screens using experimental Material 3 APIs.
-    - **Resolution**: The `@OptIn(ExperimentalMaterial3Api::class)` annotation was added to the affected composable functions to acknowledge the experimental status and suppress the warnings.
+The repository pattern is used to abstract data sources. Each repository (e.g., `UserRepositoryImpl.kt`, `FowlRepositoryImpl.kt`) is the single source of truth for a specific domain of data. It decides whether to fetch data from the local cache (Room) or the remote source (Firestore).
 
 ---
 
-### 13. Key Feature Implementation: Fowl Registration
+## 6. UI and State Management
 
-(Content from the original blueprint)
+- **Screens**: Each feature has its own set of composable screens located in its respective `ui` sub-package.
+- **ViewModels**: Each screen is backed by a `ViewModel` (e.g., `AuthViewModel`, `FowlViewModel`) that exposes UI state as a `StateFlow`.
+- **State Consumption**: Screens observe the `StateFlow` from the ViewModel using `collectAsState()` to reactively update the UI when the data changes.
+- **Navigation**: The entire navigation flow is defined in `navigation/NavGraph.kt`. It includes routes for authentication, main app features, and handles passing arguments between screens.
+
+---
+
+## 7. Feature Breakdown
+
+### 7.1. Authentication & Profile Management
+- **Flow**: `LoginScreen` -> `RegisterScreen` -> `ProfileSetupScreen`.
+- **Backend**: Firebase Authentication handles user creation and sign-in.
+- **Profile**: User data (name, bio, profile image URL) is stored in a `users` collection in Firestore. The `ProfileScreen` displays this data, and the `EditProfileScreen` allows for updates. `StorageRepository` handles profile image uploads.
+
+### 7.2. Fowl Management
+- **CRUD Operations**: Users can register new fowls (`FowlRegistrationScreen`), view a list of their fowls (`FowlListScreen`), and see detailed information (`FowlDetailScreen`).
+- **History**: `FowlHistoryScreen` allows users to view and add records (e.g., health, breeding) for each fowl.
+
+### 7.3. Marketplace
+- **Functionality**: Users can list fowls for sale, browse listings, and manage a cart and wishlist.
+- **Components**: `MarketplaceScreen`, `MarketplaceViewModel`, and sub-packages for `cart`, `sell`, `wishlist`, etc.
+
+### 7.4. Secure Fowl Transfer
+- **Security**: This is a critical feature handled with enhanced security. Instead of writing directly to Firestore from the client, the app calls a Firebase Cloud Function (`initiateTransfer`).
+- **Process**: The Cloud Function validates the request (e.g., checks ownership, prevents duplicate transfers) before creating a transfer document in Firestore.
+- **UI**: The `transfer` package contains screens for initiating, managing, and verifying transfers.
+
+### 7.5. Messaging
+- **Real-time Chat**: `ConversationScreen` lists user conversations, and `ChatScreen` provides a real-time messaging interface for users, likely for discussing marketplace listings.
+
+---
+
+## 8. Dependency Injection (Hilt)
+
+- **Setup**: Hilt is configured in `RostryApplication.kt` and the primary module is `di/AppModule.kt`.
+- **Provided Dependencies**: `AppModule` provides singleton instances of all major components, including:
+  - Firebase services (`FirebaseAuth`, `FirebaseFirestore`, etc.).
+  - The Room database (`RostryDatabase`).
+  - All DAOs and Repositories.
+- **Usage**: Dependencies are injected into Android classes (like ViewModels) using the `@Inject` annotation.

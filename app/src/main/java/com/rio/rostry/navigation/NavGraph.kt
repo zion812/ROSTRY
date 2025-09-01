@@ -22,8 +22,13 @@ import com.rio.rostry.ui.transfer.TransferManagementScreen
 import com.rio.rostry.ui.transfer.TransferHistoryScreen
 import com.rio.rostry.ui.fowl.FowlRegistrationScreen
 import com.rio.rostry.ui.main.MainScreen
+import com.rio.rostry.ui.main.screens.profile.EditProfileScreen
+import com.rio.rostry.ui.main.screens.profile.ProfileViewModel
+import com.rio.rostry.ui.main.screens.settings.SettingsScreen
 import com.rio.rostry.ui.main.MainViewModel
 import android.util.Log // Added for logging
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun NavGraph(startDestination: String = "auth_graph") {
@@ -70,8 +75,8 @@ fun NavGraph(startDestination: String = "auth_graph") {
                 val email = backStackEntry.arguments?.getString("email")!!
                 val phone = backStackEntry.arguments?.getString("phone").let { if (it == "null") null else it }
                 ProfileSetupScreen(
-                    onProfileSetupComplete = { name, location, userType, language, onSuccess, onError ->
-                        authViewModel.completeUserProfile(uid, email, phone, name, location, userType, language, onSuccess = {
+                    onProfileSetupComplete = { name, location, userType, language, bio, profileImageUri, onSuccess, onError ->
+                        authViewModel.completeUserProfile(uid, email, phone, name, location, userType, language, bio, profileImageUri, onSuccess = {
                             onSuccess()
                             navController.navigate("main_graph") {
                                 popUpTo("auth_graph") { inclusive = true }
@@ -97,7 +102,9 @@ fun NavGraph(startDestination: String = "auth_graph") {
                         navController.navigate("auth_graph") {
                             popUpTo("main_graph") { inclusive = true }
                         }
-                    }
+                    },
+                    onNavigateToSettings = { navController.navigate("settings_screen") },
+                    onNavigateToEditProfile = { navController.navigate("edit_profile_screen") }
                 )
             }
             composable(Screen.FowlRegistration.route) {
@@ -172,6 +179,23 @@ fun NavGraph(startDestination: String = "auth_graph") {
                     fowlId = fowlId,
                     onTransferInitiated = { navController.popBackStack() },
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable("settings_screen") {
+                SettingsScreen(onNavigateUp = { navController.popBackStack() })
+            }
+            composable("edit_profile_screen") {
+                val profileViewModel: ProfileViewModel = hiltViewModel()
+                val uiState by profileViewModel.uiState.collectAsState()
+
+                EditProfileScreen(
+                    currentBio = uiState.bio,
+                    currentProfileImageUrl = uiState.profileImageUrl,
+                    onSave = { bio: String, imageUri: android.net.Uri? ->
+                        profileViewModel.updateProfile(bio, imageUri)
+                        navController.popBackStack()
+                    },
+                    onNavigateUp = { navController.popBackStack() }
                 )
             }
         }

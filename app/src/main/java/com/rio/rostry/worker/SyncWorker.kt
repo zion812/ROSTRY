@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.rio.rostry.data.repo.FowlRepository
+import com.rio.rostry.data.repo.SyncRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import timber.log.Timber
@@ -13,17 +13,16 @@ import timber.log.Timber
 class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    private val fowlRepository: FowlRepository
+    private val syncRepository: SyncRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        return try {
-            Timber.d("SyncWorker started")
-            fowlRepository.sync()
+        Timber.d("SyncWorker started")
+        return if (syncRepository.sync()) {
             Timber.d("SyncWorker finished successfully")
             Result.success()
-        } catch (e: Exception) {
-            Timber.e(e, "SyncWorker failed")
+        } else {
+            Timber.e("SyncWorker failed, retrying")
             Result.retry()
         }
     }

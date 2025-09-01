@@ -5,4 +5,6 @@ import kotlinx.coroutines.flow.Flow
 
 interface SyncRepository {
     val syncWorkInfo: Flow<WorkInfo?>
+    suspend fun sync(): Boolean
+    fun startSync()
 }

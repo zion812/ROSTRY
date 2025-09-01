@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.paging.PagingSource
 import com.rio.rostry.data.models.Fowl
 import kotlinx.coroutines.flow.Flow
 
@@ -19,7 +20,7 @@ interface FowlDao {
     fun getFowlById(fowlId: String, userId: String): Flow<Fowl?>
 
     @Query("SELECT * FROM fowl WHERE userId = :userId")
-    fun getFowls(userId: String): Flow<List<Fowl>>
+    fun getFowls(userId: String): PagingSource<Int, Fowl>
 
     @Query("SELECT * FROM fowl WHERE (sireId = :fowlId OR damId = :fowlId) AND userId = :userId")
     fun getOffspring(fowlId: String, userId: String): Flow<List<Fowl>>

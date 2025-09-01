@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.models.User
 import com.rio.rostry.data.models.UserType
+import android.net.Uri
+import com.rio.rostry.data.repo.StorageRepository
 import com.rio.rostry.data.repo.UserRepository
 import com.rio.rostry.utils.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     fun loginUser(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -45,21 +48,43 @@ class AuthViewModel @Inject constructor(
     }
 
     fun completeUserProfile(
-        uid: String, email: String, phone: String?, name: String, location: String, userType: UserType, language: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        uid: String, 
+        email: String, 
+        phone: String?, 
+        name: String, 
+        location: String, 
+        userType: UserType, 
+        language: String, 
+        bio: String?, 
+        profileImageUri: Uri?, 
+        onSuccess: () -> Unit, 
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
-            val user = User(
-                uid = uid,
-                name = name,
-                email = email,
-                phone = phone,
-                location = location,
-                userType = userType,
-                language = language
-            )
-            when (val result = userRepository.updateUserProfile(user)) {
-                is Result.Success -> withContext(Dispatchers.Main) { onSuccess() }
-                is Result.Error -> withContext(Dispatchers.Main) { onError(result.exception.message ?: "An unknown error occurred.") }
-                is Result.Loading -> {} // Handle loading state if needed
+            try {
+                val imageUrl = profileImageUri?.let {
+                    storageRepository.uploadProfileImage(it, uid)
+                }
+
+                val user = User(
+                    uid = uid,
+                    name = name,
+                    email = email,
+                    phone = phone,
+                    location = location,
+                    userType = userType,
+                    language = language,
+                    bio = bio,
+                    profileImageUrl = imageUrl
+                )
+
+                when (val result = userRepository.updateUserProfile(user)) {
+                    is Result.Success -> withContext(Dispatchers.Main) { onSuccess() }
+                    is Result.Error -> withContext(Dispatchers.Main) { onError(result.exception.message ?: "An unknown error occurred.") }
+                    is Result.Loading -> { /* Handle loading state if needed */ }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { onError(e.message ?: "An unknown error occurred.") }
             }
         }
     }

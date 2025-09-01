@@ -15,7 +15,7 @@ import com.rio.rostry.data.models.market.*
         User::class, Fowl::class, FowlRecord::class, Transfer::class,
         MarketplaceListing::class, Conversation::class, Message::class, WishlistItem::class, CartItem::class
     ],
-    version = 6, exportSchema = false
+    version = 7, exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class RostryDatabase : RoomDatabase() {

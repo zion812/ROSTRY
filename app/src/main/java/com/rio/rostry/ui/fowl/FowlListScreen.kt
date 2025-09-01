@@ -13,8 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -56,7 +60,7 @@ fun FowlListScreen(
     onFowlClick: (String) -> Unit,
     onNavigateToRegistration: () -> Unit
 ) {
-    val fowls by viewModel.fowls.collectAsState()
+    val fowls = viewModel.fowls.collectAsLazyPagingItems()
     val syncWorkInfo by viewModel.syncWorkInfo.collectAsState()
 
     Scaffold(
@@ -74,14 +78,57 @@ fun FowlListScreen(
             }
         }
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
         ) {
-            items(fowls) { fowl ->
-                FowlListItem(fowl = fowl, onClick = { onFowlClick(fowl.id) })
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(count = fowls.itemCount, key = fowls.itemKey { it.id }) { index ->
+                    val fowl = fowls[index]
+                    fowl?.let {
+                        FowlListItem(fowl = it, onClick = { onFowlClick(it.id) })
+                    }
+                }
+
+                fowls.loadState.apply {
+                    when {
+                        refresh is LoadState.Loading -> {
+                            item {
+                                Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        append is LoadState.Loading -> {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                                }
+                            }
+                        }
+                        refresh is LoadState.Error -> {
+                            val e = fowls.loadState.refresh as LoadState.Error
+                            item {
+                                Text(
+                                    text = "Error: ${e.error.localizedMessage}",
+                                    modifier = Modifier.fillParentMaxSize(),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                        append is LoadState.Error -> {
+                             val e = fowls.loadState.append as LoadState.Error
+                             item {
+                                Text(text = "Error: ${e.error.localizedMessage}", color = MaterialTheme.colorScheme.error)
+                             }
+                        }
+                    }
+                }
             }
         }
     }

@@ -1,36 +1,38 @@
 package com.rio.rostry.ui.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import android.widget.Toast
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 import com.rio.rostry.data.models.UserType
 import com.rio.rostry.ui.components.RostryDropdown
 import com.rio.rostry.ui.components.RostryTextField
 
 @Composable
 fun ProfileSetupScreen(
-    onProfileSetupComplete: (String, String, UserType, String, () -> Unit, (String) -> Unit) -> Unit
+    onProfileSetupComplete: (String, String, UserType, String, String, Uri?, () -> Unit, (String) -> Unit) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var userType: UserType by remember { mutableStateOf(UserType.General) }
     var language by remember { mutableStateOf("English") }
+    var bio by remember { mutableStateOf("" )}
+    var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -73,11 +75,41 @@ fun ProfileSetupScreen(
             onItemSelected = { language = it }
         )
 
+        RostryTextField(
+            value = bio,
+            onValueChange = { bio = it },
+            label = "Bio"
+        )
+
+        val launcher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            profileImageUri = uri
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = { launcher.launch("image/*") }) {
+            Text("Select Profile Image")
+        }
+
+        profileImageUri?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Image(
+                painter = rememberAsyncImagePainter(it),
+                contentDescription = "Profile Image",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(onClick = {
             isLoading = true
-            onProfileSetupComplete(name, location, userType, language, {
+            onProfileSetupComplete(name, location, userType, language, bio, profileImageUri, {
                 isLoading = false // Ensure isLoading is reset on success
                 Toast.makeText(context, "Profile Setup Successful", Toast.LENGTH_SHORT).show()
             }, {

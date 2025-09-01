@@ -3,6 +3,8 @@ package com.rio.rostry.ui.fowl
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.rio.rostry.data.models.Fowl
 import androidx.work.WorkInfo
 import com.rio.rostry.data.models.FowlRecord
@@ -12,6 +14,7 @@ import com.rio.rostry.data.repo.SyncRepository
 import com.rio.rostry.utils.QrCodeGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,8 +38,7 @@ class FowlViewModel @Inject constructor(
             initialValue = null
         )
 
-    val fowls: StateFlow<List<Fowl>> = fowlRepository.getFowls()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val fowls: Flow<PagingData<Fowl>> = fowlRepository.getFowls().cachedIn(viewModelScope)
 
     private val _selectedFowl = MutableStateFlow<Fowl?>(null)
     val selectedFowl: StateFlow<Fowl?> = _selectedFowl.asStateFlow()

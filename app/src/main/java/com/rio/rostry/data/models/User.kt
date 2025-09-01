@@ -14,8 +14,10 @@ data class User(
     @get:PropertyName("userType") // Use PropertyName to guide Firestore
     val userType: UserType = UserType.General,
     val language: String = "",
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
+    val profileImageUrl: String? = null,
+    val bio: String? = null
 ) {
     // Add a no-argument constructor for Firestore deserialization
-    constructor() : this("", "", "", null, "", UserType.General, "", false)
+    constructor() : this("", "", "", null, "", UserType.General, "", false, null, null)
 }

@@ -36,8 +36,9 @@ import com.rio.rostry.ui.main.screens.FarmerHomeScreen
 import com.rio.rostry.ui.fowl.FowlListScreen
 import com.rio.rostry.ui.main.screens.GeneralHomeScreen
 import com.rio.rostry.ui.main.screens.PlaceholderScreen
+import com.rio.rostry.ui.main.screens.admin.AdminDashboardScreen
 import com.rio.rostry.ui.main.screens.profile.ProfileScreen
-import com.rio.rostry.ui.main.screens.SettingsScreen
+import com.rio.rostry.ui.main.screens.settings.SettingsScreen
 import com.rio.rostry.ui.market.MarketplaceScreen
 import com.rio.rostry.ui.market.sell.CreateListingScreen
 import com.rio.rostry.ui.market.sell.SelectFowlScreen
@@ -57,7 +58,9 @@ fun MainScreen(
     onNavigateToFowlRegistration: () -> Unit,
     onNavigateToFowlDetail: (String) -> Unit,
     onNavigateToTransferVerification: (String) -> Unit,
-    onNavigateToAuth: () -> Unit
+    onNavigateToAuth: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToEditProfile: () -> Unit
 ) {
     val user by viewModel.user.collectAsState()
     val navController = rememberNavController()
@@ -142,8 +145,8 @@ fun MainScreen(
                 composable(MainScreen.EnthusiastHome.route) { EnthusiastHomeScreen() }
                 composable(MainScreen.GeneralFeed.route) { PlaceholderScreen(name = "Feed") }
                 composable(MainScreen.GeneralCommunity.route) { PlaceholderScreen(name = "Community") }
-                composable(MainScreen.GeneralProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth) }
-                composable(MainScreen.GeneralSettings.route) { SettingsScreen() }
+                composable(MainScreen.GeneralProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth, onNavigateToSettings = onNavigateToSettings, onNavigateToEditProfile = onNavigateToEditProfile, onNavigateToAdminDashboard = { navController.navigate("admin_dashboard") }) }
+                composable(MainScreen.GeneralSettings.route) { SettingsScreen(onNavigateUp = { navController.navigateUp() }) }
 
                 // Farmer
                                 composable(MainScreen.FarmerMarketplace.route) { MarketplaceScreen(
@@ -188,8 +191,8 @@ fun MainScreen(
                     }
                 }
                 composable(MainScreen.FarmerWeather.route) { PlaceholderScreen(name = "Weather") }
-                composable(MainScreen.FarmerProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth) }
-                composable(MainScreen.FarmerSettings.route) { SettingsScreen() }
+                composable(MainScreen.FarmerProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth, onNavigateToSettings = onNavigateToSettings, onNavigateToEditProfile = onNavigateToEditProfile, onNavigateToAdminDashboard = { navController.navigate("admin_dashboard") }) }
+                composable(MainScreen.FarmerSettings.route) { SettingsScreen(onNavigateUp = { navController.navigateUp() }) }
 
                 composable(MainScreen.Conversations.route) {
                     ConversationScreen(onNavigateToChat = {
@@ -230,12 +233,13 @@ fun MainScreen(
                 // Enthusiast
                 composable(MainScreen.EnthusiastAnalytics.route) { PlaceholderScreen(name = "Analytics") }
                 composable(MainScreen.EnthusiastResearch.route) { PlaceholderScreen(name = "Research") }
-                composable(MainScreen.EnthusiastProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth) }
-                composable(MainScreen.EnthusiastSettings.route) { SettingsScreen() }
+                composable(MainScreen.EnthusiastProfile.route) { ProfileScreen(onNavigateToAuth = onNavigateToAuth, onNavigateToSettings = onNavigateToSettings, onNavigateToEditProfile = onNavigateToEditProfile, onNavigateToAdminDashboard = { navController.navigate("admin_dashboard") }) }
+                composable(MainScreen.EnthusiastSettings.route) { SettingsScreen(onNavigateUp = { navController.navigateUp() }) }
                 composable(MainScreen.Cart.route) { 
                     CartScreen(onNavigateToCheckout = { navController.navigate(MainScreen.Payment.route) }) 
                 }
                 composable(MainScreen.Wishlist.route) { WishlistScreen() }
+                composable("admin_dashboard") { AdminDashboardScreen() }
             }
         }
     }

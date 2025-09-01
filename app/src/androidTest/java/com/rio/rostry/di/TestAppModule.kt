@@ -43,6 +43,10 @@ object TestAppModule {
 
     @Provides
     @Singleton
+    fun provideAdminRepository(): AdminRepository = mockk(relaxed = true)
+
+    @Provides
+    @Singleton
     fun provideTransferRepository(): TransferRepository = mockk(relaxed = true)
 
     @Provides

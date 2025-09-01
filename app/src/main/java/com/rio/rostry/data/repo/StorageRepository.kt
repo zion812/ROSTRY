@@ -7,4 +7,5 @@ import android.graphics.Bitmap
 interface StorageRepository {
     suspend fun uploadImage(uri: Uri): String?
     suspend fun uploadBitmap(bitmap: Bitmap): String?
+    suspend fun uploadProfileImage(uri: Uri, userId: String): String?
 }

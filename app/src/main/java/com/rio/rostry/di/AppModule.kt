@@ -10,6 +10,7 @@ import com.google.firebase.storage.ktx.storage
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
+import com.google.gson.Gson
 import com.rio.rostry.data.local.RostryDatabase
 import com.rio.rostry.data.local.UserDao
 import com.rio.rostry.data.local.FowlDao
@@ -24,6 +25,9 @@ import com.rio.rostry.data.repo.UserRepository
 import com.rio.rostry.data.repo.UserRepositoryImpl
 import com.rio.rostry.data.repo.MarketplaceRepository
 import com.rio.rostry.data.repo.MarketplaceRepositoryImpl
+import com.rio.rostry.utils.NetworkMonitor
+import com.rio.rostry.utils.NetworkMonitorImpl
+import com.rio.rostry.utils.PerformanceLogger
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -62,6 +66,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideGson(): Gson {
+        return Gson()
+    }
+
+    @Provides
+    @Singleton
     fun provideRostryDatabase(@ApplicationContext context: Context): RostryDatabase {
         return Room.databaseBuilder(
             context,
@@ -95,8 +105,10 @@ object AppModule {
     fun provideUserRepository(
         auth: FirebaseAuth,
         firestore: FirebaseFirestore,
-        userDao: UserDao
-    ): UserRepository = UserRepositoryImpl(auth, firestore, userDao)
+        userDao: UserDao,
+        networkMonitor: NetworkMonitor,
+        performanceLogger: PerformanceLogger
+    ): UserRepository = UserRepositoryImpl(auth, firestore, userDao, networkMonitor, performanceLogger)
 
     @Provides
     @Singleton
@@ -104,12 +116,19 @@ object AppModule {
         fowlDao: FowlDao,
         fowlRecordDao: FowlRecordDao,
         firestore: FirebaseFirestore,
-        auth: FirebaseAuth
-    ): FowlRepository = FowlRepositoryImpl(fowlDao, fowlRecordDao, firestore, auth)
+        auth: FirebaseAuth,
+        networkMonitor: NetworkMonitor,
+        performanceLogger: PerformanceLogger
+    ): FowlRepository = FowlRepositoryImpl(fowlDao, fowlRecordDao, firestore, auth, networkMonitor, performanceLogger)
 
     @Provides
     @Singleton
-    fun provideStorageRepository(storage: FirebaseStorage): StorageRepository = StorageRepositoryImpl(storage)
+    fun provideStorageRepository(
+        storage: FirebaseStorage,
+        @ApplicationContext context: Context,
+        networkMonitor: NetworkMonitor,
+        performanceLogger: PerformanceLogger
+    ): StorageRepository = StorageRepositoryImpl(storage, context, networkMonitor, performanceLogger)
 
     @Provides
     @Singleton
@@ -118,4 +137,12 @@ object AppModule {
         auth: FirebaseAuth,
         marketplaceDao: MarketplaceDao
     ): MarketplaceRepository = MarketplaceRepositoryImpl(firestore, auth, marketplaceDao)
+
+    @Provides
+    @Singleton
+    fun provideNetworkMonitor(@ApplicationContext context: Context): NetworkMonitor = NetworkMonitorImpl(context)
+
+    @Provides
+    @Singleton
+    fun providePerformanceLogger(firestore: FirebaseFirestore, auth: FirebaseAuth): PerformanceLogger = PerformanceLogger(firestore, auth)
 }
