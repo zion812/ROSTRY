@@ -19,6 +19,7 @@ import com.rio.rostry.data.local.FowlRecordDao
 import com.rio.rostry.data.local.TransferDao
 import com.rio.rostry.data.local.MarketplaceDao
 import com.rio.rostry.data.local.migrations.MIGRATION_8_9
+import com.rio.rostry.data.local.migrations.MIGRATION_7_8
 import com.rio.rostry.data.repo.FowlRepository
 import com.rio.rostry.data.repo.FowlRepositoryImpl
 import com.rio.rostry.data.repo.StorageRepository
@@ -89,7 +90,7 @@ object AppModule {
             context,
             RostryDatabase::class.java,
             "rostry_database"
-        ).addMigrations(MIGRATION_8_9).build()
+        ).addMigrations(MIGRATION_7_8, MIGRATION_8_9).build()
     }
 
     @Provides

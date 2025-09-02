@@ -30,6 +30,7 @@ class UserRepositoryImpl @Inject constructor(
             val uid = authResult.user?.uid
             if (uid != null) {
                 var success = false
+                var inserted = false
                 val duration = measureTimeMillis {
                     try {
                         val document = firestore.collection("users").document(uid).get().await()
@@ -55,9 +56,44 @@ class UserRepositoryImpl @Inject constructor(
                                 profileImageUrl = document.getString("profileImageUrl")
                             )
                             userDao.insertUser(user)
+                            inserted = true
+                        } else {
+                            // No remote profile exists yet; seed a minimal local profile so UI can proceed
+                            val fu = authResult.user
+                            val fallback = User(
+                                uid = uid,
+                                name = fu?.displayName ?: "",
+                                email = fu?.email ?: email,
+                                phone = fu?.phoneNumber,
+                                location = "",
+                                userType = com.rio.rostry.data.models.UserType.General,
+                                language = "",
+                                isVerified = false,
+                                bio = null,
+                                profileImageUrl = fu?.photoUrl?.toString()
+                            )
+                            userDao.insertUser(fallback)
+                            inserted = true
                         }
                         success = true
                     } catch (e: Exception) {
+                        // If fetching remote profile failed, still seed minimal local profile
+                        if (!inserted) {
+                            val fu = authResult.user
+                            val fallback = User(
+                                uid = uid,
+                                name = fu?.displayName ?: "",
+                                email = fu?.email ?: email,
+                                phone = fu?.phoneNumber,
+                                location = "",
+                                userType = com.rio.rostry.data.models.UserType.General,
+                                language = "",
+                                isVerified = false,
+                                bio = null,
+                                profileImageUrl = fu?.photoUrl?.toString()
+                            )
+                            try { userDao.insertUser(fallback) } catch (_: Exception) {}
+                        }
                         // The overall login function will catch and handle this.
                     }
                 }

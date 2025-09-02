@@ -8,6 +8,8 @@ import com.rio.rostry.data.repo.AnalyticsRepositoryImpl
 import com.rio.rostry.data.repo.SyncRepositoryImpl
 import com.rio.rostry.data.repo.TransferRepository
 import com.rio.rostry.data.repo.TransferRepositoryImpl
+import com.rio.rostry.data.repo.MarketplaceV2Repository
+import com.rio.rostry.data.repo.MarketplaceV2RepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -28,4 +30,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindAnalyticsRepository(impl: AnalyticsRepositoryImpl): AnalyticsRepository
+
+    @Binds
+    abstract fun bindMarketplaceV2Repository(impl: MarketplaceV2RepositoryImpl): MarketplaceV2Repository
 }
