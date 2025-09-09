@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "258449398621",
+    "firebase_url": "https://rostry-72-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "rostry-72",
+    "storage_bucket": "rostry-72.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:258449398621:android:ac2d3f1b7cfdeae1d826b4",
+        "android_client_info": {
+          "package_name": "com.rio.rostry"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCm2KxTqPx8ioswa40NY3UYkengAh8t6AQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
