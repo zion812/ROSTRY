@@ -58,6 +58,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
 
+    // Firebase Task await support
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // Logging
     implementation(libs.timber)
 

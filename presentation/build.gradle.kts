@@ -18,6 +18,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -28,6 +29,14 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+    buildTypes {
+        release {
+            buildConfigField("boolean", "DEV_SHORTCUTS_ENABLED", "false")
+        }
+        debug {
+            buildConfigField("boolean", "DEV_SHORTCUTS_ENABLED", "true")
+        }
     }
 }
 
@@ -42,6 +51,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -49,4 +59,7 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.fragment.ktx)
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.androidx.biometric)
 }

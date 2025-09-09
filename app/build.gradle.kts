@@ -30,6 +30,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("boolean", "DEV_SHORTCUTS_ENABLED", "false")
+        }
+        debug {
+            buildConfigField("boolean", "DEV_SHORTCUTS_ENABLED", "true")
         }
     }
     flavorDimensions += listOf("env")
@@ -58,6 +62,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -82,7 +87,7 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    kapt(libs.androidx.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
