@@ -4,21 +4,22 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import android.util.Log
-import androidx.room.Room
 import com.rio.rostry.data.local.db.AppDatabase
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import androidx.hilt.work.HiltWorker
 
-class OutboxSyncWorker(
-    appContext: Context,
-    params: WorkerParameters
+@HiltWorker
+class OutboxSyncWorker @AssistedInject constructor(
+    @Assisted private val appContext: Context,
+    @Assisted params: WorkerParameters,
+    private val db: AppDatabase,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             // Placeholder: pick oldest outbox item and simulate success
-            val db = Room.databaseBuilder(applicationContext, AppDatabase::class.java, "rostry.db")
-                .fallbackToDestructiveMigration()
-                .build()
             val outboxDao = db.outboxDao()
             val item = outboxDao.oldest() ?: return@withContext Result.success()
             // TODO: send to Cloud Function / Firestore transaction
@@ -30,3 +31,4 @@ class OutboxSyncWorker(
         }
     }
 }
+

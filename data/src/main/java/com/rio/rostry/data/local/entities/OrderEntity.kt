@@ -13,15 +13,33 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["buyerId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = UserEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["sellerId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ProductEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["productId"],
+            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("buyerId")]
+    indices = [
+        Index("buyerId"),
+        Index("sellerId"),
+        Index("productId"),
+        Index(value = ["buyerId", "sellerId", "createdAt"], unique = false)
+    ]
 )
 data class OrderEntity(
     @PrimaryKey val id: String,
     val buyerId: String,
-    val totalAmount: Long,
-    val currency: String = "INR",
+    val sellerId: String,
+    val productId: String,
+    val quantity: Int,
     val status: String,
     val createdAt: Long = System.currentTimeMillis()
 )

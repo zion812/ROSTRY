@@ -15,6 +15,14 @@ import com.rio.rostry.data.local.dao.OrderDao
 import com.rio.rostry.data.local.dao.ProductDao
 import com.rio.rostry.data.local.dao.TransferDao
 import com.rio.rostry.data.local.dao.UserDao
+import com.rio.rostry.data.local.dao.ProductTrackingDao
+import com.rio.rostry.data.local.dao.FamilyTreeDao
+import com.rio.rostry.data.local.dao.ChatMessageDao
+import com.rio.rostry.data.local.entities.ProductTrackingEntity
+import com.rio.rostry.data.local.entities.FamilyTreeEntity
+import com.rio.rostry.data.local.entities.ChatMessageEntity
+import com.rio.rostry.data.local.entities.SyncStateEntity
+import com.rio.rostry.data.local.dao.SyncStateDao
 
 @Database(
     entities = [
@@ -24,9 +32,13 @@ import com.rio.rostry.data.local.dao.UserDao
         OrderEntity::class,
         TransferEntity::class,
         CoinTransactionEntity::class,
-        NotificationEntity::class
+        NotificationEntity::class,
+        ProductTrackingEntity::class,
+        FamilyTreeEntity::class,
+        ChatMessageEntity::class,
+        SyncStateEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(OutboxTypeConverters::class)
@@ -38,4 +50,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transferDao(): TransferDao
     abstract fun coinDao(): CoinDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun productTrackingDao(): ProductTrackingDao
+    abstract fun familyTreeDao(): FamilyTreeDao
+    abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun syncStateDao(): SyncStateDao
 }
+

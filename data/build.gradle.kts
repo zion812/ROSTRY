@@ -2,7 +2,11 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt.android)
-    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.kapt)
+}
+
+kapt {
+    correctErrorTypes = true
 }
 
 android {
@@ -36,11 +40,21 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     implementation(libs.room.paging)
-    ksp(libs.room.compiler)
+    kapt(libs.room.compiler)
+
+    // SQLCipher for Room encryption
+    implementation("net.zetetic:android-database-sqlcipher:4.5.4")
+    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+
+    // AndroidX Security Crypto for encrypted key storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Hilt
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    kapt(libs.hilt.compiler)
+    // Hilt Work for @HiltWorker in this module
+    implementation(libs.androidx.hilt.work)
+    kapt(libs.androidx.hilt.compiler)
 
     // Firebase (BOM-managed)
     implementation(platform(libs.firebase.bom))
@@ -65,7 +79,14 @@ dependencies {
     implementation(libs.timber)
 
     // Test
+    testImplementation("junit:junit:4.13.2")
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+
+    // Instrumentation tests (androidTest)
+    androidTestImplementation("androidx.test:core:1.5.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
 }

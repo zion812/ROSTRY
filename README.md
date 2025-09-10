@@ -42,11 +42,54 @@ ROSTRY is a multi-module, offline-first AgriTech marketplace and farm management
 ```
 Open in Android Studio and select a flavor: dev/staging/prod.
 
+## Cloud Functions (Incremental Sync & Outbox)
+This repo includes Firebase Cloud Functions for incremental product sync and processing outbox mutations.
+
+Paths:
+- `functions/` – TypeScript functions workspace
+- `functions/src/index.ts` – callable functions: `getProductDeltas`, `upsertProduct`
+- `firebase.json` – functions config; runtime Node 20
+- `.firebaserc` – set your project id under `projects.default`
+
+Local setup:
+```powershell
+cd functions
+npm install
+npm run build
+# Start emulator (Functions only)
+npm run serve
+```
+
+Deploy (requires Firebase CLI login):
+```powershell
+# From functions/
+npm run deploy
+# Or from repo root
+firebase deploy --only functions
+```
+
+Android integration:
+- `app/src/main/java/.../di/FirebaseModule.kt` provides `FirebaseFunctions`
+- `data/remote/FunctionsApi.kt` calls `getProductDeltas` and `upsertProduct`
+- `data/sync/SyncManagerImpl.kt` uses `FunctionsApi` for pull/push
+
 ## Offline-First & Sync
 - Room is the source of truth. `data/local/db/AppDatabase.kt` includes tables:
-  - Users, Products, Orders, Transfers, CoinTransactions, Notifications, Outbox
-- Outbox pattern queues mutations for retry. `OutboxSyncWorker` drains periodically with network constraints.
-- `NetworkMonitor` observes connectivity for rural conditions.
+  - Users, Products, Orders, Transfers, CoinTransactions, Notifications, Outbox, ProductTracking, FamilyTree, ChatMessages, SyncState
+- Outbox pattern queues mutations. `ProductRepositoryImpl.upsertLocal()` writes locally, enqueues outbox, and triggers `PushSyncWorker`.
+- Background workers (WorkManager):
+  - `OutboxSyncWorker` (hourly)
+  - `PullSyncWorker` (every 2 hours) – scheduled in `ROSTRYApp.onCreate()`
+- Incremental sync:
+  - `SyncStateDao` stores `lastToken` per resource (e.g., products)
+  - `SyncManagerImpl.pullAll()` fetches deltas via `getProductDeltas(token)` and updates Room, then advances token
+- Compression: `data/util/Compression.kt` provides GZIP helpers for large payloads
+
+Testing the sync loop:
+1. Ensure Cloud Functions are deployed or emulator is running.
+2. Launch app (dev flavor). Create/update products in-app (goes to Room + Outbox).
+3. When online, `PushSyncWorker` pushes upserts to `upsertProduct`; verify Firestore updates.
+4. Trigger pull (wait for schedule or add a debug action) and confirm product list updates from `getProductDeltas`.
 
 ## DI Modules
 - `app/src/main/java/.../di/FirebaseModule.kt` provides Auth, Firestore, Storage, Functions, Analytics

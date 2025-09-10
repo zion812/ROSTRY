@@ -14,6 +14,7 @@ import androidx.work.Constraints
 import androidx.work.NetworkType
 import java.util.concurrent.TimeUnit
 import com.rio.rostry.data.work.OutboxSyncWorker
+import com.rio.rostry.data.work.PullSyncWorker
 
 @HiltAndroidApp
 class ROSTRYApp : Application(), Configuration.Provider {
@@ -43,6 +44,19 @@ class ROSTRYApp : Application(), Configuration.Provider {
             "outbox_sync",
             ExistingPeriodicWorkPolicy.KEEP,
             request
+        )
+
+        // Schedule periodic pull sync (every 2 hours, only when connected)
+        val pullConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val pullRequest = PeriodicWorkRequestBuilder<PullSyncWorker>(2, TimeUnit.HOURS)
+            .setConstraints(pullConstraints)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "pull_sync",
+            ExistingPeriodicWorkPolicy.KEEP,
+            pullRequest
         )
     }
 }

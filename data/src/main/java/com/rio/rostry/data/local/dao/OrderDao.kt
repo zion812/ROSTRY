@@ -17,4 +17,7 @@ interface OrderDao {
 
     @Query("SELECT * FROM orders WHERE buyerId = :buyerId ORDER BY createdAt DESC")
     fun streamByBuyer(buyerId: String): Flow<List<OrderEntity>>
+
+    @Query("SELECT * FROM orders WHERE buyerId = :userId OR sellerId = :userId ORDER BY createdAt DESC")
+    fun streamByUser(userId: String): Flow<List<OrderEntity>>
 }
