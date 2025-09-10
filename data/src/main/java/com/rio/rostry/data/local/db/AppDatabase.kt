@@ -39,6 +39,10 @@ import com.rio.rostry.data.local.dao.HubDao
 import com.rio.rostry.data.local.dao.DeliveryAssignmentDao
 import com.rio.rostry.data.local.dao.OrderEventDao
 import com.rio.rostry.data.local.dao.InvoiceDao
+import com.rio.rostry.data.local.dao.OrderItemDao
+import com.rio.rostry.data.local.dao.RefundDao
+import com.rio.rostry.data.local.entities.OrderItemEntity
+import com.rio.rostry.data.local.entities.RefundEntity
 
 @Database(
     entities = [
@@ -61,8 +65,10 @@ import com.rio.rostry.data.local.dao.InvoiceDao
         DeliveryAssignmentEntity::class,
         OrderEventEntity::class,
         InvoiceEntity::class,
+        OrderItemEntity::class,
+        RefundEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(OutboxTypeConverters::class, ListTypeConverters::class)
@@ -86,5 +92,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun deliveryAssignmentDao(): DeliveryAssignmentDao
     abstract fun orderEventDao(): OrderEventDao
     abstract fun invoiceDao(): InvoiceDao
+    abstract fun orderItemDao(): OrderItemDao
+    abstract fun refundDao(): RefundDao
 }
 

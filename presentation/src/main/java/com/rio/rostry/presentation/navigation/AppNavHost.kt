@@ -34,6 +34,7 @@ import com.rio.rostry.presentation.payments.CheckoutScreen
 import com.rio.rostry.presentation.payments.CheckoutViewModel
 import com.rio.rostry.presentation.tracking.OrderTrackingScreen
 import com.rio.rostry.presentation.tracking.OrderTrackingViewModel
+import com.rio.rostry.presentation.order.PlaceOrderScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -146,6 +147,11 @@ fun AppNavHost(navController: NavHostController) {
                 orderId = orderId,
                 onBack = { navController.popBackStack() }
             )
+        }
+
+        // Place Order (demo)
+        composable(Routes.PLACE_ORDER) {
+            PlaceOrderScreen(onBack = { navController.popBackStack() })
         }
     }
 }
