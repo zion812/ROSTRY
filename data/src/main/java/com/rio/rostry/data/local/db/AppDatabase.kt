@@ -9,6 +9,9 @@ import com.rio.rostry.data.local.entities.OrderEntity
 import com.rio.rostry.data.local.entities.ProductEntity
 import com.rio.rostry.data.local.entities.TransferEntity
 import com.rio.rostry.data.local.entities.UserEntity
+import com.rio.rostry.data.local.entities.CartEntity
+import com.rio.rostry.data.local.entities.AuctionProductEntity
+import com.rio.rostry.data.local.entities.BidEntity
 import com.rio.rostry.data.local.dao.CoinDao
 import com.rio.rostry.data.local.dao.NotificationDao
 import com.rio.rostry.data.local.dao.OrderDao
@@ -23,6 +26,9 @@ import com.rio.rostry.data.local.entities.FamilyTreeEntity
 import com.rio.rostry.data.local.entities.ChatMessageEntity
 import com.rio.rostry.data.local.entities.SyncStateEntity
 import com.rio.rostry.data.local.dao.SyncStateDao
+import com.rio.rostry.data.local.dao.CartDao
+import com.rio.rostry.data.local.dao.AuctionDao
+import com.rio.rostry.data.local.dao.BidDao
 
 @Database(
     entities = [
@@ -36,12 +42,15 @@ import com.rio.rostry.data.local.dao.SyncStateDao
         ProductTrackingEntity::class,
         FamilyTreeEntity::class,
         ChatMessageEntity::class,
-        SyncStateEntity::class
+        SyncStateEntity::class,
+        CartEntity::class,
+        AuctionProductEntity::class,
+        BidEntity::class,
     ],
-    version = 4,
+    version = 7,
     exportSchema = false
 )
-@TypeConverters(OutboxTypeConverters::class)
+@TypeConverters(OutboxTypeConverters::class, ListTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun outboxDao(): OutboxDao
     abstract fun userDao(): UserDao
@@ -54,5 +63,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun familyTreeDao(): FamilyTreeDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun cartDao(): CartDao
+    abstract fun auctionDao(): AuctionDao
+    abstract fun bidDao(): BidDao
 }
 

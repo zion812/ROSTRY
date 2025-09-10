@@ -8,6 +8,7 @@ import net.sqlcipher.database.SQLiteDatabase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.storage.FirebaseStorage
 import com.rio.rostry.data.local.db.AppDatabase
 import com.rio.rostry.data.local.db.OutboxDao
 import com.rio.rostry.data.auth.AuthRepositoryImpl
@@ -47,6 +48,9 @@ import com.rio.rostry.data.local.dao.FamilyTreeDao
 import com.rio.rostry.domain.familytree.FamilyTreeRepository
 import com.rio.rostry.data.familytree.FamilyTreeRepositoryImpl
 import com.rio.rostry.data.security.KeyProvider
+import com.rio.rostry.data.listing.ProductListingService
+import com.rio.rostry.domain.product.ListingUseCase
+import com.rio.rostry.data.product.ListingUseCaseImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -68,6 +72,9 @@ object DataModule {
             .addMigrations(
                 com.rio.rostry.data.local.migrations.MIGRATION_2_3,
                 com.rio.rostry.data.local.migrations.MIGRATION_3_4,
+                com.rio.rostry.data.local.migrations.MIGRATION_4_5,
+                com.rio.rostry.data.local.migrations.MIGRATION_5_6,
+                com.rio.rostry.data.local.migrations.MIGRATION_6_7,
             )
             .openHelperFactory(factory)
             .build()
@@ -77,6 +84,9 @@ object DataModule {
 
     @Provides
     fun provideSyncStateDao(db: AppDatabase): SyncStateDao = db.syncStateDao()
+
+    @Provides
+    fun provideCartDao(db: AppDatabase): com.rio.rostry.data.local.dao.CartDao = db.cartDao()
 
     @Provides
     fun provideProductDao(db: AppDatabase): ProductDao = db.productDao()
@@ -125,6 +135,18 @@ object DataModule {
     @Provides
     @Singleton
     fun provideRbacService(): RbacService = RbacServiceImpl()
+
+    @Provides
+    @Singleton
+    fun provideProductListingService(
+        storage: FirebaseStorage,
+        imageCompressor: com.rio.rostry.data.image.ImageCompressor,
+        productRepository: com.rio.rostry.domain.product.ProductRepository,
+    ): ProductListingService = ProductListingService(storage, imageCompressor, productRepository)
+
+    @Provides
+    @Singleton
+    fun provideListingUseCase(impl: ListingUseCaseImpl): ListingUseCase = impl
 
     @Provides
     @Singleton
@@ -233,5 +255,30 @@ object DataModule {
         @ApplicationContext context: Context,
         staleRefresher: com.rio.rostry.data.cache.StaleRefresher,
     ): FamilyTreeRepository = FamilyTreeRepositoryImpl(familyTreeDao, outboxRepository, context, staleRefresher)
+
+    @Provides
+    fun provideAuctionDao(db: AppDatabase): com.rio.rostry.data.local.dao.AuctionDao = db.auctionDao()
+
+    @Provides
+    fun provideBidDao(db: AppDatabase): com.rio.rostry.data.local.dao.BidDao = db.bidDao()
+
+    @Provides
+    @Singleton
+    fun provideBiddingRepository(
+        auctionDao: com.rio.rostry.data.local.dao.AuctionDao,
+        bidDao: com.rio.rostry.data.local.dao.BidDao,
+        functionsApi: com.rio.rostry.data.remote.FunctionsApi,
+        productDao: ProductDao,
+    ): com.rio.rostry.domain.bidding.BiddingRepository =
+        com.rio.rostry.data.bidding.BiddingRepositoryImpl(auctionDao, bidDao, functionsApi, productDao)
+
+    @Provides
+    @Singleton
+    fun provideCartRepository(
+        cartDao: com.rio.rostry.data.local.dao.CartDao,
+        productDao: com.rio.rostry.data.local.dao.ProductDao,
+        orderRepository: com.rio.rostry.domain.order.OrderRepository,
+    ): com.rio.rostry.domain.cart.CartRepository =
+        com.rio.rostry.data.cart.CartRepositoryImpl(cartDao, productDao, orderRepository)
 }
 

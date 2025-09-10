@@ -62,4 +62,9 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.biometric)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Unit tests
+    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.kotlinx.coroutines.test)
 }

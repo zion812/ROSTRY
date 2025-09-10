@@ -19,6 +19,17 @@ import com.rio.rostry.presentation.screens.onboarding.EmailSignUpScreen
 import com.rio.rostry.presentation.screens.onboarding.PhoneVerificationScreen
 import com.rio.rostry.presentation.screens.farmer.FarmerLocationVerificationScreen
 import com.rio.rostry.presentation.screens.enthusiast.EnthusiastKycScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.rio.rostry.presentation.bidding.AuctionListViewModel
+import com.rio.rostry.presentation.bidding.AuctionDetailViewModel
+import com.rio.rostry.presentation.bidding.AuctionListScreen
+import com.rio.rostry.presentation.bidding.AuctionDetailScreen
+import com.rio.rostry.domain.bidding.AuctionStatus
+import com.rio.rostry.presentation.marketplace.MarketplaceViewModel
+import com.rio.rostry.presentation.marketplace.MarketplaceScreen
+import com.rio.rostry.presentation.listing.ProductListingViewModel
+import com.rio.rostry.presentation.listing.ProductListingScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -60,6 +71,49 @@ fun AppNavHost(navController: NavHostController) {
 
         // Enthusiast flows
         composable(Routes.ENTHUSIAST_KYC) { EnthusiastKycScreen(navController) }
+
+        // Marketplace
+        composable(Routes.MARKETPLACE) {
+            val vm: MarketplaceViewModel = hiltViewModel()
+            MarketplaceScreen(vm)
+        }
+
+        // Listing
+        composable(Routes.PRODUCT_LISTING) {
+            val vm: ProductListingViewModel = hiltViewModel()
+            ProductListingScreen(viewModel = vm)
+        }
+
+        // Bidding: Auction list (optionally filter by seller)
+        composable(Routes.AUCTION_LIST) {
+            val vm: AuctionListViewModel = hiltViewModel()
+            val sellerId = sessionViewModel.currentUserId.collectAsState(initial = null).value
+            AuctionListScreen(
+                viewModel = vm,
+                status = AuctionStatus.ACTIVE,
+                sellerId = sellerId,
+                onAuctionClick = { auctionId ->
+                    navController.navigate("${Routes.AUCTION_DETAIL}/$auctionId")
+                }
+            )
+        }
+
+        // Bidding: Auction detail with auctionId argument
+        composable(
+            route = "${Routes.AUCTION_DETAIL}/{auctionId}",
+            arguments = listOf(navArgument("auctionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val vm: AuctionDetailViewModel = hiltViewModel()
+            val auctionId = backStackEntry.arguments?.getString("auctionId") ?: return@composable
+            val bidderId = sessionViewModel.currentUserId.collectAsState(initial = null).value ?: return@composable
+            AuctionDetailScreen(
+                viewModel = vm,
+                auctionId = auctionId,
+                bidderId = bidderId,
+                onPlaced = { navController.popBackStack() },
+                onError = { /* show snackbar in your scaffold */ }
+            )
+        }
     }
 }
 
