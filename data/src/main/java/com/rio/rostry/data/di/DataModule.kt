@@ -51,6 +51,26 @@ import com.rio.rostry.data.security.KeyProvider
 import com.rio.rostry.data.listing.ProductListingService
 import com.rio.rostry.domain.product.ListingUseCase
 import com.rio.rostry.data.product.ListingUseCaseImpl
+import com.rio.rostry.data.local.dao.PaymentDao
+import com.rio.rostry.data.local.dao.HubDao
+import com.rio.rostry.data.local.dao.DeliveryAssignmentDao
+import com.rio.rostry.data.local.dao.OrderEventDao
+import com.rio.rostry.data.local.dao.InvoiceDao
+import com.rio.rostry.data.local.dao.CoinDao
+import com.rio.rostry.domain.payment.PaymentRepository
+import com.rio.rostry.data.payment.PaymentRepositoryImpl
+import com.rio.rostry.domain.wallet.WalletRepository
+import com.rio.rostry.data.wallet.WalletRepositoryImpl
+import com.rio.rostry.domain.logistics.LogisticsRepository
+import com.rio.rostry.data.logistics.LogisticsRepositoryImpl
+import com.rio.rostry.domain.invoice.InvoiceService
+import com.rio.rostry.data.invoice.InvoiceServiceImpl
+import com.rio.rostry.domain.payment.PaymentGateway
+import com.rio.rostry.data.payment.DemoPaymentGateway
+import com.rio.rostry.domain.payment.UpiService
+import com.rio.rostry.data.payment.DemoUpiService
+import com.rio.rostry.domain.order.OrderEventsRepository
+import com.rio.rostry.data.order.OrderEventsRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -75,6 +95,7 @@ object DataModule {
                 com.rio.rostry.data.local.migrations.MIGRATION_4_5,
                 com.rio.rostry.data.local.migrations.MIGRATION_5_6,
                 com.rio.rostry.data.local.migrations.MIGRATION_6_7,
+                com.rio.rostry.data.local.migrations.MIGRATION_7_8,
             )
             .openHelperFactory(factory)
             .build()
@@ -105,6 +126,25 @@ object DataModule {
 
     @Provides
     fun provideFamilyTreeDao(db: AppDatabase): FamilyTreeDao = db.familyTreeDao()
+
+    // Missing earlier: provide CoinDao for injection
+    @Provides
+    fun provideCoinDao(db: AppDatabase): CoinDao = db.coinDao()
+
+    @Provides
+    fun providePaymentDao(db: AppDatabase): PaymentDao = db.paymentDao()
+
+    @Provides
+    fun provideHubDao(db: AppDatabase): HubDao = db.hubDao()
+
+    @Provides
+    fun provideDeliveryAssignmentDao(db: AppDatabase): DeliveryAssignmentDao = db.deliveryAssignmentDao()
+
+    @Provides
+    fun provideOrderEventDao(db: AppDatabase): OrderEventDao = db.orderEventDao()
+
+    @Provides
+    fun provideInvoiceDao(db: AppDatabase): InvoiceDao = db.invoiceDao()
 
     @Provides
     @Singleton
@@ -280,5 +320,44 @@ object DataModule {
         orderRepository: com.rio.rostry.domain.order.OrderRepository,
     ): com.rio.rostry.domain.cart.CartRepository =
         com.rio.rostry.data.cart.CartRepositoryImpl(cartDao, productDao, orderRepository)
+
+    @Provides
+    @Singleton
+    fun providePaymentRepository(
+        paymentDao: PaymentDao,
+    ): PaymentRepository = PaymentRepositoryImpl(paymentDao)
+
+    @Provides
+    @Singleton
+    fun provideWalletRepository(
+        coinDao: CoinDao,
+    ): WalletRepository = WalletRepositoryImpl(coinDao)
+
+    @Provides
+    @Singleton
+    fun provideLogisticsRepository(
+        hubDao: HubDao,
+        deliveryAssignmentDao: DeliveryAssignmentDao,
+    ): LogisticsRepository = LogisticsRepositoryImpl(hubDao, deliveryAssignmentDao)
+
+    @Provides
+    @Singleton
+    fun provideInvoiceService(
+        invoiceDao: InvoiceDao,
+    ): InvoiceService = InvoiceServiceImpl(invoiceDao)
+
+    @Provides
+    @Singleton
+    fun providePaymentGateway(): PaymentGateway = DemoPaymentGateway()
+
+    @Provides
+    @Singleton
+    fun provideUpiService(): UpiService = DemoUpiService()
+
+    @Provides
+    @Singleton
+    fun provideOrderEventsRepository(
+        orderEventDao: OrderEventDao,
+    ): OrderEventsRepository = OrderEventsRepositoryImpl(orderEventDao)
 }
 

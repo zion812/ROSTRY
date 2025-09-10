@@ -41,5 +41,18 @@ data class OrderEntity(
     val productId: String,
     val quantity: Int,
     val status: String,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    // New fields with safe defaults
+    val paymentMethod: String = "COD",        // ONLINE, COD, COIN, ADVANCE
+    val paymentStatus: String = "INITIATED",  // INITIATED, AUTHORIZED, CAPTURED, FAILED, REFUNDED
+    val amountSubtotal: Long = 0,              // paise
+    val gstPercentage: Int = 0,                // e.g., 5, 12
+    val gstAmount: Long = 0,                   // paise
+    val amountTotal: Long = 0,                 // paise
+    val advanceAmount: Long = 0,               // paise
+    val codEligible: Boolean = true,
+    val hubId: String? = null,
+    val expectedDeliveryAt: Long? = null,
+    val updatedAt: Long = createdAt
 )
+

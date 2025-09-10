@@ -14,4 +14,10 @@ interface CoinDao {
 
     @Query("SELECT * FROM coin_transactions WHERE userId = :userId ORDER BY createdAt DESC")
     fun streamByUser(userId: String): Flow<List<CoinTransactionEntity>>
+
+    @Query("SELECT COALESCE(SUM(CASE WHEN type IN ('SPEND') THEN -coins ELSE coins END), 0) FROM coin_transactions WHERE userId = :userId")
+    suspend fun getBalance(userId: String): Int
+
+    @Query("SELECT * FROM coin_transactions WHERE userId = :userId ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecent(userId: String, limit: Int = 20): List<CoinTransactionEntity>
 }

@@ -29,6 +29,16 @@ import com.rio.rostry.data.local.dao.SyncStateDao
 import com.rio.rostry.data.local.dao.CartDao
 import com.rio.rostry.data.local.dao.AuctionDao
 import com.rio.rostry.data.local.dao.BidDao
+import com.rio.rostry.data.local.entities.PaymentEntity
+import com.rio.rostry.data.local.entities.HubEntity
+import com.rio.rostry.data.local.entities.DeliveryAssignmentEntity
+import com.rio.rostry.data.local.entities.OrderEventEntity
+import com.rio.rostry.data.local.entities.InvoiceEntity
+import com.rio.rostry.data.local.dao.PaymentDao
+import com.rio.rostry.data.local.dao.HubDao
+import com.rio.rostry.data.local.dao.DeliveryAssignmentDao
+import com.rio.rostry.data.local.dao.OrderEventDao
+import com.rio.rostry.data.local.dao.InvoiceDao
 
 @Database(
     entities = [
@@ -46,8 +56,13 @@ import com.rio.rostry.data.local.dao.BidDao
         CartEntity::class,
         AuctionProductEntity::class,
         BidEntity::class,
+        PaymentEntity::class,
+        HubEntity::class,
+        DeliveryAssignmentEntity::class,
+        OrderEventEntity::class,
+        InvoiceEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(OutboxTypeConverters::class, ListTypeConverters::class)
@@ -66,5 +81,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cartDao(): CartDao
     abstract fun auctionDao(): AuctionDao
     abstract fun bidDao(): BidDao
+    abstract fun paymentDao(): PaymentDao
+    abstract fun hubDao(): HubDao
+    abstract fun deliveryAssignmentDao(): DeliveryAssignmentDao
+    abstract fun orderEventDao(): OrderEventDao
+    abstract fun invoiceDao(): InvoiceDao
 }
 

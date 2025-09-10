@@ -30,6 +30,10 @@ import com.rio.rostry.presentation.marketplace.MarketplaceViewModel
 import com.rio.rostry.presentation.marketplace.MarketplaceScreen
 import com.rio.rostry.presentation.listing.ProductListingViewModel
 import com.rio.rostry.presentation.listing.ProductListingScreen
+import com.rio.rostry.presentation.payments.CheckoutScreen
+import com.rio.rostry.presentation.payments.CheckoutViewModel
+import com.rio.rostry.presentation.tracking.OrderTrackingScreen
+import com.rio.rostry.presentation.tracking.OrderTrackingViewModel
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -112,6 +116,35 @@ fun AppNavHost(navController: NavHostController) {
                 bidderId = bidderId,
                 onPlaced = { navController.popBackStack() },
                 onError = { /* show snackbar in your scaffold */ }
+            )
+        }
+
+        // Checkout (demo)
+        composable(
+            route = "${Routes.CHECKOUT}/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val vm: CheckoutViewModel = hiltViewModel()
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            CheckoutScreen(
+                viewModel = vm,
+                orderId = orderId,
+                onTrack = { navController.navigate("${Routes.ORDER_TRACK}/$orderId") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Order Tracking (demo)
+        composable(
+            route = "${Routes.ORDER_TRACK}/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val vm: OrderTrackingViewModel = hiltViewModel()
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            OrderTrackingScreen(
+                viewModel = vm,
+                orderId = orderId,
+                onBack = { navController.popBackStack() }
             )
         }
     }

@@ -20,14 +20,24 @@ import com.rio.rostry.presentation.viewmodel.RoleUpgradeUiState
 import com.rio.rostry.presentation.viewmodel.SessionViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.rio.rostry.presentation.viewmodel.DemoSeedViewModel
 
 @Composable
 fun HomeScreen(navController: NavHostController? = null) {
     val sessionVm: SessionViewModel = hiltViewModel()
     val userType by sessionVm.userType.collectAsState(initial = null)
+    val currentUserId by sessionVm.currentUserId.collectAsState(initial = "demo-user")
 
     val upgradeVm: RoleUpgradeViewModel = hiltViewModel()
     val upgradeState by upgradeVm.state.collectAsState()
+
+    val demoSeedVm: DemoSeedViewModel = hiltViewModel()
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(upgradeState) {
         if (upgradeState is RoleUpgradeUiState.UpgradedToFarmer) {
@@ -38,12 +48,27 @@ fun HomeScreen(navController: NavHostController? = null) {
     }
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (userType == UserType.GENERAL) {
-            Button(onClick = { upgradeVm.upgradeToFarmer() }, modifier = Modifier.padding(16.dp)) {
-                Text("Upgrade to Farmer")
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (userType == UserType.GENERAL) {
+                Button(onClick = { upgradeVm.upgradeToFarmer() }, modifier = Modifier.padding(16.dp)) {
+                    Text("Upgrade to Farmer")
+                }
+            } else {
+                Text(text = "ROSTRY Home", style = MaterialTheme.typography.headlineMedium)
             }
-        } else {
-            Text(text = "ROSTRY Home", style = MaterialTheme.typography.headlineMedium)
+
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = {
+                // Seed demo and navigate to checkout
+                val orderId = "demo-order-1"
+                scope.launch {
+                    val userId = currentUserId ?: "demo-user"
+                    demoSeedVm.seedDemo(userId, orderId)
+                    navController?.navigate("${Routes.CHECKOUT}/$orderId")
+                }
+            }) {
+                Text("Demo: Seed & Checkout")
+            }
         }
     }
 }
