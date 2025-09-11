@@ -43,6 +43,7 @@ android {
 dependencies {
     api(project(":domain"))
     implementation(project(":core"))
+    implementation(project(":data"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -63,6 +64,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.biometric)
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // QR Code generation
+    implementation("com.google.zxing:core:3.5.1")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")

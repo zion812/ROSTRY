@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.rio.rostry.data.local.entities.ProductEntity
+import com.rio.rostry.data.local.entities.ProductBasic
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -61,4 +62,15 @@ interface ProductDao {
 
     @Update
     suspend fun update(product: ProductEntity)
+
+    // Projection for lifecycle processing to avoid loading entire entities
+    @Query(
+        """
+        SELECT id, farmerId, birthDate, gender, color, createdAt
+        FROM products
+        ORDER BY createdAt DESC
+        """
+    )
+    suspend fun listBasics(): List<ProductBasic>
 }
+

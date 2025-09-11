@@ -1,2 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest package="com.rio.rostry.presentation" xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Dev-only screen to run DB migration checks on-device -->
+        <activity
+            android:name="com.rio.rostry.presentation.debug.MigrationCheckActivity"
+            android:exported="true" />
+    </application>
+</manifest>

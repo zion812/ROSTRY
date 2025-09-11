@@ -17,4 +17,7 @@ interface TransferDao {
 
     @Query("SELECT * FROM transfers WHERE fromUserId = :userId OR toUserId = :userId ORDER BY createdAt DESC")
     fun streamByUser(userId: String): Flow<List<TransferEntity>>
+
+    @Query("SELECT * FROM transfers WHERE productId = :productId ORDER BY createdAt ASC")
+    suspend fun listByProduct(productId: String): List<TransferEntity>
 }

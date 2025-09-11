@@ -4,4 +4,16 @@
 4
 5    <uses-sdk android:minSdkVersion="24" />
 6
-7</manifest>
+7    <application>
+7-->C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:3:5-8:19
+8
+9        <!-- Dev-only screen to run DB migration checks on-device -->
+10        <activity
+10-->C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:5:9-7:39
+11            android:name="com.rio.rostry.presentation.debug.MigrationCheckActivity"
+11-->C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:6:13-84
+12            android:exported="true" />
+12-->C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:7:13-36
+13    </application>
+14
+15</manifest>

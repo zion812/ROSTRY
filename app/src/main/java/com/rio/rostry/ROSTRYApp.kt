@@ -15,6 +15,7 @@ import androidx.work.NetworkType
 import java.util.concurrent.TimeUnit
 import com.rio.rostry.data.work.OutboxSyncWorker
 import com.rio.rostry.data.work.PullSyncWorker
+import com.rio.rostry.data.work.MilestoneWorker
 
 @HiltAndroidApp
 class ROSTRYApp : Application(), Configuration.Provider {
@@ -58,5 +59,19 @@ class ROSTRYApp : Application(), Configuration.Provider {
             ExistingPeriodicWorkPolicy.KEEP,
             pullRequest
         )
+
+        // Schedule daily lifecycle milestone checks (once a day, only when connected)
+        val milestoneConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val milestoneRequest = PeriodicWorkRequestBuilder<MilestoneWorker>(1, TimeUnit.DAYS)
+            .setConstraints(milestoneConstraints)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "lifecycle_milestones",
+            ExistingPeriodicWorkPolicy.KEEP,
+            milestoneRequest
+        )
     }
 }
+

@@ -4,4 +4,12 @@
 
     <uses-sdk android:minSdkVersion="24" />
 
+    <application>
+
+        <!-- Dev-only screen to run DB migration checks on-device -->
+        <activity
+            android:name="com.rio.rostry.presentation.debug.MigrationCheckActivity"
+            android:exported="true" />
+    </application>
+
 </manifest>

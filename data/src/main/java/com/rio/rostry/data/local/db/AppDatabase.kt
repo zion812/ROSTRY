@@ -43,6 +43,16 @@ import com.rio.rostry.data.local.dao.OrderItemDao
 import com.rio.rostry.data.local.dao.RefundDao
 import com.rio.rostry.data.local.entities.OrderItemEntity
 import com.rio.rostry.data.local.entities.RefundEntity
+import com.rio.rostry.data.local.dao.BreedingRecordDao
+import com.rio.rostry.data.local.dao.TraitDao
+import com.rio.rostry.data.local.dao.LifecycleEntryDao
+import com.rio.rostry.data.local.dao.LineageCacheDao
+import com.rio.rostry.data.local.entities.BreedingRecordEntity
+import com.rio.rostry.data.local.entities.BreedingOffspringCrossRefEntity
+import com.rio.rostry.data.local.entities.TraitEntity
+import com.rio.rostry.data.local.entities.ProductTraitCrossRefEntity
+import com.rio.rostry.data.local.entities.LifecycleEntryEntity
+import com.rio.rostry.data.local.entities.LineageCacheEntity
 
 @Database(
     entities = [
@@ -67,8 +77,15 @@ import com.rio.rostry.data.local.entities.RefundEntity
         InvoiceEntity::class,
         OrderItemEntity::class,
         RefundEntity::class,
+        // Traceability schema additions
+        BreedingRecordEntity::class,
+        BreedingOffspringCrossRefEntity::class,
+        TraitEntity::class,
+        ProductTraitCrossRefEntity::class,
+        LifecycleEntryEntity::class,
+        LineageCacheEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(OutboxTypeConverters::class, ListTypeConverters::class)
@@ -94,5 +111,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun invoiceDao(): InvoiceDao
     abstract fun orderItemDao(): OrderItemDao
     abstract fun refundDao(): RefundDao
+    // Traceability DAOs
+    abstract fun breedingRecordDao(): BreedingRecordDao
+    abstract fun traitDao(): TraitDao
+    abstract fun lifecycleEntryDao(): LifecycleEntryDao
+    abstract fun lineageCacheDao(): LineageCacheDao
 }
 

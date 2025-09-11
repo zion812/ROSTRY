@@ -1,9 +1,20 @@
 -- Merging decision tree log ---
 manifest
-ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:2:1-13
-INJECTED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:2:1-13
+ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:2:1-9:12
+INJECTED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:2:1-9:12
 	package
+		ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:2:11-48
 		INJECTED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml
+	xmlns:android
+		ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:2:49-107
+application
+ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:3:5-8:19
+activity#com.rio.rostry.presentation.debug.MigrationCheckActivity
+ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:5:9-7:39
+	android:exported
+		ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:7:13-36
+	android:name
+		ADDED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml:6:13-84
 uses-sdk
 INJECTED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Users\rowdy\AndroidStudioProjects\ROSTRY\presentation\src\main\AndroidManifest.xml

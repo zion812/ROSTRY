@@ -47,6 +47,7 @@ import com.rio.rostry.data.producttracking.ProductTrackingRepositoryImpl
 import com.rio.rostry.data.local.dao.FamilyTreeDao
 import com.rio.rostry.domain.familytree.FamilyTreeRepository
 import com.rio.rostry.data.familytree.FamilyTreeRepositoryImpl
+import com.rio.rostry.data.familytree.LineageCacheService
 import com.rio.rostry.data.security.KeyProvider
 import com.rio.rostry.data.listing.ProductListingService
 import com.rio.rostry.domain.product.ListingUseCase
@@ -59,6 +60,10 @@ import com.rio.rostry.data.local.dao.InvoiceDao
 import com.rio.rostry.data.local.dao.CoinDao
 import com.rio.rostry.data.local.dao.OrderItemDao
 import com.rio.rostry.data.local.dao.RefundDao
+import com.rio.rostry.data.local.dao.BreedingRecordDao
+import com.rio.rostry.data.local.dao.TraitDao
+import com.rio.rostry.data.local.dao.LifecycleEntryDao
+import com.rio.rostry.data.local.dao.LineageCacheDao
 import com.rio.rostry.domain.payment.PaymentRepository
 import com.rio.rostry.data.payment.PaymentRepositoryImpl
 import com.rio.rostry.domain.wallet.WalletRepository
@@ -103,6 +108,7 @@ object DataModule {
                 com.rio.rostry.data.local.migrations.MIGRATION_6_7,
                 com.rio.rostry.data.local.migrations.MIGRATION_7_8,
                 com.rio.rostry.data.local.migrations.MIGRATION_8_9,
+                com.rio.rostry.data.local.migrations.MIGRATION_9_10,
             )
             .openHelperFactory(factory)
             .build()
@@ -158,6 +164,19 @@ object DataModule {
 
     @Provides
     fun provideRefundDao(db: AppDatabase): RefundDao = db.refundDao()
+
+    // Traceability DAOs
+    @Provides
+    fun provideBreedingRecordDao(db: AppDatabase): BreedingRecordDao = db.breedingRecordDao()
+
+    @Provides
+    fun provideTraitDao(db: AppDatabase): TraitDao = db.traitDao()
+
+    @Provides
+    fun provideLifecycleEntryDao(db: AppDatabase): LifecycleEntryDao = db.lifecycleEntryDao()
+
+    @Provides
+    fun provideLineageCacheDao(db: AppDatabase): LineageCacheDao = db.lineageCacheDao()
 
     @Provides
     @Singleton
@@ -307,7 +326,16 @@ object DataModule {
         outboxRepository: OutboxRepository,
         @ApplicationContext context: Context,
         staleRefresher: com.rio.rostry.data.cache.StaleRefresher,
-    ): FamilyTreeRepository = FamilyTreeRepositoryImpl(familyTreeDao, outboxRepository, context, staleRefresher)
+        lineageCacheService: LineageCacheService,
+        lineageCacheDao: LineageCacheDao,
+    ): FamilyTreeRepository = FamilyTreeRepositoryImpl(
+        familyTreeDao,
+        outboxRepository,
+        context,
+        staleRefresher,
+        lineageCacheService,
+        lineageCacheDao,
+    )
 
     @Provides
     fun provideAuctionDao(db: AppDatabase): com.rio.rostry.data.local.dao.AuctionDao = db.auctionDao()
