@@ -98,6 +98,9 @@ dependencies {
     implementation(libs.firebase.functions.ktx)
     implementation(libs.firebase.crashlytics)
 
+    // Location services for fused location provider used in BuyerVerify
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
     // Logging
     implementation(libs.timber)
 

@@ -31,6 +31,8 @@ import com.rio.rostry.data.sync.SyncManagerImpl
 import com.rio.rostry.domain.product.ProductRepository
 import com.rio.rostry.data.product.ProductRepositoryImpl
 import com.rio.rostry.data.remote.FunctionsApi
+import com.rio.rostry.data.transfer.TransferActionsRemote
+import com.rio.rostry.data.storage.StorageUploader
 import com.rio.rostry.domain.order.OrderRepository
 import com.rio.rostry.data.order.OrderRepositoryImpl
 import com.rio.rostry.data.transfer.TransferRepositoryImpl
@@ -281,6 +283,14 @@ object DataModule {
     @Provides
     @Singleton
     fun provideFunctionsApi(functions: FirebaseFunctions): FunctionsApi = FunctionsApi(functions)
+
+    @Provides
+    @Singleton
+    fun provideTransferActionsRemote(functionsApi: FunctionsApi): TransferActionsRemote = TransferActionsRemote(functionsApi)
+
+    @Provides
+    @Singleton
+    fun provideStorageUploader(storage: FirebaseStorage, auth: FirebaseAuth): StorageUploader = StorageUploader(storage, auth)
 
     @Provides
     @Singleton
