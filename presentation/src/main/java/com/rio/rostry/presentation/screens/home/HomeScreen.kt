@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.rio.rostry.presentation.viewmodel.DemoSeedViewModel
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
 
 @Composable
 fun HomeScreen(navController: NavHostController? = null) {
