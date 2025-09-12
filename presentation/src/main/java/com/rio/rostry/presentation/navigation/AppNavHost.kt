@@ -35,6 +35,10 @@ import com.rio.rostry.presentation.payments.CheckoutViewModel
 import com.rio.rostry.presentation.tracking.OrderTrackingScreen
 import com.rio.rostry.presentation.tracking.OrderTrackingViewModel
 import com.rio.rostry.presentation.order.PlaceOrderScreen
+import com.rio.rostry.presentation.analytics.AnalyticsScreen
+import com.rio.rostry.presentation.recommendations.RecommendationsScreen
+import com.rio.rostry.presentation.analytics.AnalyticsSettingsScreen
+import com.rio.rostry.presentation.performance.ProductPerformanceScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -152,6 +156,28 @@ fun AppNavHost(navController: NavHostController) {
         // Place Order (demo)
         composable(Routes.PLACE_ORDER) {
             PlaceOrderScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Analytics & Reports (debug/ops)
+        composable(Routes.ANALYTICS) {
+            AnalyticsScreen(
+                onOpenSettings = { navController.navigate(Routes.ANALYTICS_SETTINGS) }
+            )
+        }
+
+        // Recommendations
+        composable(Routes.RECOMMENDATIONS) {
+            RecommendationsScreen()
+        }
+
+        // Analytics Settings (monthly goal)
+        composable(Routes.ANALYTICS_SETTINGS) {
+            AnalyticsSettingsScreen()
+        }
+
+        // Product Performance
+        composable(Routes.PRODUCT_PERFORMANCE) {
+            ProductPerformanceScreen()
         }
     }
 }

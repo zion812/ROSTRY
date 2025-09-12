@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import com.rio.rostry.presentation.viewmodel.DemoSeedViewModel
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
+import com.rio.rostry.presentation.analytics.AnalyticsEventTrackerViewModel
 
 @Composable
 fun HomeScreen(navController: NavHostController? = null) {
@@ -40,6 +41,7 @@ fun HomeScreen(navController: NavHostController? = null) {
 
     val demoSeedVm: DemoSeedViewModel = hiltViewModel()
     val scope = rememberCoroutineScope()
+    val trackerVm: AnalyticsEventTrackerViewModel = hiltViewModel()
 
     LaunchedEffect(upgradeState) {
         if (upgradeState is RoleUpgradeUiState.UpgradedToFarmer) {
@@ -66,10 +68,43 @@ fun HomeScreen(navController: NavHostController? = null) {
                 scope.launch {
                     val userId = currentUserId ?: "demo-user"
                     demoSeedVm.seedDemo(userId, orderId)
+                    trackerVm.createEntryOpen("checkout")
                     navController?.navigate("${Routes.CHECKOUT}/$orderId")
                 }
             }) {
                 Text("Demo: Seed & Checkout")
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = {
+                trackerVm.navTabClick("analytics")
+                navController?.navigate(Routes.ANALYTICS)
+            }) {
+                Text("Analytics & Reports")
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = {
+                trackerVm.navTabClick("recommendations")
+                navController?.navigate(Routes.RECOMMENDATIONS)
+            }) {
+                Text("Recommendations")
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = {
+                trackerVm.navTabClick("analytics_settings")
+                navController?.navigate(Routes.ANALYTICS_SETTINGS)
+            }) {
+                Text("Analytics Settings")
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = {
+                trackerVm.navTabClick("product_performance")
+                navController?.navigate(Routes.PRODUCT_PERFORMANCE)
+            }) {
+                Text("Product Performance")
             }
         }
     }

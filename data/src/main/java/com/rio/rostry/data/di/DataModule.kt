@@ -50,6 +50,8 @@ import com.rio.rostry.data.chat.ChatRepositoryImpl
 import com.rio.rostry.domain.chat.ChatRepository
 import com.rio.rostry.data.local.dao.ChatMessageDao
 import com.rio.rostry.data.local.dao.ProductTrackingDao
+import com.rio.rostry.domain.repository.AnalyticsRepository
+import com.rio.rostry.data.analytics.AnalyticsRepositoryImpl
 import com.rio.rostry.domain.producttracking.ProductTrackingRepository
 import com.rio.rostry.data.producttracking.ProductTrackingRepositoryImpl
 import com.rio.rostry.data.local.dao.FamilyTreeDao
@@ -325,6 +327,12 @@ object DataModule {
         @ApplicationContext context: Context,
         staleRefresher: com.rio.rostry.data.cache.StaleRefresher,
     ): ChatRepository = ChatRepositoryImpl(chatMessageDao, outboxRepository, context, staleRefresher)
+
+    @Provides
+    @Singleton
+    fun provideAnalyticsRepository(
+        functionsApi: FunctionsApi,
+    ): AnalyticsRepository = AnalyticsRepositoryImpl(functionsApi)
 
     @Provides
     @Singleton
