@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.database.FirebaseDatabase
 import com.rio.rostry.data.local.db.AppDatabase
 import com.rio.rostry.data.local.db.OutboxDao
 import com.rio.rostry.data.auth.AuthRepositoryImpl
@@ -37,6 +38,11 @@ import com.rio.rostry.domain.order.OrderRepository
 import com.rio.rostry.data.order.OrderRepositoryImpl
 import com.rio.rostry.data.transfer.TransferRepositoryImpl
 import com.rio.rostry.domain.transfer.TransferRepository
+import com.rio.rostry.data.presence.PresenceRepository
+import com.rio.rostry.data.feed.FeedRepository
+import com.rio.rostry.data.messaging.MessagingRepository
+import com.rio.rostry.data.calls.SignalingRepository
+import com.rio.rostry.data.community.CommunityEventExpertRepository
 import com.rio.rostry.data.local.dao.NotificationDao
 import com.rio.rostry.domain.notification.NotificationRepository
 import com.rio.rostry.data.notification.NotificationRepositoryImpl
@@ -438,4 +444,36 @@ object DataModule {
         orderEventsRepository = orderEventsRepository,
         upiService = upiService,
     )
+
+    // New repositories: presence, feed, messaging, signaling, community/events/experts
+    @Provides
+    @Singleton
+    fun providePresenceRepository(
+        rtdb: FirebaseDatabase,
+    ): PresenceRepository = PresenceRepository(rtdb)
+
+    @Provides
+    @Singleton
+    fun provideFeedRepository(
+        functions: FirebaseFunctions,
+    ): FeedRepository = FeedRepository(functions)
+
+    @Provides
+    @Singleton
+    fun provideMessagingRepository(
+        functions: FirebaseFunctions,
+        rtdb: FirebaseDatabase,
+    ): MessagingRepository = MessagingRepository(functions, rtdb)
+
+    @Provides
+    @Singleton
+    fun provideSignalingRepository(
+        firestore: FirebaseFirestore,
+    ): SignalingRepository = SignalingRepository(firestore)
+
+    @Provides
+    @Singleton
+    fun provideCommunityEventExpertRepository(
+        functions: FirebaseFunctions,
+    ): CommunityEventExpertRepository = CommunityEventExpertRepository(functions)
 }

@@ -4,6 +4,7 @@ import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import android.content.Context
 import dagger.Module
@@ -31,7 +32,11 @@ object FirebaseModule {
 
     @Provides
     @Singleton
-    fun provideFunctions(): FirebaseFunctions = FirebaseFunctions.getInstance()
+    fun provideFunctions(): FirebaseFunctions = FirebaseFunctions.getInstance("us-central1")
+
+    @Provides
+    @Singleton
+    fun provideRealtimeDatabase(): FirebaseDatabase = FirebaseDatabase.getInstance()
 
     @Provides
     @Singleton
