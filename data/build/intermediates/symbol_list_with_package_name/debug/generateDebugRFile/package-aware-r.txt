@@ -1,1 +1,7 @@
 com.rio.rostry.data
+string breeding_eligibility_body
+string breeding_eligibility_title
+string notif_channel_desc
+string notif_channel_name
+string vaccination_due_body
+string vaccination_due_title

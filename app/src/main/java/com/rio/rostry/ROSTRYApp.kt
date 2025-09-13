@@ -16,6 +16,8 @@ import java.util.concurrent.TimeUnit
 import com.rio.rostry.data.work.OutboxSyncWorker
 import com.rio.rostry.data.work.PullSyncWorker
 import com.rio.rostry.data.work.MilestoneWorker
+import com.rio.rostry.data.work.VaccinationReminderWorker
+import com.rio.rostry.data.work.BreederEligibilityWorker
 
 @HiltAndroidApp
 class ROSTRYApp : Application(), Configuration.Provider {
@@ -71,6 +73,32 @@ class ROSTRYApp : Application(), Configuration.Provider {
             "lifecycle_milestones",
             ExistingPeriodicWorkPolicy.KEEP,
             milestoneRequest
+        )
+
+        // Schedule daily vaccination reminders (only when connected)
+        val vaccConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val vaccRequest = PeriodicWorkRequestBuilder<VaccinationReminderWorker>(1, TimeUnit.DAYS)
+            .setConstraints(vaccConstraints)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "vaccination_reminders",
+            ExistingPeriodicWorkPolicy.KEEP,
+            vaccRequest
+        )
+
+        // Schedule daily breeder eligibility evaluation (only when connected)
+        val breederConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val breederRequest = PeriodicWorkRequestBuilder<BreederEligibilityWorker>(1, TimeUnit.DAYS)
+            .setConstraints(breederConstraints)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "breeder_eligibility",
+            ExistingPeriodicWorkPolicy.KEEP,
+            breederRequest
         )
     }
 }

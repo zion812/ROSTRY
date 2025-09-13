@@ -13,6 +13,11 @@
 -keep class androidx.hilt.WorkerFactoryModule { *; }
 -dontwarn javax.inject.**
 
+# Hilt generated components and entry points
+-keep class **_HiltComponents { *; }
+-keep class **_HiltModules { *; }
+-keep class dagger.hilt.internal.generated.** { *; }
+
 # Retrofit / Moshi
 -dontwarn okhttp3.**
 -dontwarn okio.**
@@ -31,6 +36,10 @@
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
 
+# Razorpay SDK
+-keep class com.razorpay.** { *; }
+-dontwarn com.razorpay.**
+
 # WorkManager
 -keep class androidx.work.impl.WorkDatabase_* { *; }
 -dontwarn androidx.work.**
@@ -42,9 +51,35 @@
 # Keep Kotlin coroutines debug metadata
 -keepclassmembers class kotlinx.coroutines.debug.internal.DebugProbesImpl { *; }
 
+# Kotlin/coroutines general keeps
+-dontwarn kotlin.**
+-dontwarn kotlinx.coroutines.**
+-keep class kotlin.Metadata { *; }
+-keep class kotlinx.coroutines.** { *; }
+-keepclassmembers class kotlinx.coroutines.** { *; }
+
+# Retain data/sealed classes' componentN and copy for safe reflection usages
+-keepclassmembers class ** {
+    kotlin.Metadata *;
+}
+-keepclassmembers class ** extends kotlin.Enum { *; }
+-keepclassmembers class ** {  
+    <methods>; 
+}
+
 # If using Room (KSP)
 -keep class androidx.room.** { *; }
 -dontwarn androidx.room.**
+
+# Jetpack Compose
+-keep class androidx.compose.** { *; }
+-keep @androidx.compose.runtime.Composable class * { *; }
+-keepclassmembers class * { @androidx.compose.runtime.Composable <methods>; }
+-dontwarn androidx.compose.**
+
+# Compose Preview providers (if any)
+-keep class androidx.compose.ui.tooling.preview.PreviewParameterProvider { *; }
+-keep class ** implements androidx.compose.ui.tooling.preview.PreviewParameterProvider { *; }
 
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface
@@ -53,9 +88,9 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve useful attributes for better stack traces and Kotlin metadata
+-keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,*Annotation*,LocalVariableTable,LocalVariableTypeTable
+-keepattributes *Annotation*
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.

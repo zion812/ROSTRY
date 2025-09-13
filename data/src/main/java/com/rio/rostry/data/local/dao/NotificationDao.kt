@@ -17,4 +17,12 @@ interface NotificationDao {
 
     @Query("UPDATE notifications SET read = 1 WHERE id = :id")
     suspend fun markRead(id: String)
+
+    // De-duplication helper
+    @Query("SELECT COUNT(*) FROM notifications WHERE userId = :userId AND title = :title AND message = :message")
+    suspend fun countByUserAndTitleMessage(userId: String, title: String, message: String): Int
+
+    // De-duplication with time window
+    @Query("SELECT COUNT(*) FROM notifications WHERE userId = :userId AND title = :title AND message = :message AND createdAt >= :since")
+    suspend fun countByUserAndTitleMessageSince(userId: String, title: String, message: String, since: Long): Int
 }

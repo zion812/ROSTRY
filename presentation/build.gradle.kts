@@ -30,6 +30,9 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     buildTypes {
         release {
             buildConfigField("boolean", "DEV_SHORTCUTS_ENABLED", "false")
@@ -65,10 +68,27 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Firebase Auth for PhoneAuthHelper
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
+
+    // CameraX for QR scanning
+    val cameraXVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraXVersion")
+    implementation("androidx.camera:camera-camera2:$cameraXVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
+    implementation("androidx.camera:camera-view:$cameraXVersion")
+    // ML Kit barcode scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    // CameraX dependency requires ListenableFuture
+    implementation("androidx.concurrent:concurrent-futures:1.1.0")
+    implementation("com.google.guava:guava:31.1-android")
+
     // QR Code generation
     implementation("com.google.zxing:core:3.5.1")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.11.1")
     testImplementation(libs.kotlinx.coroutines.test)
 }

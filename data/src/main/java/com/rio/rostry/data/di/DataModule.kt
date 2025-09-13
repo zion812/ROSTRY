@@ -298,7 +298,12 @@ object DataModule {
 
     @Provides
     @Singleton
-    fun provideStorageUploader(storage: FirebaseStorage, auth: FirebaseAuth): StorageUploader = StorageUploader(storage, auth)
+    fun provideStorageUploader(
+        storage: FirebaseStorage,
+        auth: FirebaseAuth,
+        @ApplicationContext context: Context,
+        imageCompressor: com.rio.rostry.data.image.ImageCompressor,
+    ): StorageUploader = StorageUploader(storage, auth, context, imageCompressor)
 
     @Provides
     @Singleton

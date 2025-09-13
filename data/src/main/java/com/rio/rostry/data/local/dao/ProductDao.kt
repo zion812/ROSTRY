@@ -72,5 +72,9 @@ interface ProductDao {
         """
     )
     suspend fun listBasics(): List<ProductBasic>
+
+    // For background workers needing full fields like vaccinationRecords
+    @Query("SELECT * FROM products")
+    suspend fun listAll(): List<ProductEntity>
 }
 

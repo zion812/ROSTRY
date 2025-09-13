@@ -21,11 +21,15 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Razorpay key id for demo payments. Leave empty locally if you don't have a key.
+        // For CI/production, inject a value via gradle properties or environment.
+        buildConfigField("String", "RAZORPAY_KEY_ID", "\"\"")
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -59,6 +63,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+    testBuildType = "release"
     buildFeatures {
         compose = true
         viewBinding = true
@@ -112,6 +120,9 @@ dependencies {
     implementation(libs.moshi.kotlin)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+
+    // Razorpay (demo/test mode)
+    implementation("com.razorpay:checkout:1.6.33")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

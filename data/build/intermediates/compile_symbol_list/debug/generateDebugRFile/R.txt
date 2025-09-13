@@ -1,0 +1,6 @@
+int string breeding_eligibility_body 0x0
+int string breeding_eligibility_title 0x0
+int string notif_channel_desc 0x0
+int string notif_channel_name 0x0
+int string vaccination_due_body 0x0
+int string vaccination_due_title 0x0

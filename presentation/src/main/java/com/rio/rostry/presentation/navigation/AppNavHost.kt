@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import com.rio.rostry.presentation.screens.home.HomeScreen
 import com.rio.rostry.presentation.screens.home.EnthusiastHomeScreen
 import com.rio.rostry.presentation.screens.home.FarmerHomeScreen
+import com.rio.rostry.presentation.settings.NotificationSettingsScreen
 import com.rio.rostry.presentation.screens.onboarding.OnboardingScreen
 import com.rio.rostry.presentation.viewmodel.SessionViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,13 +33,16 @@ import com.rio.rostry.presentation.listing.ProductListingViewModel
 import com.rio.rostry.presentation.listing.ProductListingScreen
 import com.rio.rostry.presentation.payments.CheckoutScreen
 import com.rio.rostry.presentation.payments.CheckoutViewModel
-import com.rio.rostry.presentation.tracking.OrderTrackingScreen
-import com.rio.rostry.presentation.tracking.OrderTrackingViewModel
+import com.rio.rostry.presentation.order.OrderTrackingScreen
+import com.rio.rostry.presentation.order.OrderTrackingViewModel
 import com.rio.rostry.presentation.order.PlaceOrderScreen
 import com.rio.rostry.presentation.analytics.AnalyticsScreen
 import com.rio.rostry.presentation.recommendations.RecommendationsScreen
 import com.rio.rostry.presentation.analytics.AnalyticsSettingsScreen
 import com.rio.rostry.presentation.performance.ProductPerformanceScreen
+import com.rio.rostry.presentation.screens.onboarding.RoleSelectionScreen
+import com.rio.rostry.presentation.screens.qr.QrGenerateScreen
+import com.rio.rostry.presentation.screens.qr.QrScanScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -66,6 +70,7 @@ fun AppNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = startDest) {
         // Onboarding flow
         composable(Routes.ONBOARDING) { OnboardingScreen(navController) }
+        composable(Routes.ROLE_SELECT) { RoleSelectionScreen(navController) }
         composable(Routes.EMAIL_SIGNIN) { EmailSignInScreen(navController) }
         composable(Routes.EMAIL_SIGNUP) { EmailSignUpScreen(navController) }
         composable(Routes.PHONE_VERIFY) { PhoneVerificationScreen(navController) }
@@ -73,7 +78,7 @@ fun AppNavHost(navController: NavHostController) {
         // Role-specific homes
         composable(Routes.HOME_GENERAL) { HomeScreen() }
         composable(Routes.HOME_FARMER) { FarmerHomeScreen(navController) }
-        composable(Routes.HOME_ENTHUSIAST) { EnthusiastHomeScreen() }
+        composable(Routes.HOME_ENTHUSIAST) { EnthusiastHomeScreen(navController) }
 
         // Farmer flows
         composable(Routes.FARMER_LOCATION_VERIFY) { FarmerLocationVerificationScreen(navController) }
@@ -178,6 +183,19 @@ fun AppNavHost(navController: NavHostController) {
         // Product Performance
         composable(Routes.PRODUCT_PERFORMANCE) {
             ProductPerformanceScreen()
+        }
+
+        // Notification Settings
+        composable(Routes.NOTIFICATION_SETTINGS) {
+            NotificationSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        // QR
+        composable(Routes.QR_GENERATE) {
+            QrGenerateScreen(navController)
+        }
+        composable(Routes.QR_SCAN) {
+            QrScanScreen(navController)
         }
     }
 }
