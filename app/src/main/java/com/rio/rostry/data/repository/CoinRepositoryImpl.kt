@@ -35,7 +35,7 @@ class CoinRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteCoin(coin: DomainCoin) {
-        coinDao.deleteCoin(coin.toDataModel())
+        coinDao.deleteCoin(coin.id)
     }
 
     private fun DataCoin.toDomainModel(): DomainCoin {

@@ -5,14 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.rememberNavController
+import com.rio.rostry.presentation.auth.AuthViewModel
 import com.rio.rostry.presentation.viewmodel.UserViewModel
+import com.rio.rostry.ui.auth.AuthNavGraph
 import com.rio.rostry.ui.theme.ROSTRYTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -23,14 +27,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ROSTRYTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    MainScreen(
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                MainApp()
             }
         }
     }
+}
+
+@Composable
+fun MainApp() {
+    val navController = rememberNavController()
+    // In a real implementation, we would check if user is logged in and navigate accordingly
+    AuthNavGraph(navController = navController)
 }
 
 @Composable

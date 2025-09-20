@@ -9,9 +9,13 @@ import com.rio.rostry.data.model.Order
 import com.rio.rostry.data.model.Transfer
 import com.rio.rostry.data.model.Coin
 import com.rio.rostry.data.model.Notification
+import com.rio.rostry.data.model.ProductTracking
+import com.rio.rostry.data.model.FamilyTree
+import com.rio.rostry.data.model.ChatMessage
 
 @Database(
-    entities = [User::class, Product::class, Order::class, Transfer::class, Coin::class, Notification::class],
+    entities = [User::class, Product::class, Order::class, Transfer::class, Coin::class, Notification::class, 
+               ProductTracking::class, FamilyTree::class, ChatMessage::class],
     version = 1,
     exportSchema = false
 )
@@ -23,4 +27,7 @@ abstract class RostryDatabase : RoomDatabase() {
     abstract fun transferDao(): TransferDao
     abstract fun coinDao(): CoinDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun productTrackingDao(): ProductTrackingDao
+    abstract fun familyTreeDao(): FamilyTreeDao
+    abstract fun chatMessageDao(): ChatMessageDao
 }

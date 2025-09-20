@@ -43,7 +43,7 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteNotification(notification: DomainNotification) {
-        notificationDao.deleteNotification(notification.toDataModel())
+        notificationDao.deleteNotification(notification.id)
     }
 
     private fun DataNotification.toDomainModel(): DomainNotification {

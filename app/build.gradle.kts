@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.biometric)
     implementation(libs.hilt.android)
     implementation(libs.firebase.crashlytics)
     kapt(libs.hilt.android.compiler)

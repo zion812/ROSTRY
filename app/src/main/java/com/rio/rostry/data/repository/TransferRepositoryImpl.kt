@@ -37,7 +37,7 @@ class TransferRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteTransfer(transfer: DomainTransfer) {
-        transferDao.deleteTransfer(transfer.toDataModel())
+        transferDao.deleteTransfer(transfer.id)
     }
 
     private fun DataTransfer.toDomainModel(): DomainTransfer {

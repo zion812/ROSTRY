@@ -37,7 +37,7 @@ class ProductRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteProduct(product: DomainProduct) {
-        productDao.deleteProduct(product.toDataModel())
+        productDao.deleteProduct(product.id)
     }
 
     private fun DataProduct.toDomainModel(): DomainProduct {

@@ -43,7 +43,7 @@ class OrderRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteOrder(order: DomainOrder) {
-        orderDao.deleteOrder(order.toDataModel())
+        orderDao.deleteOrder(order.id)
     }
 
     private fun DataOrder.toDomainModel(): DomainOrder {

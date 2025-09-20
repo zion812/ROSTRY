@@ -2,7 +2,9 @@ package com.rio.rostry.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
 import com.rio.rostry.data.local.RostryDatabase
+import com.rio.rostry.data.local.migrations.Migration1To2
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,6 +16,10 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATIONS: Array<Migration> = arrayOf(
+        Migration1To2
+    )
+
     @Provides
     @Singleton
     fun provideRostryDatabase(@ApplicationContext context: Context): RostryDatabase {
@@ -21,7 +27,8 @@ object DatabaseModule {
             context,
             RostryDatabase::class.java,
             "rostry_database"
-        ).build()
+        ).addMigrations(*MIGRATIONS)
+        .build()
     }
 
     @Provides
@@ -47,4 +54,16 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideNotificationDao(database: RostryDatabase) = database.notificationDao()
+    
+    @Provides
+    @Singleton
+    fun provideProductTrackingDao(database: RostryDatabase) = database.productTrackingDao()
+    
+    @Provides
+    @Singleton
+    fun provideFamilyTreeDao(database: RostryDatabase) = database.familyTreeDao()
+    
+    @Provides
+    @Singleton
+    fun provideChatMessageDao(database: RostryDatabase) = database.chatMessageDao()
 }
