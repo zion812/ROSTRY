@@ -66,4 +66,33 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideChatMessageDao(database: RostryDatabase) = database.chatMessageDao()
+    
+    // New DAOs for poultry traceability system
+    @Provides
+    @Singleton
+    fun providePoultryDao(database: RostryDatabase) = database.poultryDao()
+    
+    @Provides
+    @Singleton
+    fun provideBreedingRecordDao(database: RostryDatabase) = database.breedingRecordDao()
+    
+    @Provides
+    @Singleton
+    fun provideGeneticTraitDao(database: RostryDatabase) = database.geneticTraitDao()
+    
+    @Provides
+    @Singleton
+    fun providePoultryTraitDao(database: RostryDatabase) = database.poultryTraitDao()
+    
+    @Provides
+    @Singleton
+    fun provideLifecycleMilestoneDao(database: RostryDatabase) = database.lifecycleMilestoneDao()
+    
+    @Provides
+    @Singleton
+    fun provideVaccinationRecordDao(database: RostryDatabase) = database.vaccinationRecordDao()
+    
+    @Provides
+    @Singleton
+    fun provideTransferRecordDao(database: RostryDatabase) = database.transferRecordDao()
 }
