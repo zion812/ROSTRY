@@ -29,9 +29,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AuctionEntity::class,
         BidEntity::class,
         CartItemEntity::class,
-        WishlistEntity::class
+        WishlistEntity::class,
+        PaymentEntity::class,
+        CoinLedgerEntity::class,
+        DeliveryHubEntity::class,
+        OrderTrackingEventEntity::class,
+        InvoiceEntity::class,
+        InvoiceLineEntity::class,
+        RefundEntity::class
     ],
-    version = 7, // Bumped to 7 for marketplace features and product columns
+    version = 9, // Bumped to 9 adding refunds table and wiring
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -53,6 +60,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bidDao(): BidDao
     abstract fun cartDao(): CartDao
     abstract fun wishlistDao(): WishlistDao
+    abstract fun paymentDao(): PaymentDao
+    abstract fun coinLedgerDao(): CoinLedgerDao
+    abstract fun deliveryHubDao(): DeliveryHubDao
+    abstract fun orderTrackingEventDao(): OrderTrackingEventDao
+    abstract fun invoiceDao(): InvoiceDao
+    abstract fun refundDao(): RefundDao
 
     object Converters {
         @TypeConverter
@@ -232,6 +245,80 @@ abstract class AppDatabase : RoomDatabase() {
                         "FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
                         "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
                 )
+            }
+        }
+
+        // Payments, coin ledger, logistics tracking, invoices
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Payments
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `payments` (" +
+                        "`paymentId` TEXT NOT NULL, `orderId` TEXT NOT NULL, `userId` TEXT NOT NULL, `method` TEXT NOT NULL, `amount` REAL NOT NULL, `currency` TEXT NOT NULL, " +
+                        "`status` TEXT NOT NULL, `providerRef` TEXT, `upiUri` TEXT, `idempotencyKey` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`paymentId`), " +
+                        "FOREIGN KEY(`orderId`) REFERENCES `orders`(`orderId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_payments_orderId` ON `payments` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_payments_userId` ON `payments` (`userId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_payments_idempotencyKey` ON `payments` (`idempotencyKey`)")
+
+                // Coin ledger
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `coin_ledger` (" +
+                        "`entryId` TEXT NOT NULL, `userId` TEXT NOT NULL, `type` TEXT NOT NULL, `coins` INTEGER NOT NULL, `amountInInr` REAL NOT NULL, `refId` TEXT, `notes` TEXT, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`entryId`), " +
+                        "FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_coin_ledger_userId` ON `coin_ledger` (`userId`)")
+
+                // Delivery hubs
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `delivery_hubs` (" +
+                        "`hubId` TEXT NOT NULL, `name` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `address` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`hubId`))"
+                )
+
+                // Order tracking events
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `order_tracking_events` (" +
+                        "`eventId` TEXT NOT NULL, `orderId` TEXT NOT NULL, `status` TEXT NOT NULL, `hubId` TEXT, `note` TEXT, `timestamp` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`eventId`), " +
+                        "FOREIGN KEY(`orderId`) REFERENCES `orders`(`orderId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`hubId`) REFERENCES `delivery_hubs`(`hubId`) ON UPDATE NO ACTION ON DELETE SET NULL)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_tracking_events_orderId` ON `order_tracking_events` (`orderId`)")
+
+                // Invoices
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `invoices` (" +
+                        "`invoiceId` TEXT NOT NULL, `orderId` TEXT NOT NULL, `subtotal` REAL NOT NULL, `gstPercent` REAL NOT NULL, `gstAmount` REAL NOT NULL, `total` REAL NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`invoiceId`), " +
+                        "FOREIGN KEY(`orderId`) REFERENCES `orders`(`orderId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `invoice_lines` (" +
+                        "`lineId` TEXT NOT NULL, `invoiceId` TEXT NOT NULL, `description` TEXT NOT NULL, `qty` REAL NOT NULL, `unitPrice` REAL NOT NULL, `lineTotal` REAL NOT NULL, " +
+                        "PRIMARY KEY(`lineId`), " +
+                        "FOREIGN KEY(`invoiceId`) REFERENCES `invoices`(`invoiceId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_invoice_lines_invoiceId` ON `invoice_lines` (`invoiceId`)")
+            }
+        }
+
+        // Refunds table for payment refunds
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `refunds` (" +
+                        "`refundId` TEXT NOT NULL, `paymentId` TEXT NOT NULL, `orderId` TEXT NOT NULL, `amount` REAL NOT NULL, `reason` TEXT, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`refundId`), " +
+                        "FOREIGN KEY(`paymentId`) REFERENCES `payments`(`paymentId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`orderId`) REFERENCES `orders`(`orderId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_refunds_paymentId` ON `refunds` (`paymentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_refunds_orderId` ON `refunds` (`orderId`)")
             }
         }
     }

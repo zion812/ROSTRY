@@ -35,6 +35,9 @@ interface OrderDao {
     @Query("SELECT * FROM orders WHERE orderId = :orderId")
     fun getOrderById(orderId: String): Flow<OrderEntity?>
 
+    @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
+    suspend fun findById(orderId: String): OrderEntity?
+
     // If you create a POGO class OrderWithItems:
     // @Transaction
     // @Query("SELECT * FROM orders WHERE orderId = :orderId")

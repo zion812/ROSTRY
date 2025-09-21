@@ -23,6 +23,16 @@ import com.rio.rostry.data.repository.CartRepository
 import com.rio.rostry.data.repository.CartRepositoryImpl
 import com.rio.rostry.data.repository.WishlistRepository
 import com.rio.rostry.data.repository.WishlistRepositoryImpl
+import com.rio.rostry.data.repository.OrderManagementRepository
+import com.rio.rostry.data.repository.OrderManagementRepositoryImpl
+import com.rio.rostry.data.repository.PaymentRepository
+import com.rio.rostry.data.repository.PaymentRepositoryImpl
+import com.rio.rostry.data.repository.CoinRepository
+import com.rio.rostry.data.repository.CoinRepositoryImpl
+import com.rio.rostry.data.repository.LogisticsRepository
+import com.rio.rostry.data.repository.LogisticsRepositoryImpl
+import com.rio.rostry.data.repository.InvoiceRepository
+import com.rio.rostry.data.repository.InvoiceRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -79,4 +89,24 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindWishlistRepository(impl: WishlistRepositoryImpl): WishlistRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOrderManagementRepository(impl: OrderManagementRepositoryImpl): OrderManagementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPaymentRepository(impl: PaymentRepositoryImpl): PaymentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCoinRepository(impl: CoinRepositoryImpl): CoinRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLogisticsRepository(impl: LogisticsRepositoryImpl): LogisticsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInvoiceRepository(impl: InvoiceRepositoryImpl): InvoiceRepository
 }

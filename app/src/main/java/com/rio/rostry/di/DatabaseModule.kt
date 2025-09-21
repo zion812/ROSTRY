@@ -11,6 +11,12 @@ import com.rio.rostry.data.database.dao.AuctionDao
 import com.rio.rostry.data.database.dao.BidDao
 import com.rio.rostry.data.database.dao.CartDao
 import com.rio.rostry.data.database.dao.WishlistDao
+import com.rio.rostry.data.database.dao.PaymentDao
+import com.rio.rostry.data.database.dao.CoinLedgerDao
+import com.rio.rostry.data.database.dao.DeliveryHubDao
+import com.rio.rostry.data.database.dao.OrderTrackingEventDao
+import com.rio.rostry.data.database.dao.InvoiceDao
+import com.rio.rostry.data.database.dao.RefundDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.dao.ProductTrackingDao
@@ -43,7 +49,7 @@ object DatabaseModule {
             AppDatabase.DATABASE_NAME
         )
         .openHelperFactory(factory)
-        .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7)
+        .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -115,4 +121,28 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideWishlistDao(appDatabase: AppDatabase): WishlistDao = appDatabase.wishlistDao()
+
+    @Provides
+    @Singleton
+    fun providePaymentDao(appDatabase: AppDatabase): PaymentDao = appDatabase.paymentDao()
+
+    @Provides
+    @Singleton
+    fun provideCoinLedgerDao(appDatabase: AppDatabase): CoinLedgerDao = appDatabase.coinLedgerDao()
+
+    @Provides
+    @Singleton
+    fun provideDeliveryHubDao(appDatabase: AppDatabase): DeliveryHubDao = appDatabase.deliveryHubDao()
+
+    @Provides
+    @Singleton
+    fun provideOrderTrackingEventDao(appDatabase: AppDatabase): OrderTrackingEventDao = appDatabase.orderTrackingEventDao()
+
+    @Provides
+    @Singleton
+    fun provideInvoiceDao(appDatabase: AppDatabase): InvoiceDao = appDatabase.invoiceDao()
+
+    @Provides
+    @Singleton
+    fun provideRefundDao(appDatabase: AppDatabase): RefundDao = appDatabase.refundDao()
 }
