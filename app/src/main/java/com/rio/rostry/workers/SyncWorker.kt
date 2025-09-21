@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.rio.rostry.data.repository.ProductRepository // Example repository
-import com.rio.rostry.data.repository.UserRepository // Example repository
+import com.rio.rostry.data.sync.SyncManager
+import com.rio.rostry.utils.Resource
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import timber.log.Timber
@@ -14,9 +14,7 @@ import timber.log.Timber
 class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
-    // Inject repositories or use cases needed for syncing
-    private val productRepository: ProductRepository,
-    private val userRepository: UserRepository
+    private val syncManager: SyncManager
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -26,21 +24,19 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Timber.d("SyncWorker started")
         return try {
-            // Example: Trigger a sync operation for products
-            // val productSyncResult = productRepository.syncProductsFromRemote()
-            // if (productSyncResult is com.rio.rostry.utils.Resource.Error) {
-            //     Timber.e("Product sync failed: ${productSyncResult.message}")
-            //     return Result.retry()
-            // }
-
-            // Example: You might want to refresh user data or other entities too
-            // val currentUser = userRepository.getCurrentUser().firstOrNull()?.data
-            // currentUser?.let {
-            //     userRepository.refreshCurrentUser(it.userId)
-            // }
-
-            Timber.d("SyncWorker completed successfully")
-            Result.success()
+            when (val res = syncManager.syncAll()) {
+                is Resource.Success -> {
+                    val pushed = res.data?.pushed ?: 0
+                    val pulled = res.data?.pulled ?: 0
+                    Timber.d("SyncWorker completed: pushed=$pushed, pulled=$pulled")
+                    Result.success()
+                }
+                is Resource.Error -> {
+                    Timber.e("SyncManager error: ${res.message}")
+                    Result.retry()
+                }
+                is Resource.Loading -> Result.success()
+            }
         } catch (e: Exception) {
             Timber.e(e, "SyncWorker failed")
             Result.failure()

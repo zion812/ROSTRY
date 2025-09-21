@@ -79,43 +79,61 @@ class ProductRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addProduct(product: ProductEntity): Resource<String> = safeCall<String> {
-        // Add to Firestore
-        val documentRef = productsCollection.document()
-        val productWithId = product.copy(productId = documentRef.id)
-        documentRef.set(productWithId).await()
-        
-        // Add to local DB
-        productDao.insertProduct(productWithId)
-        
-        // Return the ID of the new product
-        productWithId.productId
+        // Offline-first: create ID locally and mark dirty for sync
+        val id = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val local = product.copy(
+            productId = id,
+            updatedAt = now,
+            lastModifiedAt = now,
+            isDeleted = false,
+            deletedAt = null,
+            dirty = true
+        )
+        productDao.upsert(local)
+        id
     }.firstOrNull() ?: Resource.Error("Failed to add product")
 
     override suspend fun updateProduct(product: ProductEntity): Resource<Unit> = safeCall<Unit> {
-        // Update in Firestore
-        productsCollection.document(product.productId).set(product).await()
-        
-        // Update in local DB
-        productDao.updateProduct(product)
-        
-        Resource.Success(Unit)
+        // Offline-first: mark dirty and bump times; sync manager will push later
+        val now = System.currentTimeMillis()
+        val local = product.copy(
+            updatedAt = now,
+            lastModifiedAt = now,
+            dirty = true
+        )
+        productDao.upsert(local)
+        Unit
     }.firstOrNull() ?: Resource.Error("Failed to update product")
 
     override suspend fun deleteProduct(productId: String): Resource<Unit> = safeCall<Unit> {
-        // Delete from Firestore
-        productsCollection.document(productId).delete().await()
-        
-        // Delete from local DB
-        productDao.deleteProduct(productId)
-        
-        Resource.Success(Unit)
+        // Offline-first soft delete: mark isDeleted and dirty
+        val now = System.currentTimeMillis()
+        val current = productDao.findById(productId)
+        val softDeleted = (current ?: ProductEntity(
+            productId = productId,
+            sellerId = "",
+            name = "",
+            description = "",
+            category = "",
+            price = 0.0,
+            quantity = 0.0,
+            unit = "",
+            location = ""
+        )).copy(
+            isDeleted = true,
+            deletedAt = now,
+            updatedAt = now,
+            lastModifiedAt = now,
+            dirty = true
+        )
+        productDao.upsert(softDeleted)
+        Unit
     }.firstOrNull() ?: Resource.Error("Failed to delete product")
 
     override suspend fun syncProductsFromRemote(): Resource<Unit> = safeCall<Unit> {
-        val snapshot = productsCollection.get().await()
-        val products = snapshot.map { it.toObject<ProductEntity>() }
-        productDao.replaceAllProducts(products)
-        Resource.Success(Unit)
+        // Deprecated in favor of SyncManager; keeping as a no-op success to preserve interface
+        Unit
     }.firstOrNull() ?: Resource.Error("Failed to sync products")
     
     override fun searchProducts(query: String): Flow<Resource<List<ProductEntity>>> = flow {

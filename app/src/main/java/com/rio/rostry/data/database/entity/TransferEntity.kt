@@ -42,5 +42,9 @@ data class TransferEntity(
     val notes: String? = null,
     val initiatedAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val lastModifiedAt: Long = System.currentTimeMillis(),
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null,
+    val dirty: Boolean = false
 )

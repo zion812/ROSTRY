@@ -18,6 +18,9 @@ interface OrderDao {
     suspend fun insertOrder(order: OrderEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdate(order: OrderEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrderItems(items: List<OrderItemEntity>)
 
     @Transaction
@@ -54,4 +57,11 @@ interface OrderDao {
 
     @Query("DELETE FROM orders")
     suspend fun deleteAllOrders()
+
+    // Incremental sync helpers
+    @Query("SELECT * FROM orders WHERE updatedAt > :since ORDER BY updatedAt ASC LIMIT :limit")
+    suspend fun getUpdatedSince(since: Long, limit: Int = 500): List<OrderEntity>
+
+    @Query("DELETE FROM orders WHERE isDeleted = 1")
+    suspend fun purgeDeleted()
 }

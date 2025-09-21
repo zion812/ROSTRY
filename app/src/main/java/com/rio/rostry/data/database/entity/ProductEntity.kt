@@ -33,5 +33,9 @@ data class ProductEntity(
     val harvestDate: Long? = null, // Timestamp
     val expiryDate: Long? = null, // Timestamp
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val lastModifiedAt: Long = System.currentTimeMillis(),
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null,
+    val dirty: Boolean = false
 )

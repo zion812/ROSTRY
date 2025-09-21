@@ -13,6 +13,9 @@ interface TransferDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransfer(transfer: TransferEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(transfer: TransferEntity)
+
     @Update
     suspend fun updateTransfer(transfer: TransferEntity)
 
@@ -39,4 +42,11 @@ interface TransferDao {
 
     @Query("DELETE FROM transfers")
     suspend fun deleteAllTransfers()
+
+    // Incremental sync helpers
+    @Query("SELECT * FROM transfers WHERE updatedAt > :since ORDER BY updatedAt ASC LIMIT :limit")
+    suspend fun getUpdatedSince(since: Long, limit: Int = 500): List<TransferEntity>
+
+    @Query("DELETE FROM transfers WHERE isDeleted = 1")
+    suspend fun purgeDeleted()
 }

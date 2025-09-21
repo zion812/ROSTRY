@@ -42,6 +42,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{LICENSE*,NOTICE*,AL2.0,LGPL2.1}"
+        }
+    }
 }
 
 dependencies {
@@ -76,9 +82,13 @@ dependencies {
     ksp(libs.hilt.ext.compiler)
 
     // Room
-    implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+
+    // Encrypted database support
+    implementation(libs.sqlcipher)
+    implementation(libs.sqlite.ktx)
+    implementation(libs.security.crypto)
 
     // Gson for Type Converters (and potentially other JSON operations)
     implementation(libs.gson)
@@ -104,6 +114,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

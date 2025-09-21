@@ -34,5 +34,9 @@ data class OrderEntity(
     val actualDeliveryDate: Long? = null,
     val notes: String? = null, // e.g. delivery instructions
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val lastModifiedAt: Long = System.currentTimeMillis(),
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null,
+    val dirty: Boolean = false
 )

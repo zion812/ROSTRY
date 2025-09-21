@@ -7,6 +7,14 @@ import com.rio.rostry.data.repository.UserRepositoryImpl
 // Import your other repository interfaces and implementations here
 import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.data.auth.AuthRepositoryImpl
+import com.rio.rostry.data.repository.TrackingRepository
+import com.rio.rostry.data.repository.TrackingRepositoryImpl
+import com.rio.rostry.data.repository.FamilyTreeRepository
+import com.rio.rostry.data.repository.FamilyTreeRepositoryImpl
+import com.rio.rostry.data.repository.ChatRepository
+import com.rio.rostry.data.repository.ChatRepositoryImpl
+import com.rio.rostry.data.repository.TransferRepository
+import com.rio.rostry.data.repository.TransferRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -31,4 +39,20 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAuthRepository(authRepositoryImpl: AuthRepositoryImpl): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTrackingRepository(impl: TrackingRepositoryImpl): TrackingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFamilyTreeRepository(impl: FamilyTreeRepositoryImpl): FamilyTreeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTransferRepository(impl: TransferRepositoryImpl): TransferRepository
 }
