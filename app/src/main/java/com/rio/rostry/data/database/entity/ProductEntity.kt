@@ -26,12 +26,29 @@ data class ProductEntity(
     val price: Double,
     val quantity: Double, // e.g., 100 (for units), 50.5 (for kg/liters)
     val unit: String, // e.g., "kg", "liter", "piece", "acre"
-    val location: String, // e.g., "Farm Address" or Lat/Lng coordinates
+    val location: String, // textual location for display
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val imageUrls: List<String> = emptyList(), // Store as JSON string or use a type converter
     val status: String = "available", // e.g., "available", "sold_out", "pending_approval"
     val condition: String? = null, // e.g. "organic", "fresh", "used" (for equipment)
     val harvestDate: Long? = null, // Timestamp
     val expiryDate: Long? = null, // Timestamp
+
+    // Age-specific attributes
+    val birthDate: Long? = null,
+    val vaccinationRecordsJson: String? = null, // JSON array of vaccination entries
+    val weightGrams: Double? = null,
+    val heightCm: Double? = null,
+    val gender: String? = null, // male, female, unknown
+    val color: String? = null,
+    val breed: String? = null,
+
+    // Traceability
+    val familyTreeId: String? = null,
+    val parentIdsJson: String? = null, // JSON array of parent product IDs
+    val breedingStatus: String? = null,
+    val transferHistoryJson: String? = null, // JSON array of past transfers (summary)
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val lastModifiedAt: Long = System.currentTimeMillis(),

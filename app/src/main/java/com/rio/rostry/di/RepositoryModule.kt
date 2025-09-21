@@ -15,6 +15,14 @@ import com.rio.rostry.data.repository.ChatRepository
 import com.rio.rostry.data.repository.ChatRepositoryImpl
 import com.rio.rostry.data.repository.TransferRepository
 import com.rio.rostry.data.repository.TransferRepositoryImpl
+import com.rio.rostry.data.repository.ProductMarketplaceRepository
+import com.rio.rostry.data.repository.ProductMarketplaceRepositoryImpl
+import com.rio.rostry.data.repository.AuctionRepository
+import com.rio.rostry.data.repository.AuctionRepositoryImpl
+import com.rio.rostry.data.repository.CartRepository
+import com.rio.rostry.data.repository.CartRepositoryImpl
+import com.rio.rostry.data.repository.WishlistRepository
+import com.rio.rostry.data.repository.WishlistRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -55,4 +63,20 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTransferRepository(impl: TransferRepositoryImpl): TransferRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProductMarketplaceRepository(impl: ProductMarketplaceRepositoryImpl): ProductMarketplaceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuctionRepository(impl: AuctionRepositoryImpl): AuctionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCartRepository(impl: CartRepositoryImpl): CartRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWishlistRepository(impl: WishlistRepositoryImpl): WishlistRepository
 }

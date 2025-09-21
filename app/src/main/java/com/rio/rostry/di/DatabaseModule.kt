@@ -7,6 +7,10 @@ import com.rio.rostry.data.database.dao.CoinDao
 import com.rio.rostry.data.database.dao.NotificationDao
 import com.rio.rostry.data.database.dao.OrderDao
 import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.database.dao.AuctionDao
+import com.rio.rostry.data.database.dao.BidDao
+import com.rio.rostry.data.database.dao.CartDao
+import com.rio.rostry.data.database.dao.WishlistDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.dao.ProductTrackingDao
@@ -39,7 +43,7 @@ object DatabaseModule {
             AppDatabase.DATABASE_NAME
         )
         .openHelperFactory(factory)
-        .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
+        .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7)
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -95,4 +99,20 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSyncStateDao(appDatabase: AppDatabase): SyncStateDao = appDatabase.syncStateDao()
+
+    @Provides
+    @Singleton
+    fun provideAuctionDao(appDatabase: AppDatabase): AuctionDao = appDatabase.auctionDao()
+
+    @Provides
+    @Singleton
+    fun provideBidDao(appDatabase: AppDatabase): BidDao = appDatabase.bidDao()
+
+    @Provides
+    @Singleton
+    fun provideCartDao(appDatabase: AppDatabase): CartDao = appDatabase.cartDao()
+
+    @Provides
+    @Singleton
+    fun provideWishlistDao(appDatabase: AppDatabase): WishlistDao = appDatabase.wishlistDao()
 }

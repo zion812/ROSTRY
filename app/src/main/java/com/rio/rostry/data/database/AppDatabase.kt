@@ -25,9 +25,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ProductTrackingEntity::class,
         FamilyTreeEntity::class,
         ChatMessageEntity::class,
-        SyncStateEntity::class
+        SyncStateEntity::class,
+        AuctionEntity::class,
+        BidEntity::class,
+        CartItemEntity::class,
+        WishlistEntity::class
     ],
-    version = 6, // Bumped to 6 after adding sync_state columns for transfers and chat
+    version = 7, // Bumped to 7 for marketplace features and product columns
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -45,6 +49,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun familyTreeDao(): FamilyTreeDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun auctionDao(): AuctionDao
+    abstract fun bidDao(): BidDao
+    abstract fun cartDao(): CartDao
+    abstract fun wishlistDao(): WishlistDao
 
     object Converters {
         @TypeConverter
@@ -164,6 +172,66 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastTransferSyncAt` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastChatSyncAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // Add marketplace-related columns to products and create marketplace tables
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Products new columns
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `latitude` REAL")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `longitude` REAL")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `birthDate` INTEGER")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `vaccinationRecordsJson` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `weightGrams` REAL")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `heightCm` REAL")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `gender` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `color` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `breed` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `familyTreeId` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `parentIdsJson` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `breedingStatus` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `transferHistoryJson` TEXT")
+
+                // Auction table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `auctions` (" +
+                        "`auctionId` TEXT NOT NULL, `productId` TEXT NOT NULL, `startsAt` INTEGER NOT NULL, `endsAt` INTEGER NOT NULL, " +
+                        "`minPrice` REAL NOT NULL, `currentPrice` REAL NOT NULL, `isActive` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`auctionId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_auctions_productId` ON `auctions` (`productId`)")
+
+                // Bids table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `bids` (" +
+                        "`bidId` TEXT NOT NULL, `auctionId` TEXT NOT NULL, `userId` TEXT NOT NULL, `amount` REAL NOT NULL, `placedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`bidId`), " +
+                        "FOREIGN KEY(`auctionId`) REFERENCES `auctions`(`auctionId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bids_auctionId` ON `bids` (`auctionId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bids_userId` ON `bids` (`userId`)")
+
+                // Cart items table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cart_items` (" +
+                        "`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `productId` TEXT NOT NULL, `quantity` REAL NOT NULL, `addedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`), " +
+                        "FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cart_items_userId` ON `cart_items` (`userId`)")
+
+                // Wishlist table (composite key userId+productId emulated via unique index)
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `wishlist` (" +
+                        "`userId` TEXT NOT NULL, `productId` TEXT NOT NULL, `addedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`userId`, `productId`), " +
+                        "FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
             }
         }
     }
