@@ -54,7 +54,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ExpertBookingEntity::class,
         ModerationReportEntity::class,
         BadgeEntity::class,
-        ReputationEntity::class
+        ReputationEntity::class,
+        OutgoingMessageEntity::class
     ],
     version = 13, // Bumped to 13 adding social platform tables
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
@@ -104,6 +105,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun moderationReportsDao(): ModerationReportsDao
     abstract fun badgesDao(): BadgesDao
     abstract fun reputationDao(): ReputationDao
+    abstract fun outgoingMessageDao(): OutgoingMessageDao
 
     object Converters {
         @TypeConverter
@@ -511,6 +513,11 @@ abstract class AppDatabase : RoomDatabase() {
                 // Reputation
                 db.execSQL("CREATE TABLE IF NOT EXISTS `reputation` (`repId` TEXT NOT NULL, `userId` TEXT NOT NULL, `score` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`repId`))")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reputation_userId` ON `reputation` (`userId`)")
+
+                // Outgoing messages queue
+                db.execSQL("CREATE TABLE IF NOT EXISTS `outgoing_messages` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `threadOrGroupId` TEXT NOT NULL, `fromUserId` TEXT NOT NULL, `toUserId` TEXT, `bodyText` TEXT, `fileUri` TEXT, `fileName` TEXT, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outgoing_messages_status` ON `outgoing_messages` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outgoing_messages_createdAt` ON `outgoing_messages` (`createdAt`)")
             }
         }
     }

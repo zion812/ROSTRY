@@ -19,6 +19,9 @@ interface PostsDao {
 
     @Query("SELECT * FROM posts WHERE authorId = :authorId ORDER BY createdAt DESC")
     fun pagingByAuthor(authorId: String): PagingSource<Int, PostEntity>
+
+    @Query("SELECT * FROM posts WHERE postId = :postId LIMIT 1")
+    suspend fun getById(postId: String): PostEntity?
 }
 
 @Dao
@@ -28,6 +31,9 @@ interface CommentsDao {
 
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY createdAt ASC")
     fun streamByPost(postId: String): Flow<List<CommentEntity>>
+
+    @Query("SELECT COUNT(*) FROM comments WHERE authorId = :userId")
+    suspend fun countByUser(userId: String): Int
 }
 
 @Dao
@@ -40,6 +46,9 @@ interface LikesDao {
 
     @Query("SELECT COUNT(*) FROM likes WHERE postId = :postId")
     fun count(postId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM likes WHERE userId = :userId")
+    suspend fun countByUser(userId: String): Int
 }
 
 @Dao
@@ -103,6 +112,9 @@ interface ModerationReportsDao {
 
     @Query("SELECT * FROM moderation_reports WHERE status = :status ORDER BY createdAt DESC")
     fun streamByStatus(status: String): Flow<List<ModerationReportEntity>>
+
+    @Query("UPDATE moderation_reports SET status = :status, updatedAt = :updatedAt WHERE reportId = :reportId")
+    suspend fun updateStatus(reportId: String, status: String, updatedAt: Long)
 }
 
 @Dao
@@ -121,4 +133,7 @@ interface ReputationDao {
 
     @Query("SELECT * FROM reputation ORDER BY score DESC LIMIT :limit")
     fun top(limit: Int = 50): Flow<List<ReputationEntity>>
+
+    @Query("SELECT * FROM reputation WHERE userId = :userId LIMIT 1")
+    suspend fun getByUserId(userId: String): ReputationEntity?
 }

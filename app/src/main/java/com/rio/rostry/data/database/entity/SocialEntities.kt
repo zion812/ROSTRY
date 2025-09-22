@@ -111,3 +111,17 @@ data class ReputationEntity(
     val score: Int,
     val updatedAt: Long,
 )
+
+@Entity(tableName = "outgoing_messages", indices = [Index("status"), Index("createdAt")])
+data class OutgoingMessageEntity(
+    @PrimaryKey val id: String,
+    val kind: String, // DM or GROUP
+    val threadOrGroupId: String,
+    val fromUserId: String,
+    val toUserId: String?,
+    val bodyText: String?,
+    val fileUri: String?,
+    val fileName: String?,
+    val status: String, // PENDING, SENT, FAILED
+    val createdAt: Long,
+)

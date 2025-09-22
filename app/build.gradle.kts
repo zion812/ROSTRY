@@ -125,6 +125,9 @@ dependencies {
     // Media playback (videos in feed)
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
 
+    // WebRTC for audio/video calling (placeholder integration)
+    implementation("org.webrtc:google-webrtc:1.0.32006")
+
     // ViewModel for Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 

@@ -164,7 +164,7 @@ fun AppNavHost() {
 
         // Social: Feed
         composable(Routes.SOCIAL_FEED) {
-            SocialFeedScreen(onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
+            com.rio.rostry.ui.social.SocialFeedScreen(onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
                 onOpenGroups = { navController.navigate(Routes.GROUPS) },
                 onOpenEvents = { navController.navigate(Routes.EVENTS) },
                 onOpenExpert = { navController.navigate(Routes.EXPERT_BOOKING) })
@@ -176,7 +176,7 @@ fun AppNavHost() {
             arguments = listOf(navArgument("threadId") { type = NavType.StringType })
         ) { backStackEntry ->
             val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
-            MessagingThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
+            com.rio.rostry.ui.messaging.ThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
         }
 
         // Social: Groups
