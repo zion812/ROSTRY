@@ -27,10 +27,11 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index(value = ["fromUserId"]), Index(value = ["toUserId"]), Index(value = ["orderId"])]
+    indices = [Index(value = ["fromUserId"]), Index(value = ["toUserId"]), Index(value = ["orderId"]), Index(value = ["productId"])]
 )
 data class TransferEntity(
     @PrimaryKey val transferId: String,
+    val productId: String? = null, // Optional direct link to product for traceability
     val fromUserId: String?, // Can be null if system initiated (e.g. platform fee)
     val toUserId: String?,   // Can be null if system initiated (e.g. payment to platform)
     val orderId: String? = null, // Associated order, if applicable

@@ -33,6 +33,8 @@ import com.rio.rostry.data.repository.LogisticsRepository
 import com.rio.rostry.data.repository.LogisticsRepositoryImpl
 import com.rio.rostry.data.repository.InvoiceRepository
 import com.rio.rostry.data.repository.InvoiceRepositoryImpl
+import com.rio.rostry.data.repository.TraceabilityRepository
+import com.rio.rostry.data.repository.TraceabilityRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -109,4 +111,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindInvoiceRepository(impl: InvoiceRepositoryImpl): InvoiceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTraceabilityRepository(impl: TraceabilityRepositoryImpl): TraceabilityRepository
 }

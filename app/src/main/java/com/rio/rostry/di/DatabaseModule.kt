@@ -23,6 +23,10 @@ import com.rio.rostry.data.database.dao.ProductTrackingDao
 import com.rio.rostry.data.database.dao.FamilyTreeDao
 import com.rio.rostry.data.database.dao.ChatMessageDao
 import com.rio.rostry.data.database.dao.SyncStateDao
+import com.rio.rostry.data.database.dao.BreedingRecordDao
+import com.rio.rostry.data.database.dao.TraitDao
+import com.rio.rostry.data.database.dao.ProductTraitDao
+import com.rio.rostry.data.database.dao.LifecycleEventDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,7 +53,17 @@ object DatabaseModule {
             AppDatabase.DATABASE_NAME
         )
         .openHelperFactory(factory)
-        .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9)
+        .addMigrations(
+            AppDatabase.MIGRATION_2_3,
+            AppDatabase.MIGRATION_3_4,
+            AppDatabase.MIGRATION_4_5,
+            AppDatabase.MIGRATION_5_6,
+            AppDatabase.MIGRATION_6_7,
+            AppDatabase.MIGRATION_7_8,
+            AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10,
+            AppDatabase.MIGRATION_10_11
+        )
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -145,4 +159,20 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideRefundDao(appDatabase: AppDatabase): RefundDao = appDatabase.refundDao()
+
+    @Provides
+    @Singleton
+    fun provideBreedingRecordDao(appDatabase: AppDatabase): BreedingRecordDao = appDatabase.breedingRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideTraitDao(appDatabase: AppDatabase): TraitDao = appDatabase.traitDao()
+
+    @Provides
+    @Singleton
+    fun provideProductTraitDao(appDatabase: AppDatabase): ProductTraitDao = appDatabase.productTraitDao()
+
+    @Provides
+    @Singleton
+    fun provideLifecycleEventDao(appDatabase: AppDatabase): LifecycleEventDao = appDatabase.lifecycleEventDao()
 }

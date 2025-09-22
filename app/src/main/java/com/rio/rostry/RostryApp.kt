@@ -7,6 +7,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rio.rostry.workers.SyncWorker
+import com.rio.rostry.workers.LifecycleWorker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -31,5 +32,8 @@ class RostryApp : Application() {
             ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
+
+        // Schedule lifecycle milestone worker (daily)
+        LifecycleWorker.schedule(this)
     }
 }

@@ -13,4 +13,8 @@ object Routes {
     const val ONBOARD_GENERAL = "onboard/general"
     const val ONBOARD_FARMER = "onboard/farmer"
     const val ONBOARD_ENTHUSIAST = "onboard/enthusiast"
+
+    // Product + Traceability
+    const val PRODUCT_DETAILS = "product/{productId}"
+    const val TRACEABILITY = "traceability/{productId}"
 }

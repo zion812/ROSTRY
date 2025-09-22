@@ -49,4 +49,8 @@ interface TransferDao {
 
     @Query("DELETE FROM transfers WHERE isDeleted = 1")
     suspend fun purgeDeleted()
+
+    // Traceability helper
+    @Query("SELECT * FROM transfers WHERE productId = :productId ORDER BY initiatedAt ASC")
+    suspend fun getTransfersByProduct(productId: String): List<TransferEntity>
 }

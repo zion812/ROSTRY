@@ -36,9 +36,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OrderTrackingEventEntity::class,
         InvoiceEntity::class,
         InvoiceLineEntity::class,
-        RefundEntity::class
+        RefundEntity::class,
+        BreedingRecordEntity::class,
+        TraitEntity::class,
+        ProductTraitCrossRef::class,
+        LifecycleEventEntity::class
     ],
-    version = 9, // Bumped to 9 adding refunds table and wiring
+    version = 11, // Bumped to 11 adding productId to transfers for traceability linkage
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -66,6 +70,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun orderTrackingEventDao(): OrderTrackingEventDao
     abstract fun invoiceDao(): InvoiceDao
     abstract fun refundDao(): RefundDao
+    abstract fun breedingRecordDao(): BreedingRecordDao
+    abstract fun traitDao(): TraitDao
+    abstract fun productTraitDao(): ProductTraitDao
+    abstract fun lifecycleEventDao(): LifecycleEventDao
 
     object Converters {
         @TypeConverter
@@ -319,6 +327,59 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_refunds_paymentId` ON `refunds` (`paymentId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_refunds_orderId` ON `refunds` (`orderId`)")
+            }
+        }
+
+        // Traceability: breeding records, traits, lifecycle events
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // breeding_records
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `breeding_records` (" +
+                        "`recordId` TEXT NOT NULL, `parentId` TEXT NOT NULL, `partnerId` TEXT NOT NULL, `childId` TEXT NOT NULL, `success` INTEGER NOT NULL, `notes` TEXT, `timestamp` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`recordId`), " +
+                        "FOREIGN KEY(`parentId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`partnerId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`childId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_records_parentId` ON `breeding_records` (`parentId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_records_partnerId` ON `breeding_records` (`partnerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_records_childId` ON `breeding_records` (`childId`)")
+
+                // traits
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `traits` (" +
+                        "`traitId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, PRIMARY KEY(`traitId`))"
+                )
+
+                // product_traits junction
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `product_traits` (" +
+                        "`productId` TEXT NOT NULL, `traitId` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`productId`, `traitId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`traitId`) REFERENCES `traits`(`traitId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_product_traits_traitId` ON `product_traits` (`traitId`)")
+
+                // lifecycle_events
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `lifecycle_events` (" +
+                        "`eventId` TEXT NOT NULL, `productId` TEXT NOT NULL, `week` INTEGER NOT NULL, `stage` TEXT NOT NULL, `type` TEXT NOT NULL, `notes` TEXT, `timestamp` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`eventId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_lifecycle_events_productId` ON `lifecycle_events` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_lifecycle_events_week` ON `lifecycle_events` (`week`)")
+            }
+        }
+
+        // Add productId to transfers and index for traceability linkage
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add nullable column to avoid data loss
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `productId` TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfers_productId` ON `transfers` (`productId`)")
             }
         }
     }
