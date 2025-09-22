@@ -11,6 +11,9 @@ import com.rio.rostry.workers.LifecycleWorker
 import com.rio.rostry.workers.TransferTimeoutWorker
 import com.rio.rostry.workers.ModerationWorker
 import com.rio.rostry.workers.OutgoingMessageWorker
+import coil.Coil
+import coil.ImageLoader
+import coil.util.DebugLogger
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -22,6 +25,16 @@ class RostryApp : Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+
+        // Coil global ImageLoader with caching
+        val imageLoader = ImageLoader.Builder(this)
+            .crossfade(true)
+            .respectCacheHeaders(false)
+            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+            .logger(if (BuildConfig.DEBUG) DebugLogger() else null)
+            .build()
+        Coil.setImageLoader(imageLoader)
 
         // Schedule periodic sync (every 6 hours, requires network)
         val constraints = Constraints.Builder()

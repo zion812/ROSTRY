@@ -124,9 +124,10 @@ dependencies {
 
     // Media playback (videos in feed)
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
+    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
 
     // WebRTC for audio/video calling (placeholder integration)
-    implementation("org.webrtc:google-webrtc:1.0.32006")
+    // TODO: Add compatible WebRTC artifact when enabling calling UI
 
     // ViewModel for Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -135,6 +136,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 
     // QR generation
     implementation("com.google.zxing:core:3.5.2")

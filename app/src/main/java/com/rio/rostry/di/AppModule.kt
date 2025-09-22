@@ -7,7 +7,6 @@ import com.rio.rostry.utils.notif.TransferNotifierImpl
 import com.rio.rostry.utils.notif.SocialNotifier
 import com.rio.rostry.utils.notif.SocialNotifierImpl
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,7 +48,4 @@ object AppModule {
     @Singleton
     fun provideFirebaseDatabase(): FirebaseDatabase = FirebaseDatabase.getInstance()
 
-    @Provides
-    @Singleton
-    fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
 }

@@ -179,24 +179,38 @@ fun AppNavHost() {
             com.rio.rostry.ui.messaging.ThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
         }
 
+        // Social: Group chat
+        composable(
+            route = Routes.MESSAGES_GROUP,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            com.rio.rostry.ui.messaging.GroupChatScreen(groupId = groupId, onBack = { navController.popBackStack() })
+        }
+
         // Social: Groups
         composable(Routes.GROUPS) {
-            GroupsScreen(onBack = { navController.popBackStack() }, onOpenEvents = { navController.navigate(Routes.EVENTS) })
+            PlaceholderScreen(title = "Groups")
         }
 
         // Social: Events
         composable(Routes.EVENTS) {
-            EventsScreen(onBack = { navController.popBackStack() })
+            com.rio.rostry.ui.events.EventsScreen(onBack = { navController.popBackStack() })
         }
 
         // Social: Expert booking
         composable(Routes.EXPERT_BOOKING) {
-            ExpertBookingScreen(onBack = { navController.popBackStack() })
+            com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() })
         }
 
         // Social: Moderation
         composable(Routes.MODERATION) {
-            ModerationScreen(onBack = { navController.popBackStack() })
+            com.rio.rostry.ui.moderation.ModerationScreen()
+        }
+
+        // Social: Leaderboard
+        composable(Routes.LEADERBOARD) {
+            com.rio.rostry.ui.social.LeaderboardScreen()
         }
     }
 }

@@ -42,6 +42,8 @@ import com.rio.rostry.data.database.dao.ModerationReportsDao
 import com.rio.rostry.data.database.dao.BadgesDao
 import com.rio.rostry.data.database.dao.ReputationDao
 import com.rio.rostry.data.database.dao.OutgoingMessageDao
+import com.rio.rostry.data.database.dao.RateLimitDao
+import com.rio.rostry.data.database.dao.EventRsvpsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -252,4 +254,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideOutgoingMessageDao(db: AppDatabase): OutgoingMessageDao = db.outgoingMessageDao()
+
+    @Provides
+    @Singleton
+    fun provideRateLimitDao(db: AppDatabase): RateLimitDao = db.rateLimitDao()
+
+    @Provides
+    @Singleton
+    fun provideEventRsvpsDao(db: AppDatabase): EventRsvpsDao = db.eventRsvpsDao()
 }

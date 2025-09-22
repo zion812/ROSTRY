@@ -22,6 +22,24 @@ interface PostsDao {
 
     @Query("SELECT * FROM posts WHERE postId = :postId LIMIT 1")
     suspend fun getById(postId: String): PostEntity?
+
+    // Ranked by engagement (likes count) then recency
+    @Query(
+        "SELECT * FROM posts ORDER BY (SELECT COUNT(*) FROM likes WHERE likes.postId = posts.postId) DESC, createdAt DESC"
+    )
+    fun pagingRanked(): PagingSource<Int, PostEntity>
+}
+
+@Dao
+interface EventRsvpsDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(rsvp: com.rio.rostry.data.database.entity.EventRsvpEntity)
+
+    @Query("SELECT * FROM event_rsvps WHERE eventId = :eventId")
+    fun streamForEvent(eventId: String): Flow<List<com.rio.rostry.data.database.entity.EventRsvpEntity>>
+
+    @Query("SELECT * FROM event_rsvps WHERE userId = :userId")
+    fun streamForUser(userId: String): Flow<List<com.rio.rostry.data.database.entity.EventRsvpEntity>>
 }
 
 @Dao
@@ -136,4 +154,13 @@ interface ReputationDao {
 
     @Query("SELECT * FROM reputation WHERE userId = :userId LIMIT 1")
     suspend fun getByUserId(userId: String): ReputationEntity?
+}
+
+@Dao
+interface RateLimitDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(limit: com.rio.rostry.data.database.entity.RateLimitEntity)
+
+    @Query("SELECT * FROM rate_limits WHERE userId = :userId AND action = :action LIMIT 1")
+    suspend fun get(userId: String, action: String): com.rio.rostry.data.database.entity.RateLimitEntity?
 }

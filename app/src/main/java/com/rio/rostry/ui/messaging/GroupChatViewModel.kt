@@ -9,13 +9,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class ThreadViewModel @Inject constructor(
+class GroupChatViewModel @Inject constructor(
     private val messagingRepository: MessagingRepository,
     private val outgoingDao: OutgoingMessageDao,
 ) : ViewModel() {
@@ -23,47 +22,25 @@ class ThreadViewModel @Inject constructor(
     private val _messages = MutableStateFlow<List<MessagingRepository.MessageDTO>>(emptyList())
     val messages: StateFlow<List<MessagingRepository.MessageDTO>> = _messages.asStateFlow()
 
-    fun bind(threadId: String) {
+    fun bind(groupId: String) {
         viewModelScope.launch {
-            messagingRepository.streamThread(threadId).collect { list ->
+            messagingRepository.streamGroup(groupId).collect { list ->
                 _messages.value = list
             }
         }
-        viewModelScope.launch {
-            // TODO: replace "me" with actual current user id from SessionManager
-            messagingRepository.markThreadSeen(threadId, "me")
-        }
     }
 
-    fun sendQueuedDm(threadId: String, fromUserId: String, toUserId: String, text: String) {
+    fun sendQueuedGroup(groupId: String, fromUserId: String, text: String) {
         viewModelScope.launch {
             val msg = OutgoingMessageEntity(
                 id = UUID.randomUUID().toString(),
-                kind = "DM",
-                threadOrGroupId = threadId,
+                kind = "GROUP",
+                threadOrGroupId = groupId,
                 fromUserId = fromUserId,
-                toUserId = toUserId,
+                toUserId = null,
                 bodyText = text,
                 fileUri = null,
                 fileName = null,
-                status = "PENDING",
-                createdAt = System.currentTimeMillis()
-            )
-            outgoingDao.upsert(msg)
-        }
-    }
-
-    fun sendQueuedDmFile(threadId: String, fromUserId: String, toUserId: String, fileUri: String, fileName: String?) {
-        viewModelScope.launch {
-            val msg = OutgoingMessageEntity(
-                id = UUID.randomUUID().toString(),
-                kind = "DM",
-                threadOrGroupId = threadId,
-                fromUserId = fromUserId,
-                toUserId = toUserId,
-                bodyText = null,
-                fileUri = fileUri,
-                fileName = fileName,
                 status = "PENDING",
                 createdAt = System.currentTimeMillis()
             )

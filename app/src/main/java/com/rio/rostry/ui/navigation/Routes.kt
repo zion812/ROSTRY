@@ -24,8 +24,10 @@ object Routes {
     // Social
     const val SOCIAL_FEED = "social/feed"
     const val MESSAGES_THREAD = "messages/{threadId}"
+    const val MESSAGES_GROUP = "group/{groupId}/chat"
     const val GROUPS = "social/groups"
     const val EVENTS = "social/events"
     const val EXPERT_BOOKING = "social/expert"
     const val MODERATION = "social/moderation"
+    const val LEADERBOARD = "social/leaderboard"
 }

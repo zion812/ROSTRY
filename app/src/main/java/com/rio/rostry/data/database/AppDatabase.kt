@@ -55,7 +55,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ModerationReportEntity::class,
         BadgeEntity::class,
         ReputationEntity::class,
-        OutgoingMessageEntity::class
+        OutgoingMessageEntity::class,
+        RateLimitEntity::class,
+        EventRsvpEntity::class
     ],
     version = 13, // Bumped to 13 adding social platform tables
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
@@ -106,6 +108,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun badgesDao(): BadgesDao
     abstract fun reputationDao(): ReputationDao
     abstract fun outgoingMessageDao(): OutgoingMessageDao
+    abstract fun rateLimitDao(): RateLimitDao
+    abstract fun eventRsvpsDao(): EventRsvpsDao
 
     object Converters {
         @TypeConverter
@@ -518,6 +522,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS `outgoing_messages` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `threadOrGroupId` TEXT NOT NULL, `fromUserId` TEXT NOT NULL, `toUserId` TEXT, `bodyText` TEXT, `fileUri` TEXT, `fileName` TEXT, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_outgoing_messages_status` ON `outgoing_messages` (`status`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_outgoing_messages_createdAt` ON `outgoing_messages` (`createdAt`)")
+
+                // Rate limits
+                db.execSQL("CREATE TABLE IF NOT EXISTS `rate_limits` (`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `action` TEXT NOT NULL, `lastAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_rate_limits_userId_action` ON `rate_limits` (`userId`, `action`)")
+
+                // Event RSVPs
+                db.execSQL("CREATE TABLE IF NOT EXISTS `event_rsvps` (`id` TEXT NOT NULL, `eventId` TEXT NOT NULL, `userId` TEXT NOT NULL, `status` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_event_rsvps_eventId_userId` ON `event_rsvps` (`eventId`, `userId`)")
             }
         }
     }

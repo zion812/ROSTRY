@@ -1,5 +1,6 @@
 package com.rio.rostry.ui.social
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +12,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -19,9 +27,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.items
 import coil.compose.AsyncImage
 import com.rio.rostry.data.database.entity.PostEntity
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @Composable
 fun SocialFeedScreen(
@@ -40,7 +50,8 @@ fun SocialFeedScreen(
             Button(onClick = onOpenExpert) { Text("Experts") }
         }
         LazyColumn(Modifier.fillMaxSize()) {
-            items(feed, key = { it.postId }) { post ->
+            items(feed.itemCount) { index ->
+                val post = feed[index]
                 if (post != null) PostCard(post)
             }
         }
@@ -48,7 +59,12 @@ fun SocialFeedScreen(
 }
 
 @Composable
-private fun PostCard(post: PostEntity) {
+private fun PostCard(post: PostEntity, vm: SocialFeedViewModel = hiltViewModel()) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var showCommentDialog by remember { mutableStateOf(false) }
+    var commentText by remember { mutableStateOf("") }
+    var liked by remember { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth().padding(12.dp)) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
             Text(text = post.authorId.take(10), style = MaterialTheme.typography.labelSmall)
@@ -56,17 +72,62 @@ private fun PostCard(post: PostEntity) {
                 Text(text = post.text!!, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
             if (!post.mediaUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = post.mediaUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    contentScale = ContentScale.Crop
-                )
+                val isVideo = (post.type.equals("VIDEO", ignoreCase = true)) || post.mediaUrl.endsWith(".mp4", true)
+                if (isVideo) {
+                    VideoPlayer(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), url = post.mediaUrl!!)
+                } else {
+                    AsyncImage(
+                        model = post.mediaUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* like */ }) { /* like icon */ }
-                IconButton(onClick = { /* comment */ }) { /* comment icon */ }
-                IconButton(onClick = { /* share */ }) { /* share icon */ }
+                Button(onClick = {
+                    scope.launch {
+                        // TODO: replace "me" with real userId
+                        if (!liked) vm.like(post.postId, "me") else vm.unlike(post.postId, "me")
+                        liked = !liked
+                    }
+                }) { Text(if (liked) "Unlike" else "Like") }
+                Button(onClick = { showCommentDialog = true }, modifier = Modifier.padding(start = 8.dp)) { Text("Comment") }
+                Button(onClick = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, post.text ?: post.mediaUrl ?: "Check out this post on ROSTRY")
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share post via"))
+                }, modifier = Modifier.padding(start = 8.dp)) { Text("Share") }
+            }
+
+            if (showCommentDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCommentDialog = false },
+                    title = { Text("Add Comment") },
+                    text = {
+                        androidx.compose.material3.OutlinedTextField(
+                            value = commentText,
+                            onValueChange = { commentText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = false,
+                            maxLines = 4
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            scope.launch {
+                                if (commentText.isNotBlank()) vm.addComment(post.postId, "me", commentText)
+                                commentText = ""
+                                showCommentDialog = false
+                            }
+                        }) { Text("Post") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCommentDialog = false }) { Text("Cancel") }
+                    }
+                )
             }
         }
     }

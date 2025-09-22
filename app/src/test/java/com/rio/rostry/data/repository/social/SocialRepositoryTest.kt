@@ -6,6 +6,11 @@ import com.rio.rostry.data.database.dao.PostsDao
 import com.rio.rostry.data.database.entity.CommentEntity
 import com.rio.rostry.data.database.entity.LikeEntity
 import com.rio.rostry.data.database.entity.PostEntity
+import com.rio.rostry.data.database.dao.ReputationDao
+import com.rio.rostry.data.database.dao.BadgesDao
+import com.google.firebase.storage.FirebaseStorage
+import android.content.Context
+import com.rio.rostry.data.database.dao.RateLimitDao
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -22,6 +27,11 @@ class SocialRepositoryTest {
     private lateinit var postsDao: PostsDao
     private lateinit var commentsDao: CommentsDao
     private lateinit var likesDao: LikesDao
+    private lateinit var reputationDao: ReputationDao
+    private lateinit var badgesDao: BadgesDao
+    private lateinit var storage: FirebaseStorage
+    private lateinit var rateLimitDao: RateLimitDao
+    private lateinit var appContext: Context
     private lateinit var repo: SocialRepository
 
     @Before
@@ -29,7 +39,12 @@ class SocialRepositoryTest {
         postsDao = mockk(relaxed = true)
         commentsDao = mockk(relaxed = true)
         likesDao = mockk(relaxed = true)
-        repo = SocialRepositoryImpl(postsDao, commentsDao, likesDao)
+        reputationDao = mockk(relaxed = true)
+        badgesDao = mockk(relaxed = true)
+        storage = mockk(relaxed = true)
+        rateLimitDao = mockk(relaxed = true)
+        appContext = mockk(relaxed = true)
+        repo = SocialRepositoryImpl(postsDao, commentsDao, likesDao, reputationDao, badgesDao, storage, rateLimitDao, appContext)
     }
 
     @Test

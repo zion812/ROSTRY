@@ -14,5 +14,9 @@ import javax.inject.Inject
 class SocialFeedViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
 ) : ViewModel() {
-    fun feed(): Flow<PagingData<PostEntity>> = socialRepository.feed().cachedIn(viewModelScope)
+    fun feed(): Flow<PagingData<PostEntity>> = socialRepository.feedRanked().cachedIn(viewModelScope)
+
+    suspend fun like(postId: String, userId: String) = socialRepository.like(postId, userId)
+    suspend fun unlike(postId: String, userId: String) = socialRepository.unlike(postId, userId)
+    suspend fun addComment(postId: String, userId: String, text: String) = socialRepository.addComment(postId, userId, text)
 }

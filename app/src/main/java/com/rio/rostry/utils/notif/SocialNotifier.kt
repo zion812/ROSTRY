@@ -43,7 +43,7 @@ class SocialNotifierImpl @Inject constructor(
 
     override fun notifyNewMessage(threadId: String, fromUserName: String, text: String) {
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("New message from $fromUserName")
             .setContentText(text)
             .setAutoCancel(true)
@@ -52,7 +52,7 @@ class SocialNotifierImpl @Inject constructor(
 
     override fun notifyNewComment(postAuthorId: String, postId: String, commenterName: String) {
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("$commenterName commented on your post")
             .setContentText("Post: ${postId.take(8)}...")
             .setAutoCancel(true)
@@ -61,7 +61,7 @@ class SocialNotifierImpl @Inject constructor(
 
     override fun notifyNewLike(postAuthorId: String, postId: String, likerName: String) {
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("$likerName liked your post")
             .setContentText("Post: ${postId.take(8)}...")
             .setAutoCancel(true)
@@ -70,7 +70,7 @@ class SocialNotifierImpl @Inject constructor(
 
     override fun notifyFollow(userId: String, followerName: String) {
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("$followerName started following you")
             .setAutoCancel(true)
         NotificationManagerCompat.from(context).notify((userId + "f").hashCode(), builder.build())
