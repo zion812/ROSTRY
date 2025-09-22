@@ -30,6 +30,17 @@ import com.rio.rostry.data.database.dao.LifecycleEventDao
 import com.rio.rostry.data.database.dao.TransferVerificationDao
 import com.rio.rostry.data.database.dao.DisputeDao
 import com.rio.rostry.data.database.dao.AuditLogDao
+import com.rio.rostry.data.database.dao.PostsDao
+import com.rio.rostry.data.database.dao.CommentsDao
+import com.rio.rostry.data.database.dao.LikesDao
+import com.rio.rostry.data.database.dao.FollowsDao
+import com.rio.rostry.data.database.dao.GroupsDao
+import com.rio.rostry.data.database.dao.GroupMembersDao
+import com.rio.rostry.data.database.dao.EventsDao
+import com.rio.rostry.data.database.dao.ExpertBookingsDao
+import com.rio.rostry.data.database.dao.ModerationReportsDao
+import com.rio.rostry.data.database.dao.BadgesDao
+import com.rio.rostry.data.database.dao.ReputationDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -191,4 +202,49 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAuditLogDao(appDatabase: AppDatabase): AuditLogDao = appDatabase.auditLogDao()
+
+    // Social DAOs
+    @Provides
+    @Singleton
+    fun providePostsDao(db: AppDatabase): PostsDao = db.postsDao()
+
+    @Provides
+    @Singleton
+    fun provideCommentsDao(db: AppDatabase): CommentsDao = db.commentsDao()
+
+    @Provides
+    @Singleton
+    fun provideLikesDao(db: AppDatabase): LikesDao = db.likesDao()
+
+    @Provides
+    @Singleton
+    fun provideFollowsDao(db: AppDatabase): FollowsDao = db.followsDao()
+
+    @Provides
+    @Singleton
+    fun provideGroupsDao(db: AppDatabase): GroupsDao = db.groupsDao()
+
+    @Provides
+    @Singleton
+    fun provideGroupMembersDao(db: AppDatabase): GroupMembersDao = db.groupMembersDao()
+
+    @Provides
+    @Singleton
+    fun provideEventsDao(db: AppDatabase): EventsDao = db.eventsDao()
+
+    @Provides
+    @Singleton
+    fun provideExpertBookingsDao(db: AppDatabase): ExpertBookingsDao = db.expertBookingsDao()
+
+    @Provides
+    @Singleton
+    fun provideModerationReportsDao(db: AppDatabase): ModerationReportsDao = db.moderationReportsDao()
+
+    @Provides
+    @Singleton
+    fun provideBadgesDao(db: AppDatabase): BadgesDao = db.badgesDao()
+
+    @Provides
+    @Singleton
+    fun provideReputationDao(db: AppDatabase): ReputationDao = db.reputationDao()
 }

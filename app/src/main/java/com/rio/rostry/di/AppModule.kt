@@ -4,6 +4,9 @@ import android.content.Context
 import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.notif.TransferNotifier
 import com.rio.rostry.utils.notif.TransferNotifierImpl
+import com.rio.rostry.utils.notif.SocialNotifier
+import com.rio.rostry.utils.notif.SocialNotifierImpl
+import com.google.firebase.database.FirebaseDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,4 +37,14 @@ object AppModule {
     fun provideTransferNotifier(@ApplicationContext context: Context): TransferNotifier {
         return TransferNotifierImpl(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideSocialNotifier(@ApplicationContext context: Context): SocialNotifier {
+        return SocialNotifierImpl(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseDatabase(): FirebaseDatabase = FirebaseDatabase.getInstance()
 }

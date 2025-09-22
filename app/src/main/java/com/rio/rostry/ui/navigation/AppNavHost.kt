@@ -161,6 +161,43 @@ fun AppNavHost() {
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
             TransferDetailsScreen(transferId = transferId)
         }
+
+        // Social: Feed
+        composable(Routes.SOCIAL_FEED) {
+            SocialFeedScreen(onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
+                onOpenGroups = { navController.navigate(Routes.GROUPS) },
+                onOpenEvents = { navController.navigate(Routes.EVENTS) },
+                onOpenExpert = { navController.navigate(Routes.EXPERT_BOOKING) })
+        }
+
+        // Social: Messaging thread
+        composable(
+            route = Routes.MESSAGES_THREAD,
+            arguments = listOf(navArgument("threadId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
+            MessagingThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
+        }
+
+        // Social: Groups
+        composable(Routes.GROUPS) {
+            GroupsScreen(onBack = { navController.popBackStack() }, onOpenEvents = { navController.navigate(Routes.EVENTS) })
+        }
+
+        // Social: Events
+        composable(Routes.EVENTS) {
+            EventsScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Social: Expert booking
+        composable(Routes.EXPERT_BOOKING) {
+            ExpertBookingScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Social: Moderation
+        composable(Routes.MODERATION) {
+            ModerationScreen(onBack = { navController.popBackStack() })
+        }
     }
 }
 

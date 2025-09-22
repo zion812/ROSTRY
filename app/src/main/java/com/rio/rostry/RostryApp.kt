@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import com.rio.rostry.workers.SyncWorker
 import com.rio.rostry.workers.LifecycleWorker
 import com.rio.rostry.workers.TransferTimeoutWorker
+import com.rio.rostry.workers.ModerationWorker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -39,5 +40,8 @@ class RostryApp : Application() {
 
         // Schedule transfer timeout checker (every ~15 minutes)
         TransferTimeoutWorker.schedule(this)
+
+        // Schedule moderation scanner (every 6 hours)
+        ModerationWorker.schedule(this)
     }
 }

@@ -43,9 +43,20 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LifecycleEventEntity::class,
         TransferVerificationEntity::class,
         DisputeEntity::class,
-        AuditLogEntity::class
+        AuditLogEntity::class,
+        PostEntity::class,
+        CommentEntity::class,
+        LikeEntity::class,
+        FollowEntity::class,
+        GroupEntity::class,
+        GroupMemberEntity::class,
+        EventEntity::class,
+        ExpertBookingEntity::class,
+        ModerationReportEntity::class,
+        BadgeEntity::class,
+        ReputationEntity::class
     ],
-    version = 12, // Bumped to 12 adding transfer workflow tables and columns
+    version = 13, // Bumped to 13 adding social platform tables
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -80,6 +91,19 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transferVerificationDao(): TransferVerificationDao
     abstract fun disputeDao(): DisputeDao
     abstract fun auditLogDao(): AuditLogDao
+
+    // Social DAOs
+    abstract fun postsDao(): PostsDao
+    abstract fun commentsDao(): CommentsDao
+    abstract fun likesDao(): LikesDao
+    abstract fun followsDao(): FollowsDao
+    abstract fun groupsDao(): GroupsDao
+    abstract fun groupMembersDao(): GroupMembersDao
+    abstract fun eventsDao(): EventsDao
+    abstract fun expertBookingsDao(): ExpertBookingsDao
+    abstract fun moderationReportsDao(): ModerationReportsDao
+    abstract fun badgesDao(): BadgesDao
+    abstract fun reputationDao(): ReputationDao
 
     object Converters {
         @TypeConverter
@@ -428,6 +452,65 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `transfers` ADD COLUMN `buyerPhotoUrl` TEXT")
                 db.execSQL("ALTER TABLE `transfers` ADD COLUMN `timeoutAt` INTEGER")
                 db.execSQL("ALTER TABLE `transfers` ADD COLUMN `conditionsJson` TEXT")
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Posts
+                db.execSQL("CREATE TABLE IF NOT EXISTS `posts` (`postId` TEXT NOT NULL, `authorId` TEXT NOT NULL, `type` TEXT NOT NULL, `text` TEXT, `mediaUrl` TEXT, `thumbnailUrl` TEXT, `productId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`postId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_posts_authorId` ON `posts` (`authorId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_posts_createdAt` ON `posts` (`createdAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_posts_type` ON `posts` (`type`)")
+
+                // Comments
+                db.execSQL("CREATE TABLE IF NOT EXISTS `comments` (`commentId` TEXT NOT NULL, `postId` TEXT NOT NULL, `authorId` TEXT NOT NULL, `text` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`commentId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_comments_postId` ON `comments` (`postId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_comments_authorId` ON `comments` (`authorId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_comments_createdAt` ON `comments` (`createdAt`)")
+
+                // Likes
+                db.execSQL("CREATE TABLE IF NOT EXISTS `likes` (`likeId` TEXT NOT NULL, `postId` TEXT NOT NULL, `userId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`likeId`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_likes_postId_userId` ON `likes` (`postId`, `userId`)")
+
+                // Follows
+                db.execSQL("CREATE TABLE IF NOT EXISTS `follows` (`followId` TEXT NOT NULL, `followerId` TEXT NOT NULL, `followedId` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`followId`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_follows_followerId_followedId` ON `follows` (`followerId`, `followedId`)")
+
+                // Groups
+                db.execSQL("CREATE TABLE IF NOT EXISTS `groups` (`groupId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `ownerId` TEXT NOT NULL, `category` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`groupId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_groups_ownerId` ON `groups` (`ownerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_groups_name` ON `groups` (`name`)")
+
+                // Group members
+                db.execSQL("CREATE TABLE IF NOT EXISTS `group_members` (`membershipId` TEXT NOT NULL, `groupId` TEXT NOT NULL, `userId` TEXT NOT NULL, `role` TEXT NOT NULL, `joinedAt` INTEGER NOT NULL, PRIMARY KEY(`membershipId`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_group_members_groupId_userId` ON `group_members` (`groupId`, `userId`)")
+
+                // Events
+                db.execSQL("CREATE TABLE IF NOT EXISTS `events` (`eventId` TEXT NOT NULL, `groupId` TEXT, `title` TEXT NOT NULL, `description` TEXT, `location` TEXT, `startTime` INTEGER NOT NULL, `endTime` INTEGER, PRIMARY KEY(`eventId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_events_groupId` ON `events` (`groupId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_events_startTime` ON `events` (`startTime`)")
+
+                // Expert bookings
+                db.execSQL("CREATE TABLE IF NOT EXISTS `expert_bookings` (`bookingId` TEXT NOT NULL, `expertId` TEXT NOT NULL, `userId` TEXT NOT NULL, `topic` TEXT, `startTime` INTEGER NOT NULL, `endTime` INTEGER NOT NULL, `status` TEXT NOT NULL, PRIMARY KEY(`bookingId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expert_bookings_expertId` ON `expert_bookings` (`expertId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expert_bookings_userId` ON `expert_bookings` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expert_bookings_startTime` ON `expert_bookings` (`startTime`)")
+
+                // Moderation reports
+                db.execSQL("CREATE TABLE IF NOT EXISTS `moderation_reports` (`reportId` TEXT NOT NULL, `targetType` TEXT NOT NULL, `targetId` TEXT NOT NULL, `reporterId` TEXT NOT NULL, `reason` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`reportId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_moderation_reports_targetType` ON `moderation_reports` (`targetType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_moderation_reports_targetId` ON `moderation_reports` (`targetId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_moderation_reports_status` ON `moderation_reports` (`status`)")
+
+                // Badges
+                db.execSQL("CREATE TABLE IF NOT EXISTS `badges` (`badgeId` TEXT NOT NULL, `userId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `awardedAt` INTEGER NOT NULL, PRIMARY KEY(`badgeId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_badges_userId` ON `badges` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_badges_awardedAt` ON `badges` (`awardedAt`)")
+
+                // Reputation
+                db.execSQL("CREATE TABLE IF NOT EXISTS `reputation` (`repId` TEXT NOT NULL, `userId` TEXT NOT NULL, `score` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`repId`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reputation_userId` ON `reputation` (`userId`)")
             }
         }
     }

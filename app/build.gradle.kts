@@ -84,6 +84,7 @@ dependencies {
     // Room
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
+    implementation("androidx.room:room-paging:2.6.1")
 
     // Encrypted database support
     implementation(libs.sqlcipher)
@@ -102,12 +103,27 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.functions.ktx)
+    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
 
     // WorkManager
     implementation(libs.work.runtime.ktx)
 
     // Timber for logging
     implementation(libs.timber)
+
+    // Paging for feed
+    implementation("androidx.paging:paging-runtime-ktx:3.3.2")
+    implementation("androidx.paging:paging-compose:3.3.2")
+
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Image compression
+    implementation("id.zelory:compressor:3.0.1")
+
+    // Media playback (videos in feed)
+    implementation("com.google.android.exoplayer:exoplayer:2.19.1")
 
     // ViewModel for Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
