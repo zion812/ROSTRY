@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.OutlinedButton
+import com.rio.rostry.ui.transfer.TransferDetailsViewModel
 
 @Composable
 fun AppNavHost() {
@@ -62,6 +63,7 @@ fun AppNavHost() {
                         com.rio.rostry.domain.model.UserType.FARMER -> Routes.HOME_FARMER
                         com.rio.rostry.domain.model.UserType.ENTHUSIAST -> Routes.HOME_ENTHUSIAST
                     }
+
                     navController.navigate(route) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -149,6 +151,47 @@ fun AppNavHost() {
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             val vm: TraceabilityViewModel = hiltViewModel()
             TraceabilityScreen(vm = vm, productId = productId, onBack = { navController.popBackStack() })
+        }
+
+        // Transfer Details Screen
+        composable(
+            route = Routes.TRANSFER_DETAILS,
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            TransferDetailsScreen(transferId = transferId)
+        }
+    }
+}
+
+@Composable
+private fun TransferDetailsScreen(transferId: String) {
+    val vm: com.rio.rostry.ui.transfer.TransferDetailsViewModel = hiltViewModel()
+    LaunchedEffect(transferId) { vm.load(transferId) }
+    val state by vm.state.collectAsState()
+    Column(Modifier.padding(16.dp)) {
+        Text(text = "Transfer: $transferId", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+        state.transfer?.let { t ->
+            Text("Status: ${t.status}")
+            Text("Amount: ${t.amount} ${t.currency}")
+        }
+        Text("Verifications", modifier = Modifier.padding(top = 12.dp))
+        LazyColumn {
+            items(state.verifications) { v ->
+                Text("${v.step} • ${v.status}")
+            }
+        }
+        Text("Disputes", modifier = Modifier.padding(top = 12.dp))
+        LazyColumn {
+            items(state.disputes) { d ->
+                Text("${d.status} • ${d.reason}")
+            }
+        }
+        Text("Audit Logs", modifier = Modifier.padding(top = 12.dp))
+        LazyColumn {
+            items(state.logs) { l ->
+                Text("${l.action} • ${l.createdAt}")
+            }
         }
     }
 }

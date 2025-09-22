@@ -53,4 +53,23 @@ interface TransferDao {
     // Traceability helper
     @Query("SELECT * FROM transfers WHERE productId = :productId ORDER BY initiatedAt ASC")
     suspend fun getTransfersByProduct(productId: String): List<TransferEntity>
+
+    // Workflow helpers
+    @Query("SELECT * FROM transfers WHERE transferId = :transferId LIMIT 1")
+    suspend fun getById(transferId: String): TransferEntity?
+
+    @Query("SELECT * FROM transfers WHERE productId = :productId AND status = :status ORDER BY initiatedAt DESC")
+    suspend fun getByProductAndStatus(productId: String, status: String): List<TransferEntity>
+
+    @Query("UPDATE transfers SET status = :status, updatedAt = :updatedAt, completedAt = :completedAt WHERE transferId = :transferId")
+    suspend fun updateStatusAndTimestamps(transferId: String, status: String, updatedAt: Long, completedAt: Long?)
+
+    @Query("SELECT COUNT(*) FROM transfers WHERE productId = :productId AND fromUserId = :fromUserId AND toUserId = :toUserId AND status = 'PENDING' AND initiatedAt > :since")
+    suspend fun countRecentPending(productId: String, fromUserId: String, toUserId: String, since: Long): Int
+
+    @Query("SELECT * FROM transfers WHERE status = 'PENDING' AND timeoutAt IS NOT NULL AND timeoutAt < :now ORDER BY timeoutAt ASC")
+    suspend fun getPendingTimedOut(now: Long): List<TransferEntity>
+
+    @Query("UPDATE transfers SET status = 'TIMEOUT', updatedAt = :updatedAt WHERE transferId IN (:ids)")
+    suspend fun markTimedOut(ids: List<String>, updatedAt: Long)
 }

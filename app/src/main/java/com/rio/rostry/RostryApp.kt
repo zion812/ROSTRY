@@ -8,6 +8,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rio.rostry.workers.SyncWorker
 import com.rio.rostry.workers.LifecycleWorker
+import com.rio.rostry.workers.TransferTimeoutWorker
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -35,5 +36,8 @@ class RostryApp : Application() {
 
         // Schedule lifecycle milestone worker (daily)
         LifecycleWorker.schedule(this)
+
+        // Schedule transfer timeout checker (every ~15 minutes)
+        TransferTimeoutWorker.schedule(this)
     }
 }

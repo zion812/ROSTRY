@@ -41,6 +41,13 @@ data class TransferEntity(
     val status: String, // e.g., "PENDING", "COMPLETED", "FAILED", "CANCELLED"
     val transactionReference: String? = null, // Reference from payment gateway
     val notes: String? = null,
+    // Verification related (optional, filled during workflow)
+    val gpsLat: Double? = null,
+    val gpsLng: Double? = null,
+    val sellerPhotoUrl: String? = null,
+    val buyerPhotoUrl: String? = null,
+    val timeoutAt: Long? = null,
+    val conditionsJson: String? = null,
     val initiatedAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),

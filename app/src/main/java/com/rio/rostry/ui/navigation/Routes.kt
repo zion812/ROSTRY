@@ -17,4 +17,7 @@ object Routes {
     // Product + Traceability
     const val PRODUCT_DETAILS = "product/{productId}"
     const val TRACEABILITY = "traceability/{productId}"
+
+    // Transfer details
+    const val TRANSFER_DETAILS = "transfer/{transferId}"
 }

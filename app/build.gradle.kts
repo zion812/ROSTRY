@@ -120,6 +120,9 @@ dependencies {
     // QR generation
     implementation("com.google.zxing:core:3.5.2")
 
+    // EXIF parsing for photo verification metadata
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

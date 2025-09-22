@@ -27,6 +27,9 @@ import com.rio.rostry.data.database.dao.BreedingRecordDao
 import com.rio.rostry.data.database.dao.TraitDao
 import com.rio.rostry.data.database.dao.ProductTraitDao
 import com.rio.rostry.data.database.dao.LifecycleEventDao
+import com.rio.rostry.data.database.dao.TransferVerificationDao
+import com.rio.rostry.data.database.dao.DisputeDao
+import com.rio.rostry.data.database.dao.AuditLogDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -62,7 +65,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_7_8,
             AppDatabase.MIGRATION_8_9,
             AppDatabase.MIGRATION_9_10,
-            AppDatabase.MIGRATION_10_11
+            AppDatabase.MIGRATION_10_11,
+            AppDatabase.MIGRATION_11_12
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -175,4 +179,16 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideLifecycleEventDao(appDatabase: AppDatabase): LifecycleEventDao = appDatabase.lifecycleEventDao()
+
+    @Provides
+    @Singleton
+    fun provideTransferVerificationDao(appDatabase: AppDatabase): TransferVerificationDao = appDatabase.transferVerificationDao()
+
+    @Provides
+    @Singleton
+    fun provideDisputeDao(appDatabase: AppDatabase): DisputeDao = appDatabase.disputeDao()
+
+    @Provides
+    @Singleton
+    fun provideAuditLogDao(appDatabase: AppDatabase): AuditLogDao = appDatabase.auditLogDao()
 }

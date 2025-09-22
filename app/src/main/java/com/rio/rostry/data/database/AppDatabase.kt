@@ -40,9 +40,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BreedingRecordEntity::class,
         TraitEntity::class,
         ProductTraitCrossRef::class,
-        LifecycleEventEntity::class
+        LifecycleEventEntity::class,
+        TransferVerificationEntity::class,
+        DisputeEntity::class,
+        AuditLogEntity::class
     ],
-    version = 11, // Bumped to 11 adding productId to transfers for traceability linkage
+    version = 12, // Bumped to 12 adding transfer workflow tables and columns
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -74,6 +77,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun traitDao(): TraitDao
     abstract fun productTraitDao(): ProductTraitDao
     abstract fun lifecycleEventDao(): LifecycleEventDao
+    abstract fun transferVerificationDao(): TransferVerificationDao
+    abstract fun disputeDao(): DisputeDao
+    abstract fun auditLogDao(): AuditLogDao
 
     object Converters {
         @TypeConverter
@@ -380,6 +386,48 @@ abstract class AppDatabase : RoomDatabase() {
                 // Add nullable column to avoid data loss
                 db.execSQL("ALTER TABLE `transfers` ADD COLUMN `productId` TEXT")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfers_productId` ON `transfers` (`productId`)")
+            }
+        }
+
+        // Transfer workflow: verification, disputes, audit; add columns to transfers for proofs, gps, conditions
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // New tables
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `transfer_verifications` (" +
+                        "`verificationId` TEXT NOT NULL, `transferId` TEXT NOT NULL, `step` TEXT NOT NULL, `status` TEXT NOT NULL, " +
+                        "`photoBeforeUrl` TEXT, `photoAfterUrl` TEXT, `photoBeforeMetaJson` TEXT, `photoAfterMetaJson` TEXT, " +
+                        "`gpsLat` REAL, `gpsLng` REAL, `identityDocType` TEXT, `identityDocRef` TEXT, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`verificationId`), " +
+                        "FOREIGN KEY(`transferId`) REFERENCES `transfers`(`transferId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfer_verifications_transferId` ON `transfer_verifications` (`transferId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfer_verifications_status` ON `transfer_verifications` (`status`)")
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `transfer_disputes` (" +
+                        "`disputeId` TEXT NOT NULL, `transferId` TEXT NOT NULL, `raisedByUserId` TEXT NOT NULL, `reason` TEXT NOT NULL, `status` TEXT NOT NULL, `resolutionNotes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`disputeId`), " +
+                        "FOREIGN KEY(`transferId`) REFERENCES `transfers`(`transferId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfer_disputes_transferId` ON `transfer_disputes` (`transferId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfer_disputes_status` ON `transfer_disputes` (`status`)")
+
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `audit_logs` (" +
+                        "`logId` TEXT NOT NULL, `type` TEXT NOT NULL, `refId` TEXT NOT NULL, `action` TEXT NOT NULL, `actorUserId` TEXT, `detailsJson` TEXT, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`logId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_audit_logs_refId` ON `audit_logs` (`refId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_audit_logs_type` ON `audit_logs` (`type`)")
+
+                // Extend transfers with verification-related columns
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `gpsLat` REAL")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `gpsLng` REAL")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `sellerPhotoUrl` TEXT")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `buyerPhotoUrl` TEXT")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `timeoutAt` INTEGER")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `conditionsJson` TEXT")
             }
         }
     }

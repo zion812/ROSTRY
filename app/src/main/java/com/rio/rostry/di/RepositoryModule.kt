@@ -35,6 +35,8 @@ import com.rio.rostry.data.repository.InvoiceRepository
 import com.rio.rostry.data.repository.InvoiceRepositoryImpl
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.TraceabilityRepositoryImpl
+import com.rio.rostry.data.repository.TransferWorkflowRepository
+import com.rio.rostry.data.repository.TransferWorkflowRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -115,4 +117,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTraceabilityRepository(impl: TraceabilityRepositoryImpl): TraceabilityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTransferWorkflowRepository(impl: TransferWorkflowRepositoryImpl): TransferWorkflowRepository
 }
