@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.auth
 
 import android.app.Activity
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.UserRepository
@@ -23,7 +24,8 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     data class UiState(
@@ -32,7 +34,8 @@ class AuthViewModel @Inject constructor(
         val otp: String = "",
         val verificationId: String? = null,
         val isLoading: Boolean = false,
-        val error: String? = null
+        val error: String? = null,
+        val resendCooldownSec: Int = 0
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -46,12 +49,23 @@ class AuthViewModel @Inject constructor(
         data class ToHome(val userType: UserType): NavAction()
     }
 
+    private var cooldownJob: kotlinx.coroutines.Job? = null
+
     init {
+        // Restore verificationId/phone from SavedStateHandle if present
+        val restoredVerificationId: String? = savedStateHandle.get<String>("verificationId")
+        val restoredPhone: String? = savedStateHandle.get<String>("phoneE164")
+        _uiState.value = _uiState.value.copy(
+            verificationId = restoredVerificationId,
+            e164 = restoredPhone
+        )
         viewModelScope.launch {
             authRepository.events.collectLatest { event ->
                 when (event) {
                     is AuthEvent.CodeSent -> {
+                        savedStateHandle["verificationId"] = event.verificationId
                         _uiState.value = _uiState.value.copy(verificationId = event.verificationId, isLoading = false)
+                        startResendCooldown()
                         _navigation.tryEmit(NavAction.ToOtp(event.verificationId))
                     }
                     is AuthEvent.AutoVerified -> {
@@ -67,7 +81,9 @@ class AuthViewModel @Inject constructor(
     }
 
     fun onPhoneChanged(input: String) {
-        _uiState.value = _uiState.value.copy(phoneInput = input, e164 = normalizeToE164India(input))
+        val e164 = normalizeToE164India(input)
+        _uiState.value = _uiState.value.copy(phoneInput = input, e164 = e164)
+        savedStateHandle["phoneE164"] = e164
     }
 
     fun onOtpChanged(code: String) {
@@ -92,6 +108,10 @@ class AuthViewModel @Inject constructor(
     fun verifyOtpAndSignIn() {
         val verificationId = _uiState.value.verificationId ?: return
         val code = _uiState.value.otp
+        if (code.length != 6 || !code.all { it.isDigit() }) {
+            _uiState.value = _uiState.value.copy(error = "Enter a valid 6-digit OTP")
+            return
+        }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val res = authRepository.verifyOtp(verificationId, code)) {
@@ -101,6 +121,29 @@ class AuthViewModel @Inject constructor(
                 }
                 is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
                 else -> Unit
+            }
+        }
+    }
+
+    fun resendOtp(activity: Activity) {
+        if (_uiState.value.resendCooldownSec > 0) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            when (val res = authRepository.resendVerificationCode(activity)) {
+                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
+                else -> _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+
+    private fun startResendCooldown(seconds: Int = 60) {
+        cooldownJob?.cancel()
+        cooldownJob = viewModelScope.launch {
+            var remaining = seconds
+            while (remaining >= 0) {
+                _uiState.value = _uiState.value.copy(resendCooldownSec = remaining)
+                kotlinx.coroutines.delay(1000)
+                remaining--
             }
         }
     }

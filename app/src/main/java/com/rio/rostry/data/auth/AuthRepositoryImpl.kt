@@ -3,6 +3,8 @@ package com.rio.rostry.data.auth
 import android.app.Activity
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
@@ -31,6 +33,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     private var storedVerificationId: String? = null
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
+    private var lastPhoneE164: String? = null
 
     override suspend fun startPhoneVerification(activity: Activity, phoneE164: String): Resource<Unit> {
         return try {
@@ -49,7 +52,7 @@ class AuthRepositoryImpl @Inject constructor(
 
                 override fun onVerificationFailed(e: FirebaseException) {
                     Timber.e(e, "Phone verification failed")
-                    _events.tryEmit(AuthEvent.VerificationFailed(e.message ?: "Verification failed"))
+                    _events.tryEmit(AuthEvent.VerificationFailed(mapError(e)))
                 }
 
                 override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
@@ -68,6 +71,7 @@ class AuthRepositoryImpl @Inject constructor(
                 .build()
 
             PhoneAuthProvider.verifyPhoneNumber(options)
+            lastPhoneE164 = phoneE164
             Resource.Success(Unit)
         } catch (e: Exception) {
             Timber.e(e, "startPhoneVerification exception")
@@ -92,12 +96,50 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resendVerificationCode(activity: Activity): Resource<Unit> {
-        val verificationId = storedVerificationId
+        val phone = lastPhoneE164
         val token = resendToken
-        return if (verificationId != null && token != null) {
-            Resource.Error("Resend requires the original phone number; please call startPhoneVerification again.")
-        } else {
-            Resource.Error("No previous verification session found.")
+        if (phone == null || token == null) {
+            return Resource.Error("No previous verification session found.")
+        }
+        return try {
+            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                    firebaseAuth.signInWithCredential(credential)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                _isAuthenticated.value = isFirebaseUserValid()
+                                _events.tryEmit(AuthEvent.AutoVerified)
+                            } else {
+                                Timber.e(task.exception, "Auto sign-in failed (resend)")
+                            }
+                        }
+                }
+
+                override fun onVerificationFailed(e: FirebaseException) {
+                    Timber.e(e, "Phone verification failed (resend)")
+                    _events.tryEmit(AuthEvent.VerificationFailed(mapError(e)))
+                }
+
+                override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                    storedVerificationId = verificationId
+                    resendToken = token
+                    Timber.d("OTP code re-sent; verificationId updated")
+                    _events.tryEmit(AuthEvent.CodeSent(verificationId))
+                }
+            }
+
+            val options = PhoneAuthOptions.newBuilder(firebaseAuth)
+                .setPhoneNumber(phone)
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setActivity(activity)
+                .setCallbacks(callbacks)
+                .setForceResendingToken(token)
+                .build()
+            PhoneAuthProvider.verifyPhoneNumber(options)
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "resendVerificationCode exception")
+            Resource.Error("Failed to resend code: ${e.message}")
         }
     }
 
@@ -113,4 +155,15 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     private fun isFirebaseUserValid(): Boolean = firebaseAuth.currentUser != null
+
+    private fun mapError(e: Exception): String {
+        return when (e) {
+            is FirebaseAuthInvalidCredentialsException -> "Invalid phone number or code. Please check and try again."
+            is FirebaseAuthException -> when (e.errorCode) {
+                "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please wait a while before retrying."
+                else -> e.message ?: "Authentication error"
+            }
+            else -> e.message ?: "Network or server error. Please try again."
+        }
+    }
 }
