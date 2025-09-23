@@ -212,6 +212,29 @@ fun AppNavHost() {
         composable(Routes.LEADERBOARD) {
             com.rio.rostry.ui.social.LeaderboardScreen()
         }
+
+        // Analytics & Dashboards
+        composable(Routes.ANALYTICS_GENERAL) {
+            com.rio.rostry.ui.analytics.GeneralDashboardScreen(
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+        composable(Routes.ANALYTICS_FARMER) {
+            com.rio.rostry.ui.analytics.FarmerDashboardScreen(
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+        composable(Routes.ANALYTICS_ENTHUSIAST) {
+            com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+        composable(Routes.REPORTS) {
+            com.rio.rostry.ui.analytics.ReportsScreen()
+        }
     }
 }
 

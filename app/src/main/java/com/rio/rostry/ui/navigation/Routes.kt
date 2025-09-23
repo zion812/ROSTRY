@@ -30,4 +30,10 @@ object Routes {
     const val EXPERT_BOOKING = "social/expert"
     const val MODERATION = "social/moderation"
     const val LEADERBOARD = "social/leaderboard"
+
+    // Analytics & Dashboards
+    const val ANALYTICS_GENERAL = "analytics/general"
+    const val ANALYTICS_FARMER = "analytics/farmer"
+    const val ANALYTICS_ENTHUSIAST = "analytics/enthusiast"
+    const val REPORTS = "analytics/reports"
 }

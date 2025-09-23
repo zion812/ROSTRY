@@ -11,6 +11,8 @@ import com.rio.rostry.workers.LifecycleWorker
 import com.rio.rostry.workers.TransferTimeoutWorker
 import com.rio.rostry.workers.ModerationWorker
 import com.rio.rostry.workers.OutgoingMessageWorker
+import com.rio.rostry.workers.AnalyticsAggregationWorker
+import com.rio.rostry.workers.ReportingWorker
 import coil.Coil
 import coil.ImageLoader
 import coil.util.DebugLogger
@@ -60,5 +62,9 @@ class RostryApp : Application() {
 
         // Schedule outgoing message sender (every 15 minutes, requires network)
         OutgoingMessageWorker.schedule(this)
+
+        // Schedule analytics aggregation (daily) and reporting (weekly)
+        AnalyticsAggregationWorker.schedule(this)
+        ReportingWorker.schedule(this)
     }
 }

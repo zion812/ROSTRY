@@ -57,7 +57,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ReputationEntity::class,
         OutgoingMessageEntity::class,
         RateLimitEntity::class,
-        EventRsvpEntity::class
+        EventRsvpEntity::class,
+        AnalyticsDailyEntity::class,
+        ReportEntity::class
     ],
     version = 13, // Bumped to 13 adding social platform tables
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
@@ -110,6 +112,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun outgoingMessageDao(): OutgoingMessageDao
     abstract fun rateLimitDao(): RateLimitDao
     abstract fun eventRsvpsDao(): EventRsvpsDao
+    abstract fun analyticsDao(): AnalyticsDao
+    abstract fun reportsDao(): ReportsDao
 
     object Converters {
         @TypeConverter
@@ -530,6 +534,17 @@ abstract class AppDatabase : RoomDatabase() {
                 // Event RSVPs
                 db.execSQL("CREATE TABLE IF NOT EXISTS `event_rsvps` (`id` TEXT NOT NULL, `eventId` TEXT NOT NULL, `userId` TEXT NOT NULL, `status` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_event_rsvps_eventId_userId` ON `event_rsvps` (`eventId`, `userId`)")
+
+                // Analytics daily
+                db.execSQL("CREATE TABLE IF NOT EXISTS `analytics_daily` (`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `role` TEXT NOT NULL, `dateKey` TEXT NOT NULL, `salesRevenue` REAL NOT NULL, `ordersCount` INTEGER NOT NULL, `productViews` INTEGER NOT NULL, `likesCount` INTEGER NOT NULL, `commentsCount` INTEGER NOT NULL, `transfersCount` INTEGER NOT NULL, `breedingSuccessRate` REAL NOT NULL, `engagementScore` REAL NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_analytics_daily_userId_dateKey` ON `analytics_daily` (`userId`, `dateKey`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_analytics_daily_role` ON `analytics_daily` (`role`)")
+
+                // Reports
+                db.execSQL("CREATE TABLE IF NOT EXISTS `reports` (`reportId` TEXT NOT NULL, `userId` TEXT NOT NULL, `type` TEXT NOT NULL, `periodStart` INTEGER NOT NULL, `periodEnd` INTEGER NOT NULL, `format` TEXT NOT NULL, `uri` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`reportId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_userId` ON `reports` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_periodStart` ON `reports` (`periodStart`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_type` ON `reports` (`type`)")
             }
         }
     }

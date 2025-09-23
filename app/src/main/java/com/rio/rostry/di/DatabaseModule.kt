@@ -44,6 +44,8 @@ import com.rio.rostry.data.database.dao.ReputationDao
 import com.rio.rostry.data.database.dao.OutgoingMessageDao
 import com.rio.rostry.data.database.dao.RateLimitDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
+import com.rio.rostry.data.database.dao.AnalyticsDao
+import com.rio.rostry.data.database.dao.ReportsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -262,4 +264,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideEventRsvpsDao(db: AppDatabase): EventRsvpsDao = db.eventRsvpsDao()
+
+    @Provides
+    @Singleton
+    fun provideAnalyticsDao(db: AppDatabase): AnalyticsDao = db.analyticsDao()
+
+    @Provides
+    @Singleton
+    fun provideReportsDao(db: AppDatabase): ReportsDao = db.reportsDao()
 }

@@ -31,6 +31,30 @@ interface PostsDao {
 }
 
 @Dao
+interface AnalyticsDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDaily(entity: com.rio.rostry.data.database.entity.AnalyticsDailyEntity)
+
+    @Query("SELECT * FROM analytics_daily WHERE userId = :userId AND dateKey BETWEEN :from AND :to ORDER BY dateKey ASC")
+    fun streamRange(userId: String, from: String, to: String): Flow<List<com.rio.rostry.data.database.entity.AnalyticsDailyEntity>>
+
+    @Query("SELECT * FROM analytics_daily WHERE userId = :userId ORDER BY dateKey DESC LIMIT :limit")
+    fun recent(userId: String, limit: Int = 30): Flow<List<com.rio.rostry.data.database.entity.AnalyticsDailyEntity>>
+
+    @Query("SELECT * FROM analytics_daily WHERE userId = :userId AND dateKey BETWEEN :from AND :to ORDER BY dateKey ASC")
+    suspend fun listRange(userId: String, from: String, to: String): List<com.rio.rostry.data.database.entity.AnalyticsDailyEntity>
+}
+
+@Dao
+interface ReportsDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(report: com.rio.rostry.data.database.entity.ReportEntity)
+
+    @Query("SELECT * FROM reports WHERE userId = :userId ORDER BY createdAt DESC")
+    fun streamReports(userId: String): Flow<List<com.rio.rostry.data.database.entity.ReportEntity>>
+}
+
+@Dao
 interface EventRsvpsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(rsvp: com.rio.rostry.data.database.entity.EventRsvpEntity)
