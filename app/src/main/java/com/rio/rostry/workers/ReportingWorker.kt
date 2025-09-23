@@ -75,6 +75,7 @@ class ReportingWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .setRequiresBatteryNotLow(true)
                 .build()
             val req = PeriodicWorkRequestBuilder<ReportingWorker>(7, TimeUnit.DAYS)
                 .setConstraints(constraints)

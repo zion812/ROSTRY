@@ -69,6 +69,8 @@ class AnalyticsAggregationWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .setRequiresBatteryNotLow(true)
+                .setRequiresCharging(false)
                 .build()
             val req = PeriodicWorkRequestBuilder<AnalyticsAggregationWorker>(1, java.util.concurrent.TimeUnit.DAYS)
                 .setConstraints(constraints)

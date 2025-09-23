@@ -16,6 +16,7 @@ import com.rio.rostry.workers.ReportingWorker
 import coil.Coil
 import coil.ImageLoader
 import coil.util.DebugLogger
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -28,14 +29,9 @@ class RostryApp : Application() {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Coil global ImageLoader with caching
-        val imageLoader = ImageLoader.Builder(this)
-            .crossfade(true)
-            .respectCacheHeaders(false)
-            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
-            .logger(if (BuildConfig.DEBUG) DebugLogger() else null)
-            .build()
+        // Coil ImageLoader from DI for centralized config (memory/disk cache, RGB_565, OkHttp cache)
+        val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
+        val imageLoader: ImageLoader = entryPoint.imageLoader()
         Coil.setImageLoader(imageLoader)
 
         // Schedule periodic sync (every 6 hours, requires network)
@@ -66,5 +62,8 @@ class RostryApp : Application() {
         // Schedule analytics aggregation (daily) and reporting (weekly)
         AnalyticsAggregationWorker.schedule(this)
         ReportingWorker.schedule(this)
+
+        // Schedule prefetch under safe conditions (Wi‑Fi, charging)
+        com.rio.rostry.workers.PrefetchWorker.schedule(this)
     }
 }

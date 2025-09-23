@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.google.firebase.crashlytics)
+    // Firebase Performance Monitoring plugin (applies with BOM/dependency)
     alias(libs.plugins.hilt)
     id("com.google.devtools.ksp")
 }
@@ -125,6 +126,12 @@ dependencies {
     // Media playback (videos in feed)
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
+
+    // Firebase Performance Monitoring
+    implementation("com.google.firebase:firebase-perf-ktx:21.0.1")
+
+    // LeakCanary for memory leak detection (debug only)
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
 
     // WebRTC for audio/video calling (placeholder integration)
     // TODO: Add compatible WebRTC artifact when enabling calling UI
