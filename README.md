@@ -8,6 +8,10 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 2.  **Firebase Setup**: Download your project's `google-services.json` file from the Firebase console and place it in the `ROSTRY/app/` directory.
 3.  **Build the project**: Open the project in Android Studio. It should sync Gradle automatically. If not, trigger a manual Gradle sync.
 
+## Documentation
+
+Refer to the [Documentation Index](docs/README-docs.md) for detailed guides on architecture, feature domains, data contracts, and operational practices.
+
 ## Architecture
 
 This project follows the **MVVM (Model-View-ViewModel)** architecture pattern, leveraging Android Jetpack components and Hilt for dependency injection.
