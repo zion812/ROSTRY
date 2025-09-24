@@ -18,12 +18,27 @@ class SessionManager(private val context: Context) {
     private object Keys {
         val lastAuthAt = longPreferencesKey("last_auth_at")
         val role = stringPreferencesKey("role")
+        val authMode = stringPreferencesKey("auth_mode")
+        val demoUserId = stringPreferencesKey("demo_user_id")
     }
 
-    suspend fun markAuthenticated(nowMillis: Long, userType: UserType) {
+    enum class AuthMode { FIREBASE, DEMO }
+
+    suspend fun markAuthenticated(
+        nowMillis: Long,
+        userType: UserType,
+        mode: AuthMode = AuthMode.FIREBASE,
+        demoUserId: String? = null
+    ) {
         context.sessionDataStore.edit { prefs ->
             prefs[Keys.lastAuthAt] = nowMillis
             prefs[Keys.role] = userType.name
+            prefs[Keys.authMode] = mode.name
+            if (mode == AuthMode.DEMO && demoUserId != null) {
+                prefs[Keys.demoUserId] = demoUserId
+            } else {
+                prefs.remove(Keys.demoUserId)
+            }
         }
     }
 
@@ -33,6 +48,14 @@ class SessionManager(private val context: Context) {
 
     fun lastAuthAt(): Flow<Long?> = context.sessionDataStore.data.map { prefs ->
         prefs[Keys.lastAuthAt]
+    }
+
+    fun authMode(): Flow<AuthMode> = context.sessionDataStore.data.map { prefs ->
+        prefs[Keys.authMode]?.let { runCatching { AuthMode.valueOf(it) }.getOrNull() } ?: AuthMode.FIREBASE
+    }
+
+    fun currentDemoUserId(): Flow<String?> = context.sessionDataStore.data.map { prefs ->
+        prefs[Keys.demoUserId]
     }
 
     fun isSessionValidFlow(nowMillisProvider: () -> Long): Flow<Boolean> = context.sessionDataStore.data.map { prefs ->

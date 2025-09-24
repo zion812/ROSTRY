@@ -5,6 +5,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.rio.rostry.data.base.BaseRepository
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.entity.UserEntity
+import com.rio.rostry.data.demo.DemoAccounts
+import com.rio.rostry.data.demo.toUserEntity
+import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -19,7 +22,8 @@ import javax.inject.Singleton
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val firebaseAuth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val sessionManager: SessionManager
 ) : BaseRepository(), UserRepository {
 
     private val usersCollection = firestore.collection("users")
@@ -27,12 +31,14 @@ class UserRepositoryImpl @Inject constructor(
     override fun getCurrentUser(): Flow<Resource<UserEntity?>> = flow {
         emit(Resource.Loading())
         val firebaseUser = firebaseAuth.currentUser
-        if (firebaseUser != null) {
-            // Try to get from local DB first
-            val localUser = userDao.getUserById(firebaseUser.uid).firstOrNull()
+        val demoUserId = sessionManager.currentDemoUserId().firstOrNull()
+        val resolvedUserId = firebaseUser?.uid ?: demoUserId
+
+        if (resolvedUserId != null) {
+            val localUser = userDao.getUserById(resolvedUserId).firstOrNull()
             if (localUser != null) {
                 emit(Resource.Success(localUser))
-            } else {
+            } else if (firebaseUser != null) {
                 // Fetch from Firestore if not in local DB
                 try {
                     val documentSnapshot = usersCollection.document(firebaseUser.uid).get().await()
@@ -105,24 +111,48 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateUserType(userId: String, newType: UserType): Resource<Unit> = safeCall {
-        val docRef = usersCollection.document(userId)
-        val snapshot = docRef.get().await()
-        val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
-        val updated = current.copy(userType = newType, updatedAt = System.currentTimeMillis())
-        docRef.set(updated).await()
-        userDao.insertUser(updated)
-        Unit
+        if (firebaseAuth.currentUser == null) {
+            val current = userDao.getUserById(userId).firstOrNull() ?: UserEntity(userId = userId)
+            val updated = current.copy(userType = newType, updatedAt = System.currentTimeMillis())
+            userDao.insertUser(updated)
+            Unit
+        } else {
+            val docRef = usersCollection.document(userId)
+            val snapshot = docRef.get().await()
+            val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
+            val updated = current.copy(userType = newType, updatedAt = System.currentTimeMillis())
+            docRef.set(updated).await()
+            userDao.insertUser(updated)
+            Unit
+        }
     }.firstOrNull() ?: Resource.Error("Failed to update user type")
 
     override suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit> = safeCall {
-        val docRef = usersCollection.document(userId)
-        val snapshot = docRef.get().await()
-        val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
-        val updated = current.copy(verificationStatus = status, updatedAt = System.currentTimeMillis())
-        docRef.set(updated).await()
-        userDao.insertUser(updated)
-        Unit
+        if (firebaseAuth.currentUser == null) {
+            val current = userDao.getUserById(userId).firstOrNull() ?: UserEntity(userId = userId)
+            val updated = current.copy(verificationStatus = status, updatedAt = System.currentTimeMillis())
+            userDao.insertUser(updated)
+            Unit
+        } else {
+            val docRef = usersCollection.document(userId)
+            val snapshot = docRef.get().await()
+            val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
+            val updated = current.copy(verificationStatus = status, updatedAt = System.currentTimeMillis())
+            docRef.set(updated).await()
+            userDao.insertUser(updated)
+            Unit
+        }
     }.firstOrNull() ?: Resource.Error("Failed to update verification status")
+
+    override suspend fun seedDemoUsers() {
+        val entities = DemoAccounts.all.map { it.toUserEntity() }
+        userDao.insertUsers(entities)
+    }
+
+    override suspend fun upsertDemoUser(userEntity: UserEntity): Resource<Unit> = safeCall {
+        userDao.insertUser(userEntity)
+        Unit
+    }.firstOrNull() ?: Resource.Error("Failed to upsert demo user")
 
     // Implement other methods like signIn, signUp, signOut, etc.
     // Example:

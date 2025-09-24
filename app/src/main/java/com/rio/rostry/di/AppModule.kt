@@ -1,7 +1,9 @@
 package com.rio.rostry.di
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.rio.rostry.session.SessionManager
+import com.rio.rostry.session.RolePreferenceStorage
 import com.rio.rostry.utils.notif.TransferNotifier
 import com.rio.rostry.utils.notif.TransferNotifierImpl
 import com.rio.rostry.utils.notif.SocialNotifier
@@ -13,6 +15,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import javax.inject.Named
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -30,6 +33,13 @@ object AppModule {
     @Singleton
     fun provideSessionManager(@ApplicationContext context: Context): SessionManager {
         return SessionManager(context)
+    }
+
+    @Provides
+    @Singleton
+    @Named(RolePreferenceStorage.ROLE_PREFS_NAME)
+    fun provideRoleSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        return context.getSharedPreferences(RolePreferenceStorage.ROLE_PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     @Provides

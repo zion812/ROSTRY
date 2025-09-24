@@ -20,10 +20,12 @@ interface UserRepository {
 
     suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit>
 
-    // Add other user-related operations like:
-    // suspend fun signInWithEmail(email: String, password: String): Resource<UserEntity>
-    // suspend fun signUpWithEmail(email: String, password: String, fullName: String): Resource<UserEntity>
-    // suspend fun signOut(): Resource<Unit>
-    // suspend fun sendPasswordResetEmail(email: String): Resource<Unit>
-    // suspend fun deleteAccount(): Resource<Unit>
+    suspend fun seedDemoUsers()
+
+    suspend fun upsertDemoUser(userEntity: UserEntity): Resource<Unit>
 }
+// Add other user-related operations like:
+// suspend fun signInWithEmail(email: String, password: String): Resource<UserEntity>
+// suspend fun signUpWithEmail(email: String, password: String, fullName: String): Resource<UserEntity>
+// suspend fun signOut(): Resource<Unit>
+// suspend fun sendPasswordResetEmail(email: String): Resource<Unit>
