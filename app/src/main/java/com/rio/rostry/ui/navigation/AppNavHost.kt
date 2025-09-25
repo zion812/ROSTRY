@@ -263,12 +263,7 @@ private fun RoleNavScaffold(
     val currentRoute = backStackEntry?.destination?.route
     var showSwitcher by remember { mutableStateOf(false) }
 
-    LaunchedEffect(navConfig.role) {
-        navController.navigate(navConfig.startDestination) {
-            popUpTo(0) { inclusive = true }
-            launchSingleTop = true
-        }
-    }
+    // Removed premature manual navigate. NavHost below already uses startDestination = navConfig.startDestination.
 
     Scaffold(
         topBar = {
@@ -372,6 +367,10 @@ private fun RoleNavGraph(
                 onOpenSocialFeed = { navController.navigate(Routes.SOCIAL_FEED) },
                 onOpenMessages = { threadId -> navController.navigate("messages/$threadId") }
             )
+        }
+        // General market destination to avoid 'not a direct child' errors when navigating to general/market
+        composable(Routes.GeneralNav.MARKET) {
+            PlaceholderScreen(title = "General Market")
         }
         composable(Routes.HOME_FARMER) {
             FarmerHomeScreen(
@@ -541,6 +540,11 @@ private fun RoleNavGraph(
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             val vm: TraceabilityViewModel = hiltViewModel()
             TraceabilityScreen(vm = vm, productId = productId, onBack = { navController.popBackStack() })
+        }
+
+        // Marketplace sandbox for QA/demo to exercise product validation and payments
+        composable(Routes.PRODUCT_SANDBOX) {
+            com.rio.rostry.ui.marketplace.MarketplaceSandboxScreen()
         }
 
         composable(

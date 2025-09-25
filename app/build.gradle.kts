@@ -128,6 +128,9 @@ dependencies {
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
 
+    // Google Play Services - Location (FusedLocationProviderClient)
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     // Firebase Performance Monitoring
     implementation("com.google.firebase:firebase-perf-ktx:21.0.1")
 

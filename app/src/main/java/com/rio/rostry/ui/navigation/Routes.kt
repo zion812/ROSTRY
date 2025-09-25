@@ -40,6 +40,7 @@ object Routes {
         const val EXPLORE = "product/explore"
         const val MARKET = "product/market"
         const val CART = "product/cart"
+        const val SANDBOX = "product/sandbox"
     }
 
     object Transfers {
@@ -202,6 +203,7 @@ object Routes {
     const val PRODUCT_EXPLORE = Product.EXPLORE
     const val PRODUCT_MARKET = Product.MARKET
     const val PRODUCT_CART = Product.CART
+    const val PRODUCT_SANDBOX = Product.SANDBOX
     const val TRANSFER_DETAILS = Transfers.DETAILS
     const val TRANSFER_LIST = Transfers.LIST
     const val TRANSFER_VERIFY = Transfers.VERIFY

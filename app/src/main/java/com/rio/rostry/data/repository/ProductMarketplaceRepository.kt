@@ -6,6 +6,7 @@ import com.rio.rostry.utils.CompressionUtils
 import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.ValidationUtils.AgeGroup
 import com.rio.rostry.utils.Resource
+import com.rio.rostry.marketplace.validation.ProductValidator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -121,13 +122,10 @@ class ProductMarketplaceRepositoryImpl @Inject constructor(
     }
 
     private fun validateProduct(product: ProductEntity) {
-        // Products under 5 weeks require vaccination proof
-        if (ValidationUtils.requiresVaccinationProof(product.birthDate)) {
-            require(!product.vaccinationRecordsJson.isNullOrBlank()) { "Vaccination proof required for products under 5 weeks" }
-        }
-        // Breeding products require family tree documentation
-        if (ValidationUtils.requiresFamilyTree(product.breedingStatus)) {
-            require(!product.familyTreeId.isNullOrBlank()) { "Family tree documentation required for breeding products" }
+        // Enforce comprehensive marketplace rules using ProductValidator
+        val result = ProductValidator.validate(product)
+        require(result.valid) {
+            result.reasons.joinToString(separator = "; ")
         }
     }
 }
