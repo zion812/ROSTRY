@@ -3,6 +3,7 @@ package com.rio.rostry.ui.navigation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,6 +24,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Badge
@@ -65,11 +70,20 @@ import com.rio.rostry.ui.session.SessionViewModel
 import com.rio.rostry.ui.traceability.FamilyTreeView
 import com.rio.rostry.ui.traceability.TraceabilityViewModel
 import com.rio.rostry.ui.transfer.TransferDetailsViewModel
+import com.rio.rostry.ui.transfer.TransferVerificationScreen
+import com.rio.rostry.ui.transfer.TransferCreateViewModel
+import com.rio.rostry.ui.transfer.TransferCreateScreen
 import com.rio.rostry.ui.verification.EnthusiastKycScreen
 import com.rio.rostry.ui.verification.FarmerLocationVerificationScreen
 import com.rio.rostry.ui.verification.VerificationViewModel
 import com.rio.rostry.ui.notifications.NotificationsViewModel
 import com.rio.rostry.ui.notifications.NotificationsScreen
+import com.rio.rostry.ui.enthusiast.EnthusiastHomeScreen
+import com.rio.rostry.ui.enthusiast.EnthusiastExploreScreen
+import com.rio.rostry.ui.enthusiast.EnthusiastCreateScreen
+import com.rio.rostry.ui.enthusiast.EnthusiastDashboardHost
+import com.rio.rostry.ui.enthusiast.EnthusiastTransfersScreen
+import com.rio.rostry.ui.social.LiveBroadcastScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
@@ -82,6 +96,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.rio.rostry.session.SessionManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.combinedClickable
 
 @Composable
 fun AppNavHost() {
@@ -260,6 +275,10 @@ private fun RoleNavScaffold(
             TopAppBar(
                 title = { Text("ROSTRY") },
                 actions = {
+                    AccountMenuAction(
+                        navController = navController,
+                        onSignOut = { sessionVm.signOut() }
+                    )
                     NotificationsAction(navController = navController)
                 }
             )
@@ -439,7 +458,51 @@ private fun RoleNavGraph(
             )
         }
         composable(Routes.HOME_ENTHUSIAST) {
-            HomeEnthusiastScreen(onProfile = { navController.navigate(Routes.PROFILE) })
+            EnthusiastHomeScreen(
+                onOpenProfile = { navController.navigate(Routes.PROFILE) },
+                onOpenAnalytics = { navController.navigate(Routes.ANALYTICS_ENTHUSIAST) },
+                onOpenTransfers = { navController.navigate(Routes.TRANSFER_LIST) },
+                onOpenTraceability = { id -> navController.navigate("traceability/$id") },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onVerifyKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
+                onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
+                onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
+                onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
+                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.EXPLORE) {
+            EnthusiastExploreScreen(
+                onOpenProfile = { _ -> navController.navigate(Routes.PROFILE) },
+                onOpenDiscussion = { navController.navigate(Routes.SOCIAL_FEED) },
+                onShare = { _ -> /* Share via system sheet in future */ Unit }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.CREATE) {
+            EnthusiastCreateScreen(
+                onScheduleContent = { _ -> navController.navigate(Routes.SOCIAL_FEED) },
+                onStartLive = { navController.navigate(Routes.LIVE_BROADCAST) },
+                onCreateShowcase = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.DASHBOARD) {
+            EnthusiastDashboardHost(
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) },
+                onOpenTraceability = { id -> navController.navigate("traceability/$id") }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.TRANSFERS) {
+            EnthusiastTransfersScreen(
+                onOpenTransfer = { id -> navController.navigate("transfer/$id") },
+                onVerifyTransfer = { id -> navController.navigate("transfer/$id/verify") },
+                onCreateTransfer = { navController.navigate(Routes.TRANSFER_CREATE) },
+                onOpenTraceability = { id -> navController.navigate("traceability/$id") }
+            )
         }
 
         composable(Routes.PROFILE) {
@@ -485,7 +548,47 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("transferId") { type = NavType.StringType })
         ) { backStackEntry ->
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
-            TransferDetailsScreen(transferId = transferId)
+            TransferDetailsScreen(transferId = transferId, onOpenVerify = { id -> navController.navigate("transfer/$id/verify") })
+        }
+
+        composable(
+            route = Routes.TRANSFER_VERIFY,
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            TransferVerificationScreen(
+                transferId = transferId
+            )
+        }
+
+        // Generic transfer list route used across notifications etc.
+        composable(Routes.TRANSFER_LIST) {
+            EnthusiastTransfersScreen(
+                onOpenTransfer = { id -> navController.navigate("transfer/$id") },
+                onVerifyTransfer = { id -> navController.navigate("transfer/$id/verify") },
+                onCreateTransfer = { navController.navigate(Routes.TRANSFER_CREATE) },
+                onOpenTraceability = { id -> navController.navigate("traceability/$id") }
+            )
+        }
+
+        // Create transfer route
+        composable(Routes.TRANSFER_CREATE) {
+            val vm: TransferCreateViewModel = hiltViewModel()
+            val state by vm.state.collectAsState()
+            // Navigate to details when created
+            LaunchedEffect(state.successTransferId) {
+                if (!state.successTransferId.isNullOrBlank()) {
+                    navController.navigate("transfer/${state.successTransferId}") {
+                        launchSingleTop = true
+                    }
+                }
+            }
+            TransferCreateScreen(
+                state = state,
+                onUpdate = { f, v -> vm.update(f, v) },
+                onSubmit = { vm.create() },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.SOCIAL_FEED) {
@@ -518,6 +621,7 @@ private fun RoleNavGraph(
         composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
         composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
+        composable(Routes.LIVE_BROADCAST) { LiveBroadcastScreen(onBack = { navController.popBackStack() }) }
 
         composable(Routes.NOTIFICATIONS) {
             val vm: NotificationsViewModel = hiltViewModel()
@@ -549,6 +653,20 @@ private fun RoleNavGraph(
             )
         }
         composable(Routes.REPORTS) { com.rio.rostry.ui.analytics.ReportsScreen() }
+
+        // Monitoring routes (wired to monitoring module screens)
+        composable(Routes.MONITORING_VACCINATION) {
+            com.rio.rostry.ui.monitoring.VaccinationScheduleScreen()
+        }
+        composable(Routes.MONITORING_MORTALITY) {
+            com.rio.rostry.ui.monitoring.MortalityTrackingScreen()
+        }
+        composable(Routes.MONITORING_QUARANTINE) {
+            com.rio.rostry.ui.monitoring.QuarantineManagementScreen()
+        }
+        composable(Routes.MONITORING_BREEDING) {
+            com.rio.rostry.ui.monitoring.BreedingManagementScreen()
+        }
     }
 }
 @Composable
@@ -608,7 +726,44 @@ private fun NotificationsAction(navController: NavHostController) {
 }
 
 @Composable
-private fun TransferDetailsScreen(transferId: String) {
+private fun AccountMenuAction(
+    navController: NavHostController,
+    onSignOut: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .combinedClickable(
+                onClick = { expanded = true },
+                onLongClick = { expanded = true }
+            )
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        Icon(imageVector = Icons.Filled.Person, contentDescription = "Account")
+        IconButton(onClick = { expanded = true }) {
+            Icon(imageVector = Icons.Filled.ArrowDropDown, contentDescription = "Account menu")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("Profile") }, onClick = {
+                expanded = false
+                navController.navigate(Routes.PROFILE)
+            })
+            DropdownMenuItem(text = { Text("Settings") }, onClick = {
+                expanded = false
+                // TODO: Replace with Settings route when available
+                navController.navigate(Routes.PROFILE)
+            })
+            DropdownMenuItem(text = { Text("Sign out") }, onClick = {
+                expanded = false
+                onSignOut()
+            })
+        }
+    }
+}
+
+@Composable
+private fun TransferDetailsScreen(transferId: String, onOpenVerify: (String) -> Unit) {
     val vm: com.rio.rostry.ui.transfer.TransferDetailsViewModel = hiltViewModel()
     LaunchedEffect(transferId) { vm.load(transferId) }
     val state by vm.state.collectAsState()
@@ -618,6 +773,7 @@ private fun TransferDetailsScreen(transferId: String) {
             Text("Status: ${t.status}")
             Text("Amount: ${t.amount} ${t.currency}")
         }
+        TextButton(onClick = { onOpenVerify(transferId) }, modifier = Modifier.padding(top = 8.dp)) { Text("Open Verification Flow") }
         Text("Verifications", modifier = Modifier.padding(top = 12.dp))
         LazyColumn {
             items(state.verifications) { v ->

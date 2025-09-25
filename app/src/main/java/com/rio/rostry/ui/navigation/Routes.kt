@@ -45,6 +45,8 @@ object Routes {
     object Transfers {
         const val DETAILS = "transfer/{transferId}"
         const val LIST = "transfer/list"
+        const val VERIFY = "transfer/{transferId}/verify"
+        const val CREATE = "transfer/create"
     }
 
     object Social {
@@ -54,6 +56,7 @@ object Routes {
         const val EXPERT = "social/expert"
         const val MODERATION = "social/moderation"
         const val LEADERBOARD = "social/leaderboard"
+        const val LIVE = "social/live"
     }
 
     object Messaging {
@@ -72,6 +75,13 @@ object Routes {
         const val ENTHUSIAST = "analytics/enthusiast"
         const val REPORTS = "analytics/reports"
         const val DASHBOARD = "analytics/dashboard"
+    }
+
+    object Monitoring {
+        const val VACCINATION = "monitoring/vaccination"
+        const val MORTALITY = "monitoring/mortality"
+        const val QUARANTINE = "monitoring/quarantine"
+        const val BREEDING = "monitoring/breeding"
     }
 
     object GeneralNav {
@@ -194,6 +204,8 @@ object Routes {
     const val PRODUCT_CART = Product.CART
     const val TRANSFER_DETAILS = Transfers.DETAILS
     const val TRANSFER_LIST = Transfers.LIST
+    const val TRANSFER_VERIFY = Transfers.VERIFY
+    const val TRANSFER_CREATE = Transfers.CREATE
     const val SOCIAL_FEED = Social.FEED
     const val MESSAGES_THREAD = Messaging.THREAD
     const val MESSAGES_GROUP = Messaging.GROUP
@@ -204,10 +216,15 @@ object Routes {
     const val EXPERT_BOOKING = Social.EXPERT
     const val MODERATION = Social.MODERATION
     const val LEADERBOARD = Social.LEADERBOARD
+    const val LIVE_BROADCAST = Social.LIVE
     const val ANALYTICS_GENERAL = Analytics.GENERAL
     const val ANALYTICS_FARMER = Analytics.FARMER
     const val ANALYTICS_ENTHUSIAST = Analytics.ENTHUSIAST
     const val REPORTS = Analytics.REPORTS
     const val ANALYTICS_DASHBOARD = Analytics.DASHBOARD
+    const val MONITORING_VACCINATION = Monitoring.VACCINATION
+    const val MONITORING_MORTALITY = Monitoring.MORTALITY
+    const val MONITORING_QUARANTINE = Monitoring.QUARANTINE
+    const val MONITORING_BREEDING = Monitoring.BREEDING
 
 } // Closing brace for object Routes

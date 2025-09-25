@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Location permission for GPS verification in transfer flows -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Camera permission for capturing verification photos -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <application
         android:name=".RostryApp"
         android:allowBackup="true"
