@@ -106,6 +106,9 @@ interface FollowsDao {
 
     @Query("SELECT COUNT(*) FROM follows WHERE followerId = :userId")
     fun followingCount(userId: String): Flow<Int>
+
+    @Query("SELECT followedId FROM follows WHERE followerId = :userId")
+    fun followingIds(userId: String): Flow<List<String>>
 }
 
 @Dao

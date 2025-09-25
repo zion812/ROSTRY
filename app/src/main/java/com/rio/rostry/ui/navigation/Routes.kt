@@ -62,6 +62,10 @@ object Routes {
         const val OUTBOX = "messages/outbox"
     }
 
+    object Notifications {
+        const val LIST = "notifications"
+    }
+
     object Analytics {
         const val GENERAL = "analytics/general"
         const val FARMER = "analytics/farmer"
@@ -76,6 +80,7 @@ object Routes {
         const val EXPLORE = "general/explore"
         const val CREATE = "general/create"
         const val CART = "general/cart"
+        const val PROFILE = "general/profile"
     }
 
     object FarmerNav {
@@ -83,6 +88,7 @@ object Routes {
         const val MARKET = "farmer/market"
         const val CREATE = "farmer/create"
         const val COMMUNITY = "farmer/community"
+        const val PROFILE = "farmer/profile"
     }
 
     object EnthusiastNav {
@@ -95,21 +101,15 @@ object Routes {
 
     private val generalConfig = RoleNavigationConfig(
         role = UserType.GENERAL,
-        startDestination = GeneralNav.MARKET,
-        bottomNav = listOf(
-            BottomNavDestination(GeneralNav.MARKET, "Market"),
-            BottomNavDestination(GeneralNav.EXPLORE, "Explore"),
-            BottomNavDestination(GeneralNav.CREATE, "Create"),
-            BottomNavDestination(GeneralNav.CART, "Cart"),
-            BottomNavDestination(Common.PROFILE, "Profile")
-        ),
+        startDestination = GeneralNav.HOME,
+        bottomNav = emptyList(),
         accessibleRoutes = setOf(
             GeneralNav.HOME,
             GeneralNav.MARKET,
             GeneralNav.EXPLORE,
             GeneralNav.CREATE,
             GeneralNav.CART,
-            Common.PROFILE,
+            GeneralNav.PROFILE,
             Product.DETAILS,
             Product.TRACEABILITY,
             Social.FEED,
@@ -125,13 +125,14 @@ object Routes {
             BottomNavDestination(FarmerNav.MARKET, "Market"),
             BottomNavDestination(FarmerNav.CREATE, "Create"),
             BottomNavDestination(FarmerNav.COMMUNITY, "Community"),
-            BottomNavDestination(Common.PROFILE, "Profile")
+            BottomNavDestination(FarmerNav.PROFILE, "Profile")
         ),
         accessibleRoutes = setOf(
             FarmerNav.HOME,
             FarmerNav.MARKET,
             FarmerNav.CREATE,
             FarmerNav.COMMUNITY,
+            FarmerNav.PROFILE,
             Common.PROFILE,
             Product.CREATE,
             Social.FEED,
@@ -197,6 +198,7 @@ object Routes {
     const val MESSAGES_THREAD = Messaging.THREAD
     const val MESSAGES_GROUP = Messaging.GROUP
     const val MESSAGES_OUTBOX = Messaging.OUTBOX
+    const val NOTIFICATIONS = Notifications.LIST
     const val GROUPS = Social.GROUPS
     const val EVENTS = Social.EVENTS
     const val EXPERT_BOOKING = Social.EXPERT

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -22,6 +23,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -51,7 +54,11 @@ import com.rio.rostry.ui.auth.PhoneInputScreen
 import com.rio.rostry.ui.product.ProductDetailsScreen
 import com.rio.rostry.ui.profile.ProfileScreen
 import com.rio.rostry.ui.screens.HomeEnthusiastScreen
-import com.rio.rostry.ui.screens.HomeFarmerScreen
+import com.rio.rostry.ui.farmer.FarmerHomeScreen
+import com.rio.rostry.ui.farmer.FarmerMarketScreen
+import com.rio.rostry.ui.farmer.FarmerCreateScreen
+import com.rio.rostry.ui.farmer.FarmerCommunityScreen
+import com.rio.rostry.ui.farmer.FarmerProfileScreen
 import com.rio.rostry.ui.screens.HomeGeneralScreen
 import com.rio.rostry.ui.screens.PlaceholderScreen
 import com.rio.rostry.ui.session.SessionViewModel
@@ -60,6 +67,9 @@ import com.rio.rostry.ui.traceability.TraceabilityViewModel
 import com.rio.rostry.ui.transfer.TransferDetailsViewModel
 import com.rio.rostry.ui.verification.EnthusiastKycScreen
 import com.rio.rostry.ui.verification.FarmerLocationVerificationScreen
+import com.rio.rostry.ui.verification.VerificationViewModel
+import com.rio.rostry.ui.notifications.NotificationsViewModel
+import com.rio.rostry.ui.notifications.NotificationsScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
@@ -226,6 +236,7 @@ private fun QuickSelectDemoList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RoleNavScaffold(
     navConfig: RoleNavigationConfig,
@@ -245,6 +256,14 @@ private fun RoleNavScaffold(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("ROSTRY") },
+                actions = {
+                    NotificationsAction(navController = navController)
+                }
+            )
+        },
         bottomBar = {
             RoleBottomBar(
                 navController = navController,
@@ -328,10 +347,96 @@ private fun RoleNavGraph(
     ) {
         // General navigation destinations
         composable(Routes.HOME_GENERAL) {
-            HomeGeneralScreen(onProfile = { navController.navigate(Routes.PROFILE) })
+            com.rio.rostry.ui.general.GeneralUserScreen(
+                onOpenProductDetails = { productId -> navController.navigate("product/$productId") },
+                onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
+                onOpenSocialFeed = { navController.navigate(Routes.SOCIAL_FEED) },
+                onOpenMessages = { threadId -> navController.navigate("messages/$threadId") }
+            )
         }
         composable(Routes.HOME_FARMER) {
-            HomeFarmerScreen(onProfile = { navController.navigate(Routes.PROFILE) })
+            FarmerHomeScreen(
+                onListProduct = { navController.navigate(Routes.FarmerNav.CREATE) },
+                onCheckOrders = { navController.navigate(Routes.TRANSFER_LIST) },
+                onMessageBuyers = { navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+        composable(Routes.FarmerNav.MARKET) {
+            val vm: com.rio.rostry.ui.farmer.FarmerMarketViewModel = hiltViewModel()
+            val state by vm.ui.collectAsState()
+            fun map(e: com.rio.rostry.data.database.entity.ProductEntity): com.rio.rostry.ui.farmer.Listing =
+                com.rio.rostry.ui.farmer.Listing(
+                    id = e.productId,
+                    title = e.name.ifBlank { e.category },
+                    price = e.price,
+                    views = 0,
+                    inquiries = 0,
+                    orders = 0
+                )
+            FarmerMarketScreen(
+                onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
+                onEditListing = { id -> navController.navigate(Routes.FarmerNav.CREATE) },
+                onBoostListing = { _ -> /* Could open promo screen */ Unit },
+                onPauseListing = { _ -> /* Pause listing action */ Unit },
+                onOpenOrder = { threadId -> navController.navigate("messages/$threadId") },
+                onOpenProduct = { productId -> navController.navigate("product/$productId") },
+                selectedTabIndex = state.selectedTabIndex,
+                onSelectTab = { vm.setTab(it) },
+                metricsRevenue = state.metricsRevenue,
+                metricsOrders = state.metricsOrders,
+                metricsViews = state.metricsViews,
+                isLoadingBrowse = state.isLoadingBrowse,
+                isLoadingMine = state.isLoadingMine,
+                browse = state.filteredBrowse.map(::map),
+                mine = state.mine.map(::map),
+                onRefresh = { vm.refresh() },
+                onApplyPriceBreed = { min, max, breed -> vm.applyPriceBreed(min, max, breed) },
+                onSelectCategoryMeat = { vm.selectCategory(com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Meat) },
+                onSelectCategoryAdoption = { vm.selectCategory(com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Adoption) },
+                onSelectTraceable = { vm.selectTrace(com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.Traceable) },
+                onSelectNonTraceable = { vm.selectTrace(com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable) },
+                categoryMeatSelected = state.categoryFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Meat,
+                categoryAdoptionSelected = state.categoryFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Adoption,
+                traceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.Traceable,
+                nonTraceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable
+            )
+        }
+        composable(Routes.FarmerNav.CREATE) {
+            val vvm: VerificationViewModel = hiltViewModel()
+            val vstate by vvm.ui.collectAsState()
+            val createVm: com.rio.rostry.ui.farmer.FarmerCreateViewModel = hiltViewModel()
+            val createState by createVm.ui.collectAsState()
+
+            LaunchedEffect(createState.successProductId) {
+                if (!createState.successProductId.isNullOrBlank()) {
+                    // Navigate to Market after successful publish
+                    navController.navigate(Routes.FarmerNav.MARKET) {
+                        launchSingleTop = true
+                    }
+                }
+            }
+
+            FarmerCreateScreen(
+                locationVerified = vstate.user?.locationVerified == true,
+                onRequestVerifyLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
+                onSubmitListing = { form -> createVm.submitListing(form) },
+                onCreatePost = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+        composable(Routes.FarmerNav.COMMUNITY) {
+            FarmerCommunityScreen(
+                onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
+                onOpenGroupDirectory = { navController.navigate(Routes.GROUPS) },
+                onOpenExpertBooking = { navController.navigate(Routes.EXPERT_BOOKING) },
+                onOpenRegionalNews = { navController.navigate(Routes.LEADERBOARD) }
+            )
+        }
+        composable(Routes.FarmerNav.PROFILE) {
+            FarmerProfileScreen(
+                onEditProfile = { navController.navigate(Routes.PROFILE) },
+                onManageCertifications = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
+                onContactSupport = { /* open support */ }
+            )
         }
         composable(Routes.HOME_ENTHUSIAST) {
             HomeEnthusiastScreen(onProfile = { navController.navigate(Routes.PROFILE) })
@@ -414,6 +519,17 @@ private fun RoleNavGraph(
         composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
         composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
 
+        composable(Routes.NOTIFICATIONS) {
+            val vm: NotificationsViewModel = hiltViewModel()
+            NotificationsScreen(
+                vm = vm,
+                onOpenMessages = { navController.navigate(Routes.MESSAGES_OUTBOX) },
+                onOpenOrders = { navController.navigate(Routes.TRANSFER_LIST) },
+                onBack = { navController.popBackStack() },
+                onOpenRoute = { route -> navController.navigate(route) }
+            )
+        }
+
         composable(Routes.ANALYTICS_GENERAL) {
             com.rio.rostry.ui.analytics.GeneralDashboardScreen(
                 onOpenReports = { navController.navigate(Routes.REPORTS) },
@@ -441,24 +557,52 @@ private fun RoleBottomBar(
     navConfig: RoleNavigationConfig,
     currentRoute: String?
 ) {
-    NavigationBar {
-        navConfig.bottomNav.forEach { destination ->
-            val selected = currentRoute?.startsWith(destination.route.substringBefore("/{")) == true
-            val labelInitial = destination.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•"
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    navController.navigate(destination.route) {
-                        launchSingleTop = true
-                        restoreState = true
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
+    if (navConfig.bottomNav.isNotEmpty()) {
+        val notifVm: com.rio.rostry.ui.notifications.NotificationsViewModel = hiltViewModel()
+        val notifState by notifVm.ui.collectAsState()
+        LaunchedEffect(Unit) { notifVm.refresh() }
+        NavigationBar {
+            navConfig.bottomNav.forEach { destination ->
+                val selected = currentRoute?.startsWith(destination.route.substringBefore("/{")) == true
+                val labelInitial = destination.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•"
+                val badgeCount = when (destination.route) {
+                    Routes.FarmerNav.MARKET -> notifState.pendingOrders
+                    Routes.FarmerNav.COMMUNITY -> notifState.unreadMessages
+                    else -> 0
+                }
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = {
+                        navController.navigate(destination.route) {
+                            launchSingleTop = true
+                            restoreState = true
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
                         }
-                    }
-                },
-                icon = { Text(labelInitial) },
-                label = { Text(destination.label) }
-            )
+                    },
+                    icon = {
+                        BadgedBox(badge = {
+                            if (badgeCount > 0) Badge { Text(badgeCount.toString()) }
+                        }) { Text(labelInitial) }
+                    },
+                    label = { Text(destination.label) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationsAction(navController: NavHostController) {
+    val vm: com.rio.rostry.ui.notifications.NotificationsViewModel = hiltViewModel()
+    val state by vm.ui.collectAsState()
+    LaunchedEffect(Unit) { vm.refresh() }
+    BadgedBox(
+        badge = { if (state.total > 0) Badge { Text(state.total.toString()) } }
+    ) {
+        IconButton(onClick = { navController.navigate(Routes.NOTIFICATIONS) }) {
+            Icon(imageVector = Icons.Filled.Notifications, contentDescription = "Notifications")
         }
     }
 }

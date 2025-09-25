@@ -24,4 +24,6 @@ interface ProductRepository {
 
     // Example: Search might combine local and remote results or prioritize local then fetch
     fun searchProducts(query: String): Flow<Resource<List<ProductEntity>>>
+
+    suspend fun autocompleteProducts(prefix: String, limit: Int = 10): List<ProductEntity>
 }

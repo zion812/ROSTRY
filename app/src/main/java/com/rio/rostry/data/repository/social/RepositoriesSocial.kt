@@ -143,6 +143,8 @@ interface MessagingRepository {
     suspend fun sendDirectFile(threadId: String, fromUserId: String, toUserId: String, fileUri: Uri, fileName: String)
     suspend fun sendGroupFile(groupId: String, fromUserId: String, fileUri: Uri, fileName: String)
     suspend fun markThreadSeen(threadId: String, userId: String)
+    fun streamUserThreads(userId: String): Flow<List<String>>
+    fun streamUnreadCount(userId: String): Flow<Int>
     data class MessageDTO(val messageId: String, val fromUserId: String, val toUserId: String?, val text: String, val timestamp: Long)
 }
 
@@ -250,5 +252,51 @@ class MessagingRepositoryImpl @Inject constructor(
             "timestamp" to System.currentTimeMillis()
         )
         firebaseDb.getReference("gc/$groupId/$msgId").setValue(data)
+    }
+
+    // A simple user->threads index at user_dm_index/<userId>/<threadId>=true
+    override fun streamUserThreads(userId: String): Flow<List<String>> = callbackFlow {
+        val ref = firebaseDb.getReference("user_dm_index/$userId")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val ids = snapshot.children.mapNotNull { it.key }
+                trySend(ids)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    // Unread heuristic with timestamps if available:
+    // dm_meta/<threadId>/lastMsgTs and dm_meta/<threadId>/lastSeenTs/<userId>
+    // If lastMsgTs > lastSeenTs => unread. Fallback: seen flag not true.
+    override fun streamUnreadCount(userId: String): Flow<Int> = callbackFlow {
+        val indexRef = firebaseDb.getReference("user_dm_index/$userId")
+        val metaRef = firebaseDb.getReference("dm_meta")
+        val indexListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val threads = snapshot.children.mapNotNull { it.key }.toSet()
+                metaRef.addListenerForSingleValueEvent(object: ValueEventListener {
+                    override fun onDataChange(metaSnap: DataSnapshot) {
+                        val c = threads.count { t ->
+                            val meta = metaSnap.child(t)
+                            val lastMsgTs = meta.child("lastMsgTs").getValue(Long::class.java)
+                            val lastSeenTs = meta.child("lastSeenTs").child(userId).getValue(Long::class.java)
+                            if (lastMsgTs != null && lastSeenTs != null) {
+                                lastMsgTs > lastSeenTs
+                            } else {
+                                meta.child("seen").child(userId).getValue(Boolean::class.java) != true
+                            }
+                        }
+                        trySend(c)
+                    }
+                    override fun onCancelled(error: DatabaseError) { /* ignore */ }
+                })
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        indexRef.addValueEventListener(indexListener)
+        awaitClose { indexRef.removeEventListener(indexListener) }
     }
 }

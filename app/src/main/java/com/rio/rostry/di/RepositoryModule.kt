@@ -31,6 +31,8 @@ import com.rio.rostry.data.repository.CoinRepository
 import com.rio.rostry.data.repository.CoinRepositoryImpl
 import com.rio.rostry.data.repository.LogisticsRepository
 import com.rio.rostry.data.repository.LogisticsRepositoryImpl
+import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.data.repository.OrderRepositoryImpl
 import com.rio.rostry.data.repository.InvoiceRepository
 import com.rio.rostry.data.repository.InvoiceRepositoryImpl
 import com.rio.rostry.data.repository.TraceabilityRepository
@@ -101,6 +103,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindOrderManagementRepository(impl: OrderManagementRepositoryImpl): OrderManagementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOrderRepository(impl: OrderRepositoryImpl): OrderRepository
 
     @Binds
     @Singleton

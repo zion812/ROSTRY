@@ -9,6 +9,7 @@ import javax.inject.Singleton
 interface OrderRepository {
     fun getOrderById(orderId: String): Flow<OrderEntity?>
     fun getOrdersByBuyer(buyerId: String): Flow<List<OrderEntity>>
+    fun getOrdersBySeller(sellerId: String): Flow<List<OrderEntity>>
     suspend fun upsert(order: OrderEntity)
     suspend fun softDelete(orderId: String)
 }
@@ -20,6 +21,8 @@ class OrderRepositoryImpl @Inject constructor(
     override fun getOrderById(orderId: String): Flow<OrderEntity?> = orderDao.getOrderById(orderId)
 
     override fun getOrdersByBuyer(buyerId: String): Flow<List<OrderEntity>> = orderDao.getOrdersByBuyerId(buyerId)
+
+    override fun getOrdersBySeller(sellerId: String): Flow<List<OrderEntity>> = orderDao.getOrdersBySellerId(sellerId)
 
     override suspend fun upsert(order: OrderEntity) {
         // Mark dirty for sync and bump lastModifiedAt

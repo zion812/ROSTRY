@@ -128,14 +128,13 @@ class ProductRepositoryImpl @Inject constructor(
             dirty = true
         )
         productDao.upsert(softDeleted)
-        Unit
     }.firstOrNull() ?: Resource.Error("Failed to delete product")
 
     override suspend fun syncProductsFromRemote(): Resource<Unit> = safeCall<Unit> {
         // Deprecated in favor of SyncManager; keeping as a no-op success to preserve interface
         Unit
     }.firstOrNull() ?: Resource.Error("Failed to sync products")
-    
+
     override fun searchProducts(query: String): Flow<Resource<List<ProductEntity>>> = flow {
         emit(Resource.Loading())
         try {
@@ -145,5 +144,11 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             emit(Resource.Error("Error searching products: ${e.message}"))
         }
+    }
+
+    override suspend fun autocompleteProducts(prefix: String, limit: Int): List<ProductEntity> = try {
+        productDao.autocomplete(prefix, limit)
+    } catch (e: Exception) {
+        emptyList()
     }
 }

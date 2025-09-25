@@ -33,8 +33,13 @@ class ProductMarketplaceRepositoryImpl @Inject constructor(
         validateProduct(product)
         // Image optimization for rural networks
         val compressed = imageBytes.map { CompressionUtils.compressImage(it) }
-        // NOTE: In a full impl, upload compressed images to storage and set URLs on product
-        val withImages = if (compressed.isNotEmpty()) product.copy(imageUrls = product.imageUrls) else product
+        // For now, convert to inline data URLs so UI can render without external storage
+        val dataUrls = compressed.map { bytes ->
+            val b64 = java.util.Base64.getEncoder().encodeToString(bytes)
+            "data:image/jpeg;base64,$b64"
+        }
+        val mergedUrls = (product.imageUrls + dataUrls).distinct()
+        val withImages = product.copy(imageUrls = mergedUrls)
         val now = System.currentTimeMillis()
         val id = product.productId.ifBlank { java.util.UUID.randomUUID().toString() }
         productDao.upsert(
