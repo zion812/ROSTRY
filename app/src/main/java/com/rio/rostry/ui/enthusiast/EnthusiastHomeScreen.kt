@@ -41,10 +41,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun EnthusiastHomeScreen(
     onOpenProfile: () -> Unit,
     onOpenAnalytics: () -> Unit,
+    onOpenPerformanceAnalytics: () -> Unit = {},
+    onOpenFinancialAnalytics: () -> Unit = {},
     onOpenTransfers: () -> Unit,
     onOpenTraceability: (String) -> Unit,
     onOpenNotifications: () -> Unit,
     onVerifyKyc: () -> Unit,
+    onOpenReports: () -> Unit = {},
+    onOpenMonitoringDashboard: () -> Unit = {},
     onOpenVaccination: () -> Unit,
     onOpenMortality: () -> Unit,
     onOpenQuarantine: () -> Unit,
@@ -74,7 +78,13 @@ fun EnthusiastHomeScreen(
                 Text("• Engagement(7d): ${ui.dashboard.engagementScore} • Pending verifications: ${ui.pendingTransfersCount}")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onOpenAnalytics) { Text("Open Analytics") }
+                    OutlinedButton(onClick = onOpenPerformanceAnalytics) { Text("Performance") }
+                    OutlinedButton(onClick = onOpenFinancialAnalytics) { Text("Financial") }
                     OutlinedButton(onClick = onOpenNotifications) { Text("Notifications") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onOpenReports) { Text("Reports") }
+                    OutlinedButton(onClick = onOpenMonitoringDashboard) { Text("Monitoring") }
                 }
             }
         }

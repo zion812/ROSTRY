@@ -3,6 +3,9 @@ package com.rio.rostry.ui.analytics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.AnalyticsDao
+import com.rio.rostry.data.database.dao.GrowthRecordDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
+import com.rio.rostry.data.database.dao.MortalityRecordDao
 import com.rio.rostry.data.database.dao.ReportsDao
 import com.rio.rostry.data.database.entity.ReportEntity
 import com.rio.rostry.session.CurrentUserProvider
@@ -27,6 +30,9 @@ class ReportsViewModel @Inject constructor(
     private val analyticsDao: AnalyticsDao,
     private val currentUserProvider: CurrentUserProvider,
     @ApplicationContext private val appContext: Context,
+    private val growthDao: GrowthRecordDao,
+    private val vaccinationDao: VaccinationRecordDao,
+    private val mortalityDao: MortalityRecordDao,
 ) : ViewModel() {
     private val empty = emptyList<ReportEntity>()
     private val uid = currentUserProvider.userIdOrNull()
@@ -48,12 +54,20 @@ class ReportsViewModel @Inject constructor(
                     a.commentsCount.toString()
                 )
             }
+            // Monitoring KPIs for the last 7 days (totals)
+            val endMs = now.atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
+            val startMs = from.atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
+            val growthCount = growthDao.countBetween(startMs, endMs)
+            val vaccAdmin = vaccinationDao.countAdministeredBetween(startMs, endMs)
+            val mortalityCount = mortalityDao.countBetween(startMs, endMs)
+            val kpiFooter = listOf("TOTAL(KPI)", "", "", "growth=$growthCount", "vaccinated=$vaccAdmin; mortality=$mortalityCount")
+            val rowsWithKpi = rows + listOf(kpiFooter)
             val uri = PdfExporter.writeSimpleTable(
                 context = appContext,
                 fileName = "weekly_report_${now}.pdf",
                 title = "Weekly Report (${from} to ${now})",
                 headers = listOf("date","orders","revenue","likes","comments"),
-                rows = rows
+                rows = rowsWithKpi
             )
             val report = ReportEntity(
                 reportId = UUID.randomUUID().toString(),
@@ -83,11 +97,18 @@ class ReportsViewModel @Inject constructor(
                     a.commentsCount.toString()
                 )
             }
+            val endMs = now.atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
+            val startMs = from.atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000
+            val growthCount = growthDao.countBetween(startMs, endMs)
+            val vaccAdmin = vaccinationDao.countAdministeredBetween(startMs, endMs)
+            val mortalityCount = mortalityDao.countBetween(startMs, endMs)
+            val kpiFooter = listOf("TOTAL(KPI)", "", "", "growth=$growthCount", "vaccinated=$vaccAdmin; mortality=$mortalityCount")
+            val rowsWithKpi = rows + listOf(kpiFooter)
             val uri = CsvExporter.writeCsv(
                 context = appContext,
                 fileName = "weekly_report_${now}.csv",
                 headers = listOf("date","orders","revenue","likes","comments"),
-                rows = rows
+                rows = rowsWithKpi
             )
             val report = ReportEntity(
                 reportId = UUID.randomUUID().toString(),

@@ -13,6 +13,8 @@ import com.rio.rostry.workers.ModerationWorker
 import com.rio.rostry.workers.OutgoingMessageWorker
 import com.rio.rostry.workers.AnalyticsAggregationWorker
 import com.rio.rostry.workers.ReportingWorker
+import com.rio.rostry.workers.VaccinationReminderWorker
+import com.rio.rostry.workers.FarmPerformanceWorker
 import coil.Coil
 import coil.ImageLoader
 import coil.util.DebugLogger
@@ -62,6 +64,10 @@ class RostryApp : Application() {
         // Schedule analytics aggregation (daily) and reporting (weekly)
         AnalyticsAggregationWorker.schedule(this)
         ReportingWorker.schedule(this)
+
+        // Schedule farm monitoring workers
+        VaccinationReminderWorker.schedule(this)
+        FarmPerformanceWorker.schedule(this)
 
         // Schedule prefetch under safe conditions (Wi‑Fi, charging)
         com.rio.rostry.workers.PrefetchWorker.schedule(this)

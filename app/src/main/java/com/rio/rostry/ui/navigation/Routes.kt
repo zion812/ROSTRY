@@ -83,6 +83,10 @@ object Routes {
         const val MORTALITY = "monitoring/mortality"
         const val QUARANTINE = "monitoring/quarantine"
         const val BREEDING = "monitoring/breeding"
+        const val GROWTH = "monitoring/growth"
+        const val HATCHING = "monitoring/hatching"
+        const val DASHBOARD = "monitoring/dashboard"
+        const val PERFORMANCE = "monitoring/performance"
     }
 
     object GeneralNav {
@@ -228,5 +232,9 @@ object Routes {
     const val MONITORING_MORTALITY = Monitoring.MORTALITY
     const val MONITORING_QUARANTINE = Monitoring.QUARANTINE
     const val MONITORING_BREEDING = Monitoring.BREEDING
+    const val MONITORING_GROWTH = Monitoring.GROWTH
+    const val MONITORING_HATCHING = Monitoring.HATCHING
+    const val MONITORING_DASHBOARD = Monitoring.DASHBOARD
+    const val MONITORING_PERFORMANCE = Monitoring.PERFORMANCE
 
 } // Closing brace for object Routes

@@ -82,7 +82,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_8_9,
             AppDatabase.MIGRATION_9_10,
             AppDatabase.MIGRATION_10_11,
-            AppDatabase.MIGRATION_11_12
+            AppDatabase.MIGRATION_11_12,
+            AppDatabase.MIGRATION_12_13,
+            AppDatabase.MIGRATION_13_14
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -207,6 +209,31 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAuditLogDao(appDatabase: AppDatabase): AuditLogDao = appDatabase.auditLogDao()
+
+    // Farm monitoring DAOs
+    @Provides
+    @Singleton
+    fun provideGrowthRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.GrowthRecordDao = db.growthRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideQuarantineRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.QuarantineRecordDao = db.quarantineRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideMortalityRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.MortalityRecordDao = db.mortalityRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideVaccinationRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.VaccinationRecordDao = db.vaccinationRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideHatchingBatchDao(db: AppDatabase): com.rio.rostry.data.database.dao.HatchingBatchDao = db.hatchingBatchDao()
+
+    @Provides
+    @Singleton
+    fun provideHatchingLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.HatchingLogDao = db.hatchingLogDao()
 
     // Social DAOs
     @Provides

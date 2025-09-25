@@ -59,9 +59,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RateLimitEntity::class,
         EventRsvpEntity::class,
         AnalyticsDailyEntity::class,
-        ReportEntity::class
+        ReportEntity::class,
+        // Farm monitoring entities
+        GrowthRecordEntity::class,
+        QuarantineRecordEntity::class,
+        MortalityRecordEntity::class,
+        VaccinationRecordEntity::class,
+        HatchingBatchEntity::class,
+        HatchingLogEntity::class
     ],
-    version = 13, // Bumped to 13 adding social platform tables
+    version = 14, // Bumped to 14 adding farm monitoring tables
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -96,6 +103,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transferVerificationDao(): TransferVerificationDao
     abstract fun disputeDao(): DisputeDao
     abstract fun auditLogDao(): AuditLogDao
+
+    // Farm monitoring DAOs
+    abstract fun growthRecordDao(): com.rio.rostry.data.database.dao.GrowthRecordDao
+    abstract fun quarantineRecordDao(): com.rio.rostry.data.database.dao.QuarantineRecordDao
+    abstract fun mortalityRecordDao(): com.rio.rostry.data.database.dao.MortalityRecordDao
+    abstract fun vaccinationRecordDao(): com.rio.rostry.data.database.dao.VaccinationRecordDao
+    abstract fun hatchingBatchDao(): com.rio.rostry.data.database.dao.HatchingBatchDao
+    abstract fun hatchingLogDao(): com.rio.rostry.data.database.dao.HatchingLogDao
 
     // Social DAOs
     abstract fun postsDao(): PostsDao
@@ -545,6 +560,72 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_userId` ON `reports` (`userId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_periodStart` ON `reports` (`periodStart`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_reports_type` ON `reports` (`type`)")
+            }
+        }
+
+        // Farm monitoring tables
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // growth_records
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `growth_records` (" +
+                        "`recordId` TEXT NOT NULL, `productId` TEXT NOT NULL, `week` INTEGER NOT NULL, " +
+                        "`weightGrams` REAL, `heightCm` REAL, `photoUrl` TEXT, `healthStatus` TEXT, `milestone` TEXT, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`recordId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_growth_records_productId` ON `growth_records` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_growth_records_week` ON `growth_records` (`week`)")
+
+                // quarantine_records
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `quarantine_records` (" +
+                        "`quarantineId` TEXT NOT NULL, `productId` TEXT NOT NULL, `reason` TEXT NOT NULL, `protocol` TEXT, `medicationScheduleJson` TEXT, `vetNotes` TEXT, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER, `status` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`quarantineId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_quarantine_records_productId` ON `quarantine_records` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_quarantine_records_status` ON `quarantine_records` (`status`)")
+
+                // mortality_records
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `mortality_records` (" +
+                        "`deathId` TEXT NOT NULL, `productId` TEXT, `causeCategory` TEXT NOT NULL, `circumstances` TEXT, `ageWeeks` INTEGER, `disposalMethod` TEXT, `financialImpactInr` REAL, `occurredAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`deathId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE SET NULL)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_productId` ON `mortality_records` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_causeCategory` ON `mortality_records` (`causeCategory`)")
+
+                // vaccination_records
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `vaccination_records` (" +
+                        "`vaccinationId` TEXT NOT NULL, `productId` TEXT NOT NULL, `vaccineType` TEXT NOT NULL, `supplier` TEXT, `batchCode` TEXT, `doseMl` REAL, `scheduledAt` INTEGER NOT NULL, `administeredAt` INTEGER, `efficacyNotes` TEXT, `costInr` REAL, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`vaccinationId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_vaccination_records_productId` ON `vaccination_records` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_vaccination_records_vaccineType` ON `vaccination_records` (`vaccineType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_vaccination_records_scheduledAt` ON `vaccination_records` (`scheduledAt`)")
+
+                // hatching_batches
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `hatching_batches` (" +
+                        "`batchId` TEXT NOT NULL, `name` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `expectedHatchAt` INTEGER, `temperatureC` REAL, `humidityPct` REAL, `notes` TEXT, " +
+                        "PRIMARY KEY(`batchId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_batches_name` ON `hatching_batches` (`name`)")
+
+                // hatching_logs
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `hatching_logs` (" +
+                        "`logId` TEXT NOT NULL, `batchId` TEXT NOT NULL, `productId` TEXT, `eventType` TEXT NOT NULL, `qualityScore` INTEGER, `temperatureC` REAL, `humidityPct` REAL, `notes` TEXT, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`logId`), " +
+                        "FOREIGN KEY(`batchId`) REFERENCES `hatching_batches`(`batchId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE SET NULL)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_batchId` ON `hatching_logs` (`batchId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_productId` ON `hatching_logs` (`productId`)")
             }
         }
     }

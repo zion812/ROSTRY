@@ -60,4 +60,31 @@ object MilestoneNotifier {
             notify(Random.nextInt(1_000_000), builder.build())
         }
     }
+
+    // Generic overload for simple title/message notifications
+    fun notify(context: Context, productId: String, title: String, message: String) {
+        // Deep link to traceability/{productId}
+        val traceUri = Uri.parse("rostry://traceability/$productId")
+        val intent = Intent(Intent.ACTION_VIEW, traceUri).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pending = PendingIntent.getActivity(
+            context,
+            productId.hashCode(),
+            intent,
+            (PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0))
+        )
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+
+        with(NotificationManagerCompat.from(context)) {
+            notify(Random.nextInt(1_000_000), builder.build())
+        }
+    }
 }

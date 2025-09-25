@@ -43,6 +43,18 @@ import com.rio.rostry.data.repository.social.SocialRepository
 import com.rio.rostry.data.repository.social.SocialRepositoryImpl
 import com.rio.rostry.data.repository.social.MessagingRepository
 import com.rio.rostry.data.repository.social.MessagingRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.GrowthRepository
+import com.rio.rostry.data.repository.monitoring.GrowthRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.QuarantineRepository
+import com.rio.rostry.data.repository.monitoring.QuarantineRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.MortalityRepository
+import com.rio.rostry.data.repository.monitoring.MortalityRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.VaccinationRepository
+import com.rio.rostry.data.repository.monitoring.VaccinationRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.HatchingRepository
+import com.rio.rostry.data.repository.monitoring.HatchingRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepository
+import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepositoryImpl
 
 import dagger.Binds
 import dagger.Module
@@ -139,4 +151,29 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindMessagingRepository(impl: MessagingRepositoryImpl): MessagingRepository
+
+    // Monitoring repositories
+    @Binds
+    @Singleton
+    abstract fun bindGrowthRepository(impl: GrowthRepositoryImpl): GrowthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindQuarantineRepository(impl: QuarantineRepositoryImpl): QuarantineRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMortalityRepository(impl: MortalityRepositoryImpl): MortalityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVaccinationRepository(impl: VaccinationRepositoryImpl): VaccinationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHatchingRepository(impl: HatchingRepositoryImpl): HatchingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmPerformanceRepository(impl: FarmPerformanceRepositoryImpl): FarmPerformanceRepository
 }

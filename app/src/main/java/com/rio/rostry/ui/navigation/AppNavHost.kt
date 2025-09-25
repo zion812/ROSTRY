@@ -460,10 +460,14 @@ private fun RoleNavGraph(
             EnthusiastHomeScreen(
                 onOpenProfile = { navController.navigate(Routes.PROFILE) },
                 onOpenAnalytics = { navController.navigate(Routes.ANALYTICS_ENTHUSIAST) },
+                onOpenPerformanceAnalytics = { navController.navigate(Routes.ANALYTICS_DASHBOARD) },
+                onOpenFinancialAnalytics = { navController.navigate(Routes.ANALYTICS_FARMER) },
                 onOpenTransfers = { navController.navigate(Routes.TRANSFER_LIST) },
                 onOpenTraceability = { id -> navController.navigate("traceability/$id") },
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onVerifyKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
+                onOpenMonitoringDashboard = { navController.navigate(Routes.MONITORING_DASHBOARD) },
                 onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
                 onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
@@ -670,6 +674,26 @@ private fun RoleNavGraph(
         }
         composable(Routes.MONITORING_BREEDING) {
             com.rio.rostry.ui.monitoring.BreedingManagementScreen()
+        }
+        composable(Routes.MONITORING_GROWTH) {
+            com.rio.rostry.ui.monitoring.GrowthTrackingScreen()
+        }
+        composable(Routes.MONITORING_HATCHING) {
+            com.rio.rostry.ui.monitoring.HatchingProcessScreen()
+        }
+        composable(Routes.MONITORING_DASHBOARD) {
+            com.rio.rostry.ui.monitoring.FarmMonitoringScreen(
+                onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
+                onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
+                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
+                onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
+                onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
+                onOpenHatching = { navController.navigate(Routes.MONITORING_HATCHING) },
+                onOpenPerformance = { navController.navigate(Routes.MONITORING_PERFORMANCE) }
+            )
+        }
+        composable(Routes.MONITORING_PERFORMANCE) {
+            com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
         }
     }
 }
