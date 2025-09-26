@@ -11,6 +11,8 @@ import com.rio.rostry.utils.UpiUtils
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.rio.rostry.demo.DemoModeManager
+import com.rio.rostry.demo.MockPaymentSystem
 
 interface PaymentRepository {
     fun observePaymentsByOrder(orderId: String): Flow<List<PaymentEntity>>
@@ -26,15 +28,26 @@ class PaymentRepositoryImpl @Inject constructor(
     private val paymentDao: PaymentDao,
     private val orderDao: OrderDao,
     private val invoiceDao: InvoiceDao,
-    private val refundDao: RefundDao
+    private val refundDao: RefundDao,
+    private val demoMode: DemoModeManager,
+    private val mockPayments: MockPaymentSystem
 ) : PaymentRepository {
 
     override fun observePaymentsByOrder(orderId: String): Flow<List<PaymentEntity>> = paymentDao.observeByOrder(orderId)
 
     override suspend fun initiateUpiPayment(orderId: String, userId: String, amount: Double, vpa: String, name: String, note: String?): Resource<PaymentEntity> {
+        val idempotencyKey = "UPI-$orderId-$amount"
+        if (demoMode.isEnabled()) {
+            return mockPayments.initiate(
+                orderId = orderId,
+                userId = userId,
+                amount = amount,
+                method = MockPaymentSystem.Method.UPI,
+                idempotencyKey = idempotencyKey
+            )
+        }
         return try {
             require(amount > 0) { "Amount must be positive" }
-            val idempotencyKey = "UPI-$orderId-$amount"
             val existing = paymentDao.findByIdempotencyKey(idempotencyKey)
             if (existing != null) return Resource.Success(existing)
             val uri = UpiUtils.buildUpiUri(vpa = vpa, name = name, amount = amount, note = note)
@@ -60,6 +73,16 @@ class PaymentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun codReservation(orderId: String, userId: String, amount: Double): Resource<PaymentEntity> {
+        if (demoMode.isEnabled()) {
+            val idempotencyKey = "COD-$orderId"
+            return mockPayments.initiate(
+                orderId = orderId,
+                userId = userId,
+                amount = amount,
+                method = MockPaymentSystem.Method.COD,
+                idempotencyKey = idempotencyKey
+            )
+        }
         return try {
             val idempotencyKey = "COD-$orderId"
             val existing = paymentDao.findByIdempotencyKey(idempotencyKey)
@@ -86,6 +109,15 @@ class PaymentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun cardWalletDemo(orderId: String, userId: String, amount: Double, idempotencyKey: String): Resource<PaymentEntity> {
+        if (demoMode.isEnabled()) {
+            return mockPayments.initiate(
+                orderId = orderId,
+                userId = userId,
+                amount = amount,
+                method = MockPaymentSystem.Method.CARD,
+                idempotencyKey = idempotencyKey
+            )
+        }
         return try {
             val exist = paymentDao.findByIdempotencyKey(idempotencyKey)
             if (exist != null) return Resource.Success(exist)
