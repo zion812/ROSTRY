@@ -46,6 +46,7 @@ import com.rio.rostry.data.database.dao.RateLimitDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
 import com.rio.rostry.data.database.dao.AnalyticsDao
 import com.rio.rostry.data.database.dao.ReportsDao
+import com.rio.rostry.data.database.dao.ReactionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -84,7 +85,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_10_11,
             AppDatabase.MIGRATION_11_12,
             AppDatabase.MIGRATION_12_13,
-            AppDatabase.MIGRATION_13_14
+            AppDatabase.MIGRATION_13_14,
+            AppDatabase.MIGRATION_14_15
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -299,4 +301,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideReportsDao(db: AppDatabase): ReportsDao = db.reportsDao()
+
+    @Provides
+    @Singleton
+    fun provideReactionDao(db: AppDatabase): ReactionDao = db.reactionDao()
+
 }

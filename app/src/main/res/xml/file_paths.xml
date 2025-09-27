@@ -5,4 +5,6 @@
     <cache-path name="images" path="images/" />
     <!-- Persistent app files for images saved to filesDir/images -->
     <files-path name="images" path="images/" />
+    <!-- Certificates exported to filesDir/certs -->
+    <files-path name="certs" path="certs/" />
 </paths>

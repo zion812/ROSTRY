@@ -28,6 +28,27 @@ interface PostsDao {
         "SELECT * FROM posts ORDER BY (SELECT COUNT(*) FROM likes WHERE likes.postId = posts.postId) DESC, createdAt DESC"
     )
     fun pagingRanked(): PagingSource<Int, PostEntity>
+
+    // Stream raw texts for simple client-side hashtag trending
+    @Query("SELECT IFNULL(text, '') FROM posts WHERE createdAt >= :sinceMs")
+    fun streamTextsSince(sinceMs: Long): Flow<List<String>>
+}
+
+@Dao
+interface ReactionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(reaction: ReactionEntity)
+
+    @Query("DELETE FROM reactions WHERE postId = :postId AND userId = :userId")
+    suspend fun remove(postId: String, userId: String)
+
+    @Query("SELECT * FROM reactions WHERE postId = :postId AND userId = :userId LIMIT 1")
+    fun streamUserReaction(postId: String, userId: String): Flow<ReactionEntity?>
+
+    data class ReactionCount(val type: String, val c: Int)
+
+    @Query("SELECT type, COUNT(*) as c FROM reactions WHERE postId = :postId GROUP BY type")
+    fun countsByType(postId: String): Flow<List<ReactionCount>>
 }
 
 @Dao
@@ -73,6 +94,12 @@ interface CommentsDao {
 
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY createdAt ASC")
     fun streamByPost(postId: String): Flow<List<CommentEntity>>
+
+    @Query("SELECT * FROM comments WHERE postId = :postId AND parentCommentId IS NULL ORDER BY createdAt ASC")
+    fun streamTopLevel(postId: String): Flow<List<CommentEntity>>
+
+    @Query("SELECT * FROM comments WHERE postId = :postId AND parentCommentId = :parentId ORDER BY createdAt ASC")
+    fun streamChildren(postId: String, parentId: String): Flow<List<CommentEntity>>
 
     @Query("SELECT COUNT(*) FROM comments WHERE authorId = :userId")
     suspend fun countByUser(userId: String): Int
@@ -139,6 +166,9 @@ interface EventsDao {
 
     @Query("SELECT * FROM events WHERE startTime >= :now ORDER BY startTime ASC")
     fun streamUpcoming(now: Long): Flow<List<EventEntity>>
+
+    @Query("SELECT * FROM events WHERE eventId = :eventId LIMIT 1")
+    fun streamById(eventId: String): Flow<EventEntity?>
 }
 
 @Dao

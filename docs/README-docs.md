@@ -9,11 +9,15 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 - `social-platform.md` — Community features (feed, messaging, groups, moderation) and background automation.
 - `data-contracts.md` — Room schema highlights, Firebase collections, Retrofit APIs, and validation utilities.
 - `testing-operations.md` — Testing strategy, security practices, operational procedures, and incident response.
+- `demo_mode.md` — Comprehensive Demo Mode, field testing scenarios, offline/network/location simulation, and mock payments.
+- `demo_quick_start.md` — Fast path for signing in with demo profiles and exploring seeded content.
 
 ## How to Use
 1. Start with `architecture.md` for overall context.
 2. Refer to feature guides when working on domain-specific tasks.
 3. Consult `data-contracts.md` when updating database or remote schemas.
 4. Align with `testing-operations.md` before release or security-sensitive changes.
+5. Use `demo_mode.md` and `demo_quick_start.md` during field tests or stakeholder demos.
 
 Keep the docs up to date by mirroring code changes and capturing architecture decisions in separate ADRs when appropriate.
+

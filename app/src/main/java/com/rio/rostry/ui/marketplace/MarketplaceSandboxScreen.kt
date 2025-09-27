@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -18,9 +19,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.ui.theme.LocalSpacing
 
 @Composable
 fun MarketplaceSandboxScreen() {
@@ -31,19 +32,20 @@ fun MarketplaceSandboxScreen() {
     val (orderId, setOrderId) = remember { mutableStateOf("demo-order") }
     val (userId, setUserId) = remember { mutableStateOf("demo-user") }
     val (failNext, setFailNext) = remember { mutableStateOf(false) }
+    val sp = LocalSpacing.current
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(sp.lg),
+        verticalArrangement = Arrangement.spacedBy(sp.sm)
     ) {
-        Text("Marketplace Sandbox")
+        Text("Marketplace Sandbox", style = MaterialTheme.typography.titleLarge)
 
         // Product builder (basic)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(sp.xs)) {
             OutlinedTextField(value = price, onValueChange = setPrice, modifier = Modifier.weight(1f), label = { Text("Price") })
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(sp.xs)) {
             Button(onClick = {
                 val p = sampleProduct(price.toDoubleOrNull() ?: 1200.0)
                 vm.validateSample(p)
@@ -55,18 +57,18 @@ fun MarketplaceSandboxScreen() {
             }) { Text("Create sample") }
         }
 
-        Spacer(Modifier.height(8.dp))
-        Text("Payments (Demo)")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(sp.xs))
+        Text("Payments (Demo)", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(sp.xs), modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(value = orderId, onValueChange = setOrderId, modifier = Modifier.weight(1f), label = { Text("Order ID") })
             OutlinedTextField(value = userId, onValueChange = setUserId, modifier = Modifier.weight(1f), label = { Text("User ID") })
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(sp.xs)) {
             Button(onClick = { vm.payFixed(orderId, userId, price.toDoubleOrNull() ?: 1200.0, failNext) }) { Text("Pay FIXED") }
             Button(onClick = { vm.payAuction(orderId, userId, price.toDoubleOrNull() ?: 1200.0, failNext) }) { Text("Pay AUCTION") }
             Button(onClick = { vm.payCod(orderId, userId, price.toDoubleOrNull() ?: 1200.0) }) { Text("COD Reserve") }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(sp.xs)) {
             Button(onClick = { vm.payAdvance(orderId, userId, price.toDoubleOrNull() ?: 1200.0, failNext) }) { Text("Pay ADVANCE") }
             TextButton(onClick = { setFailNext(!failNext) }) { Text(if (failNext) "Fail Next: ON" else "Fail Next: OFF") }
         }

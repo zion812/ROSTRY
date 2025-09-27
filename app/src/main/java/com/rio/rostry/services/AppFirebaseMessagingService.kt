@@ -29,6 +29,24 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
                 val who = data["who"] ?: "Someone"
                 notifier.notifyNewComment("", postId, who)
             }
+            "mention" -> {
+                val postId = data["postId"] ?: ""
+                val who = data["who"] ?: "Someone"
+                notifier.notifyNewComment("", postId, who)
+            }
+            // Transfer-related notifications with deep links
+            "transfer_verify" -> {
+                val transferId = data["transferId"] ?: return
+                notifier.notifyTransferVerify(transferId)
+            }
+            "transfer_dispute" -> {
+                val transferId = data["transferId"] ?: return
+                notifier.notifyTransferDispute(transferId)
+            }
+            "transfer_docs" -> {
+                val transferId = data["transferId"] ?: return
+                notifier.notifyTransferDocs(transferId)
+            }
             "like" -> {
                 val postId = data["postId"] ?: ""
                 val who = data["who"] ?: "Someone"

@@ -162,7 +162,7 @@ class MessagingRepositoryImpl @Inject constructor(
             "text" to text,
             "timestamp" to System.currentTimeMillis()
         )
-        firebaseDb.getReference("dm/$threadId/$msgId").setValue(data)
+        runCatching { firebaseDb.getReference("dm/$threadId/$msgId").setValue(data) }
     }
 
     override fun streamThread(threadId: String): Flow<List<MessagingRepository.MessageDTO>> = callbackFlow {
@@ -180,7 +180,9 @@ class MessagingRepositoryImpl @Inject constructor(
                 trySend(messages)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                // Permission denied or connectivity error: don't crash the app. Emit empty and close.
+                trySend(emptyList())
+                close(null)
             }
         }
         ref.addValueEventListener(listener)
@@ -188,7 +190,7 @@ class MessagingRepositoryImpl @Inject constructor(
     }
 
     override suspend fun markThreadSeen(threadId: String, userId: String) {
-        firebaseDb.getReference("dm_meta/$threadId/seen/$userId").setValue(true)
+        runCatching { firebaseDb.getReference("dm_meta/$threadId/seen/$userId").setValue(true) }
     }
 
     override suspend fun sendGroupMessage(groupId: String, fromUserId: String, text: String) {
@@ -199,7 +201,7 @@ class MessagingRepositoryImpl @Inject constructor(
             "text" to text,
             "timestamp" to System.currentTimeMillis()
         )
-        firebaseDb.getReference("gc/$groupId/$msgId").setValue(data)
+        runCatching { firebaseDb.getReference("gc/$groupId/$msgId").setValue(data) }
     }
 
     override fun streamGroup(groupId: String): Flow<List<MessagingRepository.MessageDTO>> = callbackFlow {
@@ -215,7 +217,10 @@ class MessagingRepositoryImpl @Inject constructor(
                 }.sortedBy { it.timestamp }
                 trySend(messages)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                trySend(emptyList())
+                close(null)
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -262,7 +267,11 @@ class MessagingRepositoryImpl @Inject constructor(
                 val ids = snapshot.children.mapNotNull { it.key }
                 trySend(ids)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                // Permission denied or connectivity issue – don't crash the app
+                trySend(emptyList())
+                close(null)
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -291,10 +300,16 @@ class MessagingRepositoryImpl @Inject constructor(
                         }
                         trySend(c)
                     }
-                    override fun onCancelled(error: DatabaseError) { /* ignore */ }
+                    override fun onCancelled(error: DatabaseError) {
+                        // Emit 0 on failure and continue
+                        trySend(0)
+                    }
                 })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                trySend(0)
+                close(null)
+            }
         }
         indexRef.addValueEventListener(indexListener)
         awaitClose { indexRef.removeEventListener(indexListener) }

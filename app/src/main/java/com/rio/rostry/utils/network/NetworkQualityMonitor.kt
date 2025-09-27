@@ -20,6 +20,10 @@ class NetworkQualityMonitor @Inject constructor(
     @Volatile private var downKbps: Int = 0
     @Volatile private var isWifi = false
 
+    // Demo/Testing override fields
+    @Volatile private var forcedQuality: Quality? = null
+    @Volatile private var forcedOnline: Boolean? = null
+
     init {
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -41,10 +45,11 @@ class NetworkQualityMonitor @Inject constructor(
         isWifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
     }
 
-    fun isOnline(): Boolean = online
+    fun isOnline(): Boolean = forcedOnline ?: online
 
     fun quality(): Quality {
-        if (!online) return Quality.OFFLINE
+        forcedQuality?.let { return it }
+        if (!(forcedOnline ?: online)) return Quality.OFFLINE
         if (isWifi) return Quality.WIFI
         val d = downKbps
         return when {
@@ -53,5 +58,14 @@ class NetworkQualityMonitor @Inject constructor(
             d < 10_000 -> Quality.G4
             else -> Quality.G5
         }
+    }
+
+    // Simulation controls
+    fun forceQuality(quality: Quality?) {
+        forcedQuality = quality
+    }
+
+    fun forceOnlineState(online: Boolean?) {
+        forcedOnline = online
     }
 }

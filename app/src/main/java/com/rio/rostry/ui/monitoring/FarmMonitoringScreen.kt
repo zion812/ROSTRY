@@ -6,10 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.rio.rostry.ui.theme.LocalSpacing
 
 @Composable
 fun FarmMonitoringScreen(
@@ -21,13 +22,14 @@ fun FarmMonitoringScreen(
     onOpenHatching: () -> Unit,
     onOpenPerformance: () -> Unit
 ) {
+    val sp = LocalSpacing.current
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(sp.lg),
+        verticalArrangement = Arrangement.spacedBy(sp.sm)
     ) {
-        Text("Farm Monitoring Dashboard")
+        Text("Farm Monitoring Dashboard", style = MaterialTheme.typography.titleLarge)
         ElevatedCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(sp.sm), verticalArrangement = Arrangement.spacedBy(sp.xs)) {
                 Button(onClick = onOpenGrowth) { Text("Growth Monitoring") }
                 Button(onClick = onOpenVaccination) { Text("Vaccination Schedule") }
                 Button(onClick = onOpenBreeding) { Text("Breeding Management") }

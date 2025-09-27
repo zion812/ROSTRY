@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.auth
 
 import android.app.Activity
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,11 +13,13 @@ import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.normalizeToE164India
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.rio.rostry.domain.model.UserType
+import com.rio.rostry.data.database.entity.UserEntity
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -47,6 +50,7 @@ class AuthViewModel @Inject constructor(
     sealed class NavAction {
         data class ToOtp(val verificationId: String): NavAction()
         data class ToHome(val userType: UserType): NavAction()
+        data class ToOnboarding(val userType: UserType?): NavAction()
     }
 
     private var cooldownJob: kotlinx.coroutines.Job? = null
@@ -150,20 +154,44 @@ class AuthViewModel @Inject constructor(
 
     private fun postAuthBootstrapAndNavigate() {
         viewModelScope.launch {
-            // Ensure user profile exists and cached
-            userRepository.getCurrentUser().collectLatest { resource ->
-                if (resource is Resource.Success) {
-                    // Mark session start with role if available
+            // One-shot fetch to avoid repeated navigation emissions
+            val resource = userRepository.getCurrentUser().first { it !is Resource.Loading<*> }
+            when (resource) {
+                is Resource.Success -> {
                     val user = resource.data
-                    if (user != null) {
-                        sessionManager.markAuthenticated(System.currentTimeMillis(), user.userType)
+                    // For new or incomplete profiles, force role selection
+                    if (isNewUser(user) || needsOnboarding(user)) {
+                        Log.d("RostryAuth", "postAuth: onboarding required (new=${isNewUser(user)}, needs=${needsOnboarding(user)}) -> navigate ToOnboarding(null)")
+                        _navigation.tryEmit(NavAction.ToOnboarding(null))
+                    } else {
+                        // Profile is complete; mark session and proceed to home
+                        val role = user?.userType ?: UserType.GENERAL
+                        val mode = sessionManager.authMode().first()
+                        Log.d("RostryAuth", "postAuth: profile complete; role=$role mode=$mode -> markAuthenticated & navigate home")
+                        sessionManager.markAuthenticated(System.currentTimeMillis(), role, mode = mode)
+                        _navigation.tryEmit(NavAction.ToHome(role))
                     }
-                    val role = user?.userType ?: UserType.GENERAL
-                    _navigation.tryEmit(NavAction.ToHome(role))
-                } else if (resource is Resource.Error) {
+                }
+                is Resource.Error -> {
                     _uiState.value = _uiState.value.copy(error = resource.message)
                 }
+                else -> Unit
             }
         }
     }
+
+    private fun needsOnboarding(user: UserEntity?): Boolean {
+        user ?: return true
+        if (user.fullName.isNullOrBlank()) return true
+        return when (user.userType) {
+            UserType.GENERAL -> false
+            UserType.FARMER -> user.address.isNullOrBlank() || user.farmLocationLat == null || user.farmLocationLng == null
+            UserType.ENTHUSIAST -> user.address.isNullOrBlank()
+        }
+    }
+
+    private fun isNewUser(user: UserEntity?): Boolean {
+        return user == null || user.createdAt == user.updatedAt
+    }
 }
+

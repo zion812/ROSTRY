@@ -1,0 +1,95 @@
+package com.rio.rostry.ui.components
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun LineChartView(
+    data: List<DayCount>,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
+        .height(160.dp),
+{{ ... }}
+            drawCircle(color = lineColor, radius = 5f, center = p)
+        }
+    }
+}
+
+@OptIn(ExperimentalTextApi::class)
+@Composable
+fun PieChartView(
+    data: List<CategoryCount>,
+    modifier: Modifier = Modifier
+{{ ... }}
+        .height(160.dp),
+    palette: List<Color> = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+    )
+) {
+    if (data.isEmpty()) return
+    val total = data.sumOf { it.count }.coerceAtLeast(1)
+    val textMeasurer: TextMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(
+        color = MaterialTheme.colorScheme.onPrimary,
+        textAlign = TextAlign.Center
+    )
+
+    Canvas(modifier = modifier) {
+        val padding = 8f
+        val diameter = (size.minDimension - padding * 2)
+        val radius = diameter / 2
+        val topLeft = Offset((size.width - diameter) / 2, (size.height - diameter) / 2)
+        val rect = Rect(topLeft, androidx.compose.ui.geometry.Size(diameter, diameter))
+
+        var startAngle = -90f
+        data.forEachIndexed { index, item ->
+            val sweep = (item.count / total.toFloat()) * 360f
+            val color = palette[index % palette.size]
+            drawArc(
+                color = color,
+                startAngle = startAngle,
+                sweepAngle = sweep,
+                useCenter = true,
+                topLeft = rect.topLeft,
+                size = rect.size
+            )
+
+            // Label
+            val midAngleRad = (startAngle + sweep / 2) * (PI / 180).toFloat()
+            val labelRadius = radius * 0.6f
+            val lx = rect.center.x + labelRadius * kotlin.math.cos(midAngleRad)
+            val ly = rect.center.y + labelRadius * kotlin.math.sin(midAngleRad)
+            val pct = (item.count * 100f / total)
+            val text = "${item.category.take(6)} ${"%.0f".format(pct)}%"
+            drawText(
+                textMeasurer = textMeasurer,
+                text = text,
+                topLeft = Offset(lx - 20f, ly - 8f),
+                style = labelStyle
+            )
+
+            startAngle += sweep
+        }
+    }
+}

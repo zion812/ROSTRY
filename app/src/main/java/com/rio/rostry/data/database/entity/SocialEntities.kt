@@ -17,11 +17,12 @@ data class PostEntity(
     val updatedAt: Long,
 )
 
-@Entity(tableName = "comments", indices = [Index("postId"), Index("authorId"), Index("createdAt")])
+@Entity(tableName = "comments", indices = [Index("postId"), Index("authorId"), Index("createdAt"), Index("parentCommentId")])
 data class CommentEntity(
     @PrimaryKey val commentId: String,
     val postId: String,
     val authorId: String,
+    val parentCommentId: String? = null,
     val text: String,
     val createdAt: Long,
 )
@@ -31,6 +32,15 @@ data class LikeEntity(
     @PrimaryKey val likeId: String,
     val postId: String,
     val userId: String,
+    val createdAt: Long,
+)
+
+@Entity(tableName = "reactions", indices = [Index(value=["postId","userId"], unique = true), Index("type")])
+data class ReactionEntity(
+    @PrimaryKey val reactionId: String,
+    val postId: String,
+    val userId: String,
+    val type: String, // LIKE, CARE, CROWN, HATCH, FEED
     val createdAt: Long,
 )
 

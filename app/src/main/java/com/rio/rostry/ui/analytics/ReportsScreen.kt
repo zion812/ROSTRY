@@ -15,37 +15,49 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rio.rostry.ui.components.EmptyState
+import com.rio.rostry.ui.theme.LocalSpacing
 
 @Composable
 fun ReportsScreen(vm: ReportsViewModel = hiltViewModel()) {
     val reports = vm.reports.collectAsState().value
     val context = LocalContext.current
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Reports", style = MaterialTheme.typography.titleMedium)
-        Button(onClick = { vm.generateWeeklyPdf() }, modifier = Modifier.padding(top = 8.dp)) {
+    val sp = LocalSpacing.current
+    Column(Modifier.fillMaxSize().padding(sp.lg)) {
+        Text("Reports", style = MaterialTheme.typography.titleLarge)
+        Button(onClick = { vm.generateWeeklyPdf() }, modifier = Modifier.padding(top = sp.xs)) {
             Text("Generate Weekly PDF")
         }
-        Button(onClick = { vm.generateWeeklyCsv() }, modifier = Modifier.padding(top = 8.dp)) {
+        Button(onClick = { vm.generateWeeklyCsv() }, modifier = Modifier.padding(top = sp.xs)) {
             Text("Generate Weekly CSV")
         }
-        LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
-            items(reports) { r ->
-                Card(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Text("${r.type} • ${r.format}")
-                        Text("From ${r.periodStart} to ${r.periodEnd}")
-                        r.uri?.let { uriStr ->
-                            Button(onClick = {
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = if (r.format == "CSV") "text/csv" else "application/pdf"
-                                    putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse(uriStr))
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (reports.isEmpty()) {
+            EmptyState(
+                title = "No reports yet",
+                message = "Generate a PDF or CSV report to get started.",
+                primaryActionLabel = "Generate PDF",
+                onPrimaryAction = { vm.generateWeeklyPdf() },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            LazyColumn(Modifier.fillMaxSize().padding(top = sp.xs)) {
+                items(reports) { r ->
+                    Card(Modifier.fillMaxWidth().padding(vertical = sp.xs)) {
+                        Column(Modifier.fillMaxWidth().padding(sp.sm)) {
+                            Text("${r.type} • ${r.format}", style = MaterialTheme.typography.titleMedium)
+                            Text("From ${r.periodStart} to ${r.periodEnd}", style = MaterialTheme.typography.bodyMedium)
+                            r.uri?.let { uriStr ->
+                                Button(onClick = {
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = if (r.format == "CSV") "text/csv" else "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse(uriStr))
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Share report"))
+                                }, modifier = Modifier.padding(top = sp.xs)) {
+                                    Text("Share")
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Share report"))
-                            }, modifier = Modifier.padding(top = 8.dp)) {
-                                Text("Share")
                             }
                         }
                     }

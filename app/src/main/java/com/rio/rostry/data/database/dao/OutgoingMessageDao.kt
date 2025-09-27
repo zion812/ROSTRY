@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.rio.rostry.data.database.entity.OutgoingMessageEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OutgoingMessageDao {
@@ -20,4 +21,7 @@ interface OutgoingMessageDao {
 
     @Query("UPDATE outgoing_messages SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: String)
+
+    @Query("SELECT * FROM outgoing_messages WHERE threadOrGroupId = :id ORDER BY createdAt ASC")
+    fun streamForThread(id: String): Flow<List<OutgoingMessageEntity>>
 }

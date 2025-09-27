@@ -8,6 +8,17 @@ import com.rio.rostry.data.database.entity.VaccinationRecordEntity
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
 import com.rio.rostry.data.database.entity.HatchingLogEntity
 import kotlinx.coroutines.flow.Flow
+ 
+ // Simple POJOs for aggregated queries
+ data class DayCount(
+     val day: String,
+     val count: Int
+ )
+ 
+ data class CategoryCount(
+     val category: String,
+     val count: Int
+ )
 
 @Dao
 interface GrowthRecordDao {
@@ -22,6 +33,9 @@ interface GrowthRecordDao {
 
     @Query("SELECT COUNT(*) FROM growth_records WHERE createdAt BETWEEN :start AND :end")
     suspend fun countBetween(start: Long, end: Long): Int
+
+    @Query("SELECT * FROM growth_records WHERE productId = :productId ORDER BY week ASC")
+    suspend fun listForProduct(productId: String): List<GrowthRecordEntity>
 }
 
 @Dao
@@ -52,6 +66,40 @@ interface MortalityRecordDao {
 
     @Query("SELECT COUNT(*) FROM mortality_records WHERE occurredAt BETWEEN :start AND :end")
     suspend fun countBetween(start: Long, end: Long): Int
+
+    // Trend: counts per day for a time window
+    @Query(
+        """
+        SELECT strftime('%Y-%m-%d', occurredAt/1000, 'unixepoch') AS day,
+               COUNT(*) AS count
+        FROM mortality_records
+        WHERE occurredAt BETWEEN :start AND :end
+        GROUP BY day
+        ORDER BY day ASC
+        """
+    )
+    suspend fun countsByDay(start: Long, end: Long): List<DayCount>
+
+    // Distribution: counts per cause category for a time window
+    @Query(
+        """
+        SELECT causeCategory AS category,
+               COUNT(*) AS count
+        FROM mortality_records
+        WHERE occurredAt BETWEEN :start AND :end
+        GROUP BY causeCategory
+        ORDER BY count DESC
+        """
+    )
+    suspend fun countsByCategory(start: Long, end: Long): List<CategoryCount>
+
+    // Financial impact sum for a period (null-safe)
+    @Query("SELECT COALESCE(SUM(financialImpactInr), 0.0) FROM mortality_records WHERE occurredAt BETWEEN :start AND :end")
+    suspend fun sumFinancialImpactBetween(start: Long, end: Long): Double
+
+    // Average age in weeks for a period
+    @Query("SELECT AVG(ageWeeks) FROM mortality_records WHERE ageWeeks IS NOT NULL AND occurredAt BETWEEN :start AND :end")
+    suspend fun avgAgeWeeksBetween(start: Long, end: Long): Double?
 }
 
 @Dao
@@ -67,6 +115,23 @@ interface VaccinationRecordDao {
 
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE administeredAt IS NOT NULL AND administeredAt BETWEEN :start AND :end")
     suspend fun countAdministeredBetween(start: Long, end: Long): Int
+
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE scheduledAt BETWEEN :start AND :end")
+    suspend fun countScheduledBetween(start: Long, end: Long): Int
+
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE administeredAt IS NULL AND scheduledAt < :byTime")
+    suspend fun countOverdue(byTime: Long): Int
+
+    @Query(
+        """
+        SELECT vaccineType AS category, COUNT(*) AS count
+        FROM vaccination_records
+        WHERE administeredAt IS NOT NULL AND administeredAt BETWEEN :start AND :end
+        GROUP BY vaccineType
+        ORDER BY count DESC
+        """
+    )
+    suspend fun countsByVaccineTypeAdministeredBetween(start: Long, end: Long): List<CategoryCount>
 }
 
 @Dao

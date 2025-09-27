@@ -27,10 +27,18 @@ object Routes {
         const val VERIFY_ENTHUSIAST_KYC = "verify/enthusiast/kyc"
     }
 
+    /**
+     * Onboarding flow routes.
+     * Flow overview:
+     * - After OTP auth, AuthViewModel emits NavAction.ToOnboarding(userType?) if the user profile is incomplete
+     * - If userType == null, navigate to ROLE_SELECTION for the user to pick a role
+     * - Then navigate to the specific onboarding route below to collect required profile data
+     */
     object Onboarding {
         const val GENERAL = "onboard/general"
         const val FARMER = "onboard/farmer"
         const val ENTHUSIAST = "onboard/enthusiast"
+        const val ROLE_SELECTION = "onboard/role-selection"
     }
 
     object Product {
@@ -48,12 +56,16 @@ object Routes {
         const val LIST = "transfer/list"
         const val VERIFY = "transfer/{transferId}/verify"
         const val CREATE = "transfer/create"
+        const val DISPUTE = "transfer/{transferId}/dispute"
+        const val TRAIL = "transfer/{transferId}/trail"
+        const val DOCS = "transfer/{transferId}/docs"
     }
 
     object Social {
         const val FEED = "social/feed"
         const val GROUPS = "social/groups"
         const val EVENTS = "social/events"
+        const val EVENT_DETAILS = "social/events/{eventId}"
         const val EXPERT = "social/expert"
         const val MODERATION = "social/moderation"
         const val LEADERBOARD = "social/leaderboard"
@@ -68,6 +80,14 @@ object Routes {
 
     object Notifications {
         const val LIST = "notifications"
+    }
+
+    object Demo {
+        const val TOOLS = "demo/tools"
+    }
+
+    object Trust {
+        const val SCORE = "trust/score"
     }
 
     object Analytics {
@@ -201,6 +221,7 @@ object Routes {
     const val ONBOARD_GENERAL = Onboarding.GENERAL
     const val ONBOARD_FARMER = Onboarding.FARMER
     const val ONBOARD_ENTHUSIAST = Onboarding.ENTHUSIAST
+    const val ROLE_SELECTION = Onboarding.ROLE_SELECTION
     const val PRODUCT_DETAILS = Product.DETAILS
     const val TRACEABILITY = Product.TRACEABILITY
     const val PRODUCT_CREATE = Product.CREATE
@@ -212,13 +233,18 @@ object Routes {
     const val TRANSFER_LIST = Transfers.LIST
     const val TRANSFER_VERIFY = Transfers.VERIFY
     const val TRANSFER_CREATE = Transfers.CREATE
+    const val TRANSFER_DISPUTE = Transfers.DISPUTE
+    const val TRANSFER_TRAIL = Transfers.TRAIL
+    const val TRANSFER_DOCS = Transfers.DOCS
     const val SOCIAL_FEED = Social.FEED
     const val MESSAGES_THREAD = Messaging.THREAD
     const val MESSAGES_GROUP = Messaging.GROUP
     const val MESSAGES_OUTBOX = Messaging.OUTBOX
     const val NOTIFICATIONS = Notifications.LIST
+    const val DEMO_TOOLS = Demo.TOOLS
     const val GROUPS = Social.GROUPS
     const val EVENTS = Social.EVENTS
+    const val EVENTS_DETAILS = Social.EVENT_DETAILS
     const val EXPERT_BOOKING = Social.EXPERT
     const val MODERATION = Social.MODERATION
     const val LEADERBOARD = Social.LEADERBOARD
@@ -236,5 +262,6 @@ object Routes {
     const val MONITORING_HATCHING = Monitoring.HATCHING
     const val MONITORING_DASHBOARD = Monitoring.DASHBOARD
     const val MONITORING_PERFORMANCE = Monitoring.PERFORMANCE
+    const val TRUST_SCORE = Trust.SCORE
 
 } // Closing brace for object Routes

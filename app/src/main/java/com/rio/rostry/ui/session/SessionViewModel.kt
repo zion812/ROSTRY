@@ -1,5 +1,6 @@
 package com.rio.rostry.ui.session
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.demo.DemoUserProfile
@@ -47,6 +48,10 @@ class SessionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SessionUiState())
     val uiState: StateFlow<SessionUiState> = _uiState
 
+    // When true, AuthFlow should prefer real phone authentication UI and hide demo UI.
+    private val _preferRealAuth = MutableStateFlow(false)
+    val preferRealAuth: StateFlow<Boolean> = _preferRealAuth
+
     private var sessionJob: Job? = null
     private var userCollectionJob: Job? = null
 
@@ -69,21 +74,32 @@ class SessionViewModel @Inject constructor(
             kotlinx.coroutines.flow.combine(
                 sessionManager.authMode(),
                 authRepository.isAuthenticated,
-                mockAuthManager.isAuthenticated
-            ) { mode, firebaseAuthed, demoAuthed ->
-                val isAuthed = when (mode) {
-                    SessionManager.AuthMode.FIREBASE -> firebaseAuthed
-                    SessionManager.AuthMode.DEMO -> demoAuthed
+                mockAuthManager.isAuthenticated,
+                preferRealAuth
+            ) { mode, firebaseAuthed, demoAuthed, preferReal ->
+                // If user has chosen to switch to real, immediately suppress demo auth
+                if (preferReal) {
+                    SessionManager.AuthMode.FIREBASE to false
+                } else {
+                    val isAuthed = when (mode) {
+                        SessionManager.AuthMode.FIREBASE -> firebaseAuthed
+                        SessionManager.AuthMode.DEMO -> demoAuthed
+                    }
+                    mode to isAuthed
                 }
-                mode to isAuthed
             }.collectLatest { (mode, authenticated) ->
+                Log.d("RostrySession", "observeSession: mode=$mode authenticated=$authenticated preferReal=${preferRealAuth.value}")
                 if (!authenticated) {
                     _uiState.value = _uiState.value.copy(
                         isAuthenticated = false,
                         isLoading = false,
                         authMode = mode,
+                        role = null,
+                        navConfig = null,
+                        availableUpgrade = null,
                         error = null
                     )
+                    Log.d("RostrySession", "observeSession: unauthenticated -> show AuthFlow")
                     return@collectLatest
                 }
                 _uiState.value = _uiState.value.copy(
@@ -92,6 +108,7 @@ class SessionViewModel @Inject constructor(
                     authMode = mode,
                     error = null
                 )
+                Log.d("RostrySession", "observeSession: authenticated -> synchronizeRole(mode=$mode)")
                 synchronizeRole(mode)
             }
         }
@@ -125,19 +142,57 @@ class SessionViewModel @Inject constructor(
     }
 
     fun refresh() {
+        Log.d("RostrySession", "refresh() called; authMode=${_uiState.value.authMode}")
         synchronizeRole(_uiState.value.authMode)
     }
 
+    fun preferRealSignIn() {
+        _preferRealAuth.value = true
+    }
+
+    fun clearPreferRealSignIn() {
+        _preferRealAuth.value = false
+    }
+
     private fun synchronizeRole(mode: SessionManager.AuthMode) {
+        Log.d("RostrySession", "synchronizeRole: start mode=$mode")
         userCollectionJob?.cancel()
         userCollectionJob = viewModelScope.launch {
+            // Fast-path for demo: use active demo profile without waiting for repository
+            if (mode == SessionManager.AuthMode.DEMO) {
+                val demoProfile = mockAuthManager.currentProfile.value
+                if (demoProfile != null) {
+                    val role = demoProfile.role
+                    sessionManager.markAuthenticated(
+                        System.currentTimeMillis(),
+                        role,
+                        mode = SessionManager.AuthMode.DEMO,
+                        demoUserId = demoProfile.id
+                    )
+                    rolePreferences.persist(role)
+                    val navConfig = startDestinationProvider.configFor(role)
+                    _uiState.value = _uiState.value.copy(
+                        isAuthenticated = true,
+                        role = role,
+                        navConfig = navConfig,
+                        availableUpgrade = role.nextLevel(),
+                        isLoading = false,
+                        error = null,
+                        authMode = mode
+                    )
+                    Log.d("RostrySession", "synchronizeRole: demo fast-path -> role=$role start=${navConfig.startDestination}")
+                    return@launch
+                }
+            }
             userRepository.getCurrentUser().collectLatest { resource ->
                 when (resource) {
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(isLoading = false, error = resource.message)
+                        Log.e("RostrySession", "synchronizeRole: error=${resource.message}")
                     }
                     is Resource.Loading -> {
                         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                        Log.d("RostrySession", "synchronizeRole: loading...")
                     }
                     is Resource.Success -> {
                         val demoProfile = mockAuthManager.currentProfile.value
@@ -166,6 +221,7 @@ class SessionViewModel @Inject constructor(
                             error = null,
                             authMode = mode
                         )
+                        Log.d("RostrySession", "synchronizeRole: success -> role=$role start=${navConfig.startDestination}")
                     }
                 }
             }
@@ -242,7 +298,12 @@ class SessionViewModel @Inject constructor(
             authRepository.signOut()
             _uiState.value = SessionUiState(
                 demoProfiles = mockAuthManager.allProfiles(),
-                authMode = SessionManager.AuthMode.FIREBASE
+                authMode = SessionManager.AuthMode.FIREBASE,
+                isLoading = false,
+                isAuthenticated = false,
+                navConfig = null,
+                role = null,
+                error = null
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.rio.rostry.ui.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -97,6 +105,13 @@ import com.rio.rostry.session.SessionManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.combinedClickable
+import com.rio.rostry.ui.demo.DemoToolsScreen
+import com.rio.rostry.ui.theme.LocalSpacing
+import com.rio.rostry.ui.components.LoadingState
+import com.rio.rostry.ui.onboarding.OnboardingGeneralScreen
+import com.rio.rostry.ui.onboarding.OnboardingFarmerScreen
+import com.rio.rostry.ui.onboarding.OnboardingEnthusiastScreen
+import com.rio.rostry.ui.onboarding.RoleSelectionScreen
 
 @Composable
 fun AppNavHost() {
@@ -106,12 +121,6 @@ fun AppNavHost() {
 
     when {
         state.isAuthenticated && navConfig != null -> RoleNavScaffold(navConfig, sessionVm, state)
-        state.isAuthenticated -> {
-            LaunchedEffect("await-config") { sessionVm.refresh() }
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        }
         else -> AuthFlow(
             state = state,
             onAuthenticated = { sessionVm.refresh() },
@@ -129,17 +138,56 @@ private fun AuthFlow(
     onQuickSelect: (String) -> Unit
 ) {
     val navController = rememberNavController()
+    val sessionVm: SessionViewModel = hiltViewModel()
     val authVm: AuthViewModel = hiltViewModel()
     val scope = rememberCoroutineScope()
+    val sp = LocalSpacing.current
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showOtp by rememberSaveable { mutableStateOf(false) }
+    var pendingOnboardingRoute by rememberSaveable { mutableStateOf<String?>(null) }
+    val preferReal by sessionVm.preferRealAuth.collectAsState()
 
     LaunchedEffect(Unit) {
         authVm.navigation.collectLatest { event ->
             when (event) {
                 is AuthViewModel.NavAction.ToOtp -> navController.navigate("auth/otp/${event.verificationId}")
-                is AuthViewModel.NavAction.ToHome -> onAuthenticated()
+                is AuthViewModel.NavAction.ToOnboarding -> {
+                    // Ensure the NavHost (which hosts onboarding routes) is mounted first
+                    showOtp = true
+                    pendingOnboardingRoute = when (event.userType) {
+                        null -> Routes.ROLE_SELECTION
+                        com.rio.rostry.domain.model.UserType.GENERAL -> Routes.ONBOARD_GENERAL
+                        com.rio.rostry.domain.model.UserType.FARMER -> Routes.ONBOARD_FARMER
+                        com.rio.rostry.domain.model.UserType.ENTHUSIAST -> Routes.ONBOARD_ENTHUSIAST
+                    }
+                    Log.d("RostryNav", "Received ToOnboarding(userType=${event.userType}) showOtp=$showOtp pending=$pendingOnboardingRoute")
+                }
+                is AuthViewModel.NavAction.ToHome -> {
+                    sessionVm.clearPreferRealSignIn()
+                    onAuthenticated()
+                }
+            }
+        }
+    }
+
+    // Navigate to onboarding route only after the NavHost is actually composed
+    LaunchedEffect(showOtp, pendingOnboardingRoute) {
+        val route = pendingOnboardingRoute
+        if (showOtp && route != null) {
+            Log.d("RostryNav", "Navigating to onboarding route=$route (mounted=$showOtp)")
+            navController.navigate(route)
+            pendingOnboardingRoute = null
+        }
+    }
+
+    LaunchedEffect(preferReal) {
+        if (preferReal) {
+            showOtp = true
+            // Ensure we are on the phone input route
+            navController.navigate(Routes.AUTH_PHONE) {
+                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                launchSingleTop = true
             }
         }
     }
@@ -147,20 +195,30 @@ private fun AuthFlow(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(sp.lg),
+        verticalArrangement = Arrangement.spacedBy(sp.md)
     ) {
-        Text("Field test demo login", modifier = Modifier.fillMaxWidth())
+        if (!preferReal) {
+            Text("Field test demo login", modifier = Modifier.fillMaxWidth())
+        }
 
         if (state.isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(sp.sm, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator()
+                Text("Loading…")
+            }
         }
         val errorMessage = state.error
         if (!errorMessage.isNullOrBlank()) {
             Text("Error: $errorMessage")
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (!preferReal) {
+        Column(verticalArrangement = Arrangement.spacedBy(sp.sm)) {
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -187,9 +245,9 @@ private fun AuthFlow(
             state.currentDemoProfile?.let { current ->
                 Text("Active demo user: ${current.fullName} (${current.role.displayName})")
             }
-        }
+        } }
 
-        if (state.demoProfiles.isNotEmpty()) {
+        if (!preferReal && state.demoProfiles.isNotEmpty()) {
             Divider()
             QuickSelectDemoList(
                 profiles = state.demoProfiles,
@@ -198,9 +256,14 @@ private fun AuthFlow(
             )
         }
 
-        Divider()
-        TextButton(onClick = { showOtp = !showOtp }) {
-            Text(if (showOtp) "Hide phone verification" else "Use phone verification")
+        if (!preferReal) {
+            Divider()
+            TextButton(onClick = { showOtp = !showOtp }) {
+                Text(if (showOtp) "Hide phone verification" else "Use phone verification")
+            }
+        } else {
+            // In preferReal mode, we force OTP screen to be shown
+            if (!showOtp) showOtp = true
         }
 
         if (showOtp) {
@@ -221,8 +284,34 @@ private fun AuthFlow(
                     val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
                     OtpScreen(verificationId = verificationId, onNavigateHome = onAuthenticated)
                 }
+                composable(Routes.ROLE_SELECTION) {
+                    RoleSelectionScreen(
+                        onContinue = { role ->
+                            when (role) {
+                                com.rio.rostry.domain.model.UserType.GENERAL -> navController.navigate(Routes.ONBOARD_GENERAL)
+                                com.rio.rostry.domain.model.UserType.FARMER -> navController.navigate(Routes.ONBOARD_FARMER)
+                                com.rio.rostry.domain.model.UserType.ENTHUSIAST -> navController.navigate(Routes.ONBOARD_ENTHUSIAST)
+                            }
+                        }
+                    )
+                }
+                composable(Routes.ONBOARD_GENERAL) {
+                    OnboardingGeneralScreen(
+                        onDone = { _ -> onAuthenticated() }
+                    )
+                }
+                composable(Routes.ONBOARD_FARMER) {
+                    OnboardingFarmerScreen(
+                        onDone = { _ -> onAuthenticated() }
+                    )
+                }
+                composable(Routes.ONBOARD_ENTHUSIAST) {
+                    OnboardingEnthusiastScreen(
+                        onDone = { _ -> onAuthenticated() }
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(sp.xs))
         }
     }
 }
@@ -265,16 +354,27 @@ private fun RoleNavScaffold(
 
     // Removed premature manual navigate. NavHost below already uses startDestination = navConfig.startDestination.
 
+    val preferReal by sessionVm.preferRealAuth.collectAsState()
+    val isDemoEffective = (state.authMode == SessionManager.AuthMode.DEMO) && !preferReal && (com.rio.rostry.BuildConfig.FLAVOR == "demo")
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ROSTRY") },
-                actions = {
+                title = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.combinedClickable(
+                            onClick = { navController.navigate(Routes.PROFILE) },
+                            onLongClick = { sessionVm.signOut() }
+                        )
+                    ) {
+                        Text("Profile")
+                    }
                     AccountMenuAction(
                         navController = navController,
+                        isDemo = isDemoEffective,
                         onSignOut = { sessionVm.signOut() }
                     )
-                    NotificationsAction(navController = navController)
                 }
             )
         },
@@ -286,22 +386,30 @@ private fun RoleNavScaffold(
             )
         },
         floatingActionButton = {
-            if (state.authMode == SessionManager.AuthMode.DEMO) {
+            if (isDemoEffective) {
                 FloatingActionButton(onClick = { showSwitcher = true }) {
                     Text("Demo")
                 }
             }
         }
     ) { padding ->
-        RoleNavGraph(navController = navController, navConfig = navConfig, modifier = Modifier.padding(padding))
+        RoleNavGraph(
+            navController = navController,
+            navConfig = navConfig,
+            isDemo = isDemoEffective,
+            onSwitchToReal = {
+                sessionVm.preferRealSignIn()
+                sessionVm.signOut()
+            },
+            modifier = Modifier.padding(padding)
+        )
     }
-
-    if (showSwitcher && state.authMode == SessionManager.AuthMode.DEMO) {
+    if (showSwitcher && isDemoEffective) {
         DemoProfilePickerDialog(
             profiles = state.demoProfiles,
             currentId = state.currentDemoProfile?.id,
-            onSelect = {
-                sessionVm.activateDemoProfile(it)
+            onSelect = { id ->
+                sessionVm.activateDemoProfile(id)
                 showSwitcher = false
             },
             onSignOut = {
@@ -352,6 +460,8 @@ private fun DemoProfilePickerDialog(
 private fun RoleNavGraph(
     navController: NavHostController,
     navConfig: RoleNavigationConfig,
+    isDemo: Boolean,
+    onSwitchToReal: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -499,6 +609,13 @@ private fun RoleNavGraph(
             )
         }
 
+        // Demo & Testing tools (available only in demo session)
+        if (isDemo) {
+            composable(Routes.DEMO_TOOLS) {
+                DemoToolsScreen()
+            }
+        }
+
         composable(Routes.EnthusiastNav.TRANSFERS) {
             EnthusiastTransfersScreen(
                 onOpenTransfer = { id -> navController.navigate("transfer/$id") },
@@ -511,7 +628,11 @@ private fun RoleNavGraph(
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
-                onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) }
+                onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
+                onSignIn = onSwitchToReal, // treat sign in/up as switch to real path
+                onSignUp = onSwitchToReal,
+                isDemo = isDemo,
+                onSwitchToReal = onSwitchToReal
             )
         }
         composable(Routes.VERIFY_FARMER_LOCATION) {
@@ -521,9 +642,7 @@ private fun RoleNavGraph(
             EnthusiastKycScreen(onDone = { navController.popBackStack() })
         }
 
-        composable(Routes.ONBOARD_GENERAL) { PlaceholderScreen(title = "Onboarding - General") }
-        composable(Routes.ONBOARD_FARMER) { PlaceholderScreen(title = "Onboarding - Farmer") }
-        composable(Routes.ONBOARD_ENTHUSIAST) { PlaceholderScreen(title = "Onboarding - Enthusiast") }
+        
 
         composable(
             route = Routes.PRODUCT_DETAILS,
@@ -613,7 +732,12 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("threadId") { type = NavType.StringType })
         ) { backStackEntry ->
             val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
-            com.rio.rostry.ui.messaging.ThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
+            com.rio.rostry.ui.messaging.DirectChatScreen(
+                threadId = threadId,
+                meUserId = "me",
+                peerUserId = "them",
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(
@@ -624,12 +748,56 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.messaging.GroupChatScreen(groupId = groupId, onBack = { navController.popBackStack() })
         }
 
-        composable(Routes.GROUPS) { PlaceholderScreen(title = "Groups") }
+        composable(Routes.GROUPS) { com.rio.rostry.ui.groups.GroupsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.EVENTS) { com.rio.rostry.ui.events.EventsScreen(onBack = { navController.popBackStack() }) }
+        composable(
+            route = Routes.EVENTS_DETAILS,
+            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+            com.rio.rostry.ui.events.EventDetailsScreen(eventId = eventId, onBack = { navController.popBackStack() })
+        }
         composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
         composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
         composable(Routes.LIVE_BROADCAST) { LiveBroadcastScreen(onBack = { navController.popBackStack() }) }
+
+        // Transfers
+        composable(Routes.TRANSFER_CREATE) { com.rio.rostry.ui.transfer.TransferInitiationScreen(onBack = { navController.popBackStack() }) }
+        composable(
+            route = Routes.TRANSFER_VERIFY,
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/verify/{transferId}" })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            com.rio.rostry.ui.transfer.VerificationWorkflowScreen(transferId = transferId, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Routes.TRANSFER_DISPUTE,
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/dispute/{transferId}" })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            com.rio.rostry.ui.transfer.DisputeManagementScreen(transferId = transferId, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Routes.TRANSFER_TRAIL,
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            com.rio.rostry.ui.transfer.OwnershipTrailScreen(transferId = transferId, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Routes.TRANSFER_DOCS,
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/docs/{transferId}" })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            com.rio.rostry.ui.transfer.TransferDocumentationScreen(transferId = transferId, onBack = { navController.popBackStack() })
+        }
 
         composable(Routes.NOTIFICATIONS) {
             val vm: NotificationsViewModel = hiltViewModel()
@@ -710,7 +878,6 @@ private fun RoleBottomBar(
         NavigationBar {
             navConfig.bottomNav.forEach { destination ->
                 val selected = currentRoute?.startsWith(destination.route.substringBefore("/{")) == true
-                val labelInitial = destination.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•"
                 val badgeCount = when (destination.route) {
                     Routes.FarmerNav.MARKET -> notifState.pendingOrders
                     Routes.FarmerNav.COMMUNITY -> notifState.unreadMessages
@@ -730,7 +897,31 @@ private fun RoleBottomBar(
                     icon = {
                         BadgedBox(badge = {
                             if (badgeCount > 0) Badge { Text(badgeCount.toString()) }
-                        }) { Text(labelInitial) }
+                        }) {
+                            val icon = when (destination.route.substringBefore("/")) {
+                                "home" -> Icons.Filled.Home
+                                "farmer" -> when (destination.route) {
+                                    Routes.FarmerNav.HOME -> Icons.Filled.Home
+                                    Routes.FarmerNav.MARKET -> Icons.Filled.Store
+                                    Routes.FarmerNav.CREATE -> Icons.Filled.AddCircle
+                                    Routes.FarmerNav.COMMUNITY -> Icons.Filled.Groups
+                                    Routes.FarmerNav.PROFILE -> Icons.Filled.Person
+                                    else -> Icons.Filled.Home
+                                }
+                                "enthusiast" -> when (destination.route) {
+                                    com.rio.rostry.ui.navigation.Routes.EnthusiastNav.HOME -> Icons.Filled.Home
+                                    com.rio.rostry.ui.navigation.Routes.EnthusiastNav.EXPLORE -> Icons.Filled.Explore
+                                    com.rio.rostry.ui.navigation.Routes.EnthusiastNav.CREATE -> Icons.Filled.AddCircle
+                                    com.rio.rostry.ui.navigation.Routes.EnthusiastNav.DASHBOARD -> Icons.Filled.Dashboard
+                                    com.rio.rostry.ui.navigation.Routes.EnthusiastNav.TRANSFERS -> Icons.Filled.SwapHoriz
+                                    else -> Icons.Filled.Home
+                                }
+                                else -> Icons.Filled.Home
+                            }
+                            val tint = if (selected) androidx.compose.material3.MaterialTheme.colorScheme.primary
+                            else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                            Icon(imageVector = icon, contentDescription = destination.label, tint = tint)
+                        }
                     },
                     label = { Text(destination.label) }
                 )
@@ -756,6 +947,7 @@ private fun NotificationsAction(navController: NavHostController) {
 @Composable
 private fun AccountMenuAction(
     navController: NavHostController,
+    isDemo: Boolean,
     onSignOut: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -772,7 +964,10 @@ private fun AccountMenuAction(
         IconButton(onClick = { expanded = true }) {
             Icon(imageVector = Icons.Filled.ArrowDropDown, contentDescription = "Account menu")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
             DropdownMenuItem(text = { Text("Profile") }, onClick = {
                 expanded = false
                 navController.navigate(Routes.PROFILE)
@@ -782,6 +977,12 @@ private fun AccountMenuAction(
                 // TODO: Replace with Settings route when available
                 navController.navigate(Routes.PROFILE)
             })
+            if (isDemo) {
+                DropdownMenuItem(text = { Text("Demo & Testing") }, onClick = {
+                    expanded = false
+                    navController.navigate(Routes.DEMO_TOOLS)
+                })
+            }
             DropdownMenuItem(text = { Text("Sign out") }, onClick = {
                 expanded = false
                 onSignOut()
@@ -795,30 +996,33 @@ private fun TransferDetailsScreen(transferId: String, onOpenVerify: (String) -> 
     val vm: com.rio.rostry.ui.transfer.TransferDetailsViewModel = hiltViewModel()
     LaunchedEffect(transferId) { vm.load(transferId) }
     val state by vm.state.collectAsState()
-    Column(Modifier.padding(16.dp)) {
+    run {
+        val sp = LocalSpacing.current
+        Column(Modifier.padding(sp.md)) {
         Text(text = "Transfer: $transferId", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
         state.transfer?.let { t ->
             Text("Status: ${t.status}")
             Text("Amount: ${t.amount} ${t.currency}")
         }
-        TextButton(onClick = { onOpenVerify(transferId) }, modifier = Modifier.padding(top = 8.dp)) { Text("Open Verification Flow") }
-        Text("Verifications", modifier = Modifier.padding(top = 12.dp))
+        TextButton(onClick = { onOpenVerify(transferId) }, modifier = Modifier.padding(top = sp.xs)) { Text("Open Verification Flow") }
+        Text("Verifications", modifier = Modifier.padding(top = sp.sm))
         LazyColumn {
             items(state.verifications) { v ->
                 Text("${v.step} • ${v.status}")
             }
         }
-        Text("Disputes", modifier = Modifier.padding(top = 12.dp))
+        Text("Disputes", modifier = Modifier.padding(top = sp.sm))
         LazyColumn {
             items(state.disputes) { d ->
                 Text("${d.status} • ${d.reason}")
             }
         }
-        Text("Audit Logs", modifier = Modifier.padding(top = 12.dp))
+        Text("Audit Logs", modifier = Modifier.padding(top = sp.sm))
         LazyColumn {
             items(state.logs) { l ->
                 Text("${l.action} • ${l.createdAt}")
             }
+        }
         }
     }
 }
@@ -830,7 +1034,9 @@ private fun TraceabilityScreen(vm: TraceabilityViewModel, productId: String, onB
         if (productId.isNotEmpty()) vm.load(productId)
     }
     val state by vm.state.collectAsState()
-    Column(Modifier.padding(16.dp)) {
+    run {
+        val sp = LocalSpacing.current
+        Column(Modifier.padding(sp.md)) {
         TopAppBar(
             title = { Text(text = "Traceability") },
             navigationIcon = {
@@ -839,9 +1045,9 @@ private fun TraceabilityScreen(vm: TraceabilityViewModel, productId: String, onB
                 }
             }
         )
-        Text(text = "For: ${state.rootId}", modifier = Modifier.padding(top = 8.dp))
+        Text(text = "For: ${state.rootId}", modifier = Modifier.padding(top = sp.xs))
         var resetKey by remember { mutableIntStateOf(0) }
-        OutlinedButton(onClick = { resetKey++ }, modifier = Modifier.padding(top = 8.dp)) {
+        OutlinedButton(onClick = { resetKey++ }, modifier = Modifier.padding(top = sp.xs)) {
             Text("Reset Zoom & Center")
         }
         FamilyTreeView(
@@ -850,10 +1056,10 @@ private fun TraceabilityScreen(vm: TraceabilityViewModel, productId: String, onB
             layersDown = state.layersDown,
             edges = state.edges,
             resetKey = resetKey,
-            modifier = Modifier.padding(top = 12.dp)
+            modifier = Modifier.padding(top = sp.sm)
         )
         if (state.transferChain.isNotEmpty()) {
-            Text(text = "Transfer Chain", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+            Text(text = "Transfer Chain", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = sp.md))
             LazyColumn {
                 items(state.transferChain) { item ->
                     when (item) {
@@ -867,6 +1073,7 @@ private fun TraceabilityScreen(vm: TraceabilityViewModel, productId: String, onB
                     }
                 }
             }
+        }
         }
     }
 }

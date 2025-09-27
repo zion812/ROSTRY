@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Replace this with your actual Google Maps API key for Maps SDK for Android -->
+    <string name="google_maps_key">AIzaSyBMXAkl6h9akSxLe1m-P_dztm4u_ZrYtlE</string>
+</resources>

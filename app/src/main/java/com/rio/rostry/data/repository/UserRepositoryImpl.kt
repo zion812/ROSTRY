@@ -5,6 +5,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.rio.rostry.data.base.BaseRepository
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.entity.UserEntity
+import com.rio.rostry.data.remote.model.UserFirestore
+import com.rio.rostry.data.remote.model.toEntity
 import com.rio.rostry.data.demo.DemoAccounts
 import com.rio.rostry.data.demo.toUserEntity
 import com.rio.rostry.session.SessionManager
@@ -42,7 +44,8 @@ class UserRepositoryImpl @Inject constructor(
                 // Fetch from Firestore if not in local DB
                 try {
                     val documentSnapshot = usersCollection.document(firebaseUser.uid).get().await()
-                    val userEntity = documentSnapshot.toObject(UserEntity::class.java)
+                    val dto = documentSnapshot.toObject(UserFirestore::class.java)
+                    val userEntity = dto?.toEntity(firebaseUser.uid)
                     if (userEntity != null) {
                         userDao.insertUser(userEntity) // Cache locally
                         emit(Resource.Success(userEntity))
@@ -71,7 +74,7 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun refreshCurrentUser(userId: String): Resource<Unit> = safeCall<Unit> {
         // Fetch from Firestore and update local DB
         val documentSnapshot = usersCollection.document(userId).get().await()
-        val userEntity = documentSnapshot.toObject(UserEntity::class.java)
+        val userEntity = documentSnapshot.toObject(UserFirestore::class.java)?.toEntity(userId)
         if (userEntity != null) {
             userDao.insertUser(userEntity)
             Resource.Success(Unit)
@@ -82,9 +85,17 @@ class UserRepositoryImpl @Inject constructor(
 
 
     override suspend fun updateUserProfile(userEntity: UserEntity): Resource<Unit> = safeCall<Unit> {
-        usersCollection.document(userEntity.userId).set(userEntity).await()
-        userDao.insertUser(userEntity) // Update local cache
-        Resource.Success(Unit)
+        if (firebaseAuth.currentUser == null) {
+            // Demo mode or no Firebase auth: update only local Room
+            val updated = userEntity.copy(updatedAt = System.currentTimeMillis())
+            userDao.insertUser(updated)
+            Unit
+        } else {
+            // Persist to Firestore and local cache
+            usersCollection.document(userEntity.userId).set(userEntity).await()
+            userDao.insertUser(userEntity)
+            Unit
+        }
     }.firstOrNull() ?: Resource.Error("Update operation failed unexpectedly")
 
     override fun getUserById(userId: String): Flow<Resource<UserEntity?>> = flow {
@@ -97,7 +108,7 @@ class UserRepositoryImpl @Inject constructor(
             // Fetch from Firestore if not in local DB
             try {
                 val documentSnapshot = usersCollection.document(userId).get().await()
-                val userEntity = documentSnapshot.toObject(UserEntity::class.java)
+                val userEntity = documentSnapshot.toObject(UserFirestore::class.java)?.toEntity(userId)
                 if (userEntity != null) {
                     userDao.insertUser(userEntity) // Cache locally
                     emit(Resource.Success(userEntity))
@@ -119,7 +130,7 @@ class UserRepositoryImpl @Inject constructor(
         } else {
             val docRef = usersCollection.document(userId)
             val snapshot = docRef.get().await()
-            val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
+            val current = snapshot.toObject(UserFirestore::class.java)?.toEntity(userId) ?: UserEntity(userId = userId)
             val updated = current.copy(userType = newType, updatedAt = System.currentTimeMillis())
             docRef.set(updated).await()
             userDao.insertUser(updated)
@@ -136,7 +147,7 @@ class UserRepositoryImpl @Inject constructor(
         } else {
             val docRef = usersCollection.document(userId)
             val snapshot = docRef.get().await()
-            val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
+            val current = snapshot.toObject(UserFirestore::class.java)?.toEntity(userId) ?: UserEntity(userId = userId)
             val updated = current.copy(verificationStatus = status, updatedAt = System.currentTimeMillis())
             docRef.set(updated).await()
             userDao.insertUser(updated)

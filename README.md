@@ -12,6 +12,27 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 
 Refer to the [Documentation Index](docs/README-docs.md) for detailed guides on architecture, feature domains, data contracts, and operational practices.
 
+## Demo Mode (Field Testing)
+
+ROSTRY includes a comprehensive Demo Mode for realistic field testing without real payments or external dependencies.
+
+- See the full guide: [Demo Mode – Field Testing](docs/demo_mode.md)
+- Quick start with demo profiles: [Demo Quick Start](docs/demo_quick_start.md)
+
+### Highlights
+
+- Mock payments (UPI, Card, COD) via `MockPaymentSystem` with automatic invoice generation.
+- Sample data seeding (users, marketplace, transfers, social) via `DemoSeeders` and `DemoDataCoordinator`.
+- Offline/network simulation (Offline, 2G/3G/4G/5G/Wi‑Fi) via `DemoNetworkController` and `NetworkQualityMonitor`.
+- Location simulation across Andhra Pradesh via `LocationSimulation` with radius checks.
+- Guided tours and in‑app feedback collection.
+- Persistent demo flags and environment switching (LIVE/DEMO) via `DemoModeManager`.
+
+### Accessing Demo Tools
+
+- Open the in‑app developer tools screen `DemoToolsScreen` (debug menu or account menu entry depending on build).
+- Toggle "Enable Demo Mode", seed data, simulate network/location, trigger sync, start guided tour, and send feedback.
+
 ## Architecture
 
 This project follows the **MVVM (Model-View-ViewModel)** architecture pattern, leveraging Android Jetpack components and Hilt for dependency injection.
@@ -39,6 +60,15 @@ This project follows the **MVVM (Model-View-ViewModel)** architecture pattern, l
 *   **WorkManager**: For background tasks like data synchronization (`SyncWorker`).
 *   **`Resource` Sealed Class**: Wraps data with states (Success, Error, Loading) for robust UI updates and error handling.
 *   **Timber**: For logging.
+
+### Demo/Testing Components
+
+*   `demo/DemoModeManager.kt` — Global enable + feature flags with persistence; environment switch (LIVE/DEMO).
+*   `demo/MockPaymentSystem.kt` — Simulated payments with invoice generation.
+*   `demo/DemoNetworkController.kt` + `utils/network/NetworkQualityMonitor.kt` — Network/quality overrides.
+*   `demo/LocationSimulation.kt` — Andhra Pradesh GPS route and radius helpers.
+*   `data/demo/` — Accounts and seeders for realistic data.
+*   `ui/demo/DemoToolsScreen.kt`, `ui/demo/DemoToolsViewModel.kt` — In‑app control panel.
 
 ### Directory Structure:
 
@@ -73,6 +103,7 @@ This project follows the **MVVM (Model-View-ViewModel)** architecture pattern, l
 *   Unit tests will be placed in `app/src/test/java/`.
 *   Android instrumented tests will be placed in `app/src/androidTest/java/`.
 *   MockK is included for mocking dependencies in tests.
+*   For demo payments in unit tests, instantiate repositories with `DemoModeManager` and `MockPaymentSystem` (see `PaymentRepositoryTest.kt`).
 
 ## Offline-First Approach
 
@@ -97,4 +128,10 @@ The application aims for an offline-first experience:
 *   Add comprehensive unit and instrumentation tests.
 *   Implement input validation and network connectivity checks.
 *   Set up Firebase Storage for file uploads and Firebase Functions for backend logic as needed.
+
+## References
+
+- Demo: [docs/demo_mode.md](docs/demo_mode.md), [docs/demo_quick_start.md](docs/demo_quick_start.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Testing & Ops: [docs/testing-operations.md](docs/testing-operations.md)
 

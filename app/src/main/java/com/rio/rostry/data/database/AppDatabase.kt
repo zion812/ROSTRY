@@ -47,6 +47,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PostEntity::class,
         CommentEntity::class,
         LikeEntity::class,
+        ReactionEntity::class,
         FollowEntity::class,
         GroupEntity::class,
         GroupMemberEntity::class,
@@ -68,7 +69,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HatchingBatchEntity::class,
         HatchingLogEntity::class
     ],
-    version = 14, // Bumped to 14 adding farm monitoring tables
+    version = 15, // Bumped to 15 adding reactions table and parentCommentId
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -116,6 +117,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun postsDao(): PostsDao
     abstract fun commentsDao(): CommentsDao
     abstract fun likesDao(): LikesDao
+    abstract fun reactionDao(): ReactionDao
     abstract fun followsDao(): FollowsDao
     abstract fun groupsDao(): GroupsDao
     abstract fun groupMembersDao(): GroupMembersDao
@@ -136,6 +138,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun fromStringList(value: List<String>?): String? {
             return value?.let { Gson().toJson(it) }
         }
+
 
         @TypeConverter
         @JvmStatic
@@ -626,6 +629,25 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_batchId` ON `hatching_logs` (`batchId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_productId` ON `hatching_logs` (`productId`)")
+            }
+        }
+
+        // Add parentCommentId to comments and create reactions table
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Safe add column to comments (ignore if already exists)
+                try {
+                    db.execSQL("ALTER TABLE `comments` ADD COLUMN `parentCommentId` TEXT")
+                } catch (_: Exception) { /* column may already exist */ }
+
+                // Create reactions table if not exists
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reactions` (" +
+                        "`reactionId` TEXT NOT NULL, `postId` TEXT NOT NULL, `userId` TEXT NOT NULL, `type` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`reactionId`))"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reactions_postId_userId` ON `reactions` (`postId`, `userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reactions_type` ON `reactions` (`type`)")
             }
         }
     }

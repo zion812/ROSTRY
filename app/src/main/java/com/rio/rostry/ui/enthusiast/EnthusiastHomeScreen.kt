@@ -276,7 +276,12 @@ fun EnthusiastDashboardHost(
         // Reuse existing comprehensive analytics screen
         com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
             onOpenReports = onOpenReports,
-            onOpenFeed = onOpenFeed
+            onOpenFeed = onOpenFeed,
+            onOpenPerformance = { /* no-op: covered by detail */ },
+            onOpenPerformanceDetail = { _ -> onOpenReports() /* or navigate to detailed performance analytics route if available */ },
+            onOpenFinancial = { onOpenReports() },
+            onOpenHealthIncidents = { _ -> onOpenReports() },
+            onOpenTraceability = onOpenTraceability
         )
         // Quick access to family tree visualization
         Divider(modifier = Modifier.padding(vertical = 8.dp))

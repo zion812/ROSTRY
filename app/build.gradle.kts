@@ -44,6 +44,19 @@ android {
         buildConfig = true
     }
 
+    flavorDimensions += listOf("env")
+    productFlavors {
+        create("demo") {
+            dimension = "env"
+            versionNameSuffix = "-demo"
+            buildConfigField("boolean", "DEMO_FLAVOR", "true")
+        }
+        create("prod") {
+            dimension = "env"
+            buildConfigField("boolean", "DEMO_FLAVOR", "false")
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{LICENSE*,NOTICE*,AL2.0,LGPL2.1}"
@@ -130,6 +143,10 @@ dependencies {
 
     // Google Play Services - Location (FusedLocationProviderClient)
     implementation("com.google.android.gms:play-services-location:21.2.0")
+
+    // Google Maps Compose + Maps SDK for Android
+    implementation("com.google.maps.android:maps-compose:4.4.1")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
 
     // Firebase Performance Monitoring
     implementation("com.google.firebase:firebase-perf-ktx:21.0.1")

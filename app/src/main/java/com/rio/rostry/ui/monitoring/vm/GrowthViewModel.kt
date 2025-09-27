@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+import com.rio.rostry.data.repository.monitoring.GrowthPoint
 
 @HiltViewModel
 class GrowthViewModel @Inject constructor(
@@ -19,16 +20,22 @@ class GrowthViewModel @Inject constructor(
 ): ViewModel() {
 
     data class UiState(
-        val records: List<GrowthRecordEntity> = emptyList()
+        val productId: String = "",
+        val records: List<GrowthRecordEntity> = emptyList(),
+        val points: List<GrowthPoint> = emptyList(),
+        val isLoading: Boolean = false,
+        val error: String? = null
     )
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     fun observe(productId: String) {
+        _ui.update { it.copy(productId = productId) }
         viewModelScope.launch {
             repo.observe(productId).collect { list ->
                 _ui.update { it.copy(records = list) }
+                refreshAnalytics()
             }
         }
     }
@@ -44,6 +51,21 @@ class GrowthViewModel @Inject constructor(
                 heightCm = heightCm
             )
             repo.upsert(record)
+            refreshAnalytics()
+        }
+    }
+
+    fun refreshAnalytics() {
+        val pid = _ui.value.productId
+        if (pid.isBlank()) return
+        viewModelScope.launch {
+            _ui.update { it.copy(isLoading = true, error = null) }
+            try {
+                val pts = repo.analytics(pid, breed = null)
+                _ui.update { it.copy(points = pts, isLoading = false) }
+            } catch (e: Exception) {
+                _ui.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 }

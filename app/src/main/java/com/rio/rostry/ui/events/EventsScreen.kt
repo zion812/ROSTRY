@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun EventsScreen(onBack: () -> Unit, vm: EventsViewModel = hiltViewModel()) {
@@ -28,6 +29,8 @@ fun EventsScreen(onBack: () -> Unit, vm: EventsViewModel = hiltViewModel()) {
     var location by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     val events = vm.upcoming.collectAsState().value
+    val myRsvps = vm.myRsvps.collectAsStateWithLifecycle().value
+    val me = vm.currentUserId()
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         Text("Events", style = MaterialTheme.typography.titleMedium)
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
@@ -36,9 +39,13 @@ fun EventsScreen(onBack: () -> Unit, vm: EventsViewModel = hiltViewModel()) {
                     Column(Modifier.fillMaxWidth().padding(12.dp)) {
                         Text(e.title, style = MaterialTheme.typography.titleSmall)
                         e.location?.let { Text(it) }
+                        val status = myRsvps[e.eventId]
+                        if (!status.isNullOrBlank()) {
+                            Text("Your RSVP: $status", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
+                        }
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            Button(onClick = { vm.rsvp(e.eventId, "me", "GOING") }) { Text("RSVP Going") }
-                            Button(onClick = { vm.rsvp(e.eventId, "me", "INTERESTED") }, modifier = Modifier.padding(start = 8.dp)) { Text("Interested") }
+                            Button(onClick = { vm.rsvp(e.eventId, me, "GOING") }) { Text("RSVP Going") }
+                            Button(onClick = { vm.rsvp(e.eventId, me, "INTERESTED") }, modifier = Modifier.padding(start = 8.dp)) { Text("Interested") }
                         }
                     }
                 }

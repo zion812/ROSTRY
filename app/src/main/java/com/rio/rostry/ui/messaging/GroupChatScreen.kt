@@ -1,5 +1,8 @@
 package com.rio.rostry.ui.messaging
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,16 +22,62 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun GroupChatScreen(groupId: String, onBack: () -> Unit, vm: GroupChatViewModel = hiltViewModel()) {
     LaunchedEffect(groupId) { vm.bind(groupId) }
     val msgs = vm.messages
+    val outbox = vm.outbox.collectAsStateWithLifecycle().value
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) vm.sendQueuedGroupFile(groupId = groupId, fromUserId = "me", fileUri = uri, fileName = null)
+    }
     var input by remember { mutableStateOf("") }
+    val context = LocalContext.current
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         LazyColumn(Modifier.weight(1f)) {
             items(msgs.value) { m ->
                 Text(text = "${m.fromUserId.take(6)}: ${m.text}")
+            }
+            items(outbox) { q ->
+                val label = when (q.status) {
+                    "PENDING" -> "(sending...)"
+                    "FAILED" -> "(failed)"
+                    else -> "(sent)"
+                }
+                val body = q.bodyText ?: q.fileName ?: "Attachment"
+                Text(text = "${q.fromUserId.take(6)}: $body $label")
+                val uri = q.fileUri
+                if (!uri.isNullOrBlank()) {
+                    val lower = uri.lowercase()
+                    val isImage = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp")
+                    val isVideo = lower.endsWith(".mp4") || lower.endsWith(".3gp") || lower.endsWith(".mkv")
+                    val isAudio = lower.endsWith(".mp3") || lower.endsWith(".aac") || lower.endsWith(".wav") || lower.endsWith(".m4a")
+                    if (isImage) {
+                        AsyncImage(
+                            model = android.net.Uri.parse(uri),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else if (isVideo || isAudio) {
+                        val label = if (isVideo) "Video attachment" else "Audio attachment"
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                            Text(label, modifier = Modifier.weight(1f))
+                            Button(onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(android.net.Uri.parse(uri), if (isVideo) "video/*" else "audio/*")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                runCatching { context.startActivity(intent) }
+                            }) { Text("Open") }
+                        }
+                    }
+                }
             }
         }
         Row(Modifier.fillMaxWidth()) {
@@ -39,6 +88,7 @@ fun GroupChatScreen(groupId: String, onBack: () -> Unit, vm: GroupChatViewModel 
                     input = ""
                 }
             }, modifier = Modifier.padding(start = 8.dp)) { Text("Send") }
+            Button(onClick = { filePicker.launch("*/*") }, modifier = Modifier.padding(start = 8.dp)) { Text("Attach") }
         }
     }
 }
