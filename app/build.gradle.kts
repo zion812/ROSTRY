@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +9,8 @@ plugins {
     // Firebase Performance Monitoring plugin (applies with BOM/dependency)
     alias(libs.plugins.hilt)
     id("com.google.devtools.ksp")
+    // Dokka for module-level API documentation
+    id("org.jetbrains.dokka")
 }
 
 android {
@@ -166,4 +170,32 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// Dokka: enrich module docs with external links for Kotlin and Android APIs
+tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {
+    dokkaSourceSets.configureEach {
+        // Kotlin stdlib docs
+        externalDocumentationLink {
+            url.set(URL("https://kotlinlang.org/api/kotlin/"))
+            packageListUrl.set(URL("https://kotlinlang.org/api/kotlin/package-list"))
+        }
+        // Android framework docs
+        externalDocumentationLink {
+            url.set(URL("https://developer.android.com/reference/"))
+            packageListUrl.set(URL("https://developer.android.com/reference/android/package-list"))
+        }
+        // AndroidX docs
+        externalDocumentationLink {
+            url.set(URL("https://developer.android.com/reference/"))
+            packageListUrl.set(URL("https://developer.android.com/reference/androidx/package-list"))
+        }
+
+        // Optional: link source to GitHub (uncomment and set correct repo URL)
+        // sourceLink {
+        //     localDirectory.set(file("src"))
+        //     remoteUrl.set(URL("https://github.com/<org>/<repo>/tree/main/app/src"))
+        //     remoteLineSuffix.set("#L")
+        // }
+    }
 }

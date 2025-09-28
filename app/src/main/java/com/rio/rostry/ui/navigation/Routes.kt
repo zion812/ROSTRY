@@ -1,4 +1,5 @@
 package com.rio.rostry.ui.navigation
+
 import com.rio.rostry.domain.model.UserType
 
 data class BottomNavDestination(
@@ -68,6 +69,11 @@ object Routes {
 
     object Notifications {
         const val LIST = "notifications"
+    }
+
+    // Developer/Showcase routes (debug-only usage recommended)
+    object Showcase {
+        const val COMPONENT_GALLERY = "dev/component_gallery"
     }
 
     object Analytics {
@@ -228,13 +234,14 @@ object Routes {
     const val ANALYTICS_ENTHUSIAST = Analytics.ENTHUSIAST
     const val REPORTS = Analytics.REPORTS
     const val ANALYTICS_DASHBOARD = Analytics.DASHBOARD
+    const val COMPONENT_GALLERY = Showcase.COMPONENT_GALLERY
+    const val MONITORING_DASHBOARD = Monitoring.DASHBOARD
     const val MONITORING_VACCINATION = Monitoring.VACCINATION
     const val MONITORING_MORTALITY = Monitoring.MORTALITY
     const val MONITORING_QUARANTINE = Monitoring.QUARANTINE
     const val MONITORING_BREEDING = Monitoring.BREEDING
     const val MONITORING_GROWTH = Monitoring.GROWTH
     const val MONITORING_HATCHING = Monitoring.HATCHING
-    const val MONITORING_DASHBOARD = Monitoring.DASHBOARD
     const val MONITORING_PERFORMANCE = Monitoring.PERFORMANCE
 
 } // Closing brace for object Routes

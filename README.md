@@ -2,6 +2,10 @@
 
 ROSTRY is an AgriTech marketplace application built with modern Android development practices.
 
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-—-informational)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+
 ## Project Setup
 
 1.  **Clone the repository.**
@@ -11,6 +15,14 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 ## Documentation
 
 Refer to the [Documentation Index](docs/README-docs.md) for detailed guides on architecture, feature domains, data contracts, and operational practices.
+
+Key docs:
+- `docs/feature-toggles.md`
+- `docs/security-encryption.md`
+- `docs/background-jobs.md`
+- `docs/notification-system.md`
+- `docs/payments-refunds.md`
+- `docs/logistics-tracking.md`
 
 ## Architecture
 
@@ -63,6 +75,22 @@ This project follows the **MVVM (Model-View-ViewModel)** architecture pattern, l
 *   `build.gradle.kts`: Project-level Gradle build script.
 *   `app/proguard-rules.pro`: ProGuard rules for release builds.
 
+## Features Overview
+
+- **Social Platform**: Posts, comments, messaging, groups.
+- **Marketplace**: Listings, auctions, payments, refunds.
+- **Transfers**: Secure ownership transfers with verification and audit.
+- **Farm Monitoring**: Growth, vaccination, hatching, analytics.
+- **Analytics**: Dashboards, performance insights, exports.
+- **Notifications**: Push and local notifications with deep links.
+
+## Quick Start (Developers)
+
+1. Open in Android Studio; ensure JDK 17.
+2. Add `app/google-services.json`.
+3. Run app (debug). Use demo mode to explore key flows.
+4. See `docs/developer-onboarding.md` for deeper setup.
+
 ## Building
 
 *   **Debug builds**: Standard build process from Android Studio.
@@ -73,6 +101,10 @@ This project follows the **MVVM (Model-View-ViewModel)** architecture pattern, l
 *   Unit tests will be placed in `app/src/test/java/`.
 *   Android instrumented tests will be placed in `app/src/androidTest/java/`.
 *   MockK is included for mocking dependencies in tests.
+
+## Troubleshooting
+
+See `docs/troubleshooting.md` for common issues and fixes.
 
 ## Offline-First Approach
 
@@ -97,4 +129,13 @@ The application aims for an offline-first experience:
 *   Add comprehensive unit and instrumentation tests.
 *   Implement input validation and network connectivity checks.
 *   Set up Firebase Storage for file uploads and Firebase Functions for backend logic as needed.
+
+## Contributing & Code Style
+
+- See `CONTRIBUTING.md` for workflow and expectations.
+- See `CODE_STYLE.md` for style conventions.
+
+## License
+
+This project is licensed under the Apache 2.0 License.
 

@@ -97,6 +97,8 @@ import com.rio.rostry.session.SessionManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.combinedClickable
+import com.rio.rostry.ui.showcase.ComponentGalleryScreen
+import com.rio.rostry.BuildConfig
 
 @Composable
 fun AppNavHost() {
@@ -694,6 +696,13 @@ private fun RoleNavGraph(
         }
         composable(Routes.MONITORING_PERFORMANCE) {
             com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
+        }
+
+        // Dev/Showcase: Component Gallery (available only in debug builds)
+        if (BuildConfig.DEBUG) {
+            composable(Routes.COMPONENT_GALLERY) {
+                ComponentGalleryScreen()
+            }
         }
     }
 }
