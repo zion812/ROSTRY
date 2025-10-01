@@ -20,6 +20,13 @@ interface UserRepository {
 
     suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit>
 
+    // KYC & Verification workflows
+    suspend fun uploadVerificationEvidence(userId: String, evidenceUrls: List<String>): Resource<Unit>
+
+    suspend fun requestBreederVerification(userId: String, breedingProofUrls: List<String>): Resource<Unit>
+
+    suspend fun updateFarmLocationVerification(userId: String, latitude: Double, longitude: Double): Resource<Unit>
+
     suspend fun seedDemoUsers()
 
     suspend fun upsertDemoUser(userEntity: UserEntity): Resource<Unit>

@@ -23,6 +23,9 @@ class ThreadViewModel @Inject constructor(
     private val _messages = MutableStateFlow<List<MessagingRepository.MessageDTO>>(emptyList())
     val messages: StateFlow<List<MessagingRepository.MessageDTO>> = _messages.asStateFlow()
 
+    private val _threadMetadata = MutableStateFlow<MessagingRepository.ThreadMetadata?>(null)
+    val threadMetadata: StateFlow<MessagingRepository.ThreadMetadata?> = _threadMetadata.asStateFlow()
+
     fun bind(threadId: String) {
         viewModelScope.launch {
             messagingRepository.streamThread(threadId).collect { list ->
@@ -30,8 +33,19 @@ class ThreadViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            messagingRepository.streamThreadMetadata(threadId).collect { metadata ->
+                _threadMetadata.value = metadata
+            }
+        }
+        viewModelScope.launch {
             // TODO: replace "me" with actual current user id from SessionManager
             messagingRepository.markThreadSeen(threadId, "me")
+        }
+    }
+
+    fun updateThreadTitle(threadId: String, title: String) {
+        viewModelScope.launch {
+            messagingRepository.updateThreadMetadata(threadId, title, System.currentTimeMillis())
         }
     }
 

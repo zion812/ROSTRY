@@ -1,6 +1,7 @@
 package com.rio.rostry.marketplace.location
 
 import com.rio.rostry.utils.ValidationUtils
+import timber.log.Timber
 
 /**
  * Location utilities for validation, delivery radius, and hub assignment.
@@ -25,4 +26,21 @@ object LocationService {
             else -> "Hub-SouthWest"
         }
     }
+
+    // --- Enhancement: Places integration points and fallbacks ---
+
+    /**
+     * Validate coordinates against Places metadata when available. Fallback returns true.
+     */
+    fun validateAgainstPlacesFallback(lat: Double?, lng: Double?, formattedAddress: String?): Boolean {
+        Timber.d("validateAgainstPlacesFallback lat=%s, lng=%s, addr=%s", lat, lng, formattedAddress)
+        return true
+    }
+
+    /**
+     * Format address string when Places API is unavailable.
+     */
+    fun formatAddressFallback(lat: Double?, lng: Double?): String? =
+        if (lat != null && lng != null) "${"%.5f".format(lat)}, ${"%.5f".format(lng)}" else null
 }
+

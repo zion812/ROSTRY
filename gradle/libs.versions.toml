@@ -34,6 +34,12 @@ securityCrypto = "1.1.0-alpha06"
 androidxTestCore = "1.5.0"
 robolectric = "4.12.2"
 
+ # Google Maps Platform and Firebase App Check
+ googleMaps = "18.2.0"
+ googlePlaces = "3.3.0"
+ firebaseAppCheck = "17.1.2"
+ firebaseAppCheckDebug = "17.1.2"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -78,6 +84,14 @@ sqlite-ktx = { group = "androidx.sqlite", name = "sqlite-ktx", version.ref = "sq
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+
+ # Google Maps Platform
+ google-maps-android = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "googleMaps" }
+ google-places-new = { group = "com.google.android.libraries.places", name = "places", version.ref = "googlePlaces" }
+
+ # Firebase App Check
+ firebase-appcheck = { group = "com.google.firebase", name = "firebase-appcheck", version.ref = "firebaseAppCheck" }
+ firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug", version.ref = "firebaseAppCheckDebug" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

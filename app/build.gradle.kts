@@ -12,7 +12,6 @@ plugins {
     // Dokka for module-level API documentation
     id("org.jetbrains.dokka")
 }
-
 android {
     namespace = "com.rio.rostry"
     compileSdk = 36
@@ -24,7 +23,13 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.rio.rostry.HiltTestRunner"
+        // Expose Google Maps API key via BuildConfig for Places/Maps initialization
+        buildConfigField("String", "MAPS_API_KEY", "\"${project.findProperty("MAPS_API_KEY") ?: "your_api_key_here"}\"")
+        // Provide manifest placeholder used by AndroidManifest meta-data value
+        manifestPlaceholders += mapOf(
+            "MAPS_API_KEY" to (project.findProperty("MAPS_API_KEY") ?: "your_api_key_here")
+        )
     }
 
     buildTypes {
@@ -97,10 +102,10 @@ dependencies {
     implementation(libs.sqlite.ktx)
     implementation(libs.security.crypto)
 
-    // Gson for Type Converters (and potentially other JSON operations)
+    // Gson for converters and JSON
     implementation(libs.gson)
-    
-    // Retrofit for REST API calls
+
+    // Retrofit
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
 
@@ -112,13 +117,21 @@ dependencies {
     implementation("com.google.firebase:firebase-database-ktx:21.0.0")
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
 
+    // Google Maps Platform
+    implementation(libs.google.maps.android)
+    implementation(libs.google.places.new)
+
+    // Firebase App Check (Debug Provider for development)
+    implementation(libs.firebase.appcheck)
+    debugImplementation(libs.firebase.appcheck.debug)
+
     // WorkManager
     implementation(libs.work.runtime.ktx)
 
-    // Timber for logging
+    // Timber
     implementation(libs.timber)
 
-    // Paging for feed
+    // Paging
     implementation("androidx.paging:paging-runtime-ktx:3.3.2")
     implementation("androidx.paging:paging-compose:3.3.2")
 
@@ -128,21 +141,18 @@ dependencies {
     // Image compression
     implementation("id.zelory:compressor:3.0.1")
 
-    // Media playback (videos in feed)
+    // Media playback
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
 
-    // Google Play Services - Location (FusedLocationProviderClient)
+    // Google Play Services - Location
     implementation("com.google.android.gms:play-services-location:21.2.0")
 
     // Firebase Performance Monitoring
     implementation("com.google.firebase:firebase-perf-ktx:21.0.1")
 
-    // LeakCanary for memory leak detection (debug only)
+    // LeakCanary (debug)
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
-
-    // WebRTC for audio/video calling (placeholder integration)
-    // TODO: Add compatible WebRTC artifact when enabling calling UI
 
     // ViewModel for Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -152,26 +162,30 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
+    testImplementation("org.mockito:mockito-inline:5.2.0")
+    testImplementation(libs.mockk)
 
-    // QR generation
-    implementation("com.google.zxing:core:3.5.2")
-
-    // EXIF parsing for photo verification metadata
-    implementation("androidx.exifinterface:exifinterface:1.3.7")
-
+    // AndroidTest
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-
-    // MockK for testing
-    testImplementation(libs.mockk)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
+    androidTestImplementation("androidx.test:rules:1.5.0")
+    androidTestImplementation("androidx.test:runner:1.5.2")
 
+    // Misc
+    implementation("com.google.zxing:core:3.5.2")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    // Compose tooling (debug)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
-
 // Dokka: enrich module docs with external links for Kotlin and Android APIs
 tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {
     dokkaSourceSets.configureEach {

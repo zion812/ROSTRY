@@ -1,0 +1,337 @@
+name: Release to Play Store
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Play Store track (internal/alpha/beta/production)'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        
+      - name: Run unit tests
+        run: ./gradlew testReleaseUnitTest
+        
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/test-results/
+          
+  instrumented-test:
+    name: Run Instrumented Tests
+    runs-on: macos-latest # macOS for hardware acceleration
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          profile: Nexus 6
+          script: ./gradlew connectedAndroidTest
+          
+      - name: Upload instrumentation test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumentation-test-results
+          path: app/build/outputs/androidTest-results/
+          
+  build:
+    name: Build Release AAB
+    needs: [test, instrumented-test]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
+          
+      - name: Build release AAB
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=app/release-keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+            
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          
+      - name: Upload ProGuard mapping
+        uses: actions/upload-artifact@v4
+        with:
+          name: proguard-mapping
+          path: app/build/outputs/mapping/release/mapping.txt
+          
+  firebase-staging:
+    name: Distribute to Firebase
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab
+          path: ./
+          
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: general-cohort
+          file: app-release.aab
+          releaseNotes: |
+            General User Production Release
+            - Offline-first marketplace with 5 tabs
+            - Order management with status tracking
+            - Telugu and English localization
+            - 80+ sample products for testing
+            
+  crashlytics:
+    name: Upload ProGuard Mapping to Crashlytics
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download ProGuard mapping
+        uses: actions/download-artifact@v4
+        with:
+          name: proguard-mapping
+          path: ./
+          
+      - name: Upload to Crashlytics
+        run: |
+          # Install Firebase CLI
+          curl -sL https://firebase.tools | bash
+          
+          # Upload mapping file
+          firebase crashlytics:mappingfile:upload \
+            --app=${{ secrets.FIREBASE_APP_ID }} \
+            mapping.txt
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          
+  check-metrics:
+    name: Check Crash-Free Rate
+    needs: firebase-staging
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    
+    steps:
+      - name: Wait for staging metrics
+        run: sleep 600 # Wait 10 minutes for initial data
+        
+      - name: Query Crashlytics API
+        id: crashlytics
+        run: |
+          # Query crash-free sessions from Firebase
+          CRASH_FREE_RATE=$(curl -X GET \
+            "https://firebasecrashlytics.googleapis.com/v1/apps/${{ secrets.FIREBASE_APP_ID }}/crashFreeRate?timeRange=LAST_7_DAYS" \
+            -H "Authorization: Bearer ${{ secrets.FIREBASE_TOKEN }}" \
+            | jq -r '.crashFreeRate')
+          
+          echo "Crash-free rate: $CRASH_FREE_RATE%"
+          echo "crash_free_rate=$CRASH_FREE_RATE" >> $GITHUB_OUTPUT
+          
+          if (( $(echo "$CRASH_FREE_RATE < 99.5" | bc -l) )); then
+            echo "::error::Crash-free rate $CRASH_FREE_RATE% is below threshold 99.5%"
+            exit 1
+          fi
+          
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Staging metrics passed: Crash-free rate = ${{ steps.crashlytics.outputs.crash_free_rate }}%'
+            })
+            
+  play-store:
+    name: Upload to Play Store
+    needs: [build, check-metrics]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab
+          path: ./
+          
+      - name: Create release notes
+        run: |
+          echo "# General User Release v1.0.0" > release-notes.txt
+          echo "" >> release-notes.txt
+          echo "## What's New" >> release-notes.txt
+          echo "- 🛒 Full-featured marketplace with filters and presets" >> release-notes.txt
+          echo "- 📦 Offline-first checkout and order management" >> release-notes.txt
+          echo "- 🔔 Real-time order status notifications" >> release-notes.txt
+          echo "- 🌐 Telugu and English language support" >> release-notes.txt
+          echo "- 🎨 80+ sample products for discovery" >> release-notes.txt
+          echo "" >> release-notes.txt
+          tail -n 20 CHANGELOG.md >> release-notes.txt
+          
+      - name: Upload to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.rio.rostry
+          releaseFiles: app-release.aab
+          track: ${{ github.event.inputs.track || 'internal' }}
+          status: completed
+          inAppUpdatePriority: 3
+          whatsNewDirectory: release-notes.txt
+          mappingFile: mapping.txt
+          
+  github-release:
+    name: Create GitHub Release
+    needs: play-store
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab
+          path: ./
+          
+      - name: Extract version from build.gradle
+        id: version
+        run: |
+          VERSION_CODE=$(grep 'versionCode' app/build.gradle.kts | awk '{print $3}')
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | awk '{print $3}' | tr -d '"')
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version_name }}
+          release_name: General User Release v${{ steps.version.outputs.version_name }}
+          body_path: release-notes.txt
+          draft: false
+          prerelease: false
+          
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./app-release.aab
+          asset_name: rostry-v${{ steps.version.outputs.version_name }}.aab
+          asset_content_type: application/octet-stream
+          
+  notify:
+    name: Send Notifications
+    needs: [play-store, github-release]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚀 ROSTRY Release Pipeline",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Release Status*: ${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}\n*Version*: v${{ steps.version.outputs.version_name }}\n*Track*: ${{ github.event.inputs.track || 'internal' }}\n*Branch*: ${{ github.ref_name }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

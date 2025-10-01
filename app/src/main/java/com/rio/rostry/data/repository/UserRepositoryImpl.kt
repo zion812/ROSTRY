@@ -12,6 +12,8 @@ import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.tasks.await
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
@@ -28,27 +30,25 @@ class UserRepositoryImpl @Inject constructor(
 
     private val usersCollection = firestore.collection("users")
 
-    override fun getCurrentUser(): Flow<Resource<UserEntity?>> = flow {
-        emit(Resource.Loading())
-        val firebaseUser = firebaseAuth.currentUser
-        val demoUserId = sessionManager.currentDemoUserId().firstOrNull()
-        val resolvedUserId = firebaseUser?.uid ?: demoUserId
+    override fun getCurrentUser(): Flow<Resource<UserEntity?>> =
+        flow<Resource<UserEntity?>> {
+            val firebaseUser = firebaseAuth.currentUser
+            val demoUserId = sessionManager.currentDemoUserId().firstOrNull()
+            val resolvedUserId = firebaseUser?.uid ?: demoUserId
 
-        if (resolvedUserId != null) {
-            val localUser = userDao.getUserById(resolvedUserId).firstOrNull()
-            if (localUser != null) {
-                emit(Resource.Success(localUser))
-            } else if (firebaseUser != null) {
-                // Fetch from Firestore if not in local DB
-                try {
+            if (resolvedUserId != null) {
+                val localUser = userDao.getUserById(resolvedUserId).firstOrNull()
+                if (localUser != null) {
+                    emit(Resource.Success<UserEntity?>(localUser))
+                } else if (firebaseUser != null) {
+                    // Fetch from Firestore if not in local DB
                     val documentSnapshot = usersCollection.document(firebaseUser.uid).get().await()
                     val userEntity = documentSnapshot.toObject(UserEntity::class.java)
                     if (userEntity != null) {
                         userDao.insertUser(userEntity) // Cache locally
-                        emit(Resource.Success(userEntity))
+                        emit(Resource.Success<UserEntity?>(userEntity))
                     } else {
                         // User exists in Auth but not in Firestore users collection (edge case)
-                        // Create a basic profile or emit error
                         val newUser = UserEntity(
                             userId = firebaseUser.uid,
                             email = firebaseUser.email,
@@ -56,17 +56,20 @@ class UserRepositoryImpl @Inject constructor(
                         )
                         usersCollection.document(firebaseUser.uid).set(newUser).await()
                         userDao.insertUser(newUser)
-                        emit(Resource.Success(newUser))
-                        // emit(Resource.Error("User profile not found in Firestore, created basic profile."))
+                        emit(Resource.Success<UserEntity?>(newUser))
                     }
-                } catch (e: Exception) {
-                    emit(Resource.Error("Failed to fetch user profile: ${e.message}"))
+                } else {
+                    emit(Resource.Success<UserEntity?>(null))
                 }
+            } else {
+                emit(Resource.Success<UserEntity?>(null)) // No user logged in
             }
-        } else {
-            emit(Resource.Success(null)) // No user logged in
         }
-    }
+            .onStart { emit(Resource.Loading<UserEntity?>()) }
+            .catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                emit(Resource.Error<UserEntity?>("Failed to fetch user profile: ${e.message}"))
+            }
 
     override suspend fun refreshCurrentUser(userId: String): Resource<Unit> = safeCall<Unit> {
         // Fetch from Firestore and update local DB
@@ -74,9 +77,9 @@ class UserRepositoryImpl @Inject constructor(
         val userEntity = documentSnapshot.toObject(UserEntity::class.java)
         if (userEntity != null) {
             userDao.insertUser(userEntity)
-            Resource.Success(Unit)
+            Unit
         } else {
-            Resource.Error("User profile not found in Firestore during refresh.")
+            throw IllegalStateException("User profile not found in Firestore during refresh.")
         }
     }.firstOrNull() ?: Resource.Error("Refresh operation failed unexpectedly")
 
@@ -84,31 +87,32 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun updateUserProfile(userEntity: UserEntity): Resource<Unit> = safeCall<Unit> {
         usersCollection.document(userEntity.userId).set(userEntity).await()
         userDao.insertUser(userEntity) // Update local cache
-        Resource.Success(Unit)
+        Unit
     }.firstOrNull() ?: Resource.Error("Update operation failed unexpectedly")
 
-    override fun getUserById(userId: String): Flow<Resource<UserEntity?>> = flow {
-        emit(Resource.Loading())
-        // Try local first
-        val localUser = userDao.getUserById(userId).firstOrNull()
-        if (localUser != null) {
-            emit(Resource.Success(localUser))
-        } else {
-            // Fetch from Firestore if not in local DB
-            try {
+    override fun getUserById(userId: String): Flow<Resource<UserEntity?>> =
+        flow<Resource<UserEntity?>> {
+            // Try local first
+            val localUser = userDao.getUserById(userId).firstOrNull()
+            if (localUser != null) {
+                emit(Resource.Success<UserEntity?>(localUser))
+            } else {
+                // Fetch from Firestore if not in local DB
                 val documentSnapshot = usersCollection.document(userId).get().await()
                 val userEntity = documentSnapshot.toObject(UserEntity::class.java)
                 if (userEntity != null) {
                     userDao.insertUser(userEntity) // Cache locally
-                    emit(Resource.Success(userEntity))
+                    emit(Resource.Success<UserEntity?>(userEntity))
                 } else {
-                    emit(Resource.Error("User with ID $userId not found in Firestore."))
+                    emit(Resource.Error<UserEntity?>("User with ID $userId not found in Firestore."))
                 }
-            } catch (e: Exception) {
-                emit(Resource.Error("Failed to fetch user profile by ID: ${e.message}"))
             }
         }
-    }
+            .onStart { emit(Resource.Loading<UserEntity?>()) }
+            .catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                emit(Resource.Error<UserEntity?>("Failed to fetch user profile by ID: ${e.message}"))
+            }
 
     override suspend fun updateUserType(userId: String, newType: UserType): Resource<Unit> = safeCall {
         if (firebaseAuth.currentUser == null) {
@@ -143,6 +147,51 @@ class UserRepositoryImpl @Inject constructor(
             Unit
         }
     }.firstOrNull() ?: Resource.Error("Failed to update verification status")
+
+    override suspend fun uploadVerificationEvidence(userId: String, evidenceUrls: List<String>): Resource<Unit> = safeCall {
+        // Store evidence under nested field to avoid Room schema changes
+        val docRef = usersCollection.document(userId)
+        val updateMap = mapOf(
+            "verification" to mapOf(
+                "evidence" to evidenceUrls,
+                "updatedAt" to System.currentTimeMillis()
+            )
+        )
+        docRef.set(updateMap, com.google.firebase.firestore.SetOptions.merge()).await()
+        Unit
+    }.firstOrNull() ?: Resource.Error("Failed to upload verification evidence")
+
+    override suspend fun requestBreederVerification(userId: String, breedingProofUrls: List<String>): Resource<Unit> = safeCall {
+        val docRef = usersCollection.document(userId)
+        val updateMap = mapOf(
+            "verification" to mapOf(
+                "breederProof" to breedingProofUrls,
+                "requestedAt" to System.currentTimeMillis(),
+                "status" to VerificationStatus.PENDING.name
+            )
+        )
+        docRef.set(updateMap, com.google.firebase.firestore.SetOptions.merge()).await()
+        // Also reflect status in Room user row if present
+        val current = userDao.getUserById(userId).firstOrNull() ?: UserEntity(userId = userId)
+        val updated = current.copy(verificationStatus = VerificationStatus.PENDING, updatedAt = System.currentTimeMillis())
+        userDao.insertUser(updated)
+        Unit
+    }.firstOrNull() ?: Resource.Error("Failed to request breeder verification")
+
+    override suspend fun updateFarmLocationVerification(userId: String, latitude: Double, longitude: Double): Resource<Unit> = safeCall {
+        val docRef = usersCollection.document(userId)
+        val snapshot = docRef.get().await()
+        val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
+        val updated = current.copy(
+            farmLocationLat = latitude,
+            farmLocationLng = longitude,
+            locationVerified = true,
+            updatedAt = System.currentTimeMillis()
+        )
+        docRef.set(updated).await()
+        userDao.insertUser(updated)
+        Unit
+    }.firstOrNull() ?: Resource.Error("Failed to update farm location verification")
 
     override suspend fun seedDemoUsers() {
         val entities = DemoAccounts.all.map { it.toUserEntity() }

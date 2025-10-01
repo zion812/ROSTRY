@@ -32,7 +32,7 @@ import com.rio.rostry.data.repository.CoinRepositoryImpl
 import com.rio.rostry.data.repository.LogisticsRepository
 import com.rio.rostry.data.repository.LogisticsRepositoryImpl
 import com.rio.rostry.data.repository.OrderRepository
-import com.rio.rostry.data.repository.OrderRepositoryImpl
+import com.rio.rostry.data.repository.AdvancedOrderService
 import com.rio.rostry.data.repository.InvoiceRepository
 import com.rio.rostry.data.repository.InvoiceRepositoryImpl
 import com.rio.rostry.data.repository.TraceabilityRepository
@@ -55,9 +55,12 @@ import com.rio.rostry.data.repository.monitoring.HatchingRepository
 import com.rio.rostry.data.repository.monitoring.HatchingRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepository
 import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepositoryImpl
+import com.rio.rostry.marketplace.payment.DefaultPaymentGateway
+import com.rio.rostry.marketplace.payment.PaymentGateway
 
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -118,7 +121,7 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindOrderRepository(impl: OrderRepositoryImpl): OrderRepository
+    abstract fun bindOrderRepository(impl: AdvancedOrderService): OrderRepository
 
     @Binds
     @Singleton
@@ -176,4 +179,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindFarmPerformanceRepository(impl: FarmPerformanceRepositoryImpl): FarmPerformanceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCommunityRepository(impl: com.rio.rostry.data.repository.CommunityRepositoryImpl): com.rio.rostry.data.repository.CommunityRepository
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object PaymentModule {
+    @Provides
+    @Singleton
+    fun providePaymentGateway(): PaymentGateway = DefaultPaymentGateway()
 }

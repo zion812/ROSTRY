@@ -2,42 +2,165 @@
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-## Contents
-- `architecture.md` — High-level overview of layers, navigation, background jobs, and integrations.
-- `transfer-workflow.md` — Ownership transfer lifecycle, verifications, disputes, automation, and testing tips.
-- `analytics-dashboard.md` — Role-specific dashboards, data pipelines, workers, and extension ideas.
-- `social-platform.md` — Community features (feed, messaging, groups, moderation) and background automation.
-- `data-contracts.md` — Room schema highlights, Firebase collections, Retrofit APIs, and validation utilities.
-- `testing-operations.md` — Testing strategy, security practices, operational procedures, and incident response.
+**Last Updated**: 2025-10-01  
+**Documentation Version**: 2.0
 
-## New Feature Guides
-- `payments-refunds.md` — Payment flow, refunds, UPI, validation, and error handling.
-- `logistics-tracking.md` — Order lifecycle, hubs, routing, and real-time tracking.
-- `farm-monitoring.md` — Monitoring modules, workers, analytics, and alerts.
-- `rbac-permissions.md` — RBAC model, guards, enforcement, and testing.
-- `media-pipeline.md` — Media compression, upload, caching, and display.
-- `feature-toggles.md` — Flags, A/B testing, and lifecycle.
-- `notification-system.md` — FCM integration, channels, and preferences.
-- `api-integration.md` — Retrofit, interceptors, rate limiting, and offline-first.
-- `security-encryption.md` — SQLCipher, biometrics, sessions, and audit logging.
-- `background-jobs.md` — WorkManager workers, constraints, and monitoring.
+## Table of Contents
 
-## ADRs (Architecture Decision Records)
-- `adrs/adr-001-database-encryption.md` — Database encryption with SQLCipher.
-- `adrs/adr-002-offline-first-sync.md` — Offline-first strategy and conflict policy.
-- `adrs/adr-003-worker-scheduling.md` — WorkManager scheduling strategy.
+- [Getting Started](#getting-started)
+- [Core Architecture](#core-architecture)
+- [Feature Guides](#feature-guides)
+- [Operations & Testing](#operations--testing)
+- [Architecture Decisions (ADRs)](#architecture-decisions-adrs)
+- [How to Use This Documentation](#how-to-use-this-documentation)
+
+## Getting Started
+
+Essential reading for new developers:
+
+| Document | Description | Audience |
+|----------|-------------|----------|
+| `developer-onboarding.md` | Complete setup guide, first steps, and tips | New developers |
+| `demo_quick_start.md` | Quick demo mode walkthrough | All users |
+| `architecture.md` | High-level system architecture overview | All developers |
+
+## Core Architecture
+
+Understanding the ROSTRY system:
+
+| Document | Description |
+|----------|-------------|
+| `architecture.md` | Layers, navigation, background jobs, integrations, diagrams |
+| `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation |
+| `testing-strategy.md` | Comprehensive testing approach and patterns |
+| `testing-operations.md` | Testing procedures, security practices, incident response |
+
+## Feature Guides
+
+### Social & Community
+
+| Document | Description |
+|----------|-------------|
+| `social-platform.md` | Feed, messaging, groups, events, community engagement hub |
+| `user-experience-guidelines.md` | UX patterns, components, wizards, tooltips, animations |
+
+### Marketplace & Transactions
+
+| Document | Description |
+|----------|-------------|
+| `transfer-workflow.md` | Ownership transfer lifecycle, verifications, disputes, automation |
+| `payments-refunds.md` | Payment flow, refunds, UPI, validation, error handling |
+| `logistics-tracking.md` | Order lifecycle, hubs, routing, real-time tracking |
+
+### Farm Management
+
+| Document | Description |
+|----------|-------------|
+| `farm-monitoring.md` | Monitoring modules, workers, analytics, alerts |
+| `analytics-dashboard.md` | Role-specific dashboards, data pipelines, AI recommendations |
+
+### Infrastructure
+
+| Document | Description |
+|----------|-------------|
+| `rbac-permissions.md` | RBAC model, guards, enforcement, testing |
+| `media-pipeline.md` | Media compression, upload, caching, display |
+| `feature-toggles.md` | Feature flags, A/B testing, lifecycle |
+| `notification-system.md` | FCM integration, channels, preferences, deep links |
+| `api-integration.md` | Retrofit, interceptors, rate limiting, offline-first |
+| `security-encryption.md` | SQLCipher, biometrics, sessions, audit logging |
+| `background-jobs.md` | WorkManager workers, constraints, monitoring |
+| `performance-optimization.md` | Performance best practices and profiling |
+| `maps-places-integration.md` | Maps and location services integration |
+
+## Operations & Testing
+
+| Document | Description |
+|----------|-------------|
+| `testing-strategy.md` | Unit, integration, UI testing approaches |
+| `testing-operations.md` | Security practices, operational procedures |
+| `troubleshooting.md` | Common issues and fixes |
+| `deployment.md` | Deployment procedures and checklists |
+
+## Architecture Decisions (ADRs)
+
+Decision records documenting key architectural choices:
+
+| ADR | Title | Status |
+|-----|-------|--------|
+| `adrs/adr-001-database-encryption.md` | Database encryption with SQLCipher | Accepted |
+| `adrs/adr-002-offline-first-sync.md` | Offline-first strategy and conflict policy | Accepted |
+| `adrs/adr-003-worker-scheduling.md` | WorkManager scheduling strategy | Accepted |
 
 ## Developer Resources
-- `../CONTRIBUTING.md` — Contribution workflow, testing, and reviews.
-- `../CODE_STYLE.md` — Code style, architecture, and testing conventions.
-- `api/` — Generated API docs (Dokka output).
-- `images/` — Diagrams and screenshots.
 
-## How to Use
-1. Start with `architecture.md` for overall context.
-2. Use the Feature Guides for domain-specific tasks.
-3. Consult `data-contracts.md` when updating database or remote schemas.
-4. Review ADRs for historical decisions and rationale.
-5. Align with `testing-operations.md` before release or security-sensitive changes.
+### External References
+- `../CONTRIBUTING.md` — Contribution workflow, testing, and reviews
+- `../CODE_STYLE.md` — Comprehensive code style guide
+- `../CHANGELOG.md` — Release notes and change history
+- `api/` — Generated API docs (Dokka output)
+- `images/` — Architecture diagrams and screenshots
 
-Keep the docs up to date by mirroring code changes and capturing architecture decisions in separate ADRs when appropriate.
+## How to Use This Documentation
+
+### For New Developers
+
+1. **Start here**: `developer-onboarding.md`
+2. **Understand architecture**: `architecture.md`
+3. **Learn patterns**: `CODE_STYLE.md`
+4. **Contribute**: `CONTRIBUTING.md`
+
+### For Feature Development
+
+1. **Review relevant feature guide** (e.g., `social-platform.md` for community features)
+2. **Check UX guidelines**: `user-experience-guidelines.md`
+3. **Update data contracts**: `data-contracts.md` if schema changes
+4. **Add tests**: Follow `testing-strategy.md`
+5. **Document decisions**: Create ADR if architectural change
+
+### For Troubleshooting
+
+1. **Check**: `troubleshooting.md` for common issues
+2. **Review**: Feature-specific docs for domain knowledge
+3. **Search**: Existing issues and PRs in repository
+
+### For Release Preparation
+
+1. **Test**: Follow `testing-operations.md` checklist
+2. **Review**: Security checklist in `security-encryption.md`
+3. **Update**: `CHANGELOG.md` with release notes
+4. **Deploy**: Follow `deployment.md` procedures
+
+## Common Tasks Quick Reference
+
+| Task | Relevant Documentation |
+|------|------------------------|
+| Adding a new screen | `architecture.md`, `user-experience-guidelines.md`, `CODE_STYLE.md` |
+| Database migration | `data-contracts.md`, `architecture.md` |
+| Background worker | `background-jobs.md`, `architecture.md` |
+| Firebase integration | `api-integration.md`, `data-contracts.md` |
+| Adding tests | `testing-strategy.md`, `CODE_STYLE.md` |
+| UX component | `user-experience-guidelines.md`, `CODE_STYLE.md` |
+| Security feature | `security-encryption.md`, `rbac-permissions.md` |
+
+## Documentation Standards
+
+When updating documentation:
+
+- **Keep it current**: Update docs with code changes
+- **Be specific**: Include code examples and screenshots
+- **Cross-reference**: Link to related documents
+- **Create ADRs**: Document significant architectural decisions
+- **Use consistent formatting**: Follow markdown best practices
+- **Include diagrams**: Use Mermaid for architecture diagrams
+
+## Contributing to Documentation
+
+See `CONTRIBUTING.md` for:
+- When to update documentation
+- Documentation file structure
+- KDoc requirements for code
+
+---
+
+**Questions or improvements?** Open an issue or PR with documentation suggestions.

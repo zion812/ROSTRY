@@ -95,6 +95,15 @@ object Routes {
         const val PERFORMANCE = "monitoring/performance"
     }
 
+    // Loveable product feature routes
+    object Loveable {
+        const val ACHIEVEMENTS = "love/achievements"
+        const val INSIGHTS = "love/insights"
+        const val FEEDBACK = "love/feedback"
+        const val HELP = "love/help"
+        const val COMMUNITY = "love/community"
+    }
+
     object GeneralNav {
         const val HOME = "home/general"
         const val MARKET = "general/market"
@@ -243,5 +252,29 @@ object Routes {
     const val MONITORING_GROWTH = Monitoring.GROWTH
     const val MONITORING_HATCHING = Monitoring.HATCHING
     const val MONITORING_PERFORMANCE = Monitoring.PERFORMANCE
+
+    //Loveable aliases
+    const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS
+    const val INSIGHTS = Loveable.INSIGHTS
+    const val FEEDBACK = Loveable.FEEDBACK
+    const val HELP = Loveable.HELP
+    const val COMMUNITY = Loveable.COMMUNITY
+
+    // Community Hub routes
+    object CommunityHub {
+        const val HUB = "community/hub"
+        const val GROUP_DETAILS = "community/group/{groupId}"
+        const val EVENT_DETAILS = "community/event/{eventId}"
+        const val EXPERT_PROFILE = "community/expert/{expertId}"
+        
+        fun createGroupRoute(groupId: String) = "community/group/$groupId"
+        fun createEventRoute(eventId: String) = "community/event/$eventId"
+        fun createExpertRoute(expertId: String) = "community/expert/$expertId"
+    }
+    
+    const val COMMUNITY_HUB = CommunityHub.HUB
+    const val GROUP_DETAILS = CommunityHub.GROUP_DETAILS
+    const val EVENT_DETAILS = CommunityHub.EVENT_DETAILS
+    const val EXPERT_PROFILE = CommunityHub.EXPERT_PROFILE
 
 } // Closing brace for object Routes

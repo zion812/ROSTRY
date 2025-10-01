@@ -155,3 +155,58 @@
 }
 
 # Add rules for any other specific libraries or reflective operations you might use.
+
+# --- ROSTRY additions ---
+# Keep Firestore model classes used via reflection
+-keep class com.rio.rostry.data.database.entity.** { *; }
+
+# Keep payment gateway abstractions
+-keep class com.rio.rostry.marketplace.payment.** { *; }
+
+# Keep pricing engine
+-keep class com.rio.rostry.marketplace.pricing.** { *; }
+
+# Keep notification handlers
+-keep class com.rio.rostry.utils.notif.** { *; }
+-keep class com.rio.rostry.services.AppFirebaseMessagingService { *; }
+
+# Keep sync services
+-keep class com.rio.rostry.data.sync.** { *; }
+
+# Keep utils referenced reflectively
+-keep class com.rio.rostry.utils.validation.** { *; }
+-keep class com.rio.rostry.utils.media.** { *; }
+-keep class com.rio.rostry.utils.network.** { *; }
+
+# Google Maps Platform
+-keep class com.google.android.libraries.places.** { *; }
+-keep class com.google.android.gms.maps.** { *; }
+
+# Firebase App Check
+-keep class com.google.firebase.appcheck.** { *; }
+-keep class com.google.firebase.appcheck.debug.** { *; }
+
+# Prevent obfuscation of App Check token classes
+-keepclassmembers class * {
+    @com.google.firebase.appcheck.AppCheckToken *;
+}
+
+# --- General User Feature Rules ---
+# Keep all General ViewModels to avoid obfuscation issues
+-keep class com.rio.rostry.ui.general.**.*ViewModel { *; }
+
+# Keep General UI state classes used in navigation
+-keep class com.rio.rostry.ui.general.**.* { *; }
+
+# Keep Navigation routes for deep links
+-keep class com.rio.rostry.ui.navigation.Routes$GeneralNav { *; }
+
+# Keep outbox entity for JSON serialization
+-keep class com.rio.rostry.data.database.entity.OutboxEntity { *; }
+
+# Keep analytics tracker for General user events
+-keep class com.rio.rostry.ui.general.analytics.GeneralAnalyticsTracker { *; }
+
+# Keep session and connectivity managers
+-keep class com.rio.rostry.session.** { *; }
+-keep class com.rio.rostry.utils.network.ConnectivityManager { *; }

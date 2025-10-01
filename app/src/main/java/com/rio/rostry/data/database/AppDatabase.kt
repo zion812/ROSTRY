@@ -66,9 +66,22 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MortalityRecordEntity::class,
         VaccinationRecordEntity::class,
         HatchingBatchEntity::class,
-        HatchingLogEntity::class
+        HatchingLogEntity::class,
+        // Gamification & Loveable product entities
+        AchievementEntity::class,
+        UserProgressEntity::class,
+        GamificationBadgeEntity::class,
+        LeaderboardEntity::class,
+        RewardEntity::class,
+        // Community entities
+        ThreadMetadataEntity::class,
+        CommunityRecommendationEntity::class,
+        UserInterestEntity::class,
+        ExpertProfileEntity::class,
+        // Outbox pattern for offline-first
+        OutboxEntity::class
     ],
-    version = 14, // Bumped to 14 adding farm monitoring tables
+    version = 18, // Bumped to 18 adding OutboxEntity for offline-first queued mutations
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -129,6 +142,20 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun eventRsvpsDao(): EventRsvpsDao
     abstract fun analyticsDao(): AnalyticsDao
     abstract fun reportsDao(): ReportsDao
+
+    // Gamification DAOs
+    abstract fun achievementsDefDao(): com.rio.rostry.data.database.dao.AchievementDao
+    abstract fun userProgressDao(): com.rio.rostry.data.database.dao.UserProgressDao
+    abstract fun badgesDefDao(): com.rio.rostry.data.database.dao.BadgeDefDao
+    abstract fun leaderboardDao(): com.rio.rostry.data.database.dao.LeaderboardDao
+    abstract fun rewardsDefDao(): com.rio.rostry.data.database.dao.RewardDefDao
+
+    // Community DAOs
+    abstract fun threadMetadataDao(): ThreadMetadataDao
+    abstract fun communityRecommendationDao(): CommunityRecommendationDao
+    abstract fun userInterestDao(): UserInterestDao
+    abstract fun expertProfileDao(): ExpertProfileDao
+    abstract fun outboxDao(): OutboxDao
 
     object Converters {
         @TypeConverter
@@ -626,6 +653,125 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_batchId` ON `hatching_logs` (`batchId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_productId` ON `hatching_logs` (`productId`)")
+            }
+        }
+
+        // Gamification tables
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Achievements definitions
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `achievements_def` (" +
+                        "`achievementId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `points` INTEGER NOT NULL, `category` TEXT, `icon` TEXT, " +
+                        "PRIMARY KEY(`achievementId`))"
+                )
+                // User progress
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `user_progress` (" +
+                        "`id` TEXT NOT NULL, `userId` TEXT NOT NULL, `achievementId` TEXT NOT NULL, `progress` INTEGER NOT NULL, `target` INTEGER NOT NULL, `unlockedAt` INTEGER, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_user_progress_userId` ON `user_progress` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_user_progress_achievementId` ON `user_progress` (`achievementId`)")
+
+                // Badges definitions
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `badges_def` (" +
+                        "`badgeId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `icon` TEXT, " +
+                        "PRIMARY KEY(`badgeId`))"
+                )
+
+                // Leaderboard
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `leaderboard` (" +
+                        "`id` TEXT NOT NULL, `periodKey` TEXT NOT NULL, `userId` TEXT NOT NULL, `score` INTEGER NOT NULL, `rank` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_leaderboard_periodKey` ON `leaderboard` (`periodKey`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_leaderboard_rank` ON `leaderboard` (`rank`)")
+
+                // Rewards definitions
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `rewards_def` (" +
+                        "`rewardId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `pointsRequired` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`rewardId`))"
+                )
+            }
+        }
+
+        // Community engagement tables
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // thread_metadata
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `thread_metadata` (" +
+                        "`threadId` TEXT NOT NULL, `title` TEXT, `contextType` TEXT, `relatedEntityId` TEXT, `topic` TEXT, " +
+                        "`participantIds` TEXT NOT NULL, `lastMessageAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`threadId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_thread_metadata_contextType` ON `thread_metadata` (`contextType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_thread_metadata_lastMessageAt` ON `thread_metadata` (`lastMessageAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_thread_metadata_createdAt` ON `thread_metadata` (`createdAt`)")
+
+                // community_recommendations
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `community_recommendations` (" +
+                        "`recommendationId` TEXT NOT NULL, `userId` TEXT NOT NULL, `type` TEXT NOT NULL, `targetId` TEXT NOT NULL, " +
+                        "`score` REAL NOT NULL, `reason` TEXT, `createdAt` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `dismissed` INTEGER NOT NULL DEFAULT 0, " +
+                        "PRIMARY KEY(`recommendationId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_recommendations_userId` ON `community_recommendations` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_recommendations_type` ON `community_recommendations` (`type`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_recommendations_score` ON `community_recommendations` (`score`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_recommendations_expiresAt` ON `community_recommendations` (`expiresAt`)")
+
+                // user_interests
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `user_interests` (" +
+                        "`interestId` TEXT NOT NULL, `userId` TEXT NOT NULL, `category` TEXT NOT NULL, `value` TEXT NOT NULL, " +
+                        "`weight` REAL NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`interestId`))"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_user_interests_userId_category_value` ON `user_interests` (`userId`, `category`, `value`)")
+
+                // expert_profiles
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `expert_profiles` (" +
+                        "`userId` TEXT NOT NULL, `specialties` TEXT NOT NULL, `bio` TEXT, `rating` REAL NOT NULL, " +
+                        "`totalConsultations` INTEGER NOT NULL, `availableForBooking` INTEGER NOT NULL, `hourlyRate` REAL, `updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`userId`))"
+                )
+            }
+        }
+
+        // Add KYC document upload columns to users table
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add new KYC-related columns to users table with appropriate defaults
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycDocumentUrls` TEXT")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycImageUrls` TEXT")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycDocumentTypes` TEXT")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycUploadStatus` TEXT")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycUploadedAt` INTEGER")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycVerifiedAt` INTEGER")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycRejectionReason` TEXT")
+            }
+        }
+
+        // Add outbox table for offline-first queued mutations
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `outbox` (" +
+                        "`outboxId` TEXT NOT NULL, `userId` TEXT NOT NULL, `entityType` TEXT NOT NULL, " +
+                        "`entityId` TEXT NOT NULL, `operation` TEXT NOT NULL, `payloadJson` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL, `lastAttemptAt` INTEGER, " +
+                        "`status` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`outboxId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_userId` ON `outbox` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_status` ON `outbox` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_createdAt` ON `outbox` (`createdAt`)")
             }
         }
     }

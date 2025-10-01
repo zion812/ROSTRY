@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ROSTRY</string>
+    
+    <!-- Common strings -->
+    <string name="error">లోపం</string>
+    <string name="success">విజయం</string>
+    <string name="loading">లోడ్ అవుతోంది</string>
+    <string name="retry">మళ్ళీ ప్రయత్నించండి</string>
+    <string name="cancel">రద్దు చేయండి</string>
+    <string name="save">సేవ్ చేయండి</string>
+    <string name="edit">సవరించండి</string>
+    <string name="delete">తొలగించండి</string>
+    <string name="clear">క్లియర్ చేయండి</string>
+    <string name="apply">వర్తించు</string>
+    <string name="close">మూసివేయండి</string>
+    
+    <!-- Market tab strings -->
+    <string name="marketplace">మార్కెట్‌ప్లేస్</string>
+    <string name="search_hint">జాతులు, వయస్సు, స్థానం, విక్రేతలను శోధించండి</string>
+    <string name="preset_nearby_verified">సమీపంలో &amp; ధృవీకరించబడినవి</string>
+    <string name="preset_traceable">ట్రేసబుల్ మాత్రమే</string>
+    <string name="preset_budget">బడ్జెట్ స్నేహపూర్వక</string>
+    <string name="preset_premium">ప్రీమియం</string>
+    <string name="no_products_found">ఉత్పత్తులు కనుగొనబడలేదు</string>
+    <string name="try_adjusting_filters">ఫిల్టర్‌లను సర్దుబాటు చేయడానికి ప్రయత్నించండి</string>
+    <string name="trending_now">ఇప్పుడు ట్రెండింగ్</string>
+    <string name="recommended_for_you">మీ కోసం సిఫార్సు చేయబడినది</string>
+    <string name="add_to_cart">కార్ట్‌కు జోడించండి</string>
+    <string name="view_details">వివరాలను చూడండి</string>
+    <string name="traceability">ట్రేసబిలిటీ</string>
+    <string name="in_stock">స్టాక్‌లో ఉంది</string>
+    <string name="out_of_stock">స్టాక్ అయిపోయింది</string>
+    <string name="only_x_left">కేవలం %d మాత్రమే మిగిలి ఉన్నాయి</string>
+    
+    <!-- Cart tab strings -->
+    <string name="your_cart">మీ కార్ట్</string>
+    <string name="cart_experience">కార్ట్ అనుభవం</string>
+    <string name="delivery">డెలివరీ</string>
+    <string name="payment_method">చెల్లింపు పద్ధతి</string>
+    <string name="delivery_address">డెలివరీ చిరునామా</string>
+    <string name="place_order">ఆర్డర్ చేయండి</string>
+    <string name="processing">ప్రాసెస్ అవుతోంది</string>
+    <string name="order_placed_successfully">ఆర్డర్ విజయవంతంగా చేయబడింది</string>
+    <string name="sign_in_to_manage_cart">మీ కార్ట్‌ను నిర్వహించడానికి సైన్ ఇన్ చేయండి</string>
+    <string name="recent_orders">ఇటీవలి ఆర్డర్లు</string>
+    <string name="subtotal">ఉప మొత్తం</string>
+    <string name="total">మొత్తం</string>
+    <string name="cod">డెలివరీపై చెల్లింపు</string>
+    <string name="mock_payment">డెమో చెల్లింపు</string>
+    <string name="standard_delivery">ప్రామాణిక డెలివరీ</string>
+    <string name="express_delivery">ఎక్స్‌ప్రెస్ డెలివరీ</string>
+    <string name="self_pickup">స్వీయ పికప్</string>
+    <string name="order_queued_offline">ఆన్‌లైన్ అయినప్పుడు సబ్మిషన్ కోసం ఆర్డర్ క్యూ చేయబడింది</string>
+    <string name="pending_orders_sync">మీరు ఆన్‌లైన్‌లో ఉన్నప్పుడు సింక్ అయ్యే పెండింగ్ ఆర్డర్లు ఉన్నాయి</string>
+    
+    <!-- Explore tab strings -->
+    <string name="explore_community">సంఘాన్ని అన్వేషించండి</string>
+    <string name="explore_search_hint">@వినియోగదారులు, #హ్యాష్‌ట్యాగ్‌లు, loc:నగరం శోధించండి</string>
+    <string name="recent">ఇటీవల</string>
+    <string name="popular">ప్రసిద్ధ</string>
+    <string name="nearby">సమీపంలో</string>
+    <string name="following">ఫాలోయింగ్</string>
+    <string name="search_tips">శోధన చిట్కాలు</string>
+    <string name="hashtags">హ్యాష్‌ట్యాగ్‌లు</string>
+    <string name="mentions">పేర్కొన్నవి</string>
+    <string name="location">స్థానం</string>
+    <string name="breed">జాతి</string>
+    <string name="color">రంగు</string>
+    <string name="combine_filters">బహుళ ఫిల్టర్‌లను కలపండి</string>
+    
+    <!-- Create tab strings -->
+    <string name="create_post">పోస్ట్ సృష్టించండి</string>
+    <string name="share_thoughts">మీ ఆలోచనలను పంచుకోండి</string>
+    <string name="privacy">గోప్యత</string>
+    <string name="privacy_public">పబ్లిక్</string>
+    <string name="followers">ఫాలోవర్లు</string>
+    <string name="verified_buyers">ధృవీకరించబడిన కొనుగోలుదారులు</string>
+    <string name="add_location">స్థానాన్ని జోడించండి</string>
+    <string name="add_media">మీడియాను జోడించండి</string>
+    <string name="share_with_community">కమ్యూనిటీతో పంచుకోండి</string>
+    <string name="sharing">పంచుకుంటోంది</string>
+    <string name="post_created_successfully">పోస్ట్ విజయవంతంగా సృష్టించబడింది</string>
+    
+    <!-- Profile tab strings -->
+    <string name="your_profile">మీ ప్రొఫైల్</string>
+    <string name="preferences">ప్రాధాన్యతలు</string>
+    <string name="order_notifications">ఆర్డర్ నోటిఫికేషన్లు</string>
+    <string name="marketing_emails">మార్కెటింగ్ ఇమెయిల్స్</string>
+    <string name="product_recommendations">ఉత్పత్తి సిఫార్సులు</string>
+    <string name="support_feedback">మద్దతు &amp; అభిప్రాయం</string>
+    <string name="help_center">హెల్ప్ సెంటర్</string>
+    <string name="contact_support">మద్దతును సంప్రదించండి</string>
+    <string name="report_issue">సమస్యను నివేదించండి</string>
+    <string name="sign_in_to_view_profile">మీ ప్రొఫైల్‌ను చూడటానికి సైన్ ఇన్ చేయండి</string>
+</resources>

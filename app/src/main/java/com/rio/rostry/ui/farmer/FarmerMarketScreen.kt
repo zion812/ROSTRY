@@ -16,6 +16,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
@@ -29,7 +31,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
+import java.text.SimpleDateFormat
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmerMarketScreen(
     onCreateListing: () -> Unit,
@@ -39,6 +51,10 @@ fun FarmerMarketScreen(
     onOpenOrder: (String) -> Unit,
     onOpenProduct: (String) -> Unit = {},
     onApplyPriceBreed: (Double?, Double?, String?) -> Unit = { _, _, _ -> },
+    onApplyDateFilter: (Long?, Long?) -> Unit = { _, _ -> },
+    onClearDateFilter: () -> Unit = {},
+    startDate: Long? = null,
+    endDate: Long? = null,
     selectedTabIndex: Int = 0,
     onSelectTab: (Int) -> Unit = {},
     metricsRevenue: Double = 0.0,
@@ -70,6 +86,10 @@ fun FarmerMarketScreen(
                     onOpenOrder = onOpenOrder,
                     onOpenProduct = onOpenProduct,
                     onApplyPriceBreed = onApplyPriceBreed,
+                    onApplyDateFilter = onApplyDateFilter,
+                    onClearDateFilter = onClearDateFilter,
+                    startDate = startDate,
+                    endDate = endDate,
                     isLoading = isLoadingBrowse,
                     items = browse,
                     onSelectCategoryMeat = onSelectCategoryMeat,
@@ -100,11 +120,16 @@ fun FarmerMarketScreen(
 
 enum class MarketMode { Browse, Sell }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BrowseMarket(
     onOpenOrder: (String) -> Unit,
     onOpenProduct: (String) -> Unit,
     onApplyPriceBreed: (Double?, Double?, String?) -> Unit,
+    onApplyDateFilter: (Long?, Long?) -> Unit,
+    onClearDateFilter: () -> Unit,
+    startDate: Long?,
+    endDate: Long?,
     isLoading: Boolean,
     items: List<Listing>,
     onSelectCategoryMeat: () -> Unit,
@@ -117,40 +142,110 @@ private fun BrowseMarket(
     nonTraceableSelected: Boolean,
 ) {
     // Use a single LazyColumn that contains header controls and the list items to ensure smooth scrolling
+    var searchText by remember { mutableStateOf("") }
+    var filtersExpanded by remember { mutableStateOf(false) }
     var minPriceText by remember { mutableStateOf("") }
     var maxPriceText by remember { mutableStateOf("") }
     var breedText by remember { mutableStateOf("") }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var selectedStartDate by remember { mutableStateOf(startDate) }
+    var selectedEndDate by remember { mutableStateOf(endDate) }
+    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+
+    // Client-side filter by search text
+    val displayed = if (searchText.isBlank()) items else items.filter {
+        it.title.contains(searchText, ignoreCase = true)
+    }
+
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Search + Filter toggle row
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                FilterChip(selected = categoryMeatSelected, onClick = onSelectCategoryMeat, label = { Text("Meat") })
-                FilterChip(selected = categoryAdoptionSelected, onClick = onSelectCategoryAdoption, label = { Text("Adoption") })
-                FilterChip(selected = traceableSelected, onClick = onSelectTraceable, label = { Text("Traceable") })
-                FilterChip(selected = nonTraceableSelected, onClick = onSelectNonTraceable, label = { Text("Non-traceable") })
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text("Search") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { filtersExpanded = !filtersExpanded }) {
+                            Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(value = minPriceText, onValueChange = { minPriceText = it }, label = { Text("Min ₹") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = maxPriceText, onValueChange = { maxPriceText = it }, label = { Text("Max ₹") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = breedText, onValueChange = { breedText = it }, label = { Text("Breed") }, modifier = Modifier.fillMaxWidth())
+
+        // Filters panel (collapsible)
+        if (filtersExpanded) {
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    FilterChip(selected = categoryMeatSelected, onClick = onSelectCategoryMeat, label = { Text("Meat") })
+                    FilterChip(selected = categoryAdoptionSelected, onClick = onSelectCategoryAdoption, label = { Text("Adoption") })
+                    FilterChip(selected = traceableSelected, onClick = onSelectTraceable, label = { Text("Traceable") })
+                    FilterChip(selected = nonTraceableSelected, onClick = onSelectNonTraceable, label = { Text("Non-traceable") })
+                }
             }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = {
-                    val min = minPriceText.toDoubleOrNull()
-                    val max = maxPriceText.toDoubleOrNull()
-                    val breed = breedText.ifBlank { null }
-                    onApplyPriceBreed(min, max, breed)
-                }) { Text("Apply Filters") }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(value = minPriceText, onValueChange = { minPriceText = it }, label = { Text("Min ₹") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = maxPriceText, onValueChange = { maxPriceText = it }, label = { Text("Max ₹") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = breedText, onValueChange = { breedText = it }, label = { Text("Breed") }, modifier = Modifier.fillMaxWidth())
+                    
+                    Text("Date Range Filter", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { showStartDatePicker = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(selectedStartDate?.let { dateFormat.format(it) } ?: "Start Date")
+                        }
+                        OutlinedButton(
+                            onClick = { showEndDatePicker = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(selectedEndDate?.let { dateFormat.format(it) } ?: "End Date")
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = {
+                                onApplyDateFilter(selectedStartDate, selectedEndDate)
+                            },
+                            enabled = selectedStartDate != null || selectedEndDate != null
+                        ) {
+                            Text("Apply Date Filter")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                selectedStartDate = null
+                                selectedEndDate = null
+                                onClearDateFilter()
+                            },
+                            enabled = selectedStartDate != null || selectedEndDate != null
+                        ) {
+                            Text("Clear Dates")
+                        }
+                    }
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = {
+                            val min = minPriceText.toDoubleOrNull()
+                            val max = maxPriceText.toDoubleOrNull()
+                            val breed = breedText.ifBlank { null }
+                            onApplyPriceBreed(min, max, breed)
+                        }) { Text("Apply Filters") }
+                    }
+                }
             }
+            item { Divider(modifier = Modifier.padding(vertical = 4.dp)) }
         }
-        item { Divider(modifier = Modifier.padding(vertical = 4.dp)) }
+
         if (isLoading) {
             item { Text("Loading...") }
         }
-        items(items) { item ->
+        items(displayed) { item ->
             Card { Column(Modifier.padding(12.dp)) {
                 Text(item.title, style = MaterialTheme.typography.titleMedium)
                 Text("₹${item.price}")
@@ -164,6 +259,51 @@ private fun BrowseMarket(
                     Button(onClick = { onOpenProduct(item.id) }) { Text("Buy") }
                 }
             } }
+        }
+    }
+    
+    // Date Pickers
+    if (showStartDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showStartDatePicker = false },
+            confirmButton = {
+                Button(onClick = {
+                    selectedStartDate = datePickerState.selectedDateMillis
+                    showStartDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showStartDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+    
+    if (showEndDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                Button(onClick = {
+                    selectedEndDate = datePickerState.selectedDateMillis
+                    showEndDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showEndDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

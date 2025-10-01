@@ -14,6 +14,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
@@ -411,6 +418,10 @@ private fun RoleNavGraph(
                 mine = state.mine.map(::map),
                 onRefresh = { vm.refresh() },
                 onApplyPriceBreed = { min, max, breed -> vm.applyPriceBreed(min, max, breed) },
+                onApplyDateFilter = { s, e -> vm.applyDateFilter(s, e) },
+                onClearDateFilter = { vm.clearDateFilter() },
+                startDate = state.startDate,
+                endDate = state.endDate,
                 onSelectCategoryMeat = { vm.selectCategory(com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Meat) },
                 onSelectCategoryAdoption = { vm.selectCategory(com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Adoption) },
                 onSelectTraceable = { vm.selectTrace(com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.Traceable) },
@@ -437,10 +448,7 @@ private fun RoleNavGraph(
             }
 
             FarmerCreateScreen(
-                locationVerified = vstate.user?.locationVerified == true,
-                onRequestVerifyLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
-                onSubmitListing = { form -> createVm.submitListing(form) },
-                onCreatePost = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(Routes.FarmerNav.COMMUNITY) {
@@ -594,9 +602,6 @@ private fun RoleNavGraph(
                 }
             }
             TransferCreateScreen(
-                state = state,
-                onUpdate = { f, v -> vm.update(f, v) },
-                onSubmit = { vm.create() },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -632,6 +637,45 @@ private fun RoleNavGraph(
         composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
         composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
         composable(Routes.LIVE_BROADCAST) { LiveBroadcastScreen(onBack = { navController.popBackStack() }) }
+
+        // Community Hub destinations
+        composable(Routes.COMMUNITY_HUB) {
+            val sessionVm: SessionViewModel = hiltViewModel()
+            val sessionState by sessionVm.uiState.collectAsState()
+            val userType = sessionState.role ?: com.rio.rostry.domain.model.UserType.GENERAL
+            com.rio.rostry.ui.community.CommunityHubScreen(
+                userType = userType,
+                onNavigateToThread = { threadId -> navController.navigate("messages/$threadId") },
+                onNavigateToGroup = { groupId -> navController.navigate(Routes.CommunityHub.createGroupRoute(groupId)) },
+                onNavigateToEvent = { eventId -> navController.navigate(Routes.CommunityHub.createEventRoute(eventId)) },
+                onNavigateToExpert = { expertId -> navController.navigate(Routes.CommunityHub.createExpertRoute(expertId)) },
+                onNavigateToPost = { postId -> navController.navigate("product/$postId") }
+            )
+        }
+
+        composable(
+            route = Routes.GROUP_DETAILS,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            PlaceholderScreen(title = "Group: $groupId")
+        }
+
+        composable(
+            route = Routes.EVENT_DETAILS,
+            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId") ?: return@composable
+            PlaceholderScreen(title = "Event: $eventId")
+        }
+
+        composable(
+            route = Routes.EXPERT_PROFILE,
+            arguments = listOf(navArgument("expertId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val expertId = backStackEntry.arguments?.getString("expertId") ?: return@composable
+            PlaceholderScreen(title = "Expert: $expertId")
+        }
 
         composable(Routes.NOTIFICATIONS) {
             val vm: NotificationsViewModel = hiltViewModel()
@@ -684,6 +728,8 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.monitoring.HatchingProcessScreen()
         }
         composable(Routes.MONITORING_DASHBOARD) {
+            val vm: com.rio.rostry.ui.monitoring.vm.FarmMonitoringViewModel = hiltViewModel()
+            val summary by vm.summary.collectAsState()
             com.rio.rostry.ui.monitoring.FarmMonitoringScreen(
                 onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
                 onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
@@ -691,11 +737,35 @@ private fun RoleNavGraph(
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
                 onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
                 onOpenHatching = { navController.navigate(Routes.MONITORING_HATCHING) },
-                onOpenPerformance = { navController.navigate(Routes.MONITORING_PERFORMANCE) }
+                onOpenPerformance = { navController.navigate(Routes.MONITORING_PERFORMANCE) },
+                summary = summary
             )
         }
         composable(Routes.MONITORING_PERFORMANCE) {
             com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
+        }
+
+        // Loveable product features
+        composable(Routes.ACHIEVEMENTS) {
+            com.rio.rostry.ui.gamification.AchievementsScreen()
+        }
+        composable(Routes.INSIGHTS) {
+            com.rio.rostry.ui.insights.InsightsScreen()
+        }
+        composable(Routes.FEEDBACK) {
+            com.rio.rostry.ui.feedback.FeedbackScreen()
+        }
+        composable(Routes.HELP) {
+            com.rio.rostry.ui.support.HelpScreen()
+        }
+        composable(Routes.ONBOARD_GENERAL) {
+            com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.GENERAL, onComplete = { navController.popBackStack() })
+        }
+        composable(Routes.ONBOARD_FARMER) {
+            com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.FARMER, onComplete = { navController.popBackStack() })
+        }
+        composable(Routes.ONBOARD_ENTHUSIAST) {
+            com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.ENTHUSIAST, onComplete = { navController.popBackStack() })
         }
 
         // Dev/Showcase: Component Gallery (available only in debug builds)
@@ -737,14 +807,42 @@ private fun RoleBottomBar(
                         }
                     },
                     icon = {
+                        val icon = iconForRoute(destination.route)
                         BadgedBox(badge = {
                             if (badgeCount > 0) Badge { Text(badgeCount.toString()) }
-                        }) { Text(labelInitial) }
+                        }) {
+                            if (icon != null) {
+                                Icon(imageVector = icon, contentDescription = destination.label)
+                            } else {
+                                Text(labelInitial)
+                            }
+                        }
                     },
                     label = { Text(destination.label) }
                 )
             }
         }
+    }
+}
+
+// Map bottom navigation routes to Material icons
+private fun iconForRoute(route: String): androidx.compose.ui.graphics.vector.ImageVector? {
+    val base = route.substringBefore("/{")
+    return when (base) {
+        Routes.FarmerNav.HOME, Routes.EnthusiastNav.HOME -> Icons.Filled.Home
+        Routes.FarmerNav.MARKET -> Icons.Filled.Store
+        Routes.FarmerNav.CREATE, Routes.EnthusiastNav.CREATE -> Icons.Filled.Add
+        Routes.FarmerNav.COMMUNITY -> Icons.Filled.Groups
+        Routes.FarmerNav.PROFILE -> Icons.Filled.Person
+        Routes.EnthusiastNav.EXPLORE -> Icons.Filled.Search
+        Routes.EnthusiastNav.DASHBOARD -> Icons.Filled.Dashboard
+        Routes.EnthusiastNav.TRANSFERS -> Icons.Filled.SwapHoriz
+        Routes.GeneralNav.MARKET -> Icons.Filled.Store
+        Routes.GeneralNav.EXPLORE -> Icons.Filled.Search
+        Routes.GeneralNav.CREATE -> Icons.Filled.Add
+        Routes.GeneralNav.CART -> Icons.Filled.Store
+        Routes.GeneralNav.PROFILE -> Icons.Filled.Person
+        else -> null
     }
 }
 

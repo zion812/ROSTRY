@@ -1,15 +1,58 @@
 package com.rio.rostry.ui.monitoring
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
+@Immutable
+data class MonitoringSummary(
+    val growthTracked: Int = 0,
+    val breedingPairs: Int = 0,
+    val eggsCollectedToday: Int = 0,
+    val incubatingBatches: Int = 0,
+    val hatchDueThisWeek: Int = 0,
+    val broodingBatches: Int = 0,
+    val vaccinationDue: Int = 0,
+    val vaccinationOverdue: Int = 0,
+    val quarantineActive: Int = 0,
+    val mortalityLast7d: Int = 0,
+    val pendingAlerts: List<String> = emptyList(),
+    val weeklyCadence: List<String> = emptyList(),
+)
 
 @Composable
 fun FarmMonitoringScreen(
@@ -19,23 +62,369 @@ fun FarmMonitoringScreen(
     onOpenQuarantine: () -> Unit,
     onOpenMortality: () -> Unit,
     onOpenHatching: () -> Unit,
-    onOpenPerformance: () -> Unit
+    onOpenPerformance: () -> Unit,
+    summary: MonitoringSummary = MonitoringSummary()
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Farm Monitoring Dashboard")
-        ElevatedCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpenGrowth) { Text("Growth Monitoring") }
-                Button(onClick = onOpenVaccination) { Text("Vaccination Schedule") }
-                Button(onClick = onOpenBreeding) { Text("Breeding Management") }
-                Button(onClick = onOpenQuarantine) { Text("Quarantine Management") }
-                Button(onClick = onOpenMortality) { Text("Mortality Tracking") }
-                Button(onClick = onOpenHatching) { Text("Hatching Process") }
-                Button(onClick = onOpenPerformance) { Text("Farm Performance") }
+        // Header with last updated
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Farm Dashboard", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Updated now", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        // Alerts Priority Card (if alerts exist)
+        if (summary.pendingAlerts.isNotEmpty()) {
+            AlertsPriorityCard(
+                alerts = summary.pendingAlerts,
+                onOpenVaccination = onOpenVaccination,
+                onOpenQuarantine = onOpenQuarantine,
+                onOpenMortality = onOpenMortality
+            )
+        }
+
+        // Quick Actions Grid
+        QuickActionsGrid(
+            summary = summary,
+            onOpenGrowth = onOpenGrowth,
+            onOpenVaccination = onOpenVaccination,
+            onOpenMortality = onOpenMortality,
+            onOpenQuarantine = onOpenQuarantine,
+            onOpenHatching = onOpenHatching,
+            onOpenPerformance = onOpenPerformance
+        )
+
+        // Metrics Summary Card (collapsible)
+        MetricsSummaryCard(summary = summary)
+
+        // Upcoming Tasks Card
+        UpcomingTasksCard(
+            summary = summary,
+            onOpenVaccination = onOpenVaccination,
+            onOpenHatching = onOpenHatching
+        )
+    }
+}
+
+@Composable
+private fun AlertsPriorityCard(
+    alerts: List<String>,
+    onOpenVaccination: () -> Unit,
+    onOpenQuarantine: () -> Unit,
+    onOpenMortality: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    "⚠️ Urgent Alerts",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
             }
+            alerts.take(3).forEach { alert ->
+                AlertRow(
+                    text = alert,
+                    onAction = {
+                        when {
+                            alert.contains("vaccination", ignoreCase = true) -> onOpenVaccination()
+                            alert.contains("quarantine", ignoreCase = true) -> onOpenQuarantine()
+                            alert.contains("mortality", ignoreCase = true) -> onOpenMortality()
+                            else -> { }
+                        }
+                    }
+                )
+            }
+            if (alerts.size > 3) {
+                Text(
+                    "+ ${alerts.size - 3} more alerts",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlertRow(text: String, onAction: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onErrorContainer
+        )
+        OutlinedButton(
+            onClick = onAction,
+            modifier = Modifier.height(32.dp)
+        ) {
+            Text("View", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun QuickActionsGrid(
+    summary: MonitoringSummary,
+    onOpenGrowth: () -> Unit,
+    onOpenVaccination: () -> Unit,
+    onOpenMortality: () -> Unit,
+    onOpenQuarantine: () -> Unit,
+    onOpenHatching: () -> Unit,
+    onOpenPerformance: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Quick Actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            QuickActionCard(
+                icon = Icons.Filled.TrendingUp,
+                label = "Record Growth",
+                count = summary.growthTracked,
+                onClick = onOpenGrowth,
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionCard(
+                icon = Icons.Filled.Vaccines,
+                label = "Log Vaccination",
+                count = summary.vaccinationDue,
+                onClick = onOpenVaccination,
+                modifier = Modifier.weight(1f),
+                urgent = summary.vaccinationOverdue > 0
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            QuickActionCard(
+                icon = Icons.Filled.Report,
+                label = "Report Mortality",
+                count = summary.mortalityLast7d,
+                onClick = onOpenMortality,
+                modifier = Modifier.weight(1f),
+                urgent = summary.mortalityLast7d > 0
+            )
+            QuickActionCard(
+                icon = Icons.Filled.MedicalServices,
+                label = "Check Quarantine",
+                count = summary.quarantineActive,
+                onClick = onOpenQuarantine,
+                modifier = Modifier.weight(1f),
+                urgent = summary.quarantineActive > 0
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            QuickActionCard(
+                icon = Icons.Filled.Egg,
+                label = "View Hatching",
+                count = summary.incubatingBatches,
+                onClick = onOpenHatching,
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionCard(
+                icon = Icons.Filled.Assessment,
+                label = "Performance",
+                count = 0,
+                onClick = onOpenPerformance,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionCard(
+    icon: ImageVector,
+    label: String,
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    urgent: Boolean = false
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = if (urgent) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = if (urgent) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (urgent) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
+            )
+            if (count > 0) {
+                Text(
+                    text = "$count tracked",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (urgent) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricsSummaryCard(summary: MonitoringSummary) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Farm Overview", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = if (expanded) "Collapse" else "Expand"
+                    )
+                }
+            }
+            if (expanded) {
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MetricRow("Growth Tracked", summary.growthTracked.toString())
+                    MetricRow("Breeding Pairs", summary.breedingPairs.toString())
+                    MetricRow("Eggs Today", summary.eggsCollectedToday.toString())
+                    MetricRow("Incubating Batches", summary.incubatingBatches.toString())
+                    MetricRow("Hatch Due (7d)", summary.hatchDueThisWeek.toString())
+                    MetricRow("Vaccination Due", summary.vaccinationDue.toString(), urgent = summary.vaccinationOverdue > 0)
+                    MetricRow("Quarantine Active", summary.quarantineActive.toString(), urgent = summary.quarantineActive > 0)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricRow(label: String, value: String, urgent: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun UpcomingTasksCard(
+    summary: MonitoringSummary,
+    onOpenVaccination: () -> Unit,
+    onOpenHatching: () -> Unit
+) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Upcoming Tasks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            
+            if (summary.vaccinationDue > 0) {
+                TaskRow(
+                    icon = Icons.Filled.Vaccines,
+                    title = "Vaccinations Due",
+                    subtitle = "${summary.vaccinationDue} birds need vaccination",
+                    onClick = onOpenVaccination
+                )
+            }
+            
+            if (summary.hatchDueThisWeek > 0) {
+                TaskRow(
+                    icon = Icons.Filled.Egg,
+                    title = "Hatching Expected",
+                    subtitle = "${summary.hatchDueThisWeek} batches due this week",
+                    onClick = onOpenHatching
+                )
+            }
+            
+            if (summary.vaccinationDue == 0 && summary.hatchDueThisWeek == 0) {
+                Text(
+                    "No upcoming tasks",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        OutlinedButton(onClick = onClick) {
+            Text("View")
         }
     }
 }

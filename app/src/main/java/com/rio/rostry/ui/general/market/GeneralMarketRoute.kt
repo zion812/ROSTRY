@@ -12,16 +12,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,6 +39,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -49,9 +58,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -112,6 +128,7 @@ fun GeneralMarketRoute(
         onToggleVerified = {
             viewModel.updateFilters { it.copy(verifiedOnly = !it.verifiedOnly) }
         },
+        onApplyPreset = viewModel::applyQuickPreset,
         onSelectBreed = { breed ->
             viewModel.updateFilters {
                 val same = it.selectedBreed.equals(breed, ignoreCase = true)
@@ -126,7 +143,9 @@ fun GeneralMarketRoute(
         },
         onOpenProductDetails = onOpenProductDetails,
         onOpenTraceability = onOpenTraceability,
-        onAddToCart = viewModel::addToCart
+        onAddToCart = viewModel::addToCart,
+        onToggleWishlist = viewModel::toggleWishlist,
+        onTrackView = viewModel::trackProductView
     )
 }
 
@@ -140,11 +159,14 @@ private fun GeneralMarketScreen(
     onToggleNearby: () -> Unit,
     onSetLocation: (Double, Double) -> Unit,
     onToggleVerified: () -> Unit,
+    onApplyPreset: (GeneralMarketViewModel.QuickPreset) -> Unit,
     onSelectBreed: (String) -> Unit,
     onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit,
     onOpenProductDetails: (String) -> Unit,
     onOpenTraceability: (String) -> Unit,
-    onAddToCart: (ProductEntity, Double) -> Unit
+    onAddToCart: (ProductEntity, Double) -> Unit,
+    onToggleWishlist: (ProductEntity) -> Unit,
+    onTrackView: (String) -> Unit
 ) {
     var showLocationDialog by remember { mutableStateOf(false) }
     var showSuggestions by remember { mutableStateOf(false) }
@@ -186,10 +208,13 @@ private fun GeneralMarketScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            FilterRow(
-                filters = state.filters,
-                breeds = state.products.mapNotNull { it.breed }.distinct().sorted(),
-                onToggleNearby = onToggleNearby,
+            // Compact Filter Bar with Badge
+            var showFilterSheet by remember { mutableStateOf(false) }
+            CompactFilterBar(
+                activeCount = state.activeFilterCount,
+                presets = state.filterPresets,
+                onOpenFilters = { showFilterSheet = true },
+                onApplyPreset = onApplyPreset,
                 onRequestLocation = { showLocationDialog = true },
                 onToggleVerified = onToggleVerified,
                 onSelectBreed = onSelectBreed,
@@ -199,20 +224,77 @@ private fun GeneralMarketScreen(
             if (state.products.isEmpty() && !state.isLoading) {
                 EmptyState()
             } else {
-                LazyVerticalGrid(
-                    modifier = Modifier.fillMaxSize(),
-                    columns = GridCells.Adaptive(160.dp),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    items(state.products, key = { it.productId }) { product ->
-                        ProductCard(
-                            product = product,
-                            onClick = { onOpenProductDetails(product.productId) },
-                            onOpenTraceability = { onOpenTraceability(product.productId) },
-                            onAddToCart = { onAddToCart(product, 1.0) }
+                    // Trending Products Section
+                    if (state.trendingProducts.isNotEmpty()) {
+                        item {
+                            TrendingProductsSection(
+                                products = state.trendingProducts,
+                                wishlistIds = state.wishlistProductIds,
+                                onProductClick = { 
+                                    onTrackView(it.productId)
+                                    onOpenProductDetails(it.productId)
+                                },
+                                onToggleWishlist = onToggleWishlist,
+                                onAddToCart = { product -> onAddToCart(product, 1.0) }
+                            )
+                        }
+                    }
+                    
+                    // Recommended Products Section
+                    if (state.recommendedProducts.isNotEmpty()) {
+                        item {
+                            RecommendedProductsSection(
+                                products = state.recommendedProducts,
+                                wishlistIds = state.wishlistProductIds,
+                                onProductClick = { 
+                                    onTrackView(it.productId)
+                                    onOpenProductDetails(it.productId)
+                                },
+                                onToggleWishlist = onToggleWishlist,
+                                onAddToCart = { product -> onAddToCart(product, 1.0) }
+                            )
+                        }
+                    }
+                    
+                    // All Products Grid
+                    item {
+                        Text(
+                            text = "All Products",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+                                .semantics { heading() }
                         )
+                    }
+                    
+                    item {
+                        LazyVerticalGrid(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(((state.products.size / 2 + 1) * 320).dp),
+                            columns = GridCells.Adaptive(160.dp),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(state.products, key = { it.productId }) { product ->
+                                EnhancedProductCard(
+                                    product = product,
+                                    isInWishlist = state.wishlistProductIds.contains(product.productId),
+                                    onClick = { 
+                                        onTrackView(product.productId)
+                                        onOpenProductDetails(product.productId)
+                                    },
+                                    onOpenTraceability = { onOpenTraceability(product.productId) },
+                                    onAddToCart = { onAddToCart(product, 1.0) },
+                                    onToggleWishlist = { onToggleWishlist(product) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -232,7 +314,9 @@ private fun MarketTopBar(
     Column(Modifier.fillMaxWidth()) {
         Text(
             text = "Marketplace",
-            modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
+            modifier = Modifier
+                .padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
+                .semantics { heading() },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -240,13 +324,17 @@ private fun MarketTopBar(
             OutlinedTextField(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .testTag("market_search_field"),
                 value = query,
                 onValueChange = onQueryChange,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search products") },
                 trailingIcon = {
                     if (query.isNotBlank()) {
-                        TextButton(onClick = onClearQuery) { Text("Clear") }
+                        TextButton(
+                            onClick = onClearQuery,
+                            modifier = Modifier.semantics { contentDescription = "Clear search" }
+                        ) { Text("Clear") }
                     }
                 },
                 placeholder = { Text("Search breeds, age, location, sellers") },
@@ -269,67 +357,64 @@ private fun MarketTopBar(
 }
 
 @Composable
-private fun FilterRow(
-    filters: MarketFilters,
-    breeds: List<String>,
-    onToggleNearby: () -> Unit,
+private fun CompactFilterBar(
+    activeCount: Int,
+    presets: List<GeneralMarketViewModel.FilterPreset>,
+    onOpenFilters: () -> Unit,
+    onApplyPreset: (GeneralMarketViewModel.QuickPreset) -> Unit,
     onRequestLocation: () -> Unit,
     onToggleVerified: () -> Unit,
     onSelectBreed: (String) -> Unit,
     onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit
 ) {
-    Column {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            FilterChip(
-                selected = filters.nearbyEnabled,
-                onClick = {
-                    if (!filters.nearbyEnabled && filters.currentLocation == null) {
-                        onRequestLocation()
-                    } else {
-                        onToggleNearby()
+            // Filter button with badge
+            BadgedBox(
+                badge = {
+                    if (activeCount > 0) {
+                        Badge { Text("$activeCount") }
                     }
                 },
-                label = { Text("Nearby") },
-                leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = null) }
-            )
-            FilterChip(
-                selected = filters.verifiedOnly,
-                onClick = onToggleVerified,
-                label = { Text("Verified sellers") },
-                leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null) }
-            )
-            ValidationUtils.AgeGroup.values().forEach { group ->
-                FilterChip(
-                    selected = filters.selectedAgeGroup == group,
-                    onClick = { onSelectAgeGroup(group) },
-                    label = { Text(group.name.replace('_', ' ')) }
-                )
-            }
-        }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    breeds.forEach { breed ->
-                        val selected = filters.selectedBreed.equals(breed, ignoreCase = true)
-                        FilterChip(
-                            selected = selected,
-                            onClick = { onSelectBreed(breed) },
-                            label = { Text(breed) }
-                        )
+                modifier = Modifier.semantics {
+                    contentDescription = if (activeCount > 0) {
+                        "Filters, $activeCount active"
+                    } else {
+                        "Filters"
                     }
+                }
+            ) {
+                OutlinedButton(
+                    onClick = onOpenFilters,
+                    modifier = Modifier.testTag("market_filter_button")
+                ) {
+                    Icon(Icons.Filled.FilterList, contentDescription = "Filter icon")
+                    Spacer(Modifier.width(4.dp))
+                    Text("Filters")
+                }
+            }
+            
+            // Quick preset chips
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.semantics { contentDescription = "Quick filter presets" }
+            ) {
+                items(presets) { preset ->
+                    FilterChip(
+                        selected = false,
+                        onClick = { onApplyPreset(preset.id) },
+                        label = { Text(preset.label) },
+                        modifier = Modifier
+                            .semantics { 
+                                role = Role.Button
+                                contentDescription = "Apply ${preset.label} preset"
+                            }
+                            .testTag("preset_${preset.id}")
+                    )
                 }
             }
         }
@@ -421,6 +506,322 @@ private fun EmptyState() {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun TrendingProductsSection(
+    products: List<ProductEntity>,
+    wishlistIds: Set<String>,
+    onProductClick: (ProductEntity) -> Unit,
+    onToggleWishlist: (ProductEntity) -> Unit,
+    onAddToCart: (ProductEntity) -> Unit
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "🔥 Trending Now",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(products, key = { it.productId }) { product ->
+                CompactProductCard(
+                    product = product,
+                    isInWishlist = wishlistIds.contains(product.productId),
+                    onClick = { onProductClick(product) },
+                    onToggleWishlist = { onToggleWishlist(product) },
+                    onAddToCart = { onAddToCart(product) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecommendedProductsSection(
+    products: List<ProductEntity>,
+    wishlistIds: Set<String>,
+    onProductClick: (ProductEntity) -> Unit,
+    onToggleWishlist: (ProductEntity) -> Unit,
+    onAddToCart: (ProductEntity) -> Unit
+) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "✨ Recommended for You",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(products, key = { it.productId }) { product ->
+                CompactProductCard(
+                    product = product,
+                    isInWishlist = wishlistIds.contains(product.productId),
+                    onClick = { onProductClick(product) },
+                    onToggleWishlist = { onToggleWishlist(product) },
+                    onAddToCart = { onAddToCart(product) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactProductCard(
+    product: ProductEntity,
+    isInWishlist: Boolean,
+    onClick: () -> Unit,
+    onToggleWishlist: () -> Unit,
+    onAddToCart: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.size(width = 140.dp, height = 200.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Box {
+            Column(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = product.imageUrls.firstOrNull(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        text = product.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "₹${"%.0f".format(product.price)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color(0xFFFFC107)
+                        )
+                        Spacer(modifier = Modifier.size(2.dp))
+                        Text(
+                            text = sellerRating(product.sellerId),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+            
+            // Wishlist button overlay
+            IconButton(
+                onClick = onToggleWishlist,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(32.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(50)
+                    )
+            ) {
+                Icon(
+                    imageVector = if (isInWishlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = if (isInWishlist) "Remove from wishlist" else "Add to wishlist",
+                    tint = if (isInWishlist) Color.Red else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnhancedProductCard(
+    product: ProductEntity,
+    isInWishlist: Boolean,
+    onClick: () -> Unit,
+    onOpenTraceability: () -> Unit,
+    onAddToCart: () -> Unit,
+    onToggleWishlist: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                AsyncImage(
+                    model = product.imageUrls.firstOrNull(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(128.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+                Column(modifier = Modifier.padding(12.dp)) {
+                    // Trust badges
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (product.familyTreeId != null) {
+                            androidx.compose.material3.AssistChip(
+                                onClick = {},
+                                label = { Text("Traceable", style = MaterialTheme.typography.labelSmall) },
+                                leadingIcon = { Icon(Icons.Filled.Map, null, modifier = Modifier.size(14.dp)) },
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
+                        if (!product.sellerId.isBlank()) {
+                            androidx.compose.material3.AssistChip(
+                                onClick = {},
+                                label = { Text("Verified", style = MaterialTheme.typography.labelSmall) },
+                                modifier = Modifier.height(24.dp)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = product.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = product.location,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "₹${"%.2f".format(product.price)}",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        // Stock indicator
+                        val stockColor = when {
+                            product.quantity > 10 -> Color(0xFF4CAF50)
+                            product.quantity > 3 -> Color(0xFFFF9800)
+                            else -> Color(0xFFF44336)
+                        }
+                        val stockText = when {
+                            product.quantity > 10 -> "In Stock"
+                            product.quantity > 0 -> "Only ${product.quantity.toInt()} left"
+                            else -> "Out of Stock"
+                        }
+                        Text(
+                            text = stockText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = stockColor,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFFFC107)
+                        )
+                        Spacer(modifier = Modifier.size(4.dp))
+                        Text(
+                            text = "${sellerRating(product.sellerId)}★ · Seller rating",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = onAddToCart,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Add to Cart")
+                        }
+                        Button(
+                            onClick = onClick,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("View Details")
+                        }
+                    }
+                }
+            }
+            
+            // Wishlist button overlay
+            IconButton(
+                onClick = onToggleWishlist,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(40.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(50)
+                    )
+            ) {
+                Icon(
+                    imageVector = if (isInWishlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = if (isInWishlist) "Remove from wishlist" else "Add to wishlist",
+                    tint = if (isInWishlist) Color.Red else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }

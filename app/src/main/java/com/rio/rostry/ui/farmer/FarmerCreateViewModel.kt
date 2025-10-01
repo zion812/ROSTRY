@@ -25,7 +25,62 @@ class FarmerCreateViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
+    enum class WizardStep { BASICS, DETAILS, MEDIA, REVIEW }
+
+    data class BasicInfoState(
+        val category: Category = Category.Meat,
+        val traceability: Traceability = Traceability.Traceable,
+        val ageGroup: AgeGroup = AgeGroup.Grower,
+        val title: String = "",
+        val priceType: PriceType = PriceType.Fixed,
+        val price: String = "",
+        val auctionStartPrice: String = "",
+        val availableFrom: String = "",
+        val availableTo: String = ""
+    )
+
+    data class DetailsInfoState(
+        val birthPlace: String = "",
+        val birthDateMillis: Long? = null,
+        val vaccination: String = "",
+        val parentInfo: String = "",
+        val weightText: String = "",
+        val healthUri: String = "",
+        val genderText: String = "",
+        val sizeText: String = "",
+        val colorPattern: String = "",
+        val specialChars: String = "",
+        val breedingHistory: String = "",
+        val provenPairs: String = "",
+        val geneticTraits: String = "",
+        val awards: String = "",
+        val lineageDoc: String = "",
+        val healthRecordDateMillis: Long? = null,
+        val latitude: Double? = null,
+        val longitude: Double? = null
+    )
+
+    data class MediaInfoState(
+        val photoUris: List<String> = emptyList(),
+        val videoUris: List<String> = emptyList(),
+        val audioUris: List<String> = emptyList(),
+        val documentUris: List<String> = emptyList()
+    )
+
+    data class ProductCreationState(
+        val currentStep: WizardStep = WizardStep.BASICS,
+        val basicInfo: BasicInfoState = BasicInfoState(),
+        val detailsInfo: DetailsInfoState = DetailsInfoState(),
+        val mediaInfo: MediaInfoState = MediaInfoState(),
+        val validationErrors: Map<String, String> = emptyMap(),
+        val isSubmitting: Boolean = false,
+        val submitSuccess: Boolean = false,
+        val successProductId: String? = null,
+        val error: String? = null
+    )
+
     data class UiState(
+        val wizardState: ProductCreationState = ProductCreationState(),
         val isSubmitting: Boolean = false,
         val successProductId: String? = null,
         val error: String? = null
@@ -33,6 +88,134 @@ class FarmerCreateViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui
+
+    fun nextStep() {
+        val current = _ui.value.wizardState
+        val errors = validateStep(current.currentStep)
+        if (errors.isNotEmpty()) {
+            _ui.value = _ui.value.copy(
+                wizardState = current.copy(validationErrors = errors)
+            )
+            return
+        }
+        val next = when (current.currentStep) {
+            WizardStep.BASICS -> WizardStep.DETAILS
+            WizardStep.DETAILS -> WizardStep.MEDIA
+            WizardStep.MEDIA -> WizardStep.REVIEW
+            WizardStep.REVIEW -> WizardStep.REVIEW
+        }
+        _ui.value = _ui.value.copy(
+            wizardState = current.copy(currentStep = next, validationErrors = emptyMap())
+        )
+    }
+
+    fun previousStep() {
+        val current = _ui.value.wizardState
+        val prev = when (current.currentStep) {
+            WizardStep.BASICS -> WizardStep.BASICS
+            WizardStep.DETAILS -> WizardStep.BASICS
+            WizardStep.MEDIA -> WizardStep.DETAILS
+            WizardStep.REVIEW -> WizardStep.MEDIA
+        }
+        _ui.value = _ui.value.copy(
+            wizardState = current.copy(currentStep = prev, validationErrors = emptyMap())
+        )
+    }
+
+    fun updateBasicInfo(transform: (BasicInfoState) -> BasicInfoState) {
+        val current = _ui.value.wizardState
+        _ui.value = _ui.value.copy(
+            wizardState = current.copy(basicInfo = transform(current.basicInfo))
+        )
+    }
+
+    fun updateDetails(transform: (DetailsInfoState) -> DetailsInfoState) {
+        val current = _ui.value.wizardState
+        _ui.value = _ui.value.copy(
+            wizardState = current.copy(detailsInfo = transform(current.detailsInfo))
+        )
+    }
+
+    fun addMedia(type: String, uris: List<String>) {
+        val current = _ui.value.wizardState.mediaInfo
+        val updated = when (type) {
+            "photo" -> current.copy(photoUris = uris.take(12))
+            "video" -> current.copy(videoUris = uris.take(2))
+            "audio" -> current.copy(audioUris = uris)
+            "document" -> current.copy(documentUris = uris)
+            else -> current
+        }
+        _ui.value = _ui.value.copy(
+            wizardState = _ui.value.wizardState.copy(mediaInfo = updated)
+        )
+    }
+
+    fun removeMedia(type: String, index: Int) {
+        val current = _ui.value.wizardState.mediaInfo
+        val updated = when (type) {
+            "photo" -> current.copy(photoUris = current.photoUris.filterIndexed { i, _ -> i != index })
+            "video" -> current.copy(videoUris = current.videoUris.filterIndexed { i, _ -> i != index })
+            "audio" -> current.copy(audioUris = current.audioUris.filterIndexed { i, _ -> i != index })
+            "document" -> current.copy(documentUris = current.documentUris.filterIndexed { i, _ -> i != index })
+            else -> current
+        }
+        _ui.value = _ui.value.copy(
+            wizardState = _ui.value.wizardState.copy(mediaInfo = updated)
+        )
+    }
+
+    fun autoDetectLocation() {
+        // Location detection logic would go here
+        // For now, placeholder
+    }
+
+    fun validateStep(step: WizardStep): Map<String, String> {
+        val state = _ui.value.wizardState
+        return when (step) {
+            WizardStep.BASICS -> buildMap {
+                if (state.basicInfo.title.isBlank()) put("title", "Title is required")
+                val price = state.basicInfo.price.toDoubleOrNull()
+                if (state.basicInfo.priceType == PriceType.Fixed && price == null) {
+                    put("price", "Enter valid price")
+                }
+                val auction = state.basicInfo.auctionStartPrice.toDoubleOrNull()
+                if (state.basicInfo.priceType == PriceType.Auction && auction == null) {
+                    put("auctionStartPrice", "Enter valid start price")
+                }
+                if (state.basicInfo.availableFrom.isBlank()) put("availableFrom", "Start date required")
+                if (state.basicInfo.availableTo.isBlank()) put("availableTo", "End date required")
+            }
+            WizardStep.DETAILS -> emptyMap()
+            WizardStep.MEDIA -> emptyMap()
+            WizardStep.REVIEW -> emptyMap()
+        }
+    }
+
+    fun submitWizardListing() {
+        val state = _ui.value.wizardState
+        val form = com.rio.rostry.ui.farmer.ListingForm(
+            category = state.basicInfo.category,
+            traceability = state.basicInfo.traceability,
+            ageGroup = state.basicInfo.ageGroup,
+            title = state.basicInfo.title,
+            priceType = state.basicInfo.priceType,
+            price = state.basicInfo.price.toDoubleOrNull(),
+            auctionStartPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
+            availableFrom = state.basicInfo.availableFrom,
+            availableTo = state.basicInfo.availableTo,
+            healthRecordUri = state.detailsInfo.healthUri.ifBlank { null },
+            birthDateMillis = state.detailsInfo.birthDateMillis,
+            birthPlace = state.detailsInfo.birthPlace.ifBlank { null },
+            vaccinationRecords = state.detailsInfo.vaccination.ifBlank { null },
+            parentInfo = state.detailsInfo.parentInfo.ifBlank { null },
+            weightGrams = state.detailsInfo.weightText.toDoubleOrNull(),
+            photoUris = state.mediaInfo.photoUris,
+            videoUris = state.mediaInfo.videoUris,
+            latitude = state.detailsInfo.latitude,
+            longitude = state.detailsInfo.longitude
+        )
+        submitListing(form)
+    }
 
     fun submitListing(form: ListingForm) {
         if (_ui.value.isSubmitting) return

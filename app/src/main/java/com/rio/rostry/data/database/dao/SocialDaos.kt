@@ -28,6 +28,12 @@ interface PostsDao {
         "SELECT * FROM posts ORDER BY (SELECT COUNT(*) FROM likes WHERE likes.postId = posts.postId) DESC, createdAt DESC"
     )
     fun pagingRanked(): PagingSource<Int, PostEntity>
+
+    // Get trending posts as a list (for recommendations)
+    @Query(
+        "SELECT * FROM posts ORDER BY (SELECT COUNT(*) FROM likes WHERE likes.postId = posts.postId) DESC, createdAt DESC LIMIT :limit"
+    )
+    suspend fun getTrending(limit: Int): List<PostEntity>
 }
 
 @Dao
@@ -118,6 +124,9 @@ interface GroupsDao {
 
     @Query("SELECT * FROM groups ORDER BY createdAt DESC")
     fun streamAll(): Flow<List<GroupEntity>>
+
+    @Query("SELECT * FROM groups WHERE groupId = :groupId LIMIT 1")
+    suspend fun getById(groupId: String): GroupEntity?
 }
 
 @Dao
@@ -130,6 +139,9 @@ interface GroupMembersDao {
 
     @Query("SELECT * FROM group_members WHERE groupId = :groupId")
     fun streamMembers(groupId: String): Flow<List<GroupMemberEntity>>
+
+    @Query("SELECT * FROM group_members WHERE groupId = :groupId AND userId = :userId LIMIT 1")
+    suspend fun getMember(groupId: String, userId: String): GroupMemberEntity?
 }
 
 @Dao
@@ -139,6 +151,9 @@ interface EventsDao {
 
     @Query("SELECT * FROM events WHERE startTime >= :now ORDER BY startTime ASC")
     fun streamUpcoming(now: Long): Flow<List<EventEntity>>
+
+    @Query("SELECT * FROM events WHERE eventId = :eventId LIMIT 1")
+    suspend fun getById(eventId: String): EventEntity?
 }
 
 @Dao

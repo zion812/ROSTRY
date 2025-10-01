@@ -39,13 +39,18 @@ class FarmerMarketViewModel @Inject constructor(
         val minPrice: Double? = null,
         val maxPrice: Double? = null,
         val breed: String? = null,
+        val startDate: Long? = null,
+        val endDate: Long? = null,
         val selectedTabIndex: Int = 0, // 0=Browse 1=Sell
         // Metrics for Sell mode
         val metricsRevenue: Double = 0.0,
         val metricsOrders: Int = 0,
         val metricsViews: Int = 0,
         val error: String? = null
-    )
+    ) {
+        val isDateFilterActive: Boolean
+            get() = startDate != null || endDate != null
+    }
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui
@@ -58,13 +63,17 @@ class FarmerMarketViewModel @Inject constructor(
         val restoredMin = savedState.get<Double?>(KEY_MIN_PRICE)
         val restoredMax = savedState.get<Double?>(KEY_MAX_PRICE)
         val restoredBreed = savedState.get<String?>(KEY_BREED)
+        val restoredStartDate = savedState.get<Long?>(KEY_START_DATE)
+        val restoredEndDate = savedState.get<Long?>(KEY_END_DATE)
         _ui.value = _ui.value.copy(
             selectedTabIndex = restoredTab,
             categoryFilter = restoredCat,
             traceFilter = restoredTrace,
             minPrice = restoredMin,
             maxPrice = restoredMax,
-            breed = restoredBreed
+            breed = restoredBreed,
+            startDate = restoredStartDate,
+            endDate = restoredEndDate
         )
         refresh()
         viewModelScope.launch { loadMetrics() }
@@ -181,6 +190,37 @@ class FarmerMarketViewModel @Inject constructor(
         savedState[KEY_TAB_INDEX] = index
     }
 
+    fun applyDateFilter(startDate: Long?, endDate: Long?) {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isLoadingBrowse = true)
+            when (val res = marketplaceRepository.filterByDateRange(startDate, endDate)) {
+                is Resource.Success -> {
+                    val base = res.data ?: emptyList()
+                    val filtered = applyFilters(base, _ui.value.categoryFilter, _ui.value.traceFilter)
+                    _ui.value = _ui.value.copy(
+                        isLoadingBrowse = false,
+                        browse = base,
+                        filteredBrowse = filtered,
+                        startDate = startDate,
+                        endDate = endDate
+                    )
+                    savedState[KEY_START_DATE] = startDate
+                    savedState[KEY_END_DATE] = endDate
+                }
+                is Resource.Error -> _ui.value = _ui.value.copy(isLoadingBrowse = false, error = res.message)
+                is Resource.Loading -> _ui.value = _ui.value.copy(isLoadingBrowse = true)
+            }
+            analytics.marketFilterApply("date_range", "start=$startDate,end=$endDate")
+        }
+    }
+
+    fun clearDateFilter() {
+        _ui.value = _ui.value.copy(startDate = null, endDate = null)
+        savedState[KEY_START_DATE] = null
+        savedState[KEY_END_DATE] = null
+        refresh()
+    }
+
     private suspend fun loadMetrics() {
         val current = getCurrentUserOrNull() ?: return
         // Pull farmer dashboard snapshot
@@ -203,5 +243,7 @@ class FarmerMarketViewModel @Inject constructor(
         const val KEY_MIN_PRICE = "market_min_price"
         const val KEY_MAX_PRICE = "market_max_price"
         const val KEY_BREED = "market_breed"
+        const val KEY_START_DATE = "market_start_date"
+        const val KEY_END_DATE = "market_end_date"
     }
 }

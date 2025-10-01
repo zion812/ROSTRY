@@ -46,6 +46,7 @@ import com.rio.rostry.data.database.dao.RateLimitDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
 import com.rio.rostry.data.database.dao.AnalyticsDao
 import com.rio.rostry.data.database.dao.ReportsDao
+import com.rio.rostry.data.database.dao.OutboxDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -84,7 +85,11 @@ object DatabaseModule {
             AppDatabase.MIGRATION_10_11,
             AppDatabase.MIGRATION_11_12,
             AppDatabase.MIGRATION_12_13,
-            AppDatabase.MIGRATION_13_14
+            AppDatabase.MIGRATION_13_14,
+            AppDatabase.MIGRATION_14_15,
+            AppDatabase.MIGRATION_15_16,
+            AppDatabase.MIGRATION_16_17,
+            AppDatabase.MIGRATION_17_18
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -299,4 +304,25 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideReportsDao(db: AppDatabase): ReportsDao = db.reportsDao()
+
+    // Community Engagement DAOs
+    @Provides
+    @Singleton
+    fun provideThreadMetadataDao(db: AppDatabase): com.rio.rostry.data.database.dao.ThreadMetadataDao = db.threadMetadataDao()
+
+    @Provides
+    @Singleton
+    fun provideCommunityRecommendationDao(db: AppDatabase): com.rio.rostry.data.database.dao.CommunityRecommendationDao = db.communityRecommendationDao()
+
+    @Provides
+    @Singleton
+    fun provideUserInterestDao(db: AppDatabase): com.rio.rostry.data.database.dao.UserInterestDao = db.userInterestDao()
+
+    @Provides
+    @Singleton
+    fun provideExpertProfileDao(db: AppDatabase): com.rio.rostry.data.database.dao.ExpertProfileDao = db.expertProfileDao()
+
+    @Provides
+    @Singleton
+    fun provideOutboxDao(db: AppDatabase): OutboxDao = db.outboxDao()
 }

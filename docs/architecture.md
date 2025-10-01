@@ -63,7 +63,12 @@
   - **Outgoing Messaging** (`OutgoingMessageWorker`) to flush queued DMs.
   - **Analytics Aggregation** & **Reporting** workers for dashboards.
   - **Prefetch** (`PrefetchWorker`) for content caching under safe conditions.
+  - **Community Engagement** (`CommunityEngagementWorker`) for personalized recommendations every 12 hours.
+  - **Farm Monitoring** (`FarmMonitoringWorker`) for daily health checks and alerts.
+  - **Vaccination Reminders** (`VaccinationReminderWorker`) for schedule notifications.
 - Workers leverage Hilt WorkManager integration and operate with network/battery constraints and custom WorkRequest cadence defined in each worker file.
+
+See `background-jobs.md` for detailed worker configuration and monitoring.
 
 ## 5. External Integrations
 - **Firebase**: Auth, Firestore, Storage, Functions, Realtime Database, Cloud Messaging, Crashlytics, Performance Monitoring.
@@ -73,12 +78,16 @@
 - **SQLCipher & Security Crypto**: Encrypted Room database support.
 
 ## 6. Key Cross-Cutting Concerns
-- **Analytics**: Aggregation pipeline storing daily metrics in Room (`AnalyticsDailyEntity`) with dashboards under `ui/analytics/`.
+- **Analytics**: Aggregation pipeline storing daily metrics in Room (`AnalyticsDailyEntity`) with dashboards under `ui/analytics/`. Includes AI-powered recommendations and export functionality.
 - **Traceability**: Graph-based lineage using `FamilyTreeEntity`, `TransferEntity`, and visualization in `FamilyTreeView`.
 - **Compliance & Trust**: Verification utilities, audit logs, disputes, and trust scoring in transfer workflows.
 - **Notifications**: Abstractions `TransferNotifier` and `SocialNotifier` produce system-level alerts; actual delivery integrates with Firebase Messaging.
+- **Community Engagement**: Context-aware messaging with `ThreadMetadata`, intelligent recommendations via `CommunityEngagementService`, and personalized content.
+- **UX Enhancements**: Multi-step wizards, filter presets, tooltips, animations, and contextual help components for improved user experience.
 
-## 7. Mermaid System Context Diagram
+## 7. Detailed Diagrams
+
+### 7.1 System Context
 ```mermaid
 erDiagram
     ComposeUI ||--|| ViewModel : observes
@@ -93,24 +102,7 @@ erDiagram
     RostryApp ||--|| WorkManager : bootstraps
 ```
 
-## 8. Detailed Diagrams
-
-### 8.1 System Context
-```mermaid
-erDiagram
-    ComposeUI ||--|| ViewModel : observes
-    ViewModel ||--|| Repository : invokes
-    Repository ||--|| RoomDao : reads_writes
-    Repository ||--|| FirebaseService : syncs
-    Repository ||--|| RetrofitApi : calls
-    Repository ||--|| Utilities : uses
-    RoomDao ||--|| AppDatabase : belongs_to
-    SessionManager ||--|| DataStore : persists
-    WorkManager ||--|| Workers : schedules
-    RostryApp ||--|| WorkManager : bootstraps
-```
-
-### 8.2 Subsystem Interaction
+### 7.2 Subsystem Interaction
 ```mermaid
 graph TD
     subgraph UI
@@ -146,7 +138,7 @@ graph TD
     VM --> Compose
 ```
 
-### 8.3 Background Scheduling Lifecycle
+### 7.3 Background Scheduling Lifecycle
 ```mermaid
 sequenceDiagram
     participant App as RostryApp
@@ -163,13 +155,35 @@ sequenceDiagram
     Worker-->>WM: Result.success()/retry()
 ```
 
-### 8.4 Exporting Diagrams
+### 7.4 Exporting Diagrams
 For environments without native Mermaid support, render diagrams to images using:
 - **Mermaid CLI**: `npx @mermaid-js/mermaid-cli -i docs/architecture.md -o docs/images/`
 - **VS Code Extension**: "Markdown Preview Mermaid Support" → right-click → *Export Diagram*.
 Store exports under `docs/images/` and reference them via Markdown `![Diagram](images/diagram-name.png)`.
 
+## 8. Recent Major Updates
+
+### Database Migration 15→16 (Community Features)
+Added 4 new entities for community engagement:
+- `ThreadMetadataEntity` - Context-aware messaging metadata
+- `CommunityRecommendationEntity` - Personalized user recommendations
+- `UserInterestEntity` - Interest-based personalization data
+- `ExpertProfileEntity` - Expert information and availability
+
+See `data-contracts.md` for schema details and `CHANGELOG.md` for migration history.
+
+### UX Component Library
+New reusable components in `ui/components/`:
+- `FormValidationHelpers.kt` - Validation utilities with builder pattern
+- `LoadingStates.kt` - Skeleton loaders, empty states, error states
+- `OnboardingTooltips.kt` - First-time user guidance system
+- `SuccessAnimations.kt` - Celebration dialogs with haptic feedback
+- `HelpComponents.kt` - Contextual help with collapsible design
+
+See `user-experience-guidelines.md` for usage patterns.
+
 ## 9. Future Considerations
 - Split monolithic `AppDatabase.kt` into feature-specific modules if size impacts maintainability.
 - Consider documenting each migration in dedicated ADRs to track schema evolution.
 - Evaluate per-feature module separation (Gradle feature modules) for build performance and encapsulation.
+- Explore multi-module architecture for improved build times and team scalability.

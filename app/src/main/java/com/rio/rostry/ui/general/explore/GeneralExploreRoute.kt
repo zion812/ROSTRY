@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Message
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -35,6 +33,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -184,29 +183,48 @@ private fun ExploreTopBar(
     onClearQuery: () -> Unit,
     onOpenSocial: () -> Unit
 ) {
+    var showSearchTips by rememberSaveable { mutableStateOf(false) }
+    
     TopAppBar(
         title = { Text("Explore community", maxLines = 1, overflow = TextOverflow.Ellipsis) },
         actions = {
+            IconButton(onClick = { showSearchTips = true }) {
+                Icon(Icons.Filled.Help, contentDescription = "Search tips")
+            }
             TextButton(onClick = onOpenSocial) {
                 Text("Go to feed")
             }
         }
     )
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotBlank()) {
-                TextButton(onClick = onClearQuery) { Text("Clear") }
-            }
-        },
-        placeholder = { Text("Search @users, #hashtags, loc:city, breed:asil") },
-        singleLine = true
-    )
+    Column {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotBlank()) {
+                    TextButton(onClick = onClearQuery) { Text("Clear") }
+                }
+            },
+            placeholder = { Text("Search @users, #hashtags, loc:city, breed:asil") },
+            singleLine = true
+        )
+        
+        if (query.isEmpty()) {
+            SearchHintChips(
+                onChipClick = { hint ->
+                    onQueryChange(hint)
+                }
+            )
+        }
+    }
+    
+    if (showSearchTips) {
+        SearchTipsDialog(onDismiss = { showSearchTips = false })
+    }
 }
 
 @Composable
@@ -331,6 +349,139 @@ private fun ExplorePostCard(
                 }
                 TextButton(onClick = onOpenSocialFeed) { Text("View details") }
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchHintChips(onChipClick: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            "Try:",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AssistChip(
+                onClick = { onChipClick("#poultry") },
+                label = { Text("#poultry") },
+                leadingIcon = { Icon(Icons.Filled.Public, null, modifier = Modifier.size(16.dp)) }
+            )
+            AssistChip(
+                onClick = { onChipClick("breed:asil") },
+                label = { Text("breed:asil") },
+                leadingIcon = { Icon(Icons.Filled.Search, null, modifier = Modifier.size(16.dp)) }
+            )
+            AssistChip(
+                onClick = { onChipClick("loc:bangalore") },
+                label = { Text("loc:bangalore") },
+                leadingIcon = { Icon(Icons.Filled.LocationOn, null, modifier = Modifier.size(16.dp)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchTipsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Search Tips") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SearchTipItem(
+                    icon = Icons.Filled.Public,
+                    title = "Hashtags",
+                    description = "#poultry, #organic, #freerange",
+                    example = "Find posts with specific topics"
+                )
+                SearchTipItem(
+                    icon = Icons.Filled.Person,
+                    title = "Mentions",
+                    description = "@username",
+                    example = "Find posts by specific users"
+                )
+                SearchTipItem(
+                    icon = Icons.Filled.LocationOn,
+                    title = "Location",
+                    description = "loc:city or loc:state",
+                    example = "loc:bangalore, loc:karnataka"
+                )
+                SearchTipItem(
+                    icon = Icons.Filled.Pets,
+                    title = "Breed",
+                    description = "breed:name",
+                    example = "breed:asil, breed:kadaknath"
+                )
+                SearchTipItem(
+                    icon = Icons.Filled.ColorLens,
+                    title = "Color",
+                    description = "color:name",
+                    example = "color:black, color:white"
+                )
+                Divider()
+                Text(
+                    "💡 Combine multiple filters:",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "\"#organic breed:asil loc:bangalore\"",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                        .padding(8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Got it")
+            }
+        }
+    )
+}
+
+@Composable
+private fun SearchTipItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    example: String
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = example,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

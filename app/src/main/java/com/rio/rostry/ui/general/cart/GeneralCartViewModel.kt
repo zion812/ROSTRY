@@ -2,16 +2,22 @@ package com.rio.rostry.ui.general.cart
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.rio.rostry.data.database.dao.OutboxDao
 import com.rio.rostry.data.database.entity.CartItemEntity
 import com.rio.rostry.data.database.entity.OrderEntity
+import com.rio.rostry.data.database.entity.OutboxEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.CartRepository
 import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.repository.PaymentRepository
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.marketplace.pricing.FeeCalculationEngine
 import com.rio.rostry.utils.Resource
+import com.rio.rostry.utils.network.ConnectivityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -32,7 +38,11 @@ class GeneralCartViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val orderRepository: OrderRepository,
     private val userRepository: UserRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val paymentRepository: PaymentRepository,
+    private val currentUserProvider: CurrentUserProvider,
+    private val outboxDao: OutboxDao,
+    private val connectivityManager: ConnectivityManager,
+    private val gson: Gson
 ) : ViewModel() {
 
     enum class PaymentMethod { COD, MOCK_PAYMENT }
@@ -76,10 +86,14 @@ class GeneralCartViewModel @Inject constructor(
         val addresses: List<String> = emptyList(),
         val selectedAddress: String? = null,
         val subtotal: Double = 0.0,
+        val platformFee: Double = 0.0,
+        val processingFee: Double = 0.0,
         val deliveryFee: Double = 0.0,
+        val discount: Double = 0.0,
         val total: Double = 0.0,
         val orderHistory: List<OrderSummary> = emptyList(),
         val isCheckingOut: Boolean = false,
+        val hasPendingOutbox: Boolean = false,
         val error: String? = null,
         val successMessage: String? = null
     )
@@ -107,6 +121,10 @@ class GeneralCartViewModel @Inject constructor(
         orderRepository.getOrdersByBuyer(uid)
     } ?: flowOf(emptyList())
 
+    private val pendingOutbox: Flow<List<OutboxEntity>> = userId?.let { uid ->
+        outboxDao.observePendingByUser(uid)
+    } ?: flowOf(emptyList())
+
     private val products: StateFlow<Resource<List<ProductEntity>>> = productRepository
         .getAllProducts()
         .stateIn(
@@ -127,20 +145,23 @@ class GeneralCartViewModel @Inject constructor(
         val cart: List<CartItemEntity>,
         val products: Resource<List<ProductEntity>>,
         val orders: List<OrderEntity>,
-        val user: Resource<UserEntity?>
+        val user: Resource<UserEntity?>,
+        val pendingOutbox: List<OutboxEntity>
     )
 
     private val baseInputs: StateFlow<BaseInputs> = combine(
         cartItems,
         products,
         orders,
-        userResource
-    ) { cart, productResource, orderList, userRes ->
+        userResource,
+        pendingOutbox
+    ) { cart, productResource, orderList, userRes, outboxList ->
         BaseInputs(
             cart = cart,
             products = productResource,
             orders = orderList,
-            user = userRes
+            user = userRes,
+            pendingOutbox = outboxList
         )
     }.stateIn(
         scope = viewModelScope,
@@ -149,7 +170,8 @@ class GeneralCartViewModel @Inject constructor(
             cart = emptyList(),
             products = Resource.Loading(),
             orders = emptyList(),
-            user = Resource.Loading()
+            user = Resource.Loading(),
+            pendingOutbox = emptyList()
         )
     )
 
@@ -234,6 +256,19 @@ class GeneralCartViewModel @Inject constructor(
         }
         val subtotal = items.sumOf { it.subtotal }
         val deliveryFee = selection.delivery.fee
+        // Fee breakdown via FeeCalculationEngine (use cents)
+        val userType = (base.user.data?.userType) ?: com.rio.rostry.domain.model.UserType.GENERAL
+        val breakdown = FeeCalculationEngine.calculate(
+            subtotalCents = (subtotal * 100).toLong(),
+            userType = userType,
+            deliveryRequired = deliveryFee > 0.0,
+            promotionPercent = 0,
+            bulkQty = items.size
+        )
+        val platformFee = breakdown.platformFeeCents / 100.0
+        val processingFee = breakdown.paymentProcessingFeeCents / 100.0
+        val discount = breakdown.discountCents / 100.0
+        val total = breakdown.totalCents / 100.0
         val addresses = buildList {
             base.user.data?.address?.let { if (it.isNotBlank()) add(it) }
             add("Pickup hub (Bengaluru)")
@@ -260,10 +295,14 @@ class GeneralCartViewModel @Inject constructor(
             addresses = addresses,
             selectedAddress = resolvedAddress,
             subtotal = subtotal,
+            platformFee = platformFee,
+            processingFee = processingFee,
             deliveryFee = deliveryFee,
-            total = subtotal + deliveryFee,
+            discount = discount,
+            total = total,
             orderHistory = orderHistory,
             isCheckingOut = status.checkingOut,
+            hasPendingOutbox = base.pendingOutbox.isNotEmpty(),
             error = status.error ?: (base.products as? Resource.Error)?.message,
             successMessage = status.success
         )
@@ -361,12 +400,64 @@ class GeneralCartViewModel @Inject constructor(
                     paymentMethod = currentState.selectedPayment.name,
                     orderDate = System.currentTimeMillis()
                 )
-                orderRepository.upsert(order)
-                currentState.items.forEach { item ->
-                    cartRepository.removeItem(uid, item.productId)
+
+                // Check network connectivity
+                val isOnline = connectivityManager.isOnline()
+                
+                if (!isOnline) {
+                    // Queue order in outbox for later sync
+                    val orderJson = gson.toJson(order.copy(status = "PLACED", dirty = true))
+                    val outboxEntry = OutboxEntity(
+                        outboxId = UUID.randomUUID().toString(),
+                        userId = uid,
+                        entityType = "ORDER",
+                        entityId = orderId,
+                        operation = "CREATE",
+                        payloadJson = orderJson,
+                        createdAt = System.currentTimeMillis(),
+                        status = "PENDING"
+                    )
+                    outboxDao.insert(outboxEntry)
+                    
+                    // Save order locally with pending status
+                    orderRepository.upsert(order.copy(status = "PLACED", dirty = true))
+                    
+                    // Clear cart items
+                    currentState.items.forEach { item ->
+                        cartRepository.removeItem(uid, item.productId)
+                    }
+                    
+                    successMessage.value = "Order queued for submission when online"
+                } else {
+                    // Online flow - proceed normally
+                    orderRepository.upsert(order)
+
+                    // Process payment based on selection
+                    when (currentState.selectedPayment) {
+                        PaymentMethod.COD -> {
+                            val res = paymentRepository.codReservation(orderId, uid, currentState.total)
+                            if (res is Resource.Error) throw IllegalStateException(res.message ?: "COD failed")
+                            // Mark order placed for COD
+                            orderRepository.upsert(order.copy(status = "PLACED"))
+                        }
+                        PaymentMethod.MOCK_PAYMENT -> {
+                            val start = paymentRepository.cardWalletDemo(orderId, uid, currentState.total, idempotencyKey = "CARD-$orderId-${currentState.total}")
+                            if (start is Resource.Error) throw IllegalStateException(start.message ?: "Payment init failed")
+                            // For demo, mark success immediately
+                            val mark = paymentRepository.markPaymentResult("CARD-$orderId-${currentState.total}", success = true, providerRef = null)
+                            if (mark is Resource.Error) throw IllegalStateException(mark.message ?: "Payment finalize failed")
+                            // Update order status to CONFIRMED
+                            orderRepository.upsert(order.copy(status = "CONFIRMED"))
+                        }
+                    }
+
+                    // Clear cart items
+                    currentState.items.forEach { item ->
+                        cartRepository.removeItem(uid, item.productId)
+                    }
+                    
+                    successMessage.value = "Order placed successfully"
                 }
-            }.onSuccess {
-                successMessage.value = "Order placed successfully"
             }.onFailure { throwable ->
                 error.value = throwable.message ?: "Unable to place order"
             }

@@ -67,4 +67,14 @@ interface OrderDao {
 
     @Query("DELETE FROM orders WHERE isDeleted = 1")
     suspend fun purgeDeleted()
+
+    // Additional queries for General user flows
+    @Query("SELECT * FROM orders WHERE buyerId = :buyerId AND status IN (:statuses)")
+    fun getOrdersByStatus(buyerId: String, statuses: List<String>): Flow<List<OrderEntity>>
+
+    @Query("SELECT * FROM orders WHERE buyerId = :buyerId ORDER BY orderDate DESC LIMIT :limit")
+    fun getRecentOrders(buyerId: String, limit: Int): Flow<List<OrderEntity>>
+
+    @Update
+    suspend fun update(order: OrderEntity)
 }

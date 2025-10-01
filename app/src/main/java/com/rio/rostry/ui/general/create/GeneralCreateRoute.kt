@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,9 +59,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.rio.rostry.ui.general.create.GeneralCreateViewModel.MediaAttachment
 import com.rio.rostry.ui.general.create.GeneralCreateViewModel.Privacy
+import com.rio.rostry.ui.marketplace.LocationPickerScreen
+import com.rio.rostry.marketplace.location.LocationSearchService
+import com.rio.rostry.marketplace.location.LocationService
+import com.google.android.libraries.places.api.Places
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +97,7 @@ fun GeneralCreateRoute(
 
     var showLocationDialog by rememberSaveable { mutableStateOf(false) }
     var locationInput by rememberSaveable { mutableStateOf(uiState.locationTag.orEmpty()) }
+    var showPlacesPicker by rememberSaveable { mutableStateOf(false) }
 
     val mediaPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 6)
@@ -121,14 +129,46 @@ fun GeneralCreateRoute(
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showLocationDialog = false
-                    locationInput = uiState.locationTag.orEmpty()
-                }) {
-                    Text("Cancel")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        // Open Places-powered picker
+                        showLocationDialog = false
+                        showPlacesPicker = true
+                    }) { Text("Use Places Picker") }
+                    TextButton(onClick = {
+                        showLocationDialog = false
+                        locationInput = uiState.locationTag.orEmpty()
+                    }) {
+                        Text("Cancel")
+                    }
                 }
             }
         )
+    }
+
+    if (showPlacesPicker) {
+        val context = LocalContext.current
+        // Ensure Places SDK is ready; app initializes in RostryApp
+        val placesClient = remember { Places.createClient(context) }
+        val locationService = remember { LocationService }
+        Dialog(onDismissRequest = { showPlacesPicker = false }) {
+            Surface(shape = MaterialTheme.shapes.medium) {
+                Column(Modifier.padding(16.dp)) {
+                    LocationPickerScreen(
+                        locationSearchService = remember { LocationSearchService(placesClient, locationService) },
+                        locationService = locationService,
+                        onLocationPicked = { lat, lng, address ->
+                            // Prefer formatted address when available; fallback to coordinates
+                            val tag = address ?: locationService.formatAddressFallback(lat, lng)
+                            viewModel.setLocationTag(tag)
+                            showPlacesPicker = false
+                        }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { showPlacesPicker = false }) { Text("Close") }
+                }
+            }
+        }
     }
 
     Scaffold(

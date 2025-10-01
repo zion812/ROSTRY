@@ -26,4 +26,33 @@ interface ProductRepository {
     fun searchProducts(query: String): Flow<Resource<List<ProductEntity>>>
 
     suspend fun autocompleteProducts(prefix: String, limit: Int = 10): List<ProductEntity>
+
+    // Advanced marketplace filters
+    suspend fun filterVerified(limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
+
+    suspend fun filterNearby(
+        centerLat: Double,
+        centerLng: Double,
+        radiusKm: Double,
+        limit: Int = 100,
+        offset: Int = 0
+    ): Resource<List<ProductEntity>>
+
+    suspend fun filterByBreed(
+        breed: String?,
+        minPrice: Double = 0.0,
+        maxPrice: Double = Double.MAX_VALUE,
+        limit: Int = 100,
+        offset: Int = 0
+    ): Resource<List<ProductEntity>>
+
+    suspend fun filterByAgeDays(
+        minAgeDays: Int? = null,
+        maxAgeDays: Int? = null,
+        nowMillis: Long = System.currentTimeMillis(),
+        limit: Int = 100,
+        offset: Int = 0
+    ): Resource<List<ProductEntity>>
+
+    suspend fun filterTraceable(onlyTraceable: Boolean, base: List<ProductEntity>? = null): Resource<List<ProductEntity>>
 }

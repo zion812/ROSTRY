@@ -15,6 +15,8 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.FilterList
 
 /**
  * Advanced Enthusiast interface with premium farm management features.
@@ -167,35 +172,63 @@ fun EnthusiastExploreScreen(
 ) {
     val vm: EnthusiastExploreViewModel = hiltViewModel()
     val state by vm.ui.collectAsState()
+    // Local UI states for search and filter visibility
+    var searchText by rememberSaveable { mutableStateOf("") }
+    var filtersExpanded by rememberSaveable { mutableStateOf(false) }
+
+    // Client-side quick filter for display
+    val displayed = if (searchText.isBlank()) state.items else state.items.filter {
+        it.name.contains(searchText, ignoreCase = true) || it.category.contains(searchText, ignoreCase = true)
+    }
+
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Advanced Search")
+        // Search bar with filter toggle
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = state.breed, onValueChange = { vm.update("breed", it) }, label = { Text("Breed") })
-            OutlinedTextField(value = state.priceRange, onValueChange = { vm.update("priceRange", it) }, label = { Text("Price Range (e.g. 100-500)") })
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                label = { Text("Search") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    IconButton(onClick = { filtersExpanded = !filtersExpanded }) {
+                        Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = state.region, onValueChange = { vm.update("region", it) }, label = { Text("Region") })
-            OutlinedTextField(value = state.traits, onValueChange = { vm.update("traits", it) }, label = { Text("Traits") })
+
+        if (filtersExpanded) {
+            Text("Advanced Search")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = state.breed, onValueChange = { vm.update("breed", it) }, label = { Text("Breed") })
+                OutlinedTextField(value = state.priceRange, onValueChange = { vm.update("priceRange", it) }, label = { Text("Price Range (e.g. 100-500)") })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = state.region, onValueChange = { vm.update("region", it) }, label = { Text("Region") })
+                OutlinedTextField(value = state.traits, onValueChange = { vm.update("traits", it) }, label = { Text("Traits") })
+            }
+            // Sort controls
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.RECENCY.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.RECENCY) { Text("Recency") }
+                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST) { Text("Verified") }
+                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.ENGAGEMENT.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.ENGAGEMENT) { Text("Engagement") }
+                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_ASC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_ASC) { Text("Price ↑") }
+                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_DESC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_DESC) { Text("Price ↓") }
+            }
         }
-        // Sort controls
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.RECENCY.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.RECENCY) { Text("Recency") }
-            OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST) { Text("Verified") }
-            OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.ENGAGEMENT.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.ENGAGEMENT) { Text("Engagement") }
-            OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_ASC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_ASC) { Text("Price ↑") }
-            OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_DESC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_DESC) { Text("Price ↓") }
-        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { vm.refresh() }, enabled = !state.loading) { Text(if (state.loading) "Searching..." else "Search") }
             OutlinedButton(onClick = onOpenDiscussion) { Text("Open Breeding Community") }
         }
         Divider()
         Text("Results")
-        if (state.error != null) {
-            ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: ${state.error}") } }
+        state.error?.let { err ->
+            ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.items) { item ->
+            items(displayed) { item ->
                 ElevatedCard {
                     Row(Modifier.padding(12.dp)) {
                         Text(item.name.ifBlank { item.category }, modifier = Modifier.weight(1f))

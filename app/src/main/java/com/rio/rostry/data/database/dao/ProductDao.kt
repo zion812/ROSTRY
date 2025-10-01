@@ -80,6 +80,10 @@ interface ProductDao {
     @Query("SELECT p.* FROM products p INNER JOIN users u ON p.sellerId = u.userId WHERE u.verificationStatus = 'VERIFIED' AND p.isDeleted = 0 ORDER BY p.updatedAt DESC LIMIT :limit OFFSET :offset")
     suspend fun filterVerified(limit: Int = 50, offset: Int = 0): List<ProductEntity>
 
+    // Date range filter by createdAt
+    @Query("SELECT * FROM products WHERE createdAt >= :startDate AND createdAt <= :endDate AND isDeleted = 0 ORDER BY createdAt DESC LIMIT :limit OFFSET :offset")
+    suspend fun filterByDateRange(startDate: Long, endDate: Long, limit: Int = 50, offset: Int = 0): List<ProductEntity>
+
     // Incremental sync helpers
     @Query("SELECT * FROM products WHERE updatedAt > :since ORDER BY updatedAt ASC LIMIT :limit")
     suspend fun getUpdatedSince(since: Long, limit: Int = 500): List<ProductEntity>

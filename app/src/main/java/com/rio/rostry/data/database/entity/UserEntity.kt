@@ -21,6 +21,14 @@ data class UserEntity(
     val locationVerified: Boolean? = null,
     // Enthusiast-specific (optional)
     val kycLevel: Int? = null,
+    // KYC document upload fields
+    val kycDocumentUrls: String? = null, // JSON string containing list of uploaded document URLs
+    val kycImageUrls: String? = null, // JSON string containing list of uploaded image URLs
+    val kycDocumentTypes: String? = null, // JSON string mapping document URLs to their types
+    val kycUploadStatus: String? = null, // PENDING, UPLOADED, VERIFIED, REJECTED
+    val kycUploadedAt: Long? = null,
+    val kycVerifiedAt: Long? = null,
+    val kycRejectionReason: String? = null,
     // Common audit
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

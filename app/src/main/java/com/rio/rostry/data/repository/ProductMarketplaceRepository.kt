@@ -23,6 +23,7 @@ interface ProductMarketplaceRepository {
     suspend fun filterByAgeGroup(group: AgeGroup, limit: Int = 50, offset: Int = 0, now: Long = System.currentTimeMillis()): Resource<List<ProductEntity>>
     suspend fun filterByBoundingBox(minLat: Double?, maxLat: Double?, minLng: Double?, maxLng: Double?, limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
     suspend fun filterVerified(limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
+    suspend fun filterByDateRange(startDate: Long?, endDate: Long?, limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
 }
 
 @Singleton
@@ -119,6 +120,14 @@ class ProductMarketplaceRepositoryImpl @Inject constructor(
         Resource.Success(productDao.filterVerified(limit, offset))
     } catch (e: Exception) {
         Resource.Error(e.message ?: "Verified filter failed")
+    }
+
+    override suspend fun filterByDateRange(startDate: Long?, endDate: Long?, limit: Int, offset: Int): Resource<List<ProductEntity>> = try {
+        val start = startDate ?: 0L
+        val end = endDate ?: System.currentTimeMillis()
+        Resource.Success(productDao.filterByDateRange(start, end, limit, offset))
+    } catch (e: Exception) {
+        Resource.Error(e.message ?: "Date filter failed")
     }
 
     private fun validateProduct(product: ProductEntity) {

@@ -145,10 +145,83 @@ class ProductRepositoryImpl @Inject constructor(
             emit(Resource.Error("Error searching products: ${e.message}"))
         }
     }
-
     override suspend fun autocompleteProducts(prefix: String, limit: Int): List<ProductEntity> = try {
         productDao.autocomplete(prefix, limit)
     } catch (e: Exception) {
         emptyList()
+    }
+
+    override suspend fun filterVerified(limit: Int, offset: Int): Resource<List<ProductEntity>> = safeCall {
+        productDao.filterVerified(limit = limit, offset = offset)
+    }.firstOrNull() ?: Resource.Error("Failed to filter verified products")
+
+    override suspend fun filterNearby(
+        centerLat: Double,
+        centerLng: Double,
+        radiusKm: Double,
+        limit: Int,
+        offset: Int
+    ): Resource<List<ProductEntity>> = safeCall {
+        // Compute naive bounding box first to leverage SQL filtering, then refine by exact distance.
+        val latDegreeKm = 110.574 // approx
+        val lngDegreeKm = 111.320 * kotlin.math.cos(Math.toRadians(centerLat))
+        val dLat = radiusKm / latDegreeKm
+        val dLng = radiusKm / lngDegreeKm
+        val minLat = centerLat - dLat
+        val maxLat = centerLat + dLat
+        val minLng = centerLng - dLng
+        val maxLng = centerLng + dLng
+        val pre = productDao.filterByBoundingBox(minLat, maxLat, minLng, maxLng, limit = limit, offset = offset)
+        pre.filter { p ->
+            val lat = p.latitude
+            val lng = p.longitude
+            lat != null && lng != null && distanceKm(lat, lng, centerLat, centerLng) <= radiusKm
+        }
+    }.firstOrNull() ?: Resource.Error("Failed to filter nearby products")
+
+    override suspend fun filterByBreed(
+        breed: String?,
+        minPrice: Double,
+        maxPrice: Double,
+        limit: Int,
+        offset: Int
+    ): Resource<List<ProductEntity>> = safeCall {
+        productDao.filterByPriceBreed(minPrice, maxPrice, breed, limit, offset)
+    }.firstOrNull() ?: Resource.Error("Failed to filter by breed/price")
+
+    override suspend fun filterByAgeDays(
+        minAgeDays: Int?,
+        maxAgeDays: Int?,
+        nowMillis: Long,
+        limit: Int,
+        offset: Int
+    ): Resource<List<ProductEntity>> = safeCall {
+        fun ageDaysToBirthMillis(ageDays: Int?): Long? = ageDays?.let { days ->
+            val ms = days * 24L * 60 * 60 * 1000
+            nowMillis - ms
+        }
+        val maxBirth = ageDaysToBirthMillis(minAgeDays) // younger bound -> larger birthDate
+        val minBirth = ageDaysToBirthMillis(maxAgeDays) // older bound -> smaller birthDate
+        productDao.filterByAge(minBirth = minBirth, maxBirth = maxBirth, limit = limit, offset = offset)
+    }.firstOrNull() ?: Resource.Error("Failed to filter by age")
+
+    override suspend fun filterTraceable(onlyTraceable: Boolean, base: List<ProductEntity>?): Resource<List<ProductEntity>> = safeCall {
+        if (!onlyTraceable) {
+            base ?: productDao.getAllProducts().firstOrNull() ?: emptyList()
+        } else {
+            val source = base ?: (productDao.getAllProducts().firstOrNull() ?: emptyList())
+            source.filter { it.familyTreeId != null || !it.parentIdsJson.isNullOrBlank() }
+        }
+    }.firstOrNull() ?: Resource.Error("Failed to filter traceable products")
+
+    private fun distanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371.0 // km
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+            kotlin.math.cos(Math.toRadians(lat1)) * kotlin.math.cos(Math.toRadians(lat2)) *
+            kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+        val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
+        return R * c
     }
 }
