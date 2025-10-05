@@ -116,6 +116,7 @@ dependencies {
     implementation(libs.firebase.functions.ktx)
     implementation("com.google.firebase:firebase-database-ktx:21.0.0")
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+    implementation("com.google.firebase:firebase-analytics-ktx:22.1.2")
 
     // Google Maps Platform
     implementation(libs.google.maps.android)

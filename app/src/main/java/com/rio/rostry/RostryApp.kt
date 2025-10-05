@@ -1,9 +1,15 @@
 package com.rio.rostry
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.rio.rostry.workers.SyncWorker
@@ -103,6 +109,10 @@ class RostryApp : Application() {
         VaccinationReminderWorker.schedule(this)
         FarmPerformanceWorker.schedule(this)
 
+        // Schedule sync workers for offline-first reconciliation
+        com.rio.rostry.workers.OutboxSyncWorker.schedule(this)
+        com.rio.rostry.workers.PullSyncWorker.schedule(this)
+
         // Schedule General user order status polling (every 30 minutes)
         OrderStatusWorker.schedule(this)
 
@@ -113,10 +123,40 @@ class RostryApp : Application() {
         com.rio.rostry.workers.PersonalizationWorker.schedule(this)
         com.rio.rostry.workers.CommunityEngagementWorker.schedule(this)
         
+        // Register connectivity listener for expedited sync on network reconnection
+        setupConnectivityListener()
+        
         // Seed demo products in debug builds only
         if (BuildConfig.DEBUG) {
             seedDemoData()
         }
+    }
+    
+    private fun setupConnectivityListener() {
+        val connectivityManager = getSystemService(ConnectivityManager::class.java)
+        val networkRequest = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            .build()
+        
+        connectivityManager?.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                Timber.d("Network available, triggering expedited sync")
+                
+                // Enqueue expedited sync to meet 5-minute SLA
+                val request = OneTimeWorkRequestBuilder<com.rio.rostry.workers.OutboxSyncWorker>()
+                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                    .build()
+                
+                WorkManager.getInstance(this@RostryApp).enqueue(request)
+            }
+            
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                Timber.d("Network lost")
+            }
+        })
     }
     
     private fun seedDemoData() {

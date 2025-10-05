@@ -1,5 +1,7 @@
 package com.rio.rostry.ui.general
 
+import android.content.Context
+import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.OutboxDao
 import com.rio.rostry.data.database.entity.CartItemEntity
@@ -12,8 +14,11 @@ import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.repository.PaymentRepository
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.session.SessionManager
 import com.rio.rostry.ui.general.cart.GeneralCartViewModel
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.network.ConnectivityManager
@@ -41,6 +46,11 @@ class GeneralCartViewModelTest {
     private lateinit var outboxDao: OutboxDao
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var gson: Gson
+    private lateinit var farmOnboardingRepository: FarmOnboardingRepository
+    private lateinit var sessionManager: SessionManager
+    private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var analyticsRepository: AnalyticsRepository
+    private lateinit var appContext: Context
     
     private lateinit var viewModel: GeneralCartViewModel
 
@@ -57,6 +67,11 @@ class GeneralCartViewModelTest {
         outboxDao = mockk(relaxed = true)
         connectivityManager = mockk(relaxed = true)
         gson = Gson()
+        farmOnboardingRepository = mockk(relaxed = true)
+        sessionManager = mockk(relaxed = true)
+        firebaseAuth = mockk(relaxed = true)
+        analyticsRepository = mockk(relaxed = true)
+        appContext = mockk(relaxed = true)
         
         // Default mock behaviors
         every { currentUserProvider.userIdOrNull() } returns "test-user-123"
@@ -141,7 +156,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -161,7 +181,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -189,7 +214,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -217,7 +247,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -245,7 +280,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -268,7 +308,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -289,7 +334,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -312,7 +362,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -334,7 +389,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -365,7 +425,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -409,7 +474,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -460,7 +530,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -497,7 +572,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -545,7 +625,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         
@@ -583,7 +668,12 @@ class GeneralCartViewModelTest {
             currentUserProvider,
             outboxDao,
             connectivityManager,
-            gson
+            gson,
+            farmOnboardingRepository,
+            sessionManager,
+            firebaseAuth,
+            analyticsRepository,
+            appContext
         )
         advanceUntilIdle()
         

@@ -15,7 +15,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class GrowthViewModel @Inject constructor(
-    private val repo: GrowthRepository
+    private val repo: GrowthRepository,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository
 ): ViewModel() {
 
     data class UiState(
@@ -35,15 +37,27 @@ class GrowthViewModel @Inject constructor(
 
     fun recordToday(productId: String, weightGrams: Double?, heightCm: Double?) {
         viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
             // week calculation can be moved to repo if birth date available; default to 0 for now
             val record = GrowthRecordEntity(
                 recordId = UUID.randomUUID().toString(),
                 productId = productId,
+                farmerId = farmerId,
                 week = 0,
                 weightGrams = weightGrams,
                 heightCm = heightCm
             )
             repo.upsert(record)
+        }
+    }
+    
+    /**
+     * Track analytics when farmer navigates to list product on marketplace
+     */
+    fun trackListOnMarketplaceClick(productId: String) {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            analyticsRepository.trackFarmToMarketplaceListClicked(userId, productId, "growth")
         }
     }
 }

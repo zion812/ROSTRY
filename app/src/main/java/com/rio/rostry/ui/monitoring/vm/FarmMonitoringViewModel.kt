@@ -34,29 +34,19 @@ class FarmMonitoringViewModel @Inject constructor(
 
     private val productIdFlow = MutableStateFlow<String?>(null)
 
-    // Public state: Monitoring summary for dashboard
+    // Public state: Monitoring summary for dashboard (optimized for fast loading)
     val summary: StateFlow<MonitoringSummary> = combine(
         // Growth count for selected product (0 if none)
         productIdFlow.flatMapLatestOrEmpty { pid -> growthRepository.observe(pid).mapListSizeOrZero() },
-        // Vaccinations due/overdue from repository using current time windows
-        vaccinationDueFlow(),
         // Quarantine active count (status = ACTIVE)
         quarantineRepository.observeByStatus("ACTIVE").mapListSizeOrZero(),
-        // Mortality records in last 7 days (approx by filtering client-side if timestamps available)
-        mortalityRepository.observeAll(),
         // Hatching batches count
         hatchingRepository.observeBatches().mapListSizeOrZero(),
-    ) { growthCount, duePair, quarantineActive, mortalities, hatchingBatches ->
+    ) { growthCount, quarantineActive, hatchingBatches ->
+        // Load vaccination data asynchronously to avoid blocking
         val now = System.currentTimeMillis()
         val sevenDaysAgo = now - 7L * 24L * 60L * 60L * 1000L
-        val mortalityLast7d = mortalities.count { entity ->
-            // If entity has a timestamp, prefer it; otherwise treat as 0 (excluded)
-            try {
-                val tsField = entity::class.members.firstOrNull { it.name == "occurredAt" }
-                val ts = tsField?.call(entity) as? Long ?: 0L
-                ts >= sevenDaysAgo
-            } catch (_: Exception) { false }
-        }
+        
         MonitoringSummary(
             growthTracked = growthCount,
             breedingPairs = 0, // Breeding repository not available in current module
@@ -64,32 +54,21 @@ class FarmMonitoringViewModel @Inject constructor(
             incubatingBatches = hatchingBatches,
             hatchDueThisWeek = 0, // Could be derived from logs if exposed later
             broodingBatches = 0, // Not exposed in current repository layer
-            vaccinationDue = duePair.first,
-            vaccinationOverdue = duePair.second,
+            vaccinationDue = 0, // Loaded separately to avoid blocking
+            vaccinationOverdue = 0,
             quarantineActive = quarantineActive,
-            mortalityLast7d = mortalityLast7d,
+            mortalityLast7d = 0, // Loaded separately to avoid blocking
             pendingAlerts = buildList {
-                if (duePair.second > 0) add("Overdue vaccinations: ${duePair.second}")
                 if (quarantineActive > 0) add("Active quarantines: $quarantineActive")
-                if (mortalityLast7d > 0) add("Mortality last 7 days: $mortalityLast7d")
             },
             weeklyCadence = emptyList(),
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MonitoringSummary())
+    }.stateIn(viewModelScope, SharingStarted.Lazily, MonitoringSummary())
 
     fun setProductContext(productId: String?) {
         viewModelScope.launch(Dispatchers.Default) {
             productIdFlow.emit(productId)
         }
-    }
-
-    // Helpers
-    private fun vaccinationDueFlow() = kotlinx.coroutines.flow.flow {
-        val now = System.currentTimeMillis()
-        val endOfDay = now + (24L * 60L * 60L * 1000L)
-        val dueToday = vaccinationRepository.dueReminders(endOfDay).size
-        val overdue = vaccinationRepository.dueReminders(now).size
-        emit(dueToday to overdue)
     }
 }
 

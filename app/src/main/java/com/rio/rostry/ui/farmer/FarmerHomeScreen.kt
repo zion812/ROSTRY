@@ -1,143 +1,268 @@
 package com.rio.rostry.ui.farmer
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+
+data class FetcherCard(
+    val title: String,
+    val count: Int,
+    val badgeCount: Int = 0,
+    val badgeColor: Color = Color.Transparent,
+    val icon: ImageVector,
+    val action: String,
+    val onClick: () -> Unit
+)
 
 @Composable
 fun FarmerHomeScreen(
-    onListProduct: () -> Unit,
-    onCheckOrders: () -> Unit,
-    onMessageBuyers: () -> Unit,
+    viewModel: FarmerHomeViewModel = hiltViewModel(),
+    onOpenVaccination: () -> Unit = {},
+    onOpenGrowth: () -> Unit = {},
+    onOpenQuarantine: () -> Unit = {},
+    onOpenHatching: () -> Unit = {},
+    onOpenMortality: () -> Unit = {},
+    onOpenBreeding: () -> Unit = {},
+    onOpenListing: () -> Unit = {},
+    onOpenAlerts: () -> Unit = {},
+    onNavigateToGrowthWithList: (String) -> Unit = {}
 ) {
-    Surface(Modifier.fillMaxSize()) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Weekly KPI Cards
+        uiState.weeklySnapshot?.let { snapshot ->
+            Text(
+                "Weekly Performance",
+                style = MaterialTheme.typography.titleLarge
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    KpiCard("Revenue", "₹${snapshot.revenueInr.toInt()}")
+                }
+                item {
+                    KpiCard("Orders", snapshot.ordersCount.toString())
+                }
+                item {
+                    KpiCard("Hatch Rate", "${(snapshot.hatchSuccessRate * 100).toInt()}%")
+                }
+                item {
+                    KpiCard("Mortality", "${(snapshot.mortalityRate * 100).toInt()}%")
+                }
+            }
+        }
+
+        // Alerts Banner
+        if (uiState.unreadAlerts.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                onClick = onOpenAlerts
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Warning, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${uiState.unreadAlerts.size} Urgent Alerts",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = null)
+                }
+            }
+        }
+
+        // Fetcher Grid
+        Text(
+            "Farm Monitoring",
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        val fetcherCards = listOf(
+            FetcherCard(
+                title = "Vaccination Today",
+                count = uiState.vaccinationDueCount,
+                badgeCount = uiState.vaccinationOverdueCount,
+                badgeColor = Color.Red,
+                icon = Icons.Filled.Vaccines,
+                action = "View Schedule",
+                onClick = onOpenVaccination
+            ),
+            FetcherCard(
+                title = "Growth Updates",
+                count = uiState.growthRecordsThisWeek,
+                icon = Icons.Filled.TrendingUp,
+                action = "Record Growth",
+                onClick = onOpenGrowth
+            ),
+            FetcherCard(
+                title = "Quarantine 12h",
+                count = uiState.quarantineActiveCount,
+                badgeCount = uiState.quarantineUpdatesDue,
+                badgeColor = MaterialTheme.colorScheme.tertiary,
+                icon = Icons.Filled.LocalHospital,
+                action = "Update Now",
+                onClick = onOpenQuarantine
+            ),
+            FetcherCard(
+                title = "Hatching Batches",
+                count = uiState.hatchingBatchesActive,
+                badgeCount = uiState.hatchingDueThisWeek,
+                badgeColor = MaterialTheme.colorScheme.secondary,
+                icon = Icons.Filled.EggAlt,
+                action = "View Batches",
+                onClick = onOpenHatching
+            ),
+            FetcherCard(
+                title = "Mortality Log",
+                count = uiState.mortalityLast7Days,
+                icon = Icons.Filled.Warning,
+                action = "Report Mortality",
+                onClick = onOpenMortality
+            ),
+            FetcherCard(
+                title = "Breeding Pairs",
+                count = uiState.breedingPairsActive,
+                icon = Icons.Filled.Favorite,
+                action = "Manage Pairs",
+                onClick = onOpenBreeding
+            ),
+            FetcherCard(
+                title = "Ready to List",
+                count = uiState.productsReadyToListCount,
+                badgeCount = if (uiState.productsReadyToListCount > 0) uiState.productsReadyToListCount else 0,
+                badgeColor = MaterialTheme.colorScheme.primaryContainer,
+                icon = Icons.Filled.Storefront,
+                action = "Quick List",
+                onClick = onOpenGrowth // Navigate to growth tracking to see products
+            ),
+            FetcherCard(
+                title = "New Listing",
+                count = 0,
+                icon = Icons.Filled.AddCircle,
+                action = "Create Listing",
+                onClick = onOpenListing
+            )
+        )
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(fetcherCards) { card ->
+                FetcherCardItem(card)
+            }
+        }
+    }
+
+    if (uiState.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    }
+}
+
+@Composable
+private fun KpiCard(title: String, value: String) {
+    Card(modifier = Modifier.width(120.dp)) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun FetcherCardItem(card: FetcherCard) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp),
+        onClick = card.onClick
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Dashboard summary
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatCard(title = "Today's Orders", value = "12")
-                StatCard(title = "Revenue", value = "₹18,450")
-                StatCard(title = "Alerts", value = "2")
-            }
-
-            // Health tips carousel
-            Column {
-                Text("Daily Health Tips", style = MaterialTheme.typography.titleMedium)
-                val tips = listOf(
-                    "Hydrate birds early morning in heat",
-                    "Rotate feed to balance protein",
-                    "Disinfect waterers weekly",
-                    "Observe stool for early illness signs",
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(
+                    card.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    items(tips) { tip ->
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-                            Text(tip, modifier = Modifier.padding(12.dp))
-                        }
+                if (card.badgeCount > 0) {
+                    Badge(
+                        containerColor = card.badgeColor
+                    ) {
+                        Text(card.badgeCount.toString())
                     }
                 }
             }
 
-            // Medication reminders
             Column {
-                Text("Medication Reminders", style = MaterialTheme.typography.titleMedium)
-                ReminderRow("Broiler Batch A", "Deworming due today")
-                Divider()
-                ReminderRow("Layer Batch Q", "Vitamin boost tomorrow")
+                Text(
+                    card.title,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    card.count.toString(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    card.action,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-
-            // Weather widget (placeholder)
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Weather", style = MaterialTheme.typography.titleMedium)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .height(72.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) { Text("28°C • Humid") }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .height(72.dp)
-                        .background(MaterialTheme.colorScheme.tertiaryContainer),
-                    contentAlignment = Alignment.Center
-                ) { Text("Rain chance 40%") }
-            }
-
-            // Quick actions
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Quick Actions", style = MaterialTheme.typography.titleMedium)
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onListProduct, modifier = Modifier.fillMaxWidth()) { Text("List Product") }
-                    OutlinedButton(onClick = onCheckOrders, modifier = Modifier.fillMaxWidth()) { Text("Check Orders") }
-                    OutlinedButton(onClick = onMessageBuyers, modifier = Modifier.fillMaxWidth()) { Text("Message Buyers") }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
         }
-    }
-}
-
-@Composable
-private fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-            Text(value, style = MaterialTheme.typography.titleLarge)
-        }
-    }
-}
-
-@Composable
-private fun ReminderRow(batch: String, message: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(batch, style = MaterialTheme.typography.bodyLarge)
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        }
-        val done = remember { mutableStateOf(false) }
-        val text = if (done.value) "Done" else "Mark done"
-        OutlinedButton(onClick = { done.value = !done.value }) { Text(text) }
     }
 }

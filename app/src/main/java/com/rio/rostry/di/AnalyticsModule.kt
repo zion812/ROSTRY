@@ -1,5 +1,7 @@
 package com.rio.rostry.di
 
+import android.content.Context
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.rio.rostry.data.database.dao.AnalyticsDao
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepositoryImpl
@@ -9,6 +11,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -23,9 +26,19 @@ abstract class AnalyticsBindingsModule {
 @Module
 @InstallIn(SingletonComponent::class)
 object AnalyticsModule {
+    
     @Provides
     @Singleton
-    fun provideAnalyticsRepository(analyticsDao: AnalyticsDao): AnalyticsRepository {
-        return AnalyticsRepositoryImpl(analyticsDao)
+    fun provideFirebaseAnalytics(@ApplicationContext context: Context): FirebaseAnalytics {
+        return FirebaseAnalytics.getInstance(context)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideAnalyticsRepository(
+        analyticsDao: AnalyticsDao,
+        firebaseAnalytics: FirebaseAnalytics
+    ): AnalyticsRepository {
+        return AnalyticsRepositoryImpl(analyticsDao, firebaseAnalytics)
     }
 }

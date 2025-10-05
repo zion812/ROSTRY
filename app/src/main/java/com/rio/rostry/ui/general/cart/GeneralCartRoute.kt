@@ -55,7 +55,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.rio.rostry.ui.components.AddToFarmDialog
 import kotlinx.coroutines.launch
+
 @Composable
 fun GeneralCartRoute(
     onCheckoutComplete: () -> Unit,
@@ -96,6 +98,17 @@ fun GeneralCartRoute(
         onSelectAddress = viewModel::selectAddress,
         onCheckout = viewModel::checkout
     )
+    
+    // Marketplace-to-farm bridge: Show dialog after farmer purchases
+    if (uiState.showAddToFarmDialog && uiState.addToFarmProductId != null) {
+        AddToFarmDialog(
+            productName = uiState.addToFarmProductName ?: "this product",
+            productId = uiState.addToFarmProductId!!,
+            onConfirm = { productId -> viewModel.addToFarmMonitoring(productId) },
+            onDismiss = { viewModel.dismissAddToFarmDialog() },
+            isLoading = uiState.isAddingToFarm
+        )
+    }
 }
 
 @Composable

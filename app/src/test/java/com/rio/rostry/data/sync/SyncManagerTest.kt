@@ -92,7 +92,17 @@ class SyncManagerTest {
             outboxDao = db.outboxDao(),
             firestoreService = firestore,
             connectivityManager = connectivity,
-            gson = Gson()
+            gson = Gson(),
+            breedingPairDao = Mockito.mock(com.rio.rostry.data.database.dao.BreedingPairDao::class.java),
+            farmAlertDao = Mockito.mock(com.rio.rostry.data.database.dao.FarmAlertDao::class.java),
+            farmerDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao::class.java),
+            vaccinationRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.VaccinationRecordDao::class.java),
+            growthRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.GrowthRecordDao::class.java),
+            quarantineRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.QuarantineRecordDao::class.java),
+            mortalityRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.MortalityRecordDao::class.java),
+            hatchingBatchDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingBatchDao::class.java),
+            hatchingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingLogDao::class.java),
+            firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java)
         )
 
         val res = sync.syncAll()
@@ -142,7 +152,17 @@ class SyncManagerTest {
             outboxDao = db.outboxDao(),
             firestoreService = firestore,
             connectivityManager = connectivity,
-            gson = Gson()
+            gson = Gson(),
+            breedingPairDao = Mockito.mock(com.rio.rostry.data.database.dao.BreedingPairDao::class.java),
+            farmAlertDao = Mockito.mock(com.rio.rostry.data.database.dao.FarmAlertDao::class.java),
+            farmerDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao::class.java),
+            vaccinationRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.VaccinationRecordDao::class.java),
+            growthRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.GrowthRecordDao::class.java),
+            quarantineRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.QuarantineRecordDao::class.java),
+            mortalityRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.MortalityRecordDao::class.java),
+            hatchingBatchDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingBatchDao::class.java),
+            hatchingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingLogDao::class.java),
+            firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java)
         )
 
         sync.syncAll()
@@ -202,7 +222,17 @@ class SyncManagerTest {
             outboxDao = db.outboxDao(),
             firestoreService = firestore,
             connectivityManager = connectivity,
-            gson = Gson()
+            gson = Gson(),
+            breedingPairDao = Mockito.mock(com.rio.rostry.data.database.dao.BreedingPairDao::class.java),
+            farmAlertDao = Mockito.mock(com.rio.rostry.data.database.dao.FarmAlertDao::class.java),
+            farmerDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao::class.java),
+            vaccinationRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.VaccinationRecordDao::class.java),
+            growthRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.GrowthRecordDao::class.java),
+            quarantineRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.QuarantineRecordDao::class.java),
+            mortalityRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.MortalityRecordDao::class.java),
+            hatchingBatchDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingBatchDao::class.java),
+            hatchingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingLogDao::class.java),
+            firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java)
         )
 
         sync.syncAll()

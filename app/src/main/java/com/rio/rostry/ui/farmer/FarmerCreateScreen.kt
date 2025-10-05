@@ -1,5 +1,6 @@
 package com.rio.rostry.ui.farmer
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -47,10 +48,39 @@ enum class PriceType { Fixed, Auction }
 @Composable
 fun FarmerCreateScreen(
     viewModel: FarmerCreateViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    prefillProductId: String? = null,
+    pairId: String? = null
 ) {
     val uiState by viewModel.ui.collectAsStateWithLifecycle()
     val wizardState = uiState.wizardState
+    
+    // Media pickers
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris -> viewModel.addMedia("photo", uris.map { it.toString() }) }
+    
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris -> viewModel.addMedia("video", uris.map { it.toString() }) }
+    
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris -> viewModel.addMedia("audio", uris.map { it.toString() }) }
+    
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris -> viewModel.addMedia("document", uris.map { it.toString() }) }
+    
+    // Load farm monitoring data if prefillProductId is provided
+    LaunchedEffect(prefillProductId) {
+        viewModel.loadPrefillData(prefillProductId)
+    }
+    
+    // Load breeding pair context if pairId is provided (enhances listing with breeding stats)
+    LaunchedEffect(pairId) {
+        viewModel.loadBreedingContext(pairId)
+    }
     
     LaunchedEffect(uiState.successProductId) {
         if (uiState.successProductId != null) {
@@ -58,7 +88,63 @@ fun FarmerCreateScreen(
         }
     }
     
+    // Show loading indicator when prefill is in progress
+    if (prefillProductId != null && uiState.wizardState.basicInfo.title.isBlank()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                CircularProgressIndicator()
+                Text("Loading farm data...", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        return
+    }
+    
     Column(Modifier.fillMaxSize()) {
+        // Comment 6: Add error banner when uiState.error is non-null
+        if (uiState.error != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            uiState.error!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        TextButton(onClick = { viewModel.clearError() }) {
+                            Text("Dismiss")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Show prefill info banner if data was loaded
+        if (prefillProductId != null && uiState.error == null) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Filled.Info, contentDescription = null)
+                    Text(
+                        "Pre-filled from your farm monitoring data. Review and edit as needed.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
         WizardProgressIndicator(wizardState.currentStep)
         
         Box(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -78,7 +164,11 @@ fun FarmerCreateScreen(
                 FarmerCreateViewModel.WizardStep.MEDIA -> MediaStep(
                     state = wizardState.mediaInfo,
                     onAddMedia = viewModel::addMedia,
-                    onRemoveMedia = viewModel::removeMedia
+                    onRemoveMedia = viewModel::removeMedia,
+                    photoPickerLauncher = photoPickerLauncher,
+                    videoPickerLauncher = videoPickerLauncher,
+                    audioPickerLauncher = audioPickerLauncher,
+                    documentPickerLauncher = documentPickerLauncher
                 )
                 FarmerCreateViewModel.WizardStep.REVIEW -> ReviewStep(
                     basicInfo = wizardState.basicInfo,
@@ -116,6 +206,7 @@ private fun WizardProgressIndicator(currentStep: FarmerCreateViewModel.WizardSte
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BasicInfoStep(
     state: FarmerCreateViewModel.BasicInfoState,
@@ -214,24 +305,96 @@ private fun BasicInfoStep(
             )
         }
         
-        // Dates
+        // Dates with date pickers
+        var showFromDatePicker by remember { mutableStateOf(false) }
+        var showToDatePicker by remember { mutableStateOf(false) }
+        
         OutlinedTextField(
             value = state.availableFrom,
-            onValueChange = { newDate -> onUpdate { it.copy(availableFrom = newDate) } },
+            onValueChange = { },
             label = { Text("Available From (yyyy-mm-dd) *") },
+            readOnly = true,
             isError = errors.containsKey("availableFrom"),
             supportingText = errors["availableFrom"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-            modifier = Modifier.fillMaxWidth()
+            trailingIcon = {
+                IconButton(onClick = { showFromDatePicker = true }) {
+                    Icon(Icons.Filled.CalendarToday, "Pick date")
+                }
+            },
+            modifier = Modifier.fillMaxWidth().clickable { showFromDatePicker = true }
         )
         
         OutlinedTextField(
             value = state.availableTo,
-            onValueChange = { newDate -> onUpdate { it.copy(availableTo = newDate) } },
+            onValueChange = { },
             label = { Text("Available To (yyyy-mm-dd) *") },
+            readOnly = true,
             isError = errors.containsKey("availableTo"),
             supportingText = errors["availableTo"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-            modifier = Modifier.fillMaxWidth()
+            trailingIcon = {
+                IconButton(onClick = { showToDatePicker = true }) {
+                    Icon(Icons.Filled.CalendarToday, "Pick date")
+                }
+            },
+            modifier = Modifier.fillMaxWidth().clickable { showToDatePicker = true }
         )
+        
+        // Date picker dialogs
+        if (showFromDatePicker) {
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = System.currentTimeMillis()
+            )
+            DatePickerDialog(
+                onDismissRequest = { showFromDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                            val date = formatter.format(java.util.Date(millis))
+                            onUpdate { it.copy(availableFrom = date) }
+                        }
+                        showFromDatePicker = false
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showFromDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
+        
+        if (showToDatePicker) {
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = System.currentTimeMillis()
+            )
+            DatePickerDialog(
+                onDismissRequest = { showToDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                            val date = formatter.format(java.util.Date(millis))
+                            onUpdate { it.copy(availableTo = date) }
+                        }
+                        showToDatePicker = false
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showToDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
     }
 }
 
@@ -358,15 +521,19 @@ private fun DetailsStep(
 private fun MediaStep(
     state: FarmerCreateViewModel.MediaInfoState,
     onAddMedia: (String, List<String>) -> Unit,
-    onRemoveMedia: (String, Int) -> Unit
+    onRemoveMedia: (String, Int) -> Unit,
+    photoPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    videoPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    audioPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
+    documentPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Media Upload", style = MaterialTheme.typography.titleLarge)
         
-        MediaSection("Photos", state.photoUris.size, 12, onAddMedia, onRemoveMedia, "photo")
-        MediaSection("Videos", state.videoUris.size, 2, onAddMedia, onRemoveMedia, "video")
-        MediaSection("Audio", state.audioUris.size, 5, onAddMedia, onRemoveMedia, "audio")
-        MediaSection("Documents", state.documentUris.size, 10, onAddMedia, onRemoveMedia, "document")
+        MediaSection("Photos", state.photoUris.size, 12, { photoPickerLauncher.launch("image/*") }, onRemoveMedia, "photo")
+        MediaSection("Videos", state.videoUris.size, 2, { videoPickerLauncher.launch("video/*") }, onRemoveMedia, "video")
+        MediaSection("Audio", state.audioUris.size, 5, { audioPickerLauncher.launch("audio/*") }, onRemoveMedia, "audio")
+        MediaSection("Documents", state.documentUris.size, 10, { documentPickerLauncher.launch("*/*") }, onRemoveMedia, "document")
     }
 }
 
@@ -375,7 +542,7 @@ private fun MediaSection(
     label: String,
     count: Int,
     maxCount: Int,
-    onAdd: (String, List<String>) -> Unit,
+    onLaunchPicker: () -> Unit,
     onRemove: (String, Int) -> Unit,
     type: String
 ) {
@@ -383,7 +550,7 @@ private fun MediaSection(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("$label ($count/$maxCount)", style = MaterialTheme.typography.titleMedium)
             Button(
-                onClick = { /* Launch picker */ },
+                onClick = onLaunchPicker,
                 enabled = count < maxCount
             ) {
                 Icon(Icons.Filled.Add, null)

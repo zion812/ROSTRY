@@ -382,10 +382,17 @@ private fun RoleNavGraph(
             PlaceholderScreen(title = "General Market")
         }
         composable(Routes.HOME_FARMER) {
+            val viewModel: com.rio.rostry.ui.farmer.FarmerHomeViewModel = hiltViewModel()
             FarmerHomeScreen(
-                onListProduct = { navController.navigate(Routes.FarmerNav.CREATE) },
-                onCheckOrders = { navController.navigate(Routes.TRANSFER_LIST) },
-                onMessageBuyers = { navController.navigate(Routes.SOCIAL_FEED) }
+                viewModel = viewModel,
+                onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
+                onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
+                onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
+                onOpenHatching = { navController.navigate(Routes.MONITORING_HATCHING) },
+                onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
+                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
+                onOpenListing = { navController.navigate(Routes.FarmerNav.CREATE) },
+                onOpenAlerts = { navController.navigate(Routes.NOTIFICATIONS) }
             )
         }
         composable(Routes.FarmerNav.MARKET) {
@@ -432,11 +439,29 @@ private fun RoleNavGraph(
                 nonTraceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable
             )
         }
-        composable(Routes.FarmerNav.CREATE) {
+        composable(
+            route = Routes.FarmerNav.CREATE + "?prefillProductId={prefillProductId}&pairId={pairId}",
+            arguments = listOf(
+                navArgument("prefillProductId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("pairId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val vvm: VerificationViewModel = hiltViewModel()
             val vstate by vvm.ui.collectAsState()
             val createVm: com.rio.rostry.ui.farmer.FarmerCreateViewModel = hiltViewModel()
             val createState by createVm.ui.collectAsState()
+            
+            // Extract prefillProductId and pairId from navigation arguments
+            val prefillProductId = backStackEntry.arguments?.getString("prefillProductId")
+            val pairId = backStackEntry.arguments?.getString("pairId")
 
             LaunchedEffect(createState.successProductId) {
                 if (!createState.successProductId.isNullOrBlank()) {
@@ -448,7 +473,9 @@ private fun RoleNavGraph(
             }
 
             FarmerCreateScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                prefillProductId = prefillProductId,
+                pairId = pairId
             )
         }
         composable(Routes.FarmerNav.COMMUNITY) {
@@ -709,22 +736,52 @@ private fun RoleNavGraph(
         composable(Routes.REPORTS) { com.rio.rostry.ui.analytics.ReportsScreen() }
 
         // Monitoring routes (wired to monitoring module screens)
-        composable(Routes.MONITORING_VACCINATION) {
-            com.rio.rostry.ui.monitoring.VaccinationScheduleScreen()
+        composable(
+            route = Routes.MONITORING_VACCINATION,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/vaccination" })
+        ) {
+            com.rio.rostry.ui.monitoring.VaccinationScheduleScreen(
+                onListProduct = { productId ->
+                    navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$productId")
+                }
+            )
         }
-        composable(Routes.MONITORING_MORTALITY) {
+        composable(
+            route = Routes.MONITORING_MORTALITY,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/mortality" })
+        ) {
             com.rio.rostry.ui.monitoring.MortalityTrackingScreen()
         }
-        composable(Routes.MONITORING_QUARANTINE) {
+        composable(
+            route = Routes.MONITORING_QUARANTINE,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/quarantine" })
+        ) {
             com.rio.rostry.ui.monitoring.QuarantineManagementScreen()
         }
-        composable(Routes.MONITORING_BREEDING) {
-            com.rio.rostry.ui.monitoring.BreedingManagementScreen()
+        composable(
+            route = Routes.MONITORING_BREEDING,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/breeding" })
+        ) {
+            com.rio.rostry.ui.monitoring.BreedingManagementScreen(
+                onListProduct = { productId, pairId ->
+                    navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$productId&pairId=$pairId")
+                }
+            )
         }
-        composable(Routes.MONITORING_GROWTH) {
-            com.rio.rostry.ui.monitoring.GrowthTrackingScreen()
+        composable(
+            route = Routes.MONITORING_GROWTH,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/growth" })
+        ) {
+            com.rio.rostry.ui.monitoring.GrowthTrackingScreen(
+                onListProduct = { productId ->
+                    navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$productId")
+                }
+            )
         }
-        composable(Routes.MONITORING_HATCHING) {
+        composable(
+            route = Routes.MONITORING_HATCHING,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/hatching" })
+        ) {
             com.rio.rostry.ui.monitoring.HatchingProcessScreen()
         }
         composable(Routes.MONITORING_DASHBOARD) {
@@ -743,6 +800,33 @@ private fun RoleNavGraph(
         }
         composable(Routes.MONITORING_PERFORMANCE) {
             com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
+        }
+        
+        // Farm-Marketplace Bridge: Deep link to add product to farm monitoring
+        composable(
+            route = "add-to-farm?productId={productId}",
+            arguments = listOf(
+                navArgument("productId") {
+                    type = NavType.StringType
+                }
+            ),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://add-to-farm?productId={productId}" })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
+            val cartVm: com.rio.rostry.ui.general.cart.GeneralCartViewModel = hiltViewModel()
+            
+            // Trigger the dialog when this route is navigated to
+            LaunchedEffect(productId) {
+                if (productId != null) {
+                    cartVm.showAddToFarmDialogForProduct(productId)
+                }
+            }
+            
+            // Use GeneralCartRoute to display the dialog
+            com.rio.rostry.ui.general.cart.GeneralCartRoute(
+                onCheckoutComplete = { navController.popBackStack() },
+                viewModel = cartVm
+            )
         }
 
         // Loveable product features

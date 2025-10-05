@@ -37,11 +37,24 @@ interface AnalyticsRepository {
     fun generalDashboard(userId: String): Flow<GeneralDashboard>
     fun farmerDashboard(userId: String): Flow<FarmerDashboard>
     fun enthusiastDashboard(userId: String): Flow<EnthusiastDashboard>
+    
+    // Farm-Marketplace Bridge Analytics
+    suspend fun trackFarmToMarketplaceListClicked(userId: String, productId: String, source: String)
+    suspend fun trackFarmToMarketplacePrefillInitiated(userId: String, productId: String)
+    suspend fun trackFarmToMarketplacePrefillSuccess(userId: String, productId: String, fieldsCount: Int)
+    suspend fun trackFarmToMarketplaceListingSubmitted(userId: String, productId: String, listingId: String)
+    suspend fun trackMarketplaceToFarmDialogShown(userId: String, productId: String)
+    suspend fun trackMarketplaceToFarmAdded(userId: String, productId: String, recordsCreated: Int)
+    suspend fun trackMarketplaceToFarmDialogDismissed(userId: String, productId: String)
+    
+    // Comment 7 & Comment 10: Security event tracking
+    suspend fun trackSecurityEvent(userId: String, eventType: String, resourceId: String)
 }
 
 @Singleton
 class AnalyticsRepositoryImpl @Inject constructor(
     private val analyticsDao: AnalyticsDao,
+    private val firebaseAnalytics: com.google.firebase.analytics.FirebaseAnalytics
 ) : AnalyticsRepository {
 
     private val fmt = DateTimeFormatter.ISO_DATE
@@ -112,5 +125,86 @@ class AnalyticsRepositoryImpl @Inject constructor(
                 suggestions = suggestions
             )
         }
+    }
+    
+    // Farm-Marketplace Bridge Analytics Implementation
+    
+    override suspend fun trackFarmToMarketplaceListClicked(userId: String, productId: String, source: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putString("source", source) // "growth", "vaccination", "breeding"
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("farm_to_marketplace_list_clicked", bundle)
+    }
+    
+    override suspend fun trackFarmToMarketplacePrefillSuccess(userId: String, productId: String, fieldsCount: Int) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putInt("fields_prefilled", fieldsCount)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("farm_to_marketplace_prefill_success", bundle)
+    }
+    
+    override suspend fun trackFarmToMarketplaceListingSubmitted(userId: String, productId: String, listingId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putString("listing_id", listingId)
+            putBoolean("used_prefill", true)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("farm_to_marketplace_listing_submitted", bundle)
+    }
+    
+    override suspend fun trackMarketplaceToFarmDialogShown(userId: String, productId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("marketplace_to_farm_dialog_shown", bundle)
+    }
+    
+    override suspend fun trackMarketplaceToFarmAdded(userId: String, productId: String, recordsCreated: Int) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putInt("records_created", recordsCreated) // Growth + vaccinations
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("marketplace_to_farm_added", bundle)
+    }
+    
+    override suspend fun trackFarmToMarketplacePrefillInitiated(userId: String, productId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("farm_to_marketplace_prefill_initiated", bundle)
+    }
+    
+    override suspend fun trackMarketplaceToFarmDialogDismissed(userId: String, productId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("product_id", productId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("marketplace_to_farm_dismissed", bundle)
+    }
+    
+    override suspend fun trackSecurityEvent(userId: String, eventType: String, resourceId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("user_id", userId)
+            putString("event_type", eventType)
+            putString("resource_id", resourceId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("security_event", bundle)
+        timber.log.Timber.w("Security event: $eventType by user $userId on resource $resourceId")
     }
 }

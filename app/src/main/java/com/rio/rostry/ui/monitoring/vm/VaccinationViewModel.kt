@@ -15,14 +15,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class VaccinationViewModel @Inject constructor(
-    private val repo: VaccinationRepository
-): ViewModel() {
+    private val repo: VaccinationRepository,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+) : ViewModel() {
 
     data class UiState(
         val productId: String = "",
         val records: List<VaccinationRecordEntity> = emptyList()
     )
-
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
@@ -45,9 +45,11 @@ class VaccinationViewModel @Inject constructor(
         costInr: Double? = null
     ) {
         viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
             val rec = VaccinationRecordEntity(
                 vaccinationId = UUID.randomUUID().toString(),
                 productId = productId,
+                farmerId = farmerId,
                 vaccineType = vaccineType,
                 supplier = supplier,
                 batchCode = batchCode,

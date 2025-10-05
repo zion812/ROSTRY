@@ -79,9 +79,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UserInterestEntity::class,
         ExpertProfileEntity::class,
         // Outbox pattern for offline-first
-        OutboxEntity::class
+        OutboxEntity::class,
+        // New farm monitoring entities
+        BreedingPairEntity::class,
+        FarmAlertEntity::class,
+        ListingDraftEntity::class,
+        FarmerDashboardSnapshotEntity::class
     ],
-    version = 18, // Bumped to 18 adding OutboxEntity for offline-first queued mutations
+    version = 22, // Bumped to 22 adding deathsCount to farmer_dashboard_snapshots
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -156,6 +161,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userInterestDao(): UserInterestDao
     abstract fun expertProfileDao(): ExpertProfileDao
     abstract fun outboxDao(): OutboxDao
+
+    // New farm monitoring DAOs
+    abstract fun breedingPairDao(): BreedingPairDao
+    abstract fun farmAlertDao(): FarmAlertDao
+    abstract fun listingDraftDao(): ListingDraftDao
+    abstract fun farmerDashboardSnapshotDao(): FarmerDashboardSnapshotDao
 
     object Converters {
         @TypeConverter
@@ -772,6 +783,172 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_userId` ON `outbox` (`userId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_status` ON `outbox` (`status`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_createdAt` ON `outbox` (`createdAt`)")
+            }
+        }
+
+        // Add new farm monitoring entities for farmer home dashboard
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // breeding_pairs
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `breeding_pairs` (" +
+                        "`pairId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `maleProductId` TEXT NOT NULL, `femaleProductId` TEXT NOT NULL, " +
+                        "`pairedAt` INTEGER NOT NULL, `status` TEXT NOT NULL, `eggsCollected` INTEGER NOT NULL, `hatchSuccessRate` REAL NOT NULL, " +
+                        "`notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, " +
+                        "PRIMARY KEY(`pairId`), " +
+                        "FOREIGN KEY(`maleProductId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`femaleProductId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_pairs_farmerId` ON `breeding_pairs` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_pairs_status` ON `breeding_pairs` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_pairs_maleProductId` ON `breeding_pairs` (`maleProductId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_pairs_femaleProductId` ON `breeding_pairs` (`femaleProductId`)")
+
+                // farm_alerts
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `farm_alerts` (" +
+                        "`alertId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `alertType` TEXT NOT NULL, `severity` TEXT NOT NULL, " +
+                        "`message` TEXT NOT NULL, `actionRoute` TEXT, `isRead` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                        "`expiresAt` INTEGER, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, " +
+                        "PRIMARY KEY(`alertId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_alerts_farmerId` ON `farm_alerts` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_alerts_isRead` ON `farm_alerts` (`isRead`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_alerts_createdAt` ON `farm_alerts` (`createdAt`)")
+
+                // listing_drafts
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `listing_drafts` (" +
+                        "`draftId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `step` TEXT NOT NULL, `formDataJson` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `expiresAt` INTEGER, " +
+                        "PRIMARY KEY(`draftId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_listing_drafts_farmerId` ON `listing_drafts` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_listing_drafts_updatedAt` ON `listing_drafts` (`updatedAt`)")
+
+                // farmer_dashboard_snapshots
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `farmer_dashboard_snapshots` (" +
+                        "`snapshotId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `weekStartAt` INTEGER NOT NULL, `weekEndAt` INTEGER NOT NULL, " +
+                        "`revenueInr` REAL NOT NULL, `ordersCount` INTEGER NOT NULL, `hatchSuccessRate` REAL NOT NULL, " +
+                        "`mortalityRate` REAL NOT NULL, `vaccinationCompletionRate` REAL NOT NULL, `growthRecordsCount` INTEGER NOT NULL, " +
+                        "`quarantineActiveCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, " +
+                        "PRIMARY KEY(`snapshotId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_dashboard_snapshots_farmerId` ON `farmer_dashboard_snapshots` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farmer_dashboard_snapshots_weekStartAt` ON `farmer_dashboard_snapshots` (`weekStartAt`)")
+            }
+        }
+
+        // Add farmerId and sync metadata to legacy farm monitoring entities
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add farmerId and sync columns to growth_records
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `farmerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_growth_records_farmerId` ON `growth_records` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_growth_records_createdAt` ON `growth_records` (`createdAt`)")
+
+                // Add farmerId and sync columns to quarantine_records
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `farmerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `lastUpdatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `updatesCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_quarantine_records_farmerId` ON `quarantine_records` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_quarantine_records_startedAt` ON `quarantine_records` (`startedAt`)")
+
+                // Add farmerId and sync columns to mortality_records
+                db.execSQL("ALTER TABLE `mortality_records` ADD COLUMN `farmerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `mortality_records` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `mortality_records` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `mortality_records` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_farmerId` ON `mortality_records` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_occurredAt` ON `mortality_records` (`occurredAt`)")
+
+                // Add farmerId and sync columns to vaccination_records
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `farmerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_vaccination_records_farmerId` ON `vaccination_records` (`farmerId`)")
+
+                // Add farmerId and sync columns to hatching_batches
+                db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `farmerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_batches_farmerId` ON `hatching_batches` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_batches_expectedHatchAt` ON `hatching_batches` (`expectedHatchAt`)")
+
+                // Add farmerId and sync columns to hatching_logs
+                db.execSQL("ALTER TABLE `hatching_logs` ADD COLUMN `farmerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `hatching_logs` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `hatching_logs` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `hatching_logs` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_farmerId` ON `hatching_logs` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hatching_logs_createdAt` ON `hatching_logs` (`createdAt`)")
+
+                // Backfill farmerId from related products where possible (growth, vaccination, quarantine)
+                // This is a best-effort - products table has sellerId which maps to farmerId
+                db.execSQL("""
+                    UPDATE growth_records 
+                    SET farmerId = (SELECT sellerId FROM products WHERE products.productId = growth_records.productId)
+                    WHERE EXISTS (SELECT 1 FROM products WHERE products.productId = growth_records.productId)
+                """)
+                
+                db.execSQL("""
+                    UPDATE vaccination_records 
+                    SET farmerId = (SELECT sellerId FROM products WHERE products.productId = vaccination_records.productId)
+                    WHERE EXISTS (SELECT 1 FROM products WHERE products.productId = vaccination_records.productId)
+                """)
+                
+                db.execSQL("""
+                    UPDATE quarantine_records 
+                    SET farmerId = (SELECT sellerId FROM products WHERE products.productId = quarantine_records.productId)
+                    WHERE EXISTS (SELECT 1 FROM products WHERE products.productId = quarantine_records.productId)
+                """)
+                
+                db.execSQL("""
+                    UPDATE mortality_records 
+                    SET farmerId = (SELECT sellerId FROM products WHERE products.productId = mortality_records.productId)
+                    WHERE productId IS NOT NULL 
+                    AND EXISTS (SELECT 1 FROM products WHERE products.productId = mortality_records.productId)
+                """)
+
+                // Set updatedAt to createdAt for existing records
+                db.execSQL("UPDATE growth_records SET updatedAt = createdAt")
+                db.execSQL("UPDATE quarantine_records SET updatedAt = startedAt, lastUpdatedAt = startedAt")
+                db.execSQL("UPDATE mortality_records SET updatedAt = occurredAt")
+                db.execSQL("UPDATE vaccination_records SET updatedAt = createdAt")
+                db.execSQL("UPDATE hatching_batches SET updatedAt = startedAt")
+                db.execSQL("UPDATE hatching_logs SET updatedAt = createdAt")
+            }
+        }
+
+        // Add farm monitoring sync timestamp columns to sync_state
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add farm monitoring sync timestamp columns
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastBreedingSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastAlertSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastDashboardSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastVaccinationSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastGrowthSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastQuarantineSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastMortalitySyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastHatchingSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastHatchingLogSyncAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // Add deathsCount column to farmer_dashboard_snapshots
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `deathsCount` INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

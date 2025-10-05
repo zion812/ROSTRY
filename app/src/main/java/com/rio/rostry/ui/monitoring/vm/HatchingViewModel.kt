@@ -18,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HatchingViewModel @Inject constructor(
-    private val hatchingRepository: HatchingRepository
+    private val hatchingRepository: HatchingRepository,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
     data class UiState(
@@ -75,9 +76,11 @@ class HatchingViewModel @Inject constructor(
                     now + (days * 24L * 60 * 60 * 1000)
                 }
 
+                val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
                 val batch = HatchingBatchEntity(
                     batchId = batchId,
                     name = batchName,
+                    farmerId = farmerId,
                     startedAt = now,
                     expectedHatchAt = expectedHatchAt,
                     temperatureC = temperatureC,

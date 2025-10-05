@@ -7,24 +7,121 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepository
+import com.rio.rostry.data.database.dao.*
+import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
+import com.rio.rostry.session.SessionManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
+import java.util.Calendar
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
 class FarmPerformanceWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val repo: FarmPerformanceRepository
+    private val vaccinationRecordDao: VaccinationRecordDao,
+    private val growthRecordDao: GrowthRecordDao,
+    private val mortalityRecordDao: MortalityRecordDao,
+    private val hatchingBatchDao: HatchingBatchDao,
+    private val hatchingLogDao: HatchingLogDao,
+    private val quarantineRecordDao: QuarantineRecordDao,
+    private val orderDao: OrderDao,
+    private val productDao: ProductDao,
+    private val farmerDashboardSnapshotDao: FarmerDashboardSnapshotDao,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            // Placeholder aggregation; real implementation would compute KPIs and persist to reports
-            // This worker can read lifecycle events via repo and generate weekly rollups
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@withContext Result.failure()
+            
+            // Calculate current week's start/end (Monday 00:00 to Sunday 23:59)
+            val calendar = Calendar.getInstance()
+            calendar.firstDayOfWeek = Calendar.MONDAY
+            calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val weekStart = calendar.timeInMillis
+            
+            calendar.add(Calendar.DAY_OF_WEEK, 6)
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            val weekEnd = calendar.timeInMillis
+            
+            // Query each DAO for counts/aggregates within the week
+            val allOrders = orderDao.getOrdersByStatus("COMPLETED").first()
+            val weekOrders = allOrders.filter { order ->
+                order.createdAt in weekStart..weekEnd
+            }
+            val revenueInr = weekOrders.sumOf { it.totalAmount }
+            val ordersCount = weekOrders.size
+            
+            // Hatching success rate: hatched / eggs set in week
+            val hatchedCount = hatchingLogDao.countHatchedBetweenForFarmer(farmerId, weekStart, weekEnd)
+            val eggsSetCount = hatchingLogDao.countEggsSetBetweenForFarmer(farmerId, weekStart, weekEnd)
+            val hatchSuccessRate = if (eggsSetCount > 0) hatchedCount.toDouble() / eggsSetCount else 0.0
+            
+            // Mortality: absolute count and rate (if we can estimate population)
+            val deathsCount = mortalityRecordDao.countForFarmerBetween(farmerId, weekStart, weekEnd)
+            // Estimate population from active products (birds) for the farmer
+            // This is a rough estimate - in production, maintain a proper population tracker
+            val estimatedPopulation = productDao.countActiveByOwnerId(farmerId)
+            val mortalityRate = if (estimatedPopulation > 0) {
+                deathsCount.toDouble() / estimatedPopulation
+            } else {
+                0.0 // No population to compute rate against
+            }
+            
+            // Vaccination completion rate: administered / scheduled in week
+            val scheduledVaccinations = vaccinationRecordDao.countScheduledBetweenForFarmer(farmerId, weekStart, weekEnd)
+            val administeredVaccinations = vaccinationRecordDao.countAdministeredBetween(weekStart, weekEnd)
+            val vaccinationCompletionRate = if (scheduledVaccinations > 0) 
+                administeredVaccinations.toDouble() / scheduledVaccinations else 0.0
+            
+            // Growth records count in week
+            val growthRecordsCount = growthRecordDao.countForFarmerBetween(farmerId, weekStart, weekEnd)
+            
+            // Quarantine active count
+            val quarantineActiveCount = quarantineRecordDao.countActiveForFarmer(farmerId)
+            
+            // Farm-marketplace bridge: Products ready to list
+            // Count products that have growth records and are NOT in active quarantine
+            val allGrowthRecords = growthRecordDao.getAllByFarmer(farmerId)
+            val productsWithGrowth = allGrowthRecords.map { it.productId }.distinct()
+            val activeQuarantineProducts = quarantineRecordDao.getAllActiveForFarmer(farmerId)
+                .map { it.productId }
+                .toSet()
+            val productsReadyToListCount = productsWithGrowth.count { !activeQuarantineProducts.contains(it) }
+            
+            // Create snapshot
+            val snapshot = FarmerDashboardSnapshotEntity(
+                snapshotId = UUID.randomUUID().toString(),
+                farmerId = farmerId,
+                weekStartAt = weekStart,
+                weekEndAt = weekEnd,
+                revenueInr = revenueInr,
+                ordersCount = ordersCount,
+                hatchSuccessRate = hatchSuccessRate,
+                mortalityRate = mortalityRate,
+                deathsCount = deathsCount,
+                vaccinationCompletionRate = vaccinationCompletionRate,
+                growthRecordsCount = growthRecordsCount,
+                quarantineActiveCount = quarantineActiveCount,
+                productsReadyToListCount = productsReadyToListCount,
+                createdAt = System.currentTimeMillis(),
+                dirty = true
+            )
+            
+            farmerDashboardSnapshotDao.upsert(snapshot)
+            
             Result.success()
         } catch (e: Exception) {
             Result.retry()
@@ -36,7 +133,7 @@ class FarmPerformanceWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<FarmPerformanceWorker>(7, TimeUnit.DAYS).build()
             WorkManager.getInstance(context)
-                .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
+                .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
         }
     }
 }

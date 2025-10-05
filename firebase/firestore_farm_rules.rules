@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Farm monitoring collections - farmer-scoped access control
+    match /farmers/{farmerId} {
+      // Only authenticated farmer can access their own data
+      allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      
+      match /breeding_pairs/{pairId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /alerts/{alertId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /dashboard_snapshots/{snapshotId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /vaccinations/{vaccinationId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /growth_records/{recordId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /quarantine_records/{quarantineId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /mortality_records/{deathId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /hatching_batches/{batchId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+      
+      match /hatching_logs/{logId} {
+        allow read, write: if request.auth != null && request.auth.uid == farmerId;
+      }
+    }
+  }
+}

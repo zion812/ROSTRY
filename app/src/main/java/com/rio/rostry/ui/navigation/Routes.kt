@@ -117,6 +117,8 @@ object Routes {
         const val HOME = "home/farmer"
         const val MARKET = "farmer/market"
         const val CREATE = "farmer/create"
+        // New route with optional prefillProductId query parameter for farm-to-marketplace bridge
+        const val CREATE_WITH_PREFILL = "farmer/create?prefillProductId={prefillProductId}"
         const val COMMUNITY = "farmer/community"
         const val PROFILE = "farmer/profile"
     }

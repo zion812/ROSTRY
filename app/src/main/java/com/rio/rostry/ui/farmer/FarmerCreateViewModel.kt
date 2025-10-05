@@ -22,8 +22,39 @@ import kotlinx.coroutines.launch
 class FarmerCreateViewModel @Inject constructor(
     private val marketplace: ProductMarketplaceRepository,
     private val userRepository: UserRepository,
-    @ApplicationContext private val appContext: Context
+    private val listingDraftRepository: com.rio.rostry.data.repository.monitoring.ListingDraftRepository,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    @ApplicationContext private val appContext: Context,
+    // Farm monitoring repositories for prefill
+    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
+    private val growthRepository: com.rio.rostry.data.repository.monitoring.GrowthRepository,
+    private val vaccinationRepository: com.rio.rostry.data.repository.monitoring.VaccinationRepository,
+    private val quarantineRepository: com.rio.rostry.data.repository.monitoring.QuarantineRepository,
+    private val breedingRepository: com.rio.rostry.data.repository.monitoring.BreedingRepository,
+    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository
 ) : ViewModel() {
+
+    private var prefillProductId: String? = null
+
+    init {
+        loadDraft()
+    }
+
+    private fun loadDraft() {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            val draft = listingDraftRepository.getDraft(farmerId) ?: return@launch
+            
+            // Deserialize formDataJson to ProductCreationState
+            try {
+                val gson = com.google.gson.Gson()
+                val wizardState = gson.fromJson(draft.formDataJson, ProductCreationState::class.java)
+                _ui.value = _ui.value.copy(wizardState = wizardState)
+            } catch (e: Exception) {
+                // Log error but don't crash
+            }
+        }
+    }
 
     enum class WizardStep { BASICS, DETAILS, MEDIA, REVIEW }
 
@@ -45,6 +76,7 @@ class FarmerCreateViewModel @Inject constructor(
         val vaccination: String = "",
         val parentInfo: String = "",
         val weightText: String = "",
+        val heightCm: Double? = null,
         val healthUri: String = "",
         val genderText: String = "",
         val sizeText: String = "",
@@ -89,6 +121,221 @@ class FarmerCreateViewModel @Inject constructor(
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui
 
+    private fun saveDraft() {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            val wizardState = _ui.value.wizardState
+            
+            try {
+                val gson = com.google.gson.Gson()
+                val formDataJson = gson.toJson(wizardState)
+                
+                val draft = com.rio.rostry.data.database.entity.ListingDraftEntity(
+                    draftId = "${farmerId}_current",
+                    farmerId = farmerId,
+                    step = wizardState.currentStep.name,
+                    formDataJson = formDataJson,
+                    updatedAt = System.currentTimeMillis(),
+                    expiresAt = System.currentTimeMillis() + java.util.concurrent.TimeUnit.DAYS.toMillis(30)
+                )
+                
+                listingDraftRepository.saveDraft(draft)
+            } catch (e: Exception) {
+                // Log but don't interrupt user flow
+            }
+        }
+    }
+
+    /**
+     * Load farm monitoring data to prefill the listing wizard when coming from farm screens
+     * Comment 1: Add guardrails for null/blank productId
+     */
+    fun loadPrefillData(productId: String?) {
+        // Comment 1: Validate productId and show user-facing error if invalid
+        if (productId.isNullOrBlank()) {
+            _ui.value = _ui.value.copy(
+                error = "Invalid product selection. Please list manually or try again."
+            )
+            return
+        }
+        
+        prefillProductId = productId
+        viewModelScope.launch {
+            try {
+                // Track analytics: prefill initiated
+                val farmerId = firebaseAuth.currentUser?.uid
+                if (farmerId != null) {
+                    analyticsRepository.trackFarmToMarketplacePrefillInitiated(farmerId, productId)
+                }
+                
+                // Check if product is in active quarantine (precompute for synchronous validation)
+                val inQuarantine = quarantineRepository.observe(productId).first()
+                    .any { it.status == "ACTIVE" }
+                
+                quarantineCheckPassed = !inQuarantine // Store for synchronous validation
+                
+                if (inQuarantine) {
+                    _ui.value = _ui.value.copy(
+                        error = "Cannot list products currently in quarantine. Complete quarantine protocol first."
+                    )
+                    return@launch
+                }
+                
+                // Fetch product and farm monitoring data - unwrap Resource
+                // Comment 13: Don't return on Loading - wait for Success/Error
+                _ui.value = _ui.value.copy(isSubmitting = true) // Show loading
+                
+                val productResource = productRepository.getProductById(productId)
+                    .first { it !is Resource.Loading } // Wait until not loading
+                    
+                val product = when (productResource) {
+                    is Resource.Success -> productResource.data
+                    is Resource.Error -> {
+                        _ui.value = _ui.value.copy(
+                            isSubmitting = false,
+                            error = productResource.message ?: "Product not found"
+                        )
+                        return@launch
+                    }
+                    is Resource.Loading -> null // Shouldn't happen due to first{} filter
+                }
+                
+                if (product == null) {
+                    _ui.value = _ui.value.copy(
+                        isSubmitting = false,
+                        error = "Product not found. Please try again or list manually."
+                    )
+                    return@launch
+                }
+                
+                val latestGrowth = growthRepository.observe(productId).first().lastOrNull()
+                val vaccinations = vaccinationRepository.observe(productId).first()
+                
+                // Calculate age group from birth date
+                val ageGroup = if (product.birthDate != null) {
+                    val ageInDays = ((System.currentTimeMillis() - product.birthDate) / (24 * 60 * 60 * 1000)).toInt()
+                    when {
+                        ageInDays <= 30 -> AgeGroup.Chick
+                        ageInDays <= 90 -> AgeGroup.Grower
+                        ageInDays <= 365 -> AgeGroup.Adult
+                        else -> AgeGroup.Senior
+                    }
+                } else AgeGroup.Grower
+                
+                // Map product category - only use existing enum values (Meat, Adoption)
+                val category = when {
+                    product.category?.startsWith("ADOPTION") == true -> Category.Adoption
+                    else -> Category.Meat // Default to Meat for MEAT, EGGS, BREEDING, etc.
+                }
+                
+                // Format vaccination summary
+                val vaccinationSummary = vaccinations
+                    .filter { it.administeredAt != null }
+                    .joinToString(", ") { 
+                        "${it.vaccineType} (${formatDate(it.administeredAt!!)})" 
+                    }
+                
+                // Prefill wizard state
+                val prefilled = _ui.value.wizardState.copy(
+                    basicInfo = _ui.value.wizardState.basicInfo.copy(
+                        title = product.name,
+                        price = product.price.toString(),
+                        ageGroup = ageGroup,
+                        category = category,
+                        traceability = if (product.familyTreeId != null) Traceability.Traceable else Traceability.NonTraceable
+                    ),
+                    detailsInfo = _ui.value.wizardState.detailsInfo.copy(
+                        birthDateMillis = product.birthDate,
+                        weightText = (latestGrowth?.weightGrams ?: product.weightGrams)?.toString() ?: "",
+                        heightCm = latestGrowth?.heightCm,
+                        vaccination = vaccinationSummary,
+                        genderText = product.gender ?: "",
+                        colorPattern = product.color ?: "",
+                        latitude = product.latitude,
+                        longitude = product.longitude
+                    ),
+                    mediaInfo = _ui.value.wizardState.mediaInfo.copy(
+                        photoUris = product.imageUrls ?: emptyList()
+                    )
+                )
+                
+                _ui.value = _ui.value.copy(wizardState = prefilled)
+                
+                // Track analytics: prefill success
+                if (farmerId == null) return@launch
+                val fieldsCount = listOf(
+                    prefilled.basicInfo.title.isNotBlank(),
+                    prefilled.basicInfo.price.isNotBlank(),
+                    prefilled.detailsInfo.birthDateMillis != null,
+                    prefilled.detailsInfo.weightText.isNotBlank(),
+                    prefilled.detailsInfo.vaccination.isNotBlank(),
+                    prefilled.mediaInfo.photoUris.isNotEmpty()
+                ).count { it }
+                analyticsRepository.trackFarmToMarketplacePrefillSuccess(farmerId, productId, fieldsCount)
+            } catch (e: Exception) {
+                _ui.value = _ui.value.copy(
+                    error = "Failed to load farm data: ${e.message}"
+                )
+            }
+        }
+    }
+    
+    private fun formatDate(millis: Long): String {
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        return dateFormat.format(java.util.Date(millis))
+    }
+    
+    /**
+     * Load breeding pair context to enhance listing with breeding performance stats
+     */
+    fun loadBreedingContext(pairId: String?) {
+        if (pairId == null) return
+        
+        viewModelScope.launch {
+            try {
+                val pair = breedingRepository.getById(pairId)
+                if (pair == null || pair.status != "ACTIVE") {
+                    return@launch
+                }
+                
+                // Format breeding performance summary
+                val pairedDate = formatDate(pair.pairedAt)
+                val successRate = (pair.hatchSuccessRate * 100).toInt()
+                val breedingSummary = "Proven breeding pair: ${pair.eggsCollected} eggs collected. " +
+                    "Hatch success ${successRate}%. Paired on $pairedDate."
+                
+                // Update wizard state with breeding info
+                val currentState = _ui.value.wizardState
+                val updatedDetailsInfo = currentState.detailsInfo.copy(
+                    breedingHistory = if (currentState.detailsInfo.breedingHistory.isBlank()) {
+                        breedingSummary
+                    } else {
+                        currentState.detailsInfo.breedingHistory + "\n\n" + breedingSummary
+                    }
+                )
+                
+                // Optionally prepend [Proven Pair] to title for visibility
+                val updatedBasicInfo = currentState.basicInfo.copy(
+                    title = if (!currentState.basicInfo.title.startsWith("[Proven Pair]")) {
+                        "[Proven Pair] ${currentState.basicInfo.title}"
+                    } else {
+                        currentState.basicInfo.title
+                    }
+                )
+                
+                _ui.value = _ui.value.copy(
+                    wizardState = currentState.copy(
+                        basicInfo = updatedBasicInfo,
+                        detailsInfo = updatedDetailsInfo
+                    )
+                )
+            } catch (e: Exception) {
+                // Don't block prefill flow; breeding context is optional enhancement
+                timber.log.Timber.w(e, "Failed to load breeding context for pairId: $pairId")
+            }
+        }
+    }
+
     fun nextStep() {
         val current = _ui.value.wizardState
         val errors = validateStep(current.currentStep)
@@ -107,6 +354,7 @@ class FarmerCreateViewModel @Inject constructor(
         _ui.value = _ui.value.copy(
             wizardState = current.copy(currentStep = next, validationErrors = emptyMap())
         )
+        saveDraft()
     }
 
     fun previousStep() {
@@ -120,6 +368,7 @@ class FarmerCreateViewModel @Inject constructor(
         _ui.value = _ui.value.copy(
             wizardState = current.copy(currentStep = prev, validationErrors = emptyMap())
         )
+        saveDraft()
     }
 
     fun updateBasicInfo(transform: (BasicInfoState) -> BasicInfoState) {
@@ -168,7 +417,13 @@ class FarmerCreateViewModel @Inject constructor(
         // Location detection logic would go here
         // For now, placeholder
     }
+    
+    fun clearError() {
+        _ui.value = _ui.value.copy(error = null)
+    }
 
+    private var quarantineCheckPassed = true // Precomputed during loadPrefillData
+    
     fun validateStep(step: WizardStep): Map<String, String> {
         val state = _ui.value.wizardState
         return when (step) {
@@ -187,7 +442,23 @@ class FarmerCreateViewModel @Inject constructor(
             }
             WizardStep.DETAILS -> emptyMap()
             WizardStep.MEDIA -> emptyMap()
-            WizardStep.REVIEW -> emptyMap()
+            WizardStep.REVIEW -> buildMap {
+                // Check quarantine status (already precomputed synchronously)
+                if (!quarantineCheckPassed) {
+                    put("quarantine", "Cannot list products currently in quarantine. Complete quarantine protocol first.")
+                }
+                
+                // If ageGroup == Chick: require vaccination
+                if (state.basicInfo.ageGroup == AgeGroup.Chick && state.detailsInfo.vaccination.isBlank()) {
+                    put("vaccination", "Vaccination records required for chicks before listing")
+                }
+                // If traceability == Traceable: require parentInfo or lineageDoc
+                if (state.basicInfo.traceability == Traceability.Traceable) {
+                    if (state.detailsInfo.parentInfo.isBlank() && state.detailsInfo.lineageDoc.isBlank()) {
+                        put("traceability", "Parent info or lineage document required for traceable products")
+                    }
+                }
+            }
         }
     }
 
@@ -227,12 +498,39 @@ class FarmerCreateViewModel @Inject constructor(
                 _ui.value = UiState(isSubmitting = false, error = "Not authenticated")
                 return@launch
             }
+            
+            // Comment 2: Re-check quarantine status at submit time
+            if (!prefillProductId.isNullOrBlank()) {
+                val inQuarantine = quarantineRepository.observe(prefillProductId!!).first()
+                    .any { it.status == "ACTIVE" }
+                if (inQuarantine) {
+                    _ui.value = UiState(
+                        isSubmitting = false,
+                        error = "Cannot list products in quarantine. Complete quarantine protocol first."
+                    )
+                    return@launch
+                }
+            }
+            
             try {
                 val product = mapToEntity(currentUser, form)
                 val imageBytes = resolveAndCompress(form.photoUris)
                 val baseProduct = if (imageBytes.isNotEmpty()) product.copy(imageUrls = emptyList()) else product
                 when (val res = marketplace.createProduct(baseProduct, imageBytes)) {
-                    is Resource.Success -> _ui.value = UiState(isSubmitting = false, successProductId = res.data)
+                    is Resource.Success -> {
+                        _ui.value = UiState(isSubmitting = false, successProductId = res.data)
+                        // Delete draft on successful publish
+                        listingDraftRepository.deleteDraft("${currentUser.userId}_current")
+                        
+                        // Track analytics: listing submitted
+                        if (prefillProductId != null && res.data != null) {
+                            analyticsRepository.trackFarmToMarketplaceListingSubmitted(
+                                currentUser.userId,
+                                prefillProductId!!,
+                                res.data!!
+                            )
+                        }
+                    }
                     is Resource.Error -> _ui.value = UiState(isSubmitting = false, error = res.message ?: "Failed to publish")
                     is Resource.Loading -> _ui.value = UiState(isSubmitting = true)
                 }

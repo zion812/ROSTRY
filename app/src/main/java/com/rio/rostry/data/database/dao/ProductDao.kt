@@ -99,4 +99,8 @@ interface ProductDao {
         ")"
     )
     suspend fun purgeStaleMarketplace(thresholdMillis: Long)
+
+    // Count active products (birds) owned by a farmer for mortality rate calculation
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :ownerId AND isDeleted = 0 AND status = 'ACTIVE'")
+    suspend fun countActiveByOwnerId(ownerId: String): Int
 }

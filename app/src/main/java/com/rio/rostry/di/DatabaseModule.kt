@@ -89,7 +89,11 @@ object DatabaseModule {
             AppDatabase.MIGRATION_14_15,
             AppDatabase.MIGRATION_15_16,
             AppDatabase.MIGRATION_16_17,
-            AppDatabase.MIGRATION_17_18
+            AppDatabase.MIGRATION_17_18,
+            AppDatabase.MIGRATION_18_19,
+            AppDatabase.MIGRATION_19_20,
+            AppDatabase.MIGRATION_20_21,
+            AppDatabase.MIGRATION_21_22
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -239,6 +243,23 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideHatchingLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.HatchingLogDao = db.hatchingLogDao()
+
+    // New farm monitoring DAOs
+    @Provides
+    @Singleton
+    fun provideBreedingPairDao(db: AppDatabase): com.rio.rostry.data.database.dao.BreedingPairDao = db.breedingPairDao()
+
+    @Provides
+    @Singleton
+    fun provideFarmAlertDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmAlertDao = db.farmAlertDao()
+
+    @Provides
+    @Singleton
+    fun provideListingDraftDao(db: AppDatabase): com.rio.rostry.data.database.dao.ListingDraftDao = db.listingDraftDao()
+
+    @Provides
+    @Singleton
+    fun provideFarmerDashboardSnapshotDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao = db.farmerDashboardSnapshotDao()
 
     // Social DAOs
     @Provides

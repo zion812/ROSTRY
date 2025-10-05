@@ -15,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MortalityViewModel @Inject constructor(
-    private val repo: MortalityRepository
+    private val repo: MortalityRepository,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
     data class UiState(
@@ -42,9 +43,11 @@ class MortalityViewModel @Inject constructor(
         financialImpactInr: Double?
     ) {
         viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
             val rec = MortalityRecordEntity(
                 deathId = UUID.randomUUID().toString(),
                 productId = productId,
+                farmerId = farmerId,
                 causeCategory = causeCategory,
                 circumstances = circumstances,
                 ageWeeks = ageWeeks,

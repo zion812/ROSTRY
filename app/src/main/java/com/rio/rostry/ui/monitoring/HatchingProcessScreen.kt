@@ -3,15 +3,22 @@ package com.rio.rostry.ui.monitoring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -22,15 +29,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rio.rostry.data.database.entity.HatchingBatchEntity
 import com.rio.rostry.ui.monitoring.vm.HatchingViewModel
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun HatchingProcessScreen(
@@ -106,33 +120,137 @@ fun HatchingProcessScreen(
             }
 
             items(uiState.batches) { batch ->
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(batch.name, style = MaterialTheme.typography.titleMedium)
-                        Text("Started: ${dateFormat.format(batch.startedAt)}")
-                        batch.expectedHatchAt?.let {
-                            Text("Expected Hatch: ${dateFormat.format(it)}")
-                        }
-                        batch.temperatureC?.let {
-                            Text("Temperature: $it°C")
-                        }
-                        batch.humidityPct?.let {
-                            Text("Humidity: $it%")
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 8.dp)
+                HatchingBatchCard(
+                    batch = batch,
+                    dateFormat = dateFormat,
+                    viewModel = viewModel
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HatchingBatchCard(
+    batch: HatchingBatchEntity,
+    dateFormat: SimpleDateFormat,
+    viewModel: HatchingViewModel
+) {
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    
+    // Update every second for live countdown
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    
+    val expectedHatchAt = batch.expectedHatchAt
+    val isOverdue = expectedHatchAt != null && currentTime > expectedHatchAt
+    val isDueSoon = expectedHatchAt != null && !isOverdue && (expectedHatchAt - currentTime) < TimeUnit.HOURS.toMillis(48)
+    
+    // Calculate countdown
+    val timeRemaining = if (expectedHatchAt != null) expectedHatchAt - currentTime else 0L
+    val days = TimeUnit.MILLISECONDS.toDays(timeRemaining)
+    val hours = TimeUnit.MILLISECONDS.toHours(timeRemaining) % 24
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(timeRemaining) % 60
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(timeRemaining) % 60
+    
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(batch.name, style = MaterialTheme.typography.titleMedium)
+                
+                when {
+                    isOverdue -> {
+                        BadgedBox(
+                            badge = {
+                                Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                    Text("OVERDUE", color = Color.White)
+                                }
+                            }
                         ) {
-                            OutlinedButton(onClick = { viewModel.selectBatch(batch.batchId) }) {
-                                Text("View Logs")
-                            }
-                            OutlinedButton(onClick = { /* Update status */ }) {
-                                Text("Update Status")
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.Warning,
+                                contentDescription = "Overdue",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
+                    isDueSoon -> {
+                        BadgedBox(
+                            badge = {
+                                Badge(containerColor = MaterialTheme.colorScheme.tertiary) {
+                                    Text("DUE SOON", color = Color.White)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Warning,
+                                contentDescription = "Due Soon",
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+                }
+            }
+            
+            Text("Started: ${dateFormat.format(batch.startedAt)}")
+            
+            expectedHatchAt?.let {
+                Text("Expected Hatch: ${dateFormat.format(it)}")
+                
+                // Countdown timer
+                if (!isOverdue && timeRemaining > 0) {
+                    val countdownColor = when {
+                        days < 2 -> MaterialTheme.colorScheme.error
+                        days < 5 -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    
+                    Text(
+                        "Time remaining: ${days}d ${hours}h ${minutes}m ${seconds}s",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = countdownColor
+                    )
+                } else if (isOverdue) {
+                    Text(
+                        "OVERDUE by ${Math.abs(days)}d ${Math.abs(hours)}h ${Math.abs(minutes)}m",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            
+            batch.temperatureC?.let {
+                Text("Temperature: $it°C")
+            }
+            batch.humidityPct?.let {
+                Text("Humidity: $it%")
+            }
+            
+            Spacer(Modifier.height(4.dp))
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.selectBatch(batch.batchId) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("View Logs")
+                }
+                OutlinedButton(
+                    onClick = { /* Update status */ },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Update")
                 }
             }
         }

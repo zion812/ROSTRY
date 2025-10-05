@@ -27,7 +27,18 @@ class SyncManager @Inject constructor(
     private val outboxDao: OutboxDao,
     private val firestoreService: FirestoreService,
     private val connectivityManager: ConnectivityManager,
-    private val gson: Gson
+    private val gson: Gson,
+    // Farm monitoring DAOs
+    private val breedingPairDao: com.rio.rostry.data.database.dao.BreedingPairDao,
+    private val farmAlertDao: com.rio.rostry.data.database.dao.FarmAlertDao,
+    private val farmerDashboardSnapshotDao: com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,
+    private val vaccinationRecordDao: com.rio.rostry.data.database.dao.VaccinationRecordDao,
+    private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
+    private val quarantineRecordDao: com.rio.rostry.data.database.dao.QuarantineRecordDao,
+    private val mortalityRecordDao: com.rio.rostry.data.database.dao.MortalityRecordDao,
+    private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
+    private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
     ) {
         data class SyncStats(
             val pushed: Int = 0,
@@ -285,6 +296,177 @@ class SyncManager @Inject constructor(
                 outboxDao.purgeCompleted(sevenDaysAgo)
             }
 
+            // =============================
+            // Farm Monitoring Entity Sync
+            // =============================
+            val farmerId = firebaseAuth.currentUser?.uid
+            if (farmerId != null) {
+                // Breeding Pairs
+                run {
+                    val remotePairs = withRetry {
+                        firestoreService.fetchUpdatedBreedingPairs(farmerId, state.lastBreedingSyncAt)
+                    }
+                    if (remotePairs.isNotEmpty()) {
+                        remotePairs.forEach { breedingPairDao.upsert(it) }
+                        pulls += remotePairs.size
+                    }
+                    
+                    val localDirty = breedingPairDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushBreedingPairs(farmerId, localDirty) }
+                        breedingPairDao.clearDirty(localDirty.map { it.pairId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Farm Alerts
+                run {
+                    val remoteAlerts = withRetry {
+                        firestoreService.fetchUpdatedAlerts(farmerId, state.lastAlertSyncAt)
+                    }
+                    if (remoteAlerts.isNotEmpty()) {
+                        remoteAlerts.forEach { farmAlertDao.upsert(it) }
+                        pulls += remoteAlerts.size
+                    }
+                    
+                    val localDirty = farmAlertDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushAlerts(farmerId, localDirty) }
+                        farmAlertDao.clearDirty(localDirty.map { it.alertId }, now)
+                        pushes += localDirty.size
+                    }
+                    
+                    // Clean up expired alerts
+                    farmAlertDao.deleteExpired(now)
+                }
+                
+                // Dashboard Snapshots
+                run {
+                    val remoteSnapshots = withRetry {
+                        firestoreService.fetchUpdatedDashboardSnapshots(farmerId, state.lastDashboardSyncAt)
+                    }
+                    if (remoteSnapshots.isNotEmpty()) {
+                        remoteSnapshots.forEach { farmerDashboardSnapshotDao.upsert(it) }
+                        pulls += remoteSnapshots.size
+                    }
+                    
+                    val localDirty = farmerDashboardSnapshotDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushDashboardSnapshots(farmerId, localDirty) }
+                        farmerDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Vaccination Records
+                run {
+                    val remoteVaccinations = withRetry {
+                        firestoreService.fetchUpdatedVaccinations(farmerId, state.lastVaccinationSyncAt)
+                    }
+                    if (remoteVaccinations.isNotEmpty()) {
+                        remoteVaccinations.forEach { vaccinationRecordDao.upsert(it) }
+                        pulls += remoteVaccinations.size
+                    }
+                    
+                    val localDirty = vaccinationRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushVaccinations(farmerId, localDirty) }
+                        vaccinationRecordDao.clearDirty(localDirty.map { it.vaccinationId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Growth Records
+                run {
+                    val remoteGrowth = withRetry {
+                        firestoreService.fetchUpdatedGrowthRecords(farmerId, state.lastGrowthSyncAt)
+                    }
+                    if (remoteGrowth.isNotEmpty()) {
+                        remoteGrowth.forEach { growthRecordDao.upsert(it) }
+                        pulls += remoteGrowth.size
+                    }
+                    
+                    val localDirty = growthRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushGrowthRecords(farmerId, localDirty) }
+                        growthRecordDao.clearDirty(localDirty.map { it.recordId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Quarantine Records
+                run {
+                    val remoteQuarantine = withRetry {
+                        firestoreService.fetchUpdatedQuarantineRecords(farmerId, state.lastQuarantineSyncAt)
+                    }
+                    if (remoteQuarantine.isNotEmpty()) {
+                        remoteQuarantine.forEach { quarantineRecordDao.upsert(it) }
+                        pulls += remoteQuarantine.size
+                    }
+                    
+                    val localDirty = quarantineRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushQuarantineRecords(farmerId, localDirty) }
+                        quarantineRecordDao.clearDirty(localDirty.map { it.quarantineId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Mortality Records
+                run {
+                    val remoteMortality = withRetry {
+                        firestoreService.fetchUpdatedMortalityRecords(farmerId, state.lastMortalitySyncAt)
+                    }
+                    if (remoteMortality.isNotEmpty()) {
+                        remoteMortality.forEach { mortalityRecordDao.upsert(it) }
+                        pulls += remoteMortality.size
+                    }
+                    
+                    val localDirty = mortalityRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushMortalityRecords(farmerId, localDirty) }
+                        mortalityRecordDao.clearDirty(localDirty.map { it.deathId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Hatching Batches
+                run {
+                    val remoteHatching = withRetry {
+                        firestoreService.fetchUpdatedHatchingBatches(farmerId, state.lastHatchingSyncAt)
+                    }
+                    if (remoteHatching.isNotEmpty()) {
+                        remoteHatching.forEach { hatchingBatchDao.upsert(it) }
+                        pulls += remoteHatching.size
+                    }
+                    
+                    val localDirty = hatchingBatchDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushHatchingBatches(farmerId, localDirty) }
+                        hatchingBatchDao.clearDirty(localDirty.map { it.batchId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+                
+                // Hatching Logs
+                run {
+                    val remoteLogs = withRetry {
+                        firestoreService.fetchUpdatedHatchingLogs(farmerId, state.lastHatchingLogSyncAt)
+                    }
+                    if (remoteLogs.isNotEmpty()) {
+                        remoteLogs.forEach { hatchingLogDao.upsert(it) }
+                        pulls += remoteLogs.size
+                    }
+                    
+                    val localDirty = hatchingLogDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushHatchingLogs(farmerId, localDirty) }
+                        hatchingLogDao.clearDirty(localDirty.map { it.logId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+            }
+
             // Update sync state for all domains
             syncStateDao.upsert(
                 state.copy(
@@ -293,7 +475,16 @@ class SyncManager @Inject constructor(
                     lastOrderSyncAt = now,
                     lastTrackingSyncAt = now,
                     lastTransferSyncAt = now,
-                    lastChatSyncAt = now
+                    lastChatSyncAt = now,
+                    lastBreedingSyncAt = now,
+                    lastAlertSyncAt = now,
+                    lastDashboardSyncAt = now,
+                    lastVaccinationSyncAt = now,
+                    lastGrowthSyncAt = now,
+                    lastQuarantineSyncAt = now,
+                    lastMortalitySyncAt = now,
+                    lastHatchingSyncAt = now,
+                    lastHatchingLogSyncAt = now
                 )
             )
 

@@ -3,15 +3,25 @@ package com.rio.rostry.ui.monitoring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -19,19 +29,26 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rio.rostry.data.database.entity.QuarantineRecordEntity
 import com.rio.rostry.ui.monitoring.vm.QuarantineViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.delay
 
 @Composable
 fun QuarantineManagementScreen(
@@ -135,21 +152,12 @@ fun QuarantineManagementScreen(
             }
 
             items(displayedActive) { record ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Product: ${record.productId}", style = MaterialTheme.typography.titleMedium)
-                        Text("Reason: ${record.reason}")
-                        record.protocol?.let { Text("Protocol: $it") }
-                        Text("Started: ${dateFormat.format(record.startedAt)}")
-                        Text("Status: ${record.status}")
-                        Button(
-                            onClick = { viewModel.complete(record, "RECOVERED") },
-                            modifier = Modifier.padding(top = 8.dp)
-                        ) {
-                            Text("Complete")
-                        }
-                    }
-                }
+                QuarantineCard(
+                    record = record,
+                    dateFormat = dateFormat,
+                    uiState = uiState,
+                    viewModel = viewModel
+                )
             }
 
             item {
@@ -174,9 +182,220 @@ fun QuarantineManagementScreen(
                         Text("Started: ${dateFormat.format(record.startedAt)}")
                         record.endedAt?.let { Text("Ended: ${dateFormat.format(it)}") }
                         Text("Status: ${record.status}")
+                        Text("Updates: ${record.updatesCount}")
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun QuarantineCard(
+    record: QuarantineRecordEntity,
+    dateFormat: SimpleDateFormat,
+    uiState: QuarantineViewModel.UiState,
+    viewModel: QuarantineViewModel
+) {
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    
+    // Update every second for live countdown
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    
+    val nextUpdateDue = uiState.nextUpdateDue[record.quarantineId] ?: (record.lastUpdatedAt + TimeUnit.HOURS.toMillis(12))
+    val isOverdue = uiState.isOverdue[record.quarantineId] ?: (currentTime > nextUpdateDue)
+    val canDischarge = uiState.canDischarge[record.quarantineId] ?: false
+    
+    // Calculate countdown
+    val timeRemaining = nextUpdateDue - currentTime
+    val hours = TimeUnit.MILLISECONDS.toHours(timeRemaining)
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(timeRemaining) % 60
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(timeRemaining) % 60
+    
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Product: ${record.productId}", style = MaterialTheme.typography.titleMedium)
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Cannot List badge for active quarantine
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Block,
+                                contentDescription = null,
+                                modifier = Modifier.width(16.dp).height(16.dp)
+                            )
+                            Text("Cannot List")
+                        }
+                    }
+                    
+                    if (isOverdue) {
+                        BadgedBox(
+                            badge = {
+                                Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                    Text("OVERDUE", color = Color.White)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Warning,
+                                contentDescription = "Overdue",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+            
+            Text("Reason: ${record.reason}")
+            record.protocol?.let { Text("Protocol: $it") }
+            Text("Started: ${dateFormat.format(record.startedAt)}")
+            Text("Updates: ${record.updatesCount} / Required: 2+")
+            
+            // Countdown timer
+            if (!isOverdue && timeRemaining > 0) {
+                Text(
+                    "Next update in: ${hours}h ${minutes}m ${seconds}s",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (hours < 2) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            } else if (isOverdue) {
+                Text(
+                    "Update OVERDUE by ${Math.abs(hours)}h ${Math.abs(minutes)}m",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            
+            Spacer(Modifier.height(4.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { showUpdateDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Update")
+                }
+                
+                Button(
+                    onClick = {
+                        viewModel.dischargeQuarantine(record.quarantineId)
+                    },
+                    enabled = canDischarge,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Discharge")
+                }
+            }
+            
+            if (!canDischarge) {
+                Text(
+                    "⚠ Quarantine requires updates every 12 hours and at least 2 updates before discharge.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            
+            // Info about listing restriction
+            Text(
+                "ℹ Products in quarantine cannot be listed on the marketplace until quarantine is completed and the bird is cleared.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    
+    if (showUpdateDialog) {
+        UpdateQuarantineDialog(
+            record = record,
+            onDismiss = { showUpdateDialog = false },
+            onConfirm = { notes, medication, status ->
+                viewModel.updateQuarantine(record.quarantineId, notes, medication, status)
+                showUpdateDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun UpdateQuarantineDialog(
+    record: QuarantineRecordEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (notes: String?, medication: String?, status: String?) -> Unit
+) {
+    var vetNotes by remember { mutableStateOf(record.vetNotes ?: "") }
+    var medication by remember { mutableStateOf(record.medicationScheduleJson ?: "") }
+    var healthStatus by remember { mutableStateOf("") }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Update Quarantine") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = vetNotes,
+                    onValueChange = { vetNotes = it },
+                    label = { Text("Vet Notes") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+                
+                OutlinedTextField(
+                    value = medication,
+                    onValueChange = { medication = it },
+                    label = { Text("Medication Schedule") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+                
+                OutlinedTextField(
+                    value = healthStatus,
+                    onValueChange = { healthStatus = it },
+                    label = { Text("Health Status (optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(
+                        vetNotes.ifBlank { null },
+                        medication.ifBlank { null },
+                        healthStatus.ifBlank { null }
+                    )
+                }
+            ) {
+                Text("Save Update")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

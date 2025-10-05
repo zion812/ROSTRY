@@ -48,6 +48,8 @@ import com.rio.rostry.data.repository.monitoring.GrowthRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.QuarantineRepository
 import com.rio.rostry.data.repository.monitoring.QuarantineRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.MortalityRepository
+import com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository
+import com.rio.rostry.data.repository.monitoring.FarmOnboardingRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.MortalityRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.VaccinationRepository
 import com.rio.rostry.data.repository.monitoring.VaccinationRepositoryImpl
@@ -179,6 +181,26 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindFarmPerformanceRepository(impl: FarmPerformanceRepositoryImpl): FarmPerformanceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBreedingRepository(impl: com.rio.rostry.data.repository.monitoring.BreedingRepositoryImpl): com.rio.rostry.data.repository.monitoring.BreedingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmAlertRepository(impl: com.rio.rostry.data.repository.monitoring.FarmAlertRepositoryImpl): com.rio.rostry.data.repository.monitoring.FarmAlertRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindListingDraftRepository(impl: com.rio.rostry.data.repository.monitoring.ListingDraftRepositoryImpl): com.rio.rostry.data.repository.monitoring.ListingDraftRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmerDashboardRepository(impl: com.rio.rostry.data.repository.monitoring.FarmerDashboardRepositoryImpl): com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmOnboardingRepository(impl: FarmOnboardingRepositoryImpl): FarmOnboardingRepository
 
     @Binds
     @Singleton

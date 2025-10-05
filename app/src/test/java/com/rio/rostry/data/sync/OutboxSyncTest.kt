@@ -71,7 +71,17 @@ class OutboxSyncTest {
             outboxDao = outboxDao,
             firestoreService = firestoreService,
             connectivityManager = connectivityManager,
-            gson = gson
+            gson = gson,
+            breedingPairDao = mockk(relaxed = true),
+            farmAlertDao = mockk(relaxed = true),
+            farmerDashboardSnapshotDao = mockk(relaxed = true),
+            vaccinationRecordDao = mockk(relaxed = true),
+            growthRecordDao = mockk(relaxed = true),
+            quarantineRecordDao = mockk(relaxed = true),
+            mortalityRecordDao = mockk(relaxed = true),
+            hatchingBatchDao = mockk(relaxed = true),
+            hatchingLogDao = mockk(relaxed = true),
+            firebaseAuth = mockk(relaxed = true)
         )
     }
 
