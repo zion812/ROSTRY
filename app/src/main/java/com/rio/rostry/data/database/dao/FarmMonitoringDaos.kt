@@ -152,6 +152,16 @@ interface HatchingBatchDao {
     @Query("SELECT * FROM hatching_batches ORDER BY startedAt DESC")
     fun observeBatches(): Flow<List<HatchingBatchEntity>>
 
+    // Optimized streams (avoid in-memory filtering in repositories)
+    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now ORDER BY expectedHatchAt ASC")
+    fun observeActiveBatchesForFarmer(farmerId: String, now: Long): Flow<List<HatchingBatchEntity>>
+
+    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt BETWEEN :start AND :end ORDER BY expectedHatchAt ASC")
+    fun observeHatchingDue(farmerId: String, start: Long, end: Long): Flow<List<HatchingBatchEntity>>
+
+    @Query("SELECT * FROM hatching_batches WHERE batchId = :batchId LIMIT 1")
+    suspend fun getById(batchId: String): HatchingBatchEntity?
+
     @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now")
     suspend fun countActiveForFarmer(farmerId: String, now: Long): Int
 
@@ -163,6 +173,10 @@ interface HatchingBatchDao {
 
     @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt BETWEEN :now AND :weekEnd")
     fun observeDueThisWeekForFarmer(farmerId: String, now: Long, weekEnd: Long): Flow<Int>
+
+    // Fetch batches created from specific egg collections
+    @Query("SELECT * FROM hatching_batches WHERE sourceCollectionId IN (:collectionIds)")
+    suspend fun getBySourceCollectionIds(collectionIds: List<String>): List<HatchingBatchEntity>
 
     @Query("SELECT * FROM hatching_batches WHERE dirty = 1")
     suspend fun getDirty(): List<HatchingBatchEntity>
@@ -181,6 +195,9 @@ interface HatchingLogDao {
 
     @Query("SELECT * FROM hatching_logs WHERE batchId = :batchId ORDER BY createdAt ASC")
     fun observeForBatch(batchId: String): Flow<List<HatchingLogEntity>>
+
+    @Query("SELECT COUNT(*) FROM hatching_logs WHERE batchId = :batchId AND eventType = :type")
+    suspend fun countByBatchAndType(batchId: String, type: String): Int
 
     @Query("SELECT COUNT(*) FROM hatching_logs WHERE farmerId = :farmerId AND eventType = 'HATCHED' AND createdAt BETWEEN :start AND :end")
     suspend fun countHatchedBetweenForFarmer(farmerId: String, start: Long, end: Long): Int

@@ -25,4 +25,43 @@ object MediaManager {
 
     // Placeholder for image compression; integrate with CompressionUtils as needed at repository level.
     fun compressImage(bytes: ByteArray): ByteArray = bytes // no-op here; repository compresses already
+
+    // ===== Compose helpers to standardize media entrypoints =====
+    // These helpers return lambdas that the UI can invoke from buttons, keeping policies consistent.
+    @androidx.compose.runtime.Composable
+    fun rememberImagePicker(onPicked: (android.net.Uri) -> Unit): () -> Unit {
+        val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        ) { uri: android.net.Uri? ->
+            uri?.let(onPicked)
+        }
+        return { launcher.launch("image/*") }
+    }
+
+    @androidx.compose.runtime.Composable
+    fun rememberImageCapture(
+        context: android.content.Context,
+        fileNamePrefix: String,
+        onCaptured: (android.net.Uri) -> Unit
+    ): () -> Unit {
+        // Create a persistent output Uri for this capture session
+        val outputUri = androidx.compose.runtime.remember(fileNamePrefix) {
+            createImageUri(context, fileNamePrefix)
+        }
+        val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+        ) { success: Boolean ->
+            if (success && outputUri != null) onCaptured(outputUri)
+        }
+        return { outputUri?.let(launcher::launch) }
+    }
+
+    private fun createImageUri(context: android.content.Context, name: String): android.net.Uri? {
+        return try {
+            val imagesDir = java.io.File(context.cacheDir, "images").apply { mkdirs() }
+            val file = java.io.File(imagesDir, "$name-${System.currentTimeMillis()}.jpg")
+            val authority = "${context.packageName}.fileprovider"
+            androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+        } catch (_: Exception) { null }
+    }
 }

@@ -93,7 +93,12 @@ object DatabaseModule {
             AppDatabase.MIGRATION_18_19,
             AppDatabase.MIGRATION_19_20,
             AppDatabase.MIGRATION_20_21,
-            AppDatabase.MIGRATION_21_22
+            AppDatabase.MIGRATION_21_22,
+            AppDatabase.MIGRATION_22_23,
+            AppDatabase.MIGRATION_23_24,
+            AppDatabase.MIGRATION_24_25,
+            AppDatabase.MIGRATION_25_26,
+            AppDatabase.MIGRATION_26_27
         )
         .fallbackToDestructiveMigration()
         .build()
@@ -261,6 +266,19 @@ object DatabaseModule {
     @Singleton
     fun provideFarmerDashboardSnapshotDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao = db.farmerDashboardSnapshotDao()
 
+    // Enthusiast breeding DAOs
+    @Provides
+    @Singleton
+    fun provideMatingLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.MatingLogDao = db.matingLogDao()
+
+    @Provides
+    @Singleton
+    fun provideEggCollectionDao(db: AppDatabase): com.rio.rostry.data.database.dao.EggCollectionDao = db.eggCollectionDao()
+
+    @Provides
+    @Singleton
+    fun provideEnthusiastDashboardSnapshotDao(db: AppDatabase): com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao()
+
     // Social DAOs
     @Provides
     @Singleton
@@ -346,4 +364,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideOutboxDao(db: AppDatabase): OutboxDao = db.outboxDao()
+
+    @Provides
+    @Singleton
+    fun provideUploadTaskDao(db: AppDatabase): com.rio.rostry.data.database.dao.UploadTaskDao = db.uploadTaskDao()
 }

@@ -22,5 +22,8 @@ data class SyncStateEntity(
     val lastQuarantineSyncAt: Long = 0L,
     val lastMortalitySyncAt: Long = 0L,
     val lastHatchingSyncAt: Long = 0L,
-    val lastHatchingLogSyncAt: Long = 0L
+    val lastHatchingLogSyncAt: Long = 0L,
+    // Enthusiast-specific windows
+    val lastEnthusiastBreedingSyncAt: Long = 0L,
+    val lastEnthusiastDashboardSyncAt: Long = 0L
 )

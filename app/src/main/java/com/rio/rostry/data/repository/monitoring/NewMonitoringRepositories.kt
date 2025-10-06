@@ -3,6 +3,7 @@ package com.rio.rostry.data.repository.monitoring
 import com.rio.rostry.data.database.dao.*
 import com.rio.rostry.data.database.entity.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,7 +24,7 @@ class BreedingRepositoryImpl @Inject constructor(
         breedingPairDao.observeActive(farmerId)
 
     override fun observeActiveCount(farmerId: String): Flow<Int> =
-        breedingPairDao.observeActiveCount(farmerId)
+        breedingPairDao.observeActive(farmerId).map { it.size }
 
     override suspend fun upsert(pair: BreedingPairEntity) =
         breedingPairDao.upsert(pair)

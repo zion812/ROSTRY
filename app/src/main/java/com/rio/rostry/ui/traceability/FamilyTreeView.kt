@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.traceability
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +46,8 @@ fun FamilyTreeView(
     layersDown: Map<Int, List<String>>,
     edges: List<Pair<String, String>> = emptyList(), // pair of (fromId -> toId)
     resetKey: Int = 0,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNodeClick: ((String) -> Unit)? = null,
 ) {
     val scroll = rememberScrollState()
 
@@ -95,6 +97,7 @@ fun FamilyTreeView(
                                         modifier = Modifier
                                             .background(Color(0xFFE3F2FD))
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
                                             .onGloballyPositioned { c ->
                                                 val center = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
                                                 nodeCenters[id] = center
@@ -148,6 +151,7 @@ fun FamilyTreeView(
                                         modifier = Modifier
                                             .background(Color(0xFFFFF3E0))
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
                                             .onGloballyPositioned { c ->
                                                 val center = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
                                                 nodeCenters[id] = center

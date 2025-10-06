@@ -22,14 +22,15 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,12 +49,17 @@ import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
 import androidx.compose.runtime.LaunchedEffect
 import androidx.exifinterface.media.ExifInterface
+import com.rio.rostry.utils.images.ImageUtils
+import com.rio.rostry.ui.session.SessionViewModel
+import com.rio.rostry.domain.model.UserType
+import com.rio.rostry.marketplace.media.MediaManager
 
 @Composable
 fun TransferVerificationScreen(
     transferId: String
 ) {
     val vm: TransferVerificationViewModel = hiltViewModel()
+    val sessionVm: SessionViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
     val context = LocalContext.current
 
@@ -61,13 +67,9 @@ fun TransferVerificationScreen(
         vm.load(transferId)
     }
 
-    // Launchers for photo picking
-    val pickBefore = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { vm.updateTemp("before", it.toString()) }
-    }
-    val pickAfter = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { vm.updateTemp("after", it.toString()) }
-    }
+    // MediaManager-driven pickers/capture for consistent policy
+    val pickBefore = MediaManager.rememberImagePicker { uri -> vm.startUpload("before", uri.toString()) }
+    val pickAfter = MediaManager.rememberImagePicker { uri -> vm.startUpload("after", uri.toString()) }
 
     // Permission launcher for fine location
     val requestLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -79,26 +81,12 @@ fun TransferVerificationScreen(
         }
     }
 
-    // Camera capture state and launchers
-    val beforeCaptureUri = remember { mutableStateOf<Uri?>(null) }
-    val afterCaptureUri = remember { mutableStateOf<Uri?>(null) }
-
-    val takeBefore = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
-        if (success) beforeCaptureUri.value?.let { vm.updateTemp("before", it.toString()) }
+    // MediaManager capture helpers
+    val captureBefore = MediaManager.rememberImageCapture(context, fileNamePrefix = "before_${'$'}transferId") { uri ->
+        vm.startUpload("before", uri.toString())
     }
-    val takeAfter = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
-        if (success) afterCaptureUri.value?.let { vm.updateTemp("after", it.toString()) }
-    }
-
-    val requestCameraBefore = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            beforeCaptureUri.value?.let { takeBefore.launch(it) }
-        }
-    }
-    val requestCameraAfter = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            afterCaptureUri.value?.let { takeAfter.launch(it) }
-        }
+    val captureAfter = MediaManager.rememberImageCapture(context, fileNamePrefix = "after_${'$'}transferId") { uri ->
+        vm.startUpload("after", uri.toString())
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -122,31 +110,27 @@ fun TransferVerificationScreen(
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Step 1: Seller Photo Verification")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pickBefore.launch("image/*") }, enabled = !state.submitting) { Text("Pick Before Photo") }
-                    OutlinedButton(onClick = { pickAfter.launch("image/*") }, enabled = !state.submitting) { Text("Pick After Photo") }
-                    OutlinedButton(onClick = {
-                        beforeCaptureUri.value = createImageUri(context, "before_${transferId}")
-                        requestCameraBefore.launch(Manifest.permission.CAMERA)
-                    }, enabled = !state.submitting) { Text("Capture Before") }
-                    OutlinedButton(onClick = {
-                        afterCaptureUri.value = createImageUri(context, "after_${transferId}")
-                        requestCameraAfter.launch(Manifest.permission.CAMERA)
-                    }, enabled = !state.submitting) { Text("Capture After") }
+                    OutlinedButton(onClick = { pickBefore() }, enabled = !state.submitting) { Text("Pick Before Photo") }
+                    OutlinedButton(onClick = { pickAfter() }, enabled = !state.submitting) { Text("Pick After Photo") }
+                    OutlinedButton(onClick = { captureBefore() }, enabled = !state.submitting) { Text("Capture Before") }
+                    OutlinedButton(onClick = { captureAfter() }, enabled = !state.submitting) { Text("Capture After") }
                 }
-                if (state.tempBeforeUrl.isNotBlank()) {
-                    val bmp = remember(state.tempBeforeUrl) { loadThumbnail(context, Uri.parse(state.tempBeforeUrl)) }
-                    bmp?.let { Image(bitmap = it.asImageBitmap(), contentDescription = "Before", modifier = Modifier.fillMaxWidth()) }
-                    val beforeSummary = remember(state.tempBeforeUrl) { exifSummary(context, Uri.parse(state.tempBeforeUrl)) }
-                    beforeSummary?.let { Text(it) }
-                }
-                if (state.tempAfterUrl.isNotBlank()) {
-                    val bmp = remember(state.tempAfterUrl) { loadThumbnail(context, Uri.parse(state.tempAfterUrl)) }
-                    bmp?.let { Image(bitmap = it.asImageBitmap(), contentDescription = "After", modifier = Modifier.fillMaxWidth()) }
-                    val afterSummary = remember(state.tempAfterUrl) { exifSummary(context, Uri.parse(state.tempAfterUrl)) }
-                    afterSummary?.let { Text(it) }
-                }
+                // Previews are omitted in favor of unified pipeline; see Uploads card below for progress
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { vm.submitSellerInit() }, enabled = !state.submitting) { Text("Submit Photos") }
+                    Button(onClick = {
+                        // Optional media limits check via shared MediaManager (photos only)
+                        val stats = MediaManager.MediaStats(
+                            photos = listOf(state.tempBeforeUrl, state.tempAfterUrl).count { it.isNotBlank() },
+                            videos = 0, audios = 0, documents = 0
+                        )
+                        val check = MediaManager.checkLimits(stats, maxPhotos = 12)
+                        if (!check.withinLimits) {
+                            // Show first reason as simple feedback
+                            // Defer to VM error channel
+                            // In a full UX, we'd surface a Snackbar via VM
+                        }
+                        vm.submitSellerInit()
+                    }, enabled = !state.submitting) { Text("Submit Photos") }
                     if (state.submitting) { CircularProgressIndicator(modifier = Modifier.padding(start = 8.dp)) }
                 }
             }
@@ -167,9 +151,41 @@ fun TransferVerificationScreen(
                     label = { Text("Longitude") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                // Proximity badge
+                val sellerLat = state.transfer?.gpsLat
+                val sellerLng = state.transfer?.gpsLng
+                val buyerLat = state.tempLat.toDoubleOrNull()
+                val buyerLng = state.tempLng.toDoubleOrNull()
+                val within = remember(sellerLat, sellerLng, buyerLat, buyerLng) {
+                    if (sellerLat != null && sellerLng != null && buyerLat != null && buyerLng != null)
+                        com.rio.rostry.utils.VerificationUtils.withinRadius(sellerLat, sellerLng, buyerLat, buyerLng, 100.0)
+                    else null
+                }
+                if (within != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val dist = com.rio.rostry.utils.VerificationUtils.distanceMeters(
+                            sellerLat!!, sellerLng!!, buyerLat!!, buyerLng!!
+                        ).toInt()
+                        val badge = if (within) "Within 100m ($dist m)" else "Outside 100m ($dist m)"
+                        Text(badge, color = if (within) Color(0xFF2E7D32) else Color(0xFFC62828))
+                    }
+                    if (!within) {
+                        OutlinedTextField(
+                            value = state.tempGpsExplanation,
+                            onValueChange = { vm.updateTemp("gps_explanation", it) },
+                            label = { Text("Explain why GPS is outside radius (required)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { requestLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION) }, enabled = !state.submitting) { Text("Use Current Location") }
-                    Button(onClick = { vm.submitGpsConfirm() }, enabled = !state.submitting) { Text("Submit GPS") }
+                    val canSubmitGps = when (within) {
+                        null -> !state.submitting // no baseline to compare; allow
+                        true -> !state.submitting
+                        false -> !state.submitting && state.tempGpsExplanation.isNotBlank() // require explanation when outside
+                    }
+                    Button(onClick = { vm.submitGpsConfirm() }, enabled = canSubmitGps) { Text("Submit GPS") }
                     if (state.submitting) { CircularProgressIndicator(modifier = Modifier.padding(start = 8.dp)) }
                 }
             }
@@ -177,7 +193,49 @@ fun TransferVerificationScreen(
 
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Step 3: Digital Signature")
+                Text("Step 3: Identity Document")
+                // Identity type dropdown (Aadhaar, PAN, DL)
+                var idTypeExpanded by remember { mutableStateOf(false) }
+                val identityTypes = listOf("Aadhaar", "PAN", "DL")
+                OutlinedTextField(
+                    value = state.tempIdentityDocType,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Identity Type") },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        OutlinedButton(onClick = { idTypeExpanded = !idTypeExpanded }) { Text(if (idTypeExpanded) "Hide" else "Choose") }
+                    }
+                )
+                if (idTypeExpanded) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        identityTypes.forEach { opt ->
+                            OutlinedButton(onClick = { vm.updateTemp("identityDocType", opt); idTypeExpanded = false }) { Text(opt) }
+                        }
+                    }
+                }
+                // Pick and upload identity image
+                val pickIdentity = MediaManager.rememberImagePicker { uri -> vm.startUpload("identity", uri.toString()) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { pickIdentity() }, enabled = !state.submitting) { Text("Pick ID Image") }
+                    OutlinedButton(onClick = { vm.updateTemp("identityDocRef", ""); }, enabled = !state.submitting) { Text("Clear") }
+                }
+                if (state.tempIdentityDocRef.isNotBlank()) {
+                    Text("Uploaded: ${state.tempIdentityDocRef}")
+                }
+                // Identity document number input
+                OutlinedTextField(
+                    value = state.tempIdentityDocNumber ?: "",
+                    onValueChange = { vm.updateTemp("identityDocNumber", it) },
+                    label = { Text("Identity Document Number") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        ElevatedCard {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Step 4: Digital Signature")
                 SignaturePad(
                     onSaved = { ref -> vm.updateTemp("sig", ref) }
                 )
@@ -193,16 +251,89 @@ fun TransferVerificationScreen(
                 }
             }
         }
-    }
-    }
-}
 
-// Helper to create a content Uri for camera capture using the app's FileProvider
-private fun createImageUri(context: Context, name: String): Uri {
-    val imagesDir = java.io.File(context.cacheDir, "images").apply { mkdirs() }
-    val file = java.io.File(imagesDir, "$name-${System.currentTimeMillis()}.jpg")
-    val authority = "${context.packageName}.fileprovider"
-    return FileProvider.getUriForFile(context, authority, file)
+        ElevatedCard {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Timeline & Audit Trail")
+                // Timeline
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    state.verifications.sortedBy { it.createdAt ?: 0L }.forEach { v ->
+                        val whenText = v.createdAt?.let { java.text.SimpleDateFormat("MMM d, HH:mm").format(java.util.Date(it)) } ?: ""
+                        Text("• ${v.step} — ${v.status} $whenText")
+                    }
+                }
+                // Audit trail (expandable)
+                var expanded by remember { mutableStateOf(false) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Hide Audit" else "Show Audit") }
+                }
+                if (expanded) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        state.auditLogs.forEach { log ->
+                            val t = java.text.SimpleDateFormat("MMM d, HH:mm").format(java.util.Date(log.createdAt ?: 0L))
+                            Text("• $t — ${log.type}/${log.action} by ${log.actorUserId ?: "system"}")
+                        }
+                    }
+                }
+            }
+        }
+
+        ElevatedCard {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Disputes")
+                // Show existing disputes
+                if (state.disputes.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        state.disputes.forEach { d ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("${d.reason} — ${d.status}")
+                                val role = sessionVm.uiState.collectAsState().value.role
+                                val canModerate = role?.name in setOf("ADMIN", "MODERATOR")
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    if (d.status == "OPEN" && canModerate) {
+                                        OutlinedButton(onClick = { vm.resolveDispute(d.disputeId, "Resolved by admin", true) }) { Text("Resolve") }
+                                        OutlinedButton(onClick = { vm.resolveDispute(d.disputeId, "Rejected", false) }) { Text("Reject") }
+                                    } else if (d.status == "OPEN" && !canModerate) {
+                                        Text("Platform review required", color = Color.Gray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Open new dispute
+                var reason by remember { mutableStateOf("") }
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Reason") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        if (reason.isNotBlank()) {
+                            vm.raiseDispute(reason)
+                            reason = ""
+                        }
+                    }, enabled = !state.submitting) { Text("Open Dispute") }
+                    OutlinedButton(onClick = { vm.refresh() }) { Text("Refresh") }
+                }
+            }
+        }
+
+        // Upload progress (if any)
+        if (state.uploadProgress.isNotEmpty()) {
+            ElevatedCard {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Uploads")
+                    state.uploadProgress.forEach { (path, pct) ->
+                        Text("${'$'}path — ${'$'}pct%")
+                    }
+                }
+            }
+        }
+    }
+    }
 }
 
 @Composable
@@ -261,23 +392,6 @@ private fun fetchCurrentLocation(context: Context): Location? {
     }
 }
 
-private fun exifSummary(context: Context, uri: Uri): String? {
-    return try {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            val exif = ExifInterface(input)
-            val dt = exif.getAttribute(ExifInterface.TAG_DATETIME)
-            val ll = exif.latLong
-            val lat = ll?.getOrNull(0)
-            val lng = ll?.getOrNull(1)
-            buildString {
-                append("EXIF: ")
-                if (dt != null) append("Time=$dt ")
-                if (lat != null && lng != null) append("GPS=$lat,$lng")
-            }.ifBlank { null }
-        }
-    } catch (_: Exception) { null }
-}
-
 private fun saveSignatureAsImage(context: Context, paths: List<Path>, width: Int = 1000, height: Int = 400): Uri? {
     return try {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -303,29 +417,4 @@ private fun saveSignatureAsImage(context: Context, paths: List<Path>, width: Int
     }
 }
 
-private fun loadThumbnail(context: Context, uri: Uri): Bitmap? {
-    return try {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeStream(input, null, options)
-            val (w, h) = options.outWidth to options.outHeight
-            val sample = computeInSampleSize(w, h, 512, 512)
-            context.contentResolver.openInputStream(uri)?.use { input2 ->
-                val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-                BitmapFactory.decodeStream(input2, null, opts)
-            }
-        }
-    } catch (_: Exception) { null }
-}
-
-private fun computeInSampleSize(width: Int, height: Int, reqWidth: Int, reqHeight: Int): Int {
-    var inSampleSize = 1
-    if (height > reqHeight || width > reqWidth) {
-        val halfHeight = height / 2
-        val halfWidth = width / 2
-        while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
-            inSampleSize *= 2
-        }
-    }
-    return inSampleSize
-}
+// Removed thumbnail/EXIF helpers; MediaManager centralizes media entry.

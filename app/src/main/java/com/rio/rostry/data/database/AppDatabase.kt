@@ -13,7 +13,7 @@ import com.rio.rostry.domain.model.VerificationStatus
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(
+    @Database(
     entities = [
         UserEntity::class,
         ProductEntity::class,
@@ -84,9 +84,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BreedingPairEntity::class,
         FarmAlertEntity::class,
         ListingDraftEntity::class,
-        FarmerDashboardSnapshotEntity::class
+        FarmerDashboardSnapshotEntity::class,
+        // Enthusiast-specific entities
+        MatingLogEntity::class,
+        EggCollectionEntity::class,
+        EnthusiastDashboardSnapshotEntity::class,
+        UploadTaskEntity::class
     ],
-    version = 22, // Bumped to 22 adding deathsCount to farmer_dashboard_snapshots
+    version = 27, // Bumped to 27 to add upload_tasks outbox table
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -167,12 +172,41 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun farmAlertDao(): FarmAlertDao
     abstract fun listingDraftDao(): ListingDraftDao
     abstract fun farmerDashboardSnapshotDao(): FarmerDashboardSnapshotDao
+    // Enthusiast breeding DAOs
+    abstract fun matingLogDao(): MatingLogDao
+    abstract fun eggCollectionDao(): EggCollectionDao
+    abstract fun enthusiastDashboardSnapshotDao(): EnthusiastDashboardSnapshotDao
+    abstract fun uploadTaskDao(): UploadTaskDao
 
     object Converters {
         @TypeConverter
         @JvmStatic
         fun fromStringList(value: List<String>?): String? {
             return value?.let { Gson().toJson(it) }
+        }
+
+        // Create upload_tasks table for media outbox (26 -> 27)
+        val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `upload_tasks` (" +
+                        "`taskId` TEXT NOT NULL, `localPath` TEXT NOT NULL, `remotePath` TEXT NOT NULL, " +
+                        "`status` TEXT NOT NULL, `progress` INTEGER NOT NULL, `retries` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `error` TEXT, `contextJson` TEXT, " +
+                        "PRIMARY KEY(`taskId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_upload_tasks_status_createdAt` ON `upload_tasks` (`status`, `createdAt`)")
+            }
+        }
+
+        // ... existing migrations up to 23_24 defined below (omitted in this view) ...
+
+        // Add enthusiast-specific sync windows to sync_state
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastEnthusiastBreedingSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastEnthusiastDashboardSyncAt` INTEGER NOT NULL DEFAULT 0")
+            }
         }
 
         @TypeConverter
@@ -202,6 +236,10 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "rostry_database"
+
+        // Alias migrations defined in Converters for external references
+        val MIGRATION_24_25: Migration = Converters.MIGRATION_24_25
+        val MIGRATION_26_27: Migration = Converters.MIGRATION_26_27
 
         // Minimal migration creating new tables (idempotent IF NOT EXISTS)
         val MIGRATION_2_3 = object : Migration(2, 3) {
@@ -949,6 +987,66 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `deathsCount` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // Add enthusiast-specific breeding entities and dashboard snapshots
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // mating_logs
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `mating_logs` (" +
+                        "`logId` TEXT NOT NULL, `pairId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `matedAt` INTEGER NOT NULL, " +
+                        "`observedBehavior` TEXT, `environmentalConditions` TEXT, `notes` TEXT, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, " +
+                        "PRIMARY KEY(`logId`), " +
+                        "FOREIGN KEY(`pairId`) REFERENCES `breeding_pairs`(`pairId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mating_logs_pairId` ON `mating_logs` (`pairId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mating_logs_farmerId` ON `mating_logs` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mating_logs_matedAt` ON `mating_logs` (`matedAt`)")
+
+                // egg_collections
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `egg_collections` (" +
+                        "`collectionId` TEXT NOT NULL, `pairId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `eggsCollected` INTEGER NOT NULL, `collectedAt` INTEGER NOT NULL, " +
+                        "`qualityGrade` TEXT NOT NULL, `weight` REAL, `notes` TEXT, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, " +
+                        "PRIMARY KEY(`collectionId`), " +
+                        "FOREIGN KEY(`pairId`) REFERENCES `breeding_pairs`(`pairId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_egg_collections_pairId` ON `egg_collections` (`pairId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_egg_collections_farmerId` ON `egg_collections` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_egg_collections_collectedAt` ON `egg_collections` (`collectedAt`)")
+
+                // enthusiast_dashboard_snapshots
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `enthusiast_dashboard_snapshots` (" +
+                        "`snapshotId` TEXT NOT NULL, `userId` TEXT NOT NULL, `weekStartAt` INTEGER NOT NULL, `weekEndAt` INTEGER NOT NULL, " +
+                        "`hatchRateLast30Days` REAL NOT NULL, `breederSuccessRate` REAL NOT NULL, `disputedTransfersCount` INTEGER NOT NULL, `topBloodlinesEngagement` TEXT, " +
+                        "`activePairsCount` INTEGER NOT NULL, `eggsCollectedCount` INTEGER NOT NULL, `hatchingDueCount` INTEGER NOT NULL, `transfersPendingCount` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, " +
+                        "PRIMARY KEY(`snapshotId`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_enthusiast_dashboard_snapshots_userId` ON `enthusiast_dashboard_snapshots` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_enthusiast_dashboard_snapshots_weekStartAt` ON `enthusiast_dashboard_snapshots` (`weekStartAt`)")
+            }
+        }
+
+        // Add eggsCount and sourceCollectionId to hatching_batches (23 -> 24)
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try { db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `eggsCount` INTEGER") } catch (_: Exception) {}
+                try { db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `sourceCollectionId` TEXT") } catch (_: Exception) {}
+            }
+        }
+
+        // Add updatedAt to enthusiast_dashboard_snapshots (25 -> 26)
+        val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try { db.execSQL("ALTER TABLE `enthusiast_dashboard_snapshots` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0") } catch (_: Exception) {}
+                // Backfill updatedAt = createdAt where possible
+                try { db.execSQL("UPDATE enthusiast_dashboard_snapshots SET updatedAt = createdAt WHERE updatedAt = 0") } catch (_: Exception) {}
             }
         }
     }

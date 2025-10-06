@@ -1,0 +1,31 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "mating_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "farmerId", "order": "ASCENDING" },
+        { "fieldPath": "pairId", "order": "ASCENDING" },
+        { "fieldPath": "matedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "egg_collections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "farmerId", "order": "ASCENDING" },
+        { "fieldPath": "pairId", "order": "ASCENDING" },
+        { "fieldPath": "collectedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dashboard_snapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "weekStartAt", "order": "DESCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

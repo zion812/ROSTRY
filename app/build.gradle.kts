@@ -146,6 +146,9 @@ dependencies {
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
 
+    // Accompanist SwipeRefresh
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.34.0")
+
     // Google Play Services - Location
     implementation("com.google.android.gms:play-services-location:21.2.0")
 

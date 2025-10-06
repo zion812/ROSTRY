@@ -21,9 +21,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.AssistChip
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +40,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.FilterList
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 /**
  * Advanced Enthusiast interface with premium farm management features.
@@ -61,14 +68,26 @@ fun EnthusiastHomeScreen(
 ) {
     val vm: EnthusiastHomeViewModel = hiltViewModel()
     val ui by vm.ui.collectAsState()
+    val refreshing by vm.isRefreshing.collectAsState()
+    val swipeState = rememberSwipeRefreshState(isRefreshing = refreshing)
+    val activePairs by vm.activePairs.collectAsState()
+    val quickStatus by vm.quickStatus.collectAsState()
+    var now by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            now = System.currentTimeMillis()
+        }
+    }
     val flockVm: EnthusiastFlockViewModel = hiltViewModel()
     val flock by flockVm.state.collectAsState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    SwipeRefresh(state = swipeState, onRefresh = vm::refresh) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
         PremiumGateCard(
             title = "Premium Enthusiast",
             description = "Access advanced analytics, transfers, and leadership tools. Verify KYC to unlock full features.",
@@ -76,11 +95,20 @@ fun EnthusiastHomeScreen(
             onAction = onVerifyKyc
         )
 
+        // KPI summary card
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Farm Overview Dashboard")
-                Text("• Breeding success: ${"%.0f".format(ui.dashboard.breedingSuccessRate * 100)}% • Transfers(30d): ${ui.dashboard.transfers}")
-                Text("• Engagement(7d): ${ui.dashboard.engagementScore} • Pending verifications: ${ui.pendingTransfersCount}")
+                Text("KPI Summary (Last 30 days)")
+                Text("• Breeding Success: ${"%.0f".format(ui.dashboard.breedingSuccessRate * 100)}% • Transfers: ${ui.dashboard.transfers}")
+                Text("• Engagement Score: ${ui.dashboard.engagementScore} • Pending: ${ui.pendingTransfersCount} • Disputed: ${ui.disputedTransfersCount}")
+                if (ui.topBloodlines.isNotEmpty()) {
+                    Text("Top Bloodlines (by eggs this week)")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ui.topBloodlines.forEach { (id, eggs) ->
+                            AssistChip(onClick = { onOpenTraceability(id) }, label = { Text("${id.take(8)}… ($eggs)") })
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onOpenAnalytics) { Text("Open Analytics") }
                     OutlinedButton(onClick = onOpenPerformanceAnalytics) { Text("Performance") }
@@ -94,15 +122,153 @@ fun EnthusiastHomeScreen(
             }
         }
 
+        // Pull-to-refresh replaces manual refresh button
+
+        // Farm fetcher cards
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Pairs To Mate")
+            Text("• ${ui.pairsToMateCount} pairs need attention")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenBreeding) { Text("View Pairs") }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Eggs Collected Today")
+            Text("• ${ui.eggsCollectedToday} eggs logged")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                var showDialog by rememberSaveable { mutableStateOf(false) }
+                OutlinedButton(onClick = { showDialog = true }) { Text("Log Collection") }
+                if (showDialog) {
+                    // Hoist dialog inputs so both text and buttons can access them
+                    var selectedPairId by rememberSaveable { mutableStateOf(activePairs.firstOrNull()?.pairId ?: "") }
+                    var countText by rememberSaveable { mutableStateOf("") }
+                    var grade by rememberSaveable { mutableStateOf("A") }
+                    var weightText by rememberSaveable { mutableStateOf("") }
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showDialog = false },
+                        title = { Text("Quick Egg Collection") },
+                        text = {
+                            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                // Pair selector (simple chips from active pairs)
+                                if (activePairs.isEmpty()) {
+                                    Text("No active pairs found")
+                                } else {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                        activePairs.take(4).forEach { p ->
+                                            AssistChip(onClick = { selectedPairId = p.pairId }, label = { Text(p.pairId.take(6)) })
+                                        }
+                                    }
+                                }
+                                OutlinedTextField(value = selectedPairId, onValueChange = { selectedPairId = it }, label = { Text("Pair ID") }, modifier = Modifier.fillMaxWidth())
+                                OutlinedTextField(value = countText, onValueChange = { countText = it.filter { ch -> ch.isDigit() } }, label = { Text("Egg count") }, modifier = Modifier.fillMaxWidth())
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(value = grade, onValueChange = { grade = it.take(2).uppercase() }, label = { Text("Grade (A/B/C)") }, modifier = Modifier.weight(1f))
+                                    OutlinedTextField(value = weightText, onValueChange = { weightText = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Weight (g, optional)") }, modifier = Modifier.weight(1f))
+                                }
+                                quickStatus?.let { msg -> Text(msg) }
+                            }
+                        },
+                        confirmButton = {
+                            Button(onClick = {
+                                val count = countText.toIntOrNull() ?: 0
+                                val weight = weightText.toDoubleOrNull()
+                                vm.quickCollectEggs(selectedPairId.trim(), count, grade.ifBlank { "A" }, weight)
+                                showDialog = false
+                            }) { Text("Save") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDialog = false }) { Text("Cancel") }
+                        },
+                    )
+                }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Incubation Timers")
+            if (ui.incubationTimers.isEmpty()) {
+                Text("No active batches")
+            } else {
+                ui.incubationTimers.take(5).forEach { t ->
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(t.name, modifier = Modifier.weight(1f))
+                        val remaining = (t.expectedHatchAt ?: 0L) - now
+                        val text = if (remaining > 0) formatCountdown(remaining) else "–"
+                        Text("ETA: $text")
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenBreeding) { Text("View Batches") }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Hatching Due (7 days)")
+            Text("• ${ui.hatchingDueCount} batches due soon")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenBreeding) { Text("View Schedule") }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Weekly Growth Updates")
+            Text("• ${ui.weeklyGrowthUpdatesCount} growth records this week")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenMonitoringDashboard) { Text("Log Growth") }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Breeder Status Checks")
+            if (ui.breederStatusChecks.isEmpty()) Text("No breeder updates") else {
+                ui.breederStatusChecks.take(5).forEach { s ->
+                    Row(Modifier.fillMaxWidth()) {
+                        Text("Pair ${s.pairId}", modifier = Modifier.weight(1f))
+                        Text("${"%.0f".format(s.hatchSuccessRate * 100)}%")
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenBreeding) { Text("View Details") }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Transfers")
+            Text("• Pending: ${ui.pendingTransfersCount} • Disputed: ${ui.disputedTransfersCount}")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenTransfers) { Text("Verify") }
+            }
+        } }
+
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Events Today")
+            if (ui.eventsToday.isEmpty()) Text("No events today") else {
+                ui.eventsToday.take(5).forEach { e ->
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(e.title, modifier = Modifier.weight(1f))
+                        Text("Starts: ${e.startTime}")
+                    }
+                }
+            }
+        } }
+
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Rank Board")
-                Text("• Suggestions:")
-                ui.dashboard.suggestions.take(3).forEach { s -> Text("- $s") }
-                TextButton(onClick = onOpenProfile) { Text("View Profile & Badges") }
+                Text("Critical Alerts")
+                if (ui.alerts.isEmpty()) {
+                    Text("No critical alerts")
+                } else {
+                    ui.alerts.forEach { a ->
+                        Text("• [${a.severity}] ${a.message}")
+                    }
+                }
             }
         }
 
+        // Legacy flock board retained below
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Flock Board")
@@ -119,19 +285,6 @@ fun EnthusiastHomeScreen(
 
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Critical Alerts")
-                if (flock.alerts.isEmpty()) {
-                    Text("No critical alerts")
-                } else {
-                    flock.alerts.forEach { a ->
-                        Text("• [${a.severity}] ${a.title}: ${a.description}")
-                    }
-                }
-            }
-        }
-
-        ElevatedCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Top Sellers & Market Insights")
                 Text("• Trending breed: Malay • Avg price ↑ 12% WoW")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -140,6 +293,7 @@ fun EnthusiastHomeScreen(
                     Button(onClick = { if (id.isNotBlank()) onOpenTraceability(id) }) { Text("Trace") }
                 }
             }
+        }
         }
     }
 }
@@ -161,6 +315,14 @@ private fun PremiumGateCard(
             }
         }
     }
+}
+
+private fun formatCountdown(ms: Long): String {
+    val totalSec = ms / 1000
+    val h = totalSec / 3600
+    val m = (totalSec % 3600) / 60
+    val s = totalSec % 60
+    return "%02d:%02d:%02d".format(h, m, s)
 }
 
 // =============== EXPLORE TAB ===============
@@ -324,77 +486,4 @@ fun EnthusiastDashboardHost(
     }
 }
 
-// =============== TRANSFERS TAB ===============
-@Composable
-fun EnthusiastTransfersScreen(
-    onOpenTransfer: (String) -> Unit,
-    onVerifyTransfer: (String) -> Unit,
-    onCreateTransfer: () -> Unit,
-    onOpenTraceability: (String) -> Unit,
-) {
-    val vm: EnthusiastTransferViewModel = hiltViewModel()
-    val state by vm.state.collectAsState()
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Ownership Transfer Management")
-        if (state.loading) {
-            Text("Loading...")
-        }
-        state.error?.let { err ->
-            ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
-        }
-        ElevatedCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Pending Transfers (Verification Required)")
-                if (state.pending.isEmpty() && !state.loading) {
-                    Text("No pending transfers")
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(state.pending) { t ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text(t.transferId, modifier = Modifier.weight(1f))
-                                Text("${t.type} • ${t.status}")
-                                Spacer(modifier = Modifier.padding(4.dp))
-                                TextButton(onClick = { onOpenTransfer(t.transferId) }) { Text("Details") }
-                                Spacer(modifier = Modifier.padding(2.dp))
-                                TextButton(onClick = { onVerifyTransfer(t.transferId) }) { Text("Verify") }
-                                if (!t.productId.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.padding(2.dp))
-                                    TextButton(onClick = { onOpenTraceability(t.productId!!) }) { Text("Chain") }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ElevatedCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("History & Documentation")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onCreateTransfer) { Text("New Transfer") }
-                    TextButton(onClick = { vm.refresh() }) { Text("Refresh") }
-                }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(state.history) { t ->
-                        Row(Modifier.fillMaxWidth()) {
-                            Text(t.transferId, modifier = Modifier.weight(1f))
-                            Text("${t.type} • ${t.status}")
-                            Spacer(modifier = Modifier.padding(4.dp))
-                            TextButton(onClick = { onOpenTransfer(t.transferId) }) { Text("Details") }
-                            if (!t.productId.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.padding(2.dp))
-                                TextButton(onClick = { onOpenTraceability(t.productId!!) }) { Text("Chain") }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ElevatedCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Verification Steps")
-                Text("• Photo: before/after • GPS confirm • Digital signature • Platform verification")
-            }
-        }
-    }
-}
+// Transfers tab moved to separate screen file: EnthusiastTransfersScreen.kt

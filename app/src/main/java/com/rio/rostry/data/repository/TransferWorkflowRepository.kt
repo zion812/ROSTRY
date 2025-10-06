@@ -32,6 +32,14 @@ interface TransferWorkflowRepository {
         timeoutAt: Long? = null,
     ): Resource<String> // returns transferId
 
+    suspend fun appendSellerEvidence(
+        transferId: String,
+        photoBeforeUrl: String?,
+        photoAfterUrl: String?,
+        photoBeforeMetaJson: String?,
+        photoAfterMetaJson: String?
+    ): Resource<Unit>
+
     suspend fun buyerVerify(
         transferId: String,
         buyerPhotoUrl: String?,
@@ -39,6 +47,7 @@ interface TransferWorkflowRepository {
         buyerGpsLng: Double?,
         identityDocType: String?,
         identityDocRef: String?,
+        identityDocNumber: String?,
     ): Resource<Unit>
 
     suspend fun platformApproveIfNeeded(transferId: String): Resource<Unit>
@@ -141,6 +150,46 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun appendSellerEvidence(
+        transferId: String,
+        photoBeforeUrl: String?,
+        photoAfterUrl: String?,
+        photoBeforeMetaJson: String?,
+        photoAfterMetaJson: String?
+    ): Resource<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val ver = TransferVerificationEntity(
+                verificationId = UUID.randomUUID().toString(),
+                transferId = transferId,
+                step = "SELLER_INIT",
+                status = "APPROVED",
+                photoBeforeUrl = photoBeforeUrl,
+                photoAfterUrl = photoAfterUrl,
+                photoBeforeMetaJson = photoBeforeMetaJson,
+                photoAfterMetaJson = photoAfterMetaJson,
+                createdAt = now(),
+                updatedAt = now()
+            )
+            verificationDao.upsert(ver)
+            auditLogDao.insert(
+                AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "VERIFICATION",
+                    refId = ver.verificationId,
+                    action = "APPEND_SELLER_EVIDENCE",
+                    actorUserId = null,
+                    detailsJson = Gson().toJson(ver),
+                    createdAt = now()
+                )
+            )
+            // Notify using existing method
+            notifier.notifyInitiated(transferId, null)
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to append seller evidence")
+        }
+    }
+
     override suspend fun buyerVerify(
         transferId: String,
         buyerPhotoUrl: String?,
@@ -148,6 +197,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         buyerGpsLng: Double?,
         identityDocType: String?,
         identityDocRef: String?,
+        identityDocNumber: String?,
     ): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
             val transfer = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
@@ -166,6 +216,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                 gpsLng = buyerGpsLng,
                 identityDocType = identityDocType,
                 identityDocRef = identityDocRef,
+                notes = identityDocNumber?.let { "identityDocNumber=$it" },
                 createdAt = now(),
                 updatedAt = now()
             )

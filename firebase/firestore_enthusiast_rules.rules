@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isEnthusiast(userId) {
+      return request.auth != null && (
+        (request.auth.token.role == 'ENTHUSIAST') ||
+        (get(/databases/$(database)/documents/users/$(userId)).data.role == 'ENTHUSIAST')
+      );
+    }
+    // Enthusiast-scoped collections under enthusiasts/{userId}
+    match /enthusiasts/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId && isEnthusiast(userId);
+
+      // Mating logs
+      match /mating_logs/{logId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update, delete: if request.auth != null && request.auth.uid == userId
+          && isEnthusiast(userId)
+          && request.resource.data.farmerId == userId
+          && request.resource.data.pairId != '';
+      }
+
+      // Egg collections
+      match /egg_collections/{collectionId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update, delete: if request.auth != null && request.auth.uid == userId
+          && isEnthusiast(userId)
+          && request.resource.data.farmerId == userId
+          && request.resource.data.pairId != '';
+      }
+
+      // Dashboard snapshots
+      match /dashboard_snapshots/{snapshotId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update, delete: if request.auth != null && request.auth.uid == userId
+          && isEnthusiast(userId)
+          && request.resource.data.userId == userId;
+      }
+    }
+
+    // Optional: farmer-scoped monitoring remained in farmers/{farmerId}
+    match /farmers/{farmerId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == farmerId;
+    }
+  }
+}

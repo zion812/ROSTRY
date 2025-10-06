@@ -11,4 +11,5 @@ import dagger.hilt.components.SingletonComponent
 interface AppEntryPoints {
     fun imageLoader(): ImageLoader
     fun demoProductSeeder(): DemoProductSeeder
+    fun mediaUploadInitializer(): MediaUploadInitializer
 }

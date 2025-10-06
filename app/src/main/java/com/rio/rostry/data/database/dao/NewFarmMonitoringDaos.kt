@@ -9,17 +9,17 @@ interface BreedingPairDao {
     @Upsert
     suspend fun upsert(pair: BreedingPairEntity)
 
-    @Query("SELECT * FROM breeding_pairs WHERE farmerId = :farmerId ORDER BY pairedAt DESC")
-    fun observeByFarmer(farmerId: String): Flow<List<BreedingPairEntity>>
-
     @Query("SELECT * FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE' ORDER BY pairedAt DESC")
     fun observeActive(farmerId: String): Flow<List<BreedingPairEntity>>
 
     @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE'")
     suspend fun countActive(farmerId: String): Int
 
-    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE'")
-    fun observeActiveCount(farmerId: String): Flow<Int>
+    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE' AND maleProductId = :maleProductId")
+    suspend fun countActiveByMale(farmerId: String, maleProductId: String): Int
+
+    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE' AND femaleProductId = :femaleProductId")
+    suspend fun countActiveByFemale(farmerId: String, femaleProductId: String): Int
 
     @Query("SELECT * FROM breeding_pairs WHERE pairId = :pairId")
     suspend fun getById(pairId: String): BreedingPairEntity?

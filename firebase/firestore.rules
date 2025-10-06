@@ -1,11 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
+  // NOTE: This ruleset merges enthusiast-specific access controls.
+  // CI deploy: `firebase deploy --only firestore:rules`
+  // Local verify: `firebase emulators:start --only firestore` and run rules tests.
   match /databases/{database}/documents {
     
     // ===== Helper Functions =====
     
     function isAuthenticated() {
       return request.auth != null;
+    }
+    
+    // ===== Enthusiasts Scoped Collections =====
+    // Scoped under enthusiasts/{userId}
+    match /enthusiasts/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      // Require user to be owner and hold ENTHUSIAST role via claim or users doc
+      allow write: if isAuthenticated() && isOwner(userId) && isEnthusiast();
+
+      // Mating logs
+      match /mating_logs/{logId} {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow create, update, delete: if isAuthenticated() && isOwner(userId)
+          && request.resource.data.farmerId == userId
+          && request.resource.data.pairId != '';
+      }
+
+      // Egg collections
+      match /egg_collections/{collectionId} {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow create, update, delete: if isAuthenticated() && isOwner(userId)
+          && request.resource.data.farmerId == userId
+          && request.resource.data.pairId != '';
+      }
+
+      // Enthusiast dashboard snapshots
+      match /dashboard_snapshots/{snapshotId} {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow create, update, delete: if isAuthenticated() && isOwner(userId)
+          && request.resource.data.userId == userId;
+      }
     }
     
     function isOwner(userId) {
@@ -24,8 +58,10 @@ service cloud.firestore {
       return hasRole('FARMER');
     }
     
+    // Strong enthusiast check: prefer custom claim, fallback to users/{uid}.role
     function isEnthusiast() {
-      return hasRole('ENTHUSIAST');
+      return hasRole('ENTHUSIAST') ||
+        (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ENTHUSIAST');
     }
     
     function isVerifiedSeller() {

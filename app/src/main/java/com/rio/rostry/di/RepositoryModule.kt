@@ -4,6 +4,8 @@ import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.ProductRepositoryImpl
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.UserRepositoryImpl
+import com.rio.rostry.data.repository.EnthusiastBreedingRepository
+import com.rio.rostry.data.repository.EnthusiastBreedingRepositoryImpl
 // Import your other repository interfaces and implementations here
 import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.data.auth.AuthRepositoryImpl
@@ -205,6 +207,11 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCommunityRepository(impl: com.rio.rostry.data.repository.CommunityRepositoryImpl): com.rio.rostry.data.repository.CommunityRepository
+
+    // Enthusiast breeding repository
+    @Binds
+    @Singleton
+    abstract fun bindEnthusiastBreedingRepository(impl: EnthusiastBreedingRepositoryImpl): EnthusiastBreedingRepository
 }
 
 @Module

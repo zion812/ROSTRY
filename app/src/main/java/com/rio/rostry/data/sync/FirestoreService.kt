@@ -17,6 +17,9 @@ import com.rio.rostry.data.database.entity.QuarantineRecordEntity
 import com.rio.rostry.data.database.entity.MortalityRecordEntity
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
 import com.rio.rostry.data.database.entity.HatchingLogEntity
+import com.rio.rostry.data.database.entity.MatingLogEntity
+import com.rio.rostry.data.database.entity.EggCollectionEntity
+import com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
@@ -309,4 +312,76 @@ class FirestoreService @Inject constructor(
     }
 
     private fun log(msg: String) { Timber.d("[FirestoreService] $msg") }
+
+    // ==============================
+    // Enthusiast entity sync methods
+    // ==============================
+
+    suspend fun fetchUpdatedMatingLogs(userId: String, since: Long, limit: Int = 500): List<MatingLogEntity> =
+        firestore.collection("enthusiasts").document(userId).collection("mating_logs")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(MatingLogEntity::class.java) }
+
+    suspend fun pushMatingLogs(userId: String, entities: List<MatingLogEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("enthusiasts").document(userId).collection("mating_logs")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.logId)
+            batch.set(doc, e, SetOptions.merge())
+            batch.update(doc, mapOf("updatedAt" to now))
+        }
+        batch.commit().await()
+        return entities.size
+    }
+
+    suspend fun fetchUpdatedEggCollections(userId: String, since: Long, limit: Int = 500): List<EggCollectionEntity> =
+        firestore.collection("enthusiasts").document(userId).collection("egg_collections")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(EggCollectionEntity::class.java) }
+
+    suspend fun pushEggCollections(userId: String, entities: List<EggCollectionEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("enthusiasts").document(userId).collection("egg_collections")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.collectionId)
+            batch.set(doc, e, SetOptions.merge())
+            batch.update(doc, mapOf("updatedAt" to now))
+        }
+        batch.commit().await()
+        return entities.size
+    }
+
+    suspend fun fetchUpdatedEnthusiastSnapshots(userId: String, since: Long, limit: Int = 100): List<EnthusiastDashboardSnapshotEntity> =
+        firestore.collection("enthusiasts").document(userId).collection("dashboard_snapshots")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(EnthusiastDashboardSnapshotEntity::class.java) }
+
+    suspend fun pushEnthusiastSnapshots(userId: String, entities: List<EnthusiastDashboardSnapshotEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("enthusiasts").document(userId).collection("dashboard_snapshots")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.snapshotId)
+            // Merge entity
+            batch.set(doc, e, SetOptions.merge())
+            // Ensure updatedAt is written for delta queries
+            batch.update(doc, mapOf("updatedAt" to now))
+        }
+        batch.commit().await()
+        return entities.size
+    }
 }

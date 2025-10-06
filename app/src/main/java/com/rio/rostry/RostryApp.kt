@@ -75,6 +75,8 @@ class RostryApp : Application() {
         val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
         val imageLoader: ImageLoader = entryPoint.imageLoader()
         Coil.setImageLoader(imageLoader)
+        // Attach MediaUploadManager outbox at startup (initializer has side-effects in init)
+        entryPoint.mediaUploadInitializer()
 
         // Schedule periodic sync (every 6 hours, requires network)
         val constraints = Constraints.Builder()
@@ -108,6 +110,8 @@ class RostryApp : Application() {
         // Schedule farm monitoring workers
         VaccinationReminderWorker.schedule(this)
         FarmPerformanceWorker.schedule(this)
+        // Schedule enthusiast KPIs aggregation (weekly)
+        com.rio.rostry.workers.EnthusiastPerformanceWorker.schedule(this)
 
         // Schedule sync workers for offline-first reconciliation
         com.rio.rostry.workers.OutboxSyncWorker.schedule(this)

@@ -22,6 +22,10 @@ object Routes {
         const val OTP = "auth/otp/{verificationId}"
     }
 
+    object Scan {
+        const val QR = "scan/qr"
+    }
+
     object Common {
         const val PROFILE = "profile"
         const val VERIFY_FARMER_LOCATION = "verify/farmer/location"
@@ -91,6 +95,8 @@ object Routes {
         const val BREEDING = "monitoring/breeding"
         const val GROWTH = "monitoring/growth"
         const val HATCHING = "monitoring/hatching"
+        // Detail deep-link route for batch
+        const val HATCHING_BATCH = "hatching/batch/{batchId}"
         const val DASHBOARD = "monitoring/dashboard"
         const val PERFORMANCE = "monitoring/performance"
     }
@@ -220,6 +226,7 @@ object Routes {
     const val ONBOARD_ENTHUSIAST = Onboarding.ENTHUSIAST
     const val PRODUCT_DETAILS = Product.DETAILS
     const val TRACEABILITY = Product.TRACEABILITY
+    const val SCAN_QR = Scan.QR
     const val PRODUCT_CREATE = Product.CREATE
     const val PRODUCT_EXPLORE = Product.EXPLORE
     const val PRODUCT_MARKET = Product.MARKET
@@ -253,6 +260,7 @@ object Routes {
     const val MONITORING_BREEDING = Monitoring.BREEDING
     const val MONITORING_GROWTH = Monitoring.GROWTH
     const val MONITORING_HATCHING = Monitoring.HATCHING
+    const val MONITORING_HATCHING_BATCH = Monitoring.HATCHING_BATCH
     const val MONITORING_PERFORMANCE = Monitoring.PERFORMANCE
 
     //Loveable aliases

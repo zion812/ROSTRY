@@ -10,36 +10,39 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-
 /**
  * SyncManager coordinates incremental, offline-first sync across entities.
  * It demonstrates a pattern and leaves actual network I/O to the caller (e.g., repositories or API services).
  */
 @Singleton
-class SyncManager @Inject constructor(
-    private val userDao: UserDao,
-    private val productDao: ProductDao,
-    private val orderDao: OrderDao,
-    private val productTrackingDao: ProductTrackingDao,
-    private val chatMessageDao: ChatMessageDao,
-    private val transferDao: TransferDao,
-    private val syncStateDao: SyncStateDao,
-    private val outboxDao: OutboxDao,
-    private val firestoreService: FirestoreService,
-    private val connectivityManager: ConnectivityManager,
-    private val gson: Gson,
-    // Farm monitoring DAOs
-    private val breedingPairDao: com.rio.rostry.data.database.dao.BreedingPairDao,
-    private val farmAlertDao: com.rio.rostry.data.database.dao.FarmAlertDao,
-    private val farmerDashboardSnapshotDao: com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,
-    private val vaccinationRecordDao: com.rio.rostry.data.database.dao.VaccinationRecordDao,
-    private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
-    private val quarantineRecordDao: com.rio.rostry.data.database.dao.QuarantineRecordDao,
-    private val mortalityRecordDao: com.rio.rostry.data.database.dao.MortalityRecordDao,
-    private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
-    private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
-    ) {
+    class SyncManager @Inject constructor(
+        private val userDao: UserDao,
+        private val productDao: ProductDao,
+        private val orderDao: OrderDao,
+        private val productTrackingDao: ProductTrackingDao,
+        private val chatMessageDao: ChatMessageDao,
+        private val transferDao: TransferDao,
+        private val syncStateDao: SyncStateDao,
+        private val outboxDao: OutboxDao,
+        private val firestoreService: FirestoreService,
+        private val connectivityManager: ConnectivityManager,
+        private val gson: Gson,
+        // Farm monitoring DAOs
+        private val breedingPairDao: com.rio.rostry.data.database.dao.BreedingPairDao,
+        private val farmAlertDao: com.rio.rostry.data.database.dao.FarmAlertDao,
+        private val farmerDashboardSnapshotDao: com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,
+        private val vaccinationRecordDao: com.rio.rostry.data.database.dao.VaccinationRecordDao,
+        private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
+        private val quarantineRecordDao: com.rio.rostry.data.database.dao.QuarantineRecordDao,
+        private val mortalityRecordDao: com.rio.rostry.data.database.dao.MortalityRecordDao,
+        private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
+        private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
+        // Enthusiast DAOs
+        private val matingLogDao: com.rio.rostry.data.database.dao.MatingLogDao,
+        private val eggCollectionDao: com.rio.rostry.data.database.dao.EggCollectionDao,
+        private val enthusiastDashboardSnapshotDao: com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,
+        private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+        ) {
         data class SyncStats(
             val pushed: Int = 0,
             val pulled: Int = 0,
@@ -122,6 +125,65 @@ class SyncManager @Inject constructor(
                     val cleaned = localDirty.map { it.copy(dirty = false, updatedAt = now) }
                     productTrackingDao.upsertAll(cleaned)
                     pushes += cleaned.size
+                }
+            }
+
+            // ============================
+            // Enthusiast Entity Sync (UID)
+            // ============================
+            run {
+                val userId = firebaseAuth.currentUser?.uid
+                if (userId != null) {
+                    // Mating Logs (use enthusiast-specific window)
+                    run {
+                        val remote = withRetry {
+                            firestoreService.fetchUpdatedMatingLogs(userId, state.lastEnthusiastBreedingSyncAt)
+                        }
+                        if (remote.isNotEmpty()) {
+                            remote.forEach { matingLogDao.upsert(it) }
+                            pulls += remote.size
+                        }
+                        val localDirty = matingLogDao.getDirty()
+                        if (localDirty.isNotEmpty()) {
+                            withRetry { firestoreService.pushMatingLogs(userId, localDirty) }
+                            matingLogDao.clearDirty(localDirty.map { it.logId }, now)
+                            pushes += localDirty.size
+                        }
+                    }
+
+                    // Egg Collections (use enthusiast-specific window)
+                    run {
+                        val remote = withRetry {
+                            firestoreService.fetchUpdatedEggCollections(userId, state.lastEnthusiastBreedingSyncAt)
+                        }
+                        if (remote.isNotEmpty()) {
+                            remote.forEach { eggCollectionDao.upsert(it) }
+                            pulls += remote.size
+                        }
+                        val localDirty = eggCollectionDao.getDirty()
+                        if (localDirty.isNotEmpty()) {
+                            withRetry { firestoreService.pushEggCollections(userId, localDirty) }
+                            eggCollectionDao.clearDirty(localDirty.map { it.collectionId }, now)
+                            pushes += localDirty.size
+                        }
+                    }
+
+                    // Enthusiast Dashboard Snapshots (use enthusiast-specific window)
+                    run {
+                        val remote = withRetry {
+                            firestoreService.fetchUpdatedEnthusiastSnapshots(userId, state.lastEnthusiastDashboardSyncAt)
+                        }
+                        if (remote.isNotEmpty()) {
+                            remote.forEach { enthusiastDashboardSnapshotDao.upsert(it) }
+                            pulls += remote.size
+                        }
+                        val localDirty = enthusiastDashboardSnapshotDao.getDirty()
+                        if (localDirty.isNotEmpty()) {
+                            withRetry { firestoreService.pushEnthusiastSnapshots(userId, localDirty) }
+                            enthusiastDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, now)
+                            pushes += localDirty.size
+                        }
+                    }
                 }
             }
 
@@ -467,7 +529,7 @@ class SyncManager @Inject constructor(
                 }
             }
 
-            // Update sync state for all domains
+            // Update sync state for all domains once at the end
             syncStateDao.upsert(
                 state.copy(
                     lastSyncAt = now,
@@ -484,7 +546,9 @@ class SyncManager @Inject constructor(
                     lastQuarantineSyncAt = now,
                     lastMortalitySyncAt = now,
                     lastHatchingSyncAt = now,
-                    lastHatchingLogSyncAt = now
+                    lastHatchingLogSyncAt = now,
+                    lastEnthusiastBreedingSyncAt = now,
+                    lastEnthusiastDashboardSyncAt = now
                 )
             )
 

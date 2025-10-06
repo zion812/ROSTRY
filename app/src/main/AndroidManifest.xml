@@ -17,7 +17,6 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
         android:theme="@style/Theme.ROSTRY">
         <!-- Google Maps API Key for Maps and Places SDK (value from BuildConfig MAPS_API_KEY) -->
         <meta-data
@@ -41,15 +40,32 @@
                 <data android:scheme="rostry" android:host="traceability" />
                 <data android:scheme="rostry" android:host="traceability" android:pathPattern=".*" />
             </intent-filter>
-        </activity>
 
-        <service
-            android:name=".services.AppFirebaseMessagingService"
-            android:exported="false">
+            <!-- Deep link support for family tree alias -->
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rostry" android:host="family-tree" />
+                <data android:scheme="rostry" android:host="family-tree" android:pathPattern=".*" />
             </intent-filter>
-        </service>
+
+            <!-- Deep link support for transfer verification: rostry://transfer/{transferId}/verify -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rostry" android:host="transfer" android:pathPattern=".*/verify.*" />
+            </intent-filter>
+
+            <!-- Deep link support for hatching batch details: rostry://hatching/batch/{batchId} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rostry" android:host="hatching" android:pathPrefix="/batch" />
+            </intent-filter>
+        </activity>
 
         <!-- FileProvider for sharing report files securely -->
         <provider

@@ -81,6 +81,9 @@ class OutboxSyncTest {
             mortalityRecordDao = mockk(relaxed = true),
             hatchingBatchDao = mockk(relaxed = true),
             hatchingLogDao = mockk(relaxed = true),
+            matingLogDao = mockk(relaxed = true),
+            eggCollectionDao = mockk(relaxed = true),
+            enthusiastDashboardSnapshotDao = mockk(relaxed = true),
             firebaseAuth = mockk(relaxed = true)
         )
     }

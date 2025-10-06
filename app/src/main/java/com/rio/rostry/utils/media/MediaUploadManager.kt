@@ -10,6 +10,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.content.Context
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.rio.rostry.data.database.dao.UploadTaskDao
+import com.rio.rostry.data.database.entity.UploadTaskEntity
+import com.rio.rostry.workers.MediaUploadWorker
+import java.util.UUID
 
 /**
  * Manages background media uploads with retry, compression hooks, and progress updates.
@@ -37,6 +46,15 @@ class MediaUploadManager @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.IO + Job())
     private val _events = MutableSharedFlow<UploadEvent>(replay = 0, extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val events = _events.asSharedFlow()
+
+    // Optional outbox wiring (set via DI at app start)
+    @Volatile private var uploadTaskDao: UploadTaskDao? = null
+    @Volatile private var appContext: Context? = null
+
+    fun attachOutbox(dao: UploadTaskDao, context: Context) {
+        this.uploadTaskDao = dao
+        this.appContext = context.applicationContext
+    }
 
     fun enqueue(task: UploadTask) {
         scope.launch {
@@ -68,5 +86,51 @@ class MediaUploadManager @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Persist upload to DAO-backed outbox and schedule WorkManager.
+     * Also emits a Queued event for live sessions.
+     */
+    fun enqueueToOutbox(localPath: String, remotePath: String, contextJson: String? = null) {
+        val dao = uploadTaskDao
+        val ctx = appContext
+        if (dao == null || ctx == null) {
+            // Fallback to in-memory if not attached
+            enqueue(UploadTask(localPath = localPath, remotePath = remotePath))
+            return
+        }
+        scope.launch {
+            try {
+                _events.emit(UploadEvent.Queued(remotePath))
+                val now = System.currentTimeMillis()
+                val task = UploadTaskEntity(
+                    taskId = UUID.randomUUID().toString(),
+                    localPath = localPath,
+                    remotePath = remotePath,
+                    status = "QUEUED",
+                    progress = 0,
+                    retries = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                    error = null,
+                    contextJson = contextJson
+                )
+                dao.upsert(task)
+                scheduleWorker(ctx)
+            } catch (_: Throwable) {
+                // Swallow; WorkManager/DAO path is best-effort
+            }
+        }
+    }
+
+    private fun scheduleWorker(context: Context) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val req = OneTimeWorkRequestBuilder<MediaUploadWorker>()
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(context).enqueue(req)
     }
 }

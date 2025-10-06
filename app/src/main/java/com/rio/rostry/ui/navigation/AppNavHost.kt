@@ -87,10 +87,16 @@ import com.rio.rostry.ui.notifications.NotificationsViewModel
 import com.rio.rostry.ui.notifications.NotificationsScreen
 import com.rio.rostry.ui.enthusiast.EnthusiastHomeScreen
 import com.rio.rostry.ui.enthusiast.EnthusiastExploreScreen
+// Tabs implementation is wrapped by EnthusiastExploreScreen
 import com.rio.rostry.ui.enthusiast.EnthusiastCreateScreen
 import com.rio.rostry.ui.enthusiast.EnthusiastDashboardHost
+import com.rio.rostry.ui.enthusiast.dashboard.EnthusiastDashboardTabs
+import com.rio.rostry.ui.scan.QrScannerScreen
 import com.rio.rostry.ui.enthusiast.EnthusiastTransfersScreen
+import com.rio.rostry.ui.enthusiast.breeding.BreedingFlowScreen
 import com.rio.rostry.ui.social.LiveBroadcastScreen
+import com.rio.rostry.ui.analytics.EnthusiastDashboardScreen
+import com.rio.rostry.ui.monitoring.FarmPerformanceScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
@@ -493,6 +499,29 @@ private fun RoleNavGraph(
                 onContactSupport = { /* open support */ }
             )
         }
+        // Shared breeding management route for enthusiasts
+        composable(Routes.MONITORING_BREEDING) {
+            BreedingFlowScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenPairDetail = { pairId -> navController.navigate("breeding/pair/$pairId") },
+                onOpenBatchDetail = { batchId -> navController.navigate("hatching/batch/$batchId") }
+            )
+        }
+        // Hatching management route with deep link to support notifications
+        composable(
+            route = Routes.MONITORING_HATCHING,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://hatching" })
+        ) {
+            com.rio.rostry.ui.monitoring.HatchingProcessScreen()
+        }
+        // Hatching batch detail deep link (handled by HatchingProcessScreen for now)
+        composable(
+            route = Routes.MONITORING_HATCHING_BATCH,
+            arguments = listOf(navArgument("batchId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://hatching/batch/{batchId}" })
+        ) { _ ->
+            com.rio.rostry.ui.monitoring.HatchingProcessScreen()
+        }
         composable(Routes.HOME_ENTHUSIAST) {
             EnthusiastHomeScreen(
                 onOpenProfile = { navController.navigate(Routes.PROFILE) },
@@ -514,9 +543,9 @@ private fun RoleNavGraph(
 
         composable(Routes.EnthusiastNav.EXPLORE) {
             EnthusiastExploreScreen(
-                onOpenProfile = { _ -> navController.navigate(Routes.PROFILE) },
-                onOpenDiscussion = { navController.navigate(Routes.SOCIAL_FEED) },
-                onShare = { _ -> /* Share via system sheet in future */ Unit }
+                onOpenProduct = { productId -> navController.navigate("product/$productId") },
+                onOpenEvent = { eventId -> navController.navigate(Routes.EVENT_DETAILS.replace("{eventId}", eventId)) },
+                onShare = { _ -> /* share sheet */ Unit }
             )
         }
 
@@ -529,10 +558,11 @@ private fun RoleNavGraph(
         }
 
         composable(Routes.EnthusiastNav.DASHBOARD) {
-            EnthusiastDashboardHost(
+            EnthusiastDashboardTabs(
                 onOpenReports = { navController.navigate(Routes.REPORTS) },
                 onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) },
-                onOpenTraceability = { id -> navController.navigate("traceability/$id") }
+                onOpenTraceability = { id -> navController.navigate("traceability/$id") },
+                navController = navController
             )
         }
 
@@ -576,11 +606,23 @@ private fun RoleNavGraph(
         composable(
             route = Routes.TRACEABILITY,
             arguments = listOf(navArgument("productId") { type = NavType.StringType }),
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://traceability/{productId}" })
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "rostry://traceability/{productId}" },
+                // Alias for family tree deep link used by notifications
+                navDeepLink { uriPattern = "rostry://family-tree/{productId}" }
+            )
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             val vm: TraceabilityViewModel = hiltViewModel()
             TraceabilityScreen(vm = vm, productId = productId, onBack = { navController.popBackStack() })
+        }
+
+        // Scanner route (placeholder implementation)
+        composable(Routes.SCAN_QR) {
+            QrScannerScreen(onResult = { productId ->
+                navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
+                navController.popBackStack()
+            })
         }
 
         // Marketplace sandbox for QA/demo to exercise product validation and payments
@@ -598,7 +640,8 @@ private fun RoleNavGraph(
 
         composable(
             route = Routes.TRANSFER_VERIFY,
-            arguments = listOf(navArgument("transferId") { type = NavType.StringType })
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/{transferId}/verify" })
         ) { backStackEntry ->
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
             TransferVerificationScreen(
@@ -642,12 +685,25 @@ private fun RoleNavGraph(
             )
         }
 
+        // Analytics dashboard (Enthusiast)
+        composable(Routes.ANALYTICS_DASHBOARD) {
+            EnthusiastDashboardScreen(
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
+            )
+        }
+
         composable(
             route = Routes.MESSAGES_THREAD,
             arguments = listOf(navArgument("threadId") { type = NavType.StringType })
         ) { backStackEntry ->
             val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
             com.rio.rostry.ui.messaging.ThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
+        }
+
+        // Monitoring performance summary screen
+        composable(Routes.MONITORING_PERFORMANCE) {
+            FarmPerformanceScreen()
         }
 
         composable(
@@ -757,16 +813,6 @@ private fun RoleNavGraph(
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/quarantine" })
         ) {
             com.rio.rostry.ui.monitoring.QuarantineManagementScreen()
-        }
-        composable(
-            route = Routes.MONITORING_BREEDING,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/breeding" })
-        ) {
-            com.rio.rostry.ui.monitoring.BreedingManagementScreen(
-                onListProduct = { productId, pairId ->
-                    navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$productId&pairId=$pairId")
-                }
-            )
         }
         composable(
             route = Routes.MONITORING_GROWTH,

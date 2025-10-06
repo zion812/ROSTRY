@@ -102,6 +102,9 @@ class SyncManagerTest {
             mortalityRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.MortalityRecordDao::class.java),
             hatchingBatchDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingBatchDao::class.java),
             hatchingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingLogDao::class.java),
+            matingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.MatingLogDao::class.java),
+            eggCollectionDao = Mockito.mock(com.rio.rostry.data.database.dao.EggCollectionDao::class.java),
+            enthusiastDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao::class.java),
             firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java)
         )
 
@@ -162,6 +165,9 @@ class SyncManagerTest {
             mortalityRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.MortalityRecordDao::class.java),
             hatchingBatchDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingBatchDao::class.java),
             hatchingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingLogDao::class.java),
+            matingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.MatingLogDao::class.java),
+            eggCollectionDao = Mockito.mock(com.rio.rostry.data.database.dao.EggCollectionDao::class.java),
+            enthusiastDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao::class.java),
             firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java)
         )
 
@@ -232,6 +238,9 @@ class SyncManagerTest {
             mortalityRecordDao = Mockito.mock(com.rio.rostry.data.database.dao.MortalityRecordDao::class.java),
             hatchingBatchDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingBatchDao::class.java),
             hatchingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.HatchingLogDao::class.java),
+            matingLogDao = Mockito.mock(com.rio.rostry.data.database.dao.MatingLogDao::class.java),
+            eggCollectionDao = Mockito.mock(com.rio.rostry.data.database.dao.EggCollectionDao::class.java),
+            enthusiastDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao::class.java),
             firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java)
         )
 
