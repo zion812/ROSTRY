@@ -1,18 +1,25 @@
 # Contributing to ROSTRY
 
+**Version:** 2.0  
+**Last Updated:** 2025-01-15
+
+---
+
 Thank you for your interest in contributing! This guide explains how to set up your environment, follow coding standards, and submit changes.
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Code of Conduct](#code-of-conduct)
 - [Development Workflow](#development-workflow)
 - [Code Style](#code-style)
 - [Testing Requirements](#testing-requirements)
+- [Documentation Requirements](#documentation-requirements)
 - [Pull Request Process](#pull-request-process)
 - [Code Review](#code-review)
-- [Documentation](#documentation)
-- [Issue Reporting](#issue-reporting)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Security](#security)
+- [Issue Reporting](#issue-reporting)
 - [Release Process](#release-process)
 
 ## Getting Started
@@ -26,7 +33,40 @@ Thank you for your interest in contributing! This guide explains how to set up y
 4. **Sync Gradle**: Allow Android Studio to sync dependencies automatically.
 5. **Run the app**: Build and run in debug mode to ensure everything works.
 
-See `docs/developer-onboarding.md` for comprehensive onboarding guide.
+See [developer-onboarding.md](docs/developer-onboarding.md) for comprehensive onboarding guide.
+
+---
+
+## Code of Conduct
+
+### Our Pledge
+
+We as members, contributors, and leaders pledge to make participation in ROSTRY a harassment-free experience for everyone. We are committed to providing a welcoming and inclusive environment.
+
+### Our Standards
+
+**Expected Behavior**:
+- Be respectful and inclusive
+- Welcome and support newcomers
+- Provide constructive feedback
+- Focus on what is best for the community
+- Show empathy towards others
+
+**Unacceptable Behavior**:
+- Harassment, trolling, or insulting comments
+- Public or private harassment
+- Publishing others' private information
+- Other conduct inappropriate in a professional setting
+
+### Enforcement
+
+Instances of unacceptable behavior may be reported by contacting the project team. All complaints will be reviewed and investigated promptly and fairly.
+
+**Full Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+
+**Reporting**: If you experience or witness unacceptable behavior, please report it to the maintainers privately.
+
+---
 
 ## Development Workflow
 
@@ -135,6 +175,65 @@ fun `wizard nextStep with invalid data should show validation errors`() { }
 ./gradlew test --tests "ProductRepositoryTest"
 ```
 
+---
+
+## Documentation Requirements
+
+All code changes must include appropriate documentation.
+
+### When to Document
+
+**Required**:
+- All public classes, interfaces, and functions
+- Complex algorithms or non-obvious logic
+- All parameters and return values
+- Exceptions that can be thrown
+
+**Optional**:
+- Private functions (unless complex)
+- Self-explanatory code
+
+### KDoc Standards
+
+Use **KDoc** (Kotlin Documentation) for inline API documentation:
+
+```kotlin
+/**
+ * Creates a new product and stores it locally and remotely.
+ *
+ * Validates product data, assigns timestamps, stores in Room database,
+ * and queues for Firestore sync.
+ *
+ * @param product The product to create (with ID and sellerId set)
+ * @return Result.Success with product ID, or Result.Error with message
+ * @throws IllegalArgumentException if validation fails
+ * @see Product
+ * @see getProducts
+ */
+suspend fun createProduct(product: Product): Result<String>
+```
+
+### Documentation Quality
+
+- **Be clear**: Write for readers unfamiliar with implementation
+- **Be concise**: Don't repeat what's obvious from signatures
+- **Be specific**: Provide concrete examples for complex APIs
+- **Be accurate**: Keep docs in sync with code
+
+### Generating Documentation
+
+```bash
+# Generate HTML documentation
+./gradlew :app:dokkaHtml
+
+# View generated docs
+open app/build/dokka/html/index.html
+```
+
+**Complete KDoc Guide**: See [docs/api-documentation.md](docs/api-documentation.md)
+
+---
+
 ## Pull Request Process
 
 ### Before Submitting
@@ -195,6 +294,55 @@ All PRs must pass:
 - Focus on logic, architecture, and maintainability
 - Suggest improvements, don't demand perfection
 - Approve when code meets quality standards
+
+---
+
+## CI/CD Pipeline
+
+ROSTRY uses GitHub Actions for continuous integration and deployment.
+
+### Automated Checks
+
+Every pull request triggers:
+- **Linting**: ktlint, detekt, Android lint
+- **Build**: Debug and release variants
+- **Tests**: Unit tests with coverage reports
+- **Security**: Dependency vulnerability scanning
+
+### Pipeline Stages
+
+1. **Code Quality** (<3 min): Linting and static analysis
+2. **Build** (<5 min): Compile and generate APKs
+3. **Test** (<10 min): Run unit and instrumentation tests
+4. **Deploy** (main branch only): Firebase App Distribution
+
+### Viewing Pipeline Results
+
+- Check the **Actions** tab in GitHub
+- PR checks must pass before merging
+- Failed checks block merge until fixed
+
+### Local Pipeline Testing
+
+Run checks locally before pushing:
+
+```bash
+# Lint
+./gradlew ktlintCheck detekt
+
+# Build
+./gradlew assembleDebug
+
+# Test
+./gradlew test
+
+# All checks
+./gradlew check
+```
+
+**Complete CI/CD Documentation**: See [docs/ci-cd.md](docs/ci-cd.md)
+
+---
 
 ## Documentation
 
@@ -258,11 +406,63 @@ Other approaches you've thought about
 Any other relevant information
 ```
 
+---
+
 ## Security
 
-- **Never commit secrets**: API keys, passwords, tokens belong in environment variables or secure storage.
-- **Report vulnerabilities privately**: Contact maintainers directly for security issues.
-- **Follow security best practices**: See `docs/security-encryption.md`.
+Security is critical for ROSTRY. Please follow these guidelines.
+
+### Reporting Security Vulnerabilities
+
+**CRITICAL**: Do NOT create public GitHub issues for security vulnerabilities!
+
+**Private Reporting Process**:
+1. Go to the **Security** tab in GitHub
+2. Click "Report a vulnerability"
+3. Provide detailed description of the vulnerability
+4. Include steps to reproduce if possible
+5. Suggest a fix if you have one
+
+**Response Timeline**:
+- Initial acknowledgment: Within 48 hours
+- Status update: Within 7 days
+- Fix and disclosure: Coordinated with reporter
+
+**Full Security Policy**: See [SECURITY.md](SECURITY.md)
+
+### Security Best Practices for Contributors
+
+**Never Commit**:
+- API keys or secrets
+- Passwords or tokens
+- Firebase configuration with sensitive data
+- Private keys or certificates
+- User data or PII
+
+**Always Use**:
+- `local.properties` for API keys (gitignored)
+- Environment variables for CI/CD secrets
+- Encrypted storage for sensitive data
+- Secure coding practices from [docs/security-encryption.md](docs/security-encryption.md)
+
+### Code Security Checklist
+
+When contributing code:
+- [ ] No hardcoded secrets or credentials
+- [ ] Input validation for user data
+- [ ] Proper authentication and authorization checks
+- [ ] SQL injection prevention (use parameterized queries)
+- [ ] XSS prevention (sanitize user input)
+- [ ] HTTPS for all network calls
+- [ ] Encrypted local storage for sensitive data
+- [ ] Follow principle of least privilege
+
+**Security Resources**:
+- [Security & Encryption Guide](docs/security-encryption.md)
+- [Firebase Security Rules](docs/firebase-setup.md#security-rules)
+- [API Keys Setup](docs/api-keys-setup.md)
+
+---
 
 ## Release Process
 

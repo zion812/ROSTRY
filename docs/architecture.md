@@ -1,11 +1,27 @@
 # ROSTRY Architecture Overview
 
+**Version:** 2.0  
+**Last Updated:** 2025-01-15  
+**Audience:** All developers  
+**Related Documentation:**
+- [testing-strategy.md](testing-strategy.md) - Testing architecture
+- [security-encryption.md](security-encryption.md) - Security architecture
+- [performance-optimization.md](performance-optimization.md) - Performance considerations
+- [background-jobs.md](background-jobs.md) - Background processing
+- [../ROADMAP.md](../ROADMAP.md) - Future architecture plans
+- [adrs/adr-001-database-encryption.md](adrs/adr-001-database-encryption.md) - SQLCipher decision
+- [adrs/adr-002-offline-first.md](adrs/adr-002-offline-first.md) - Offline-first strategy
+
+---
+
 ## 1. Solution Snapshot
-- **Platform**: Android, Kotlin, Jetpack Compose UI.
-- **Primary Pattern**: MVVM with distinct UI, ViewModel, Repository, and Data layers.
-- **State Management**: `StateFlow`/`SharedFlow`, SavedStateHandle, and DataStore-backed session state.
-- **Dependency Injection**: Hilt modules in `app/src/main/java/com/rio/rostry/di/` bind interfaces to implementations, provide singletons, and integrate WorkManager.
-- **Persistence**: Room database defined in `data/database/AppDatabase.kt` (SQLCipher encrypted) plus Firebase services for cloud data.
+
+- **Platform**: Android, Kotlin, Jetpack Compose UI
+- **Primary Pattern**: MVVM with distinct UI, ViewModel, Repository, and Data layers
+- **State Management**: `StateFlow`/`SharedFlow`, `SavedStateHandle`, DataStore for preferences
+- **Dependency Injection**: Hilt modules in `di/` package bind interfaces, provide singletons
+- **Persistence**: Room database (SQLCipher encrypted) + Firebase cloud services
+- **Architecture Style**: Clean Architecture with offline-first approach
 
 ## 2. Layered Architecture
 ```
@@ -161,7 +177,647 @@ For environments without native Mermaid support, render diagrams to images using
 - **VS Code Extension**: "Markdown Preview Mermaid Support" → right-click → *Export Diagram*.
 Store exports under `docs/images/` and reference them via Markdown `![Diagram](images/diagram-name.png)`.
 
-## 8. Recent Major Updates
+### 7.5 Authentication Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant AuthVM as AuthViewModel
+    participant Repo as AuthRepository
+    participant Firebase
+    participant DataStore
+
+    User->>UI: Enter phone number
+    UI->>AuthVM: initiatePhoneAuth(phone)
+    AuthVM->>Repo: sendVerificationCode(phone)
+    Repo->>Firebase: Phone Auth API
+    Firebase-->>Repo: Verification ID
+    Repo-->>AuthVM: Result.Success(verificationId)
+    AuthVM-->>UI: Navigate to OTP screen
+    
+    User->>UI: Enter OTP
+    UI->>AuthVM: verifyOtp(code)
+    AuthVM->>Repo: signInWithCredential(code)
+    Repo->>Firebase: Verify credential
+    Firebase-->>Repo: FirebaseUser
+    Repo->>DataStore: Save session
+    Repo-->>AuthVM: Result.Success(user)
+    AuthVM-->>UI: Navigate to main screen
+```
+
+**Legend**:
+- **Solid arrows**: Synchronous calls
+- **Dashed arrows**: Asynchronous responses
+- **Participants**: Key components in auth flow
+
+### 7.6 Data Sync Flow Diagram
+
+```mermaid
+flowchart TD
+    A[App Launch] --> B{Network Available?}
+    B -->|Yes| C[Sync Worker Triggered]
+    B -->|No| D[Load from Room]
+    
+    C --> E[Fetch from Firestore]
+    E --> F{Data Changed?}
+    F -->|Yes| G[Update Room DB]
+    F -->|No| H[Skip Update]
+    
+    G --> I[Notify UI via Flow]
+    H --> I
+    D --> I
+    
+    I --> J[UI Renders Latest Data]
+    
+    K[User Creates Data] --> L[Save to Room]
+    L --> M[Queue for Upload]
+    M --> N{Network Available?}
+    N -->|Yes| O[Upload to Firestore]
+    N -->|No| P[Retry Later]
+    O --> Q[Mark as Synced]
+```
+
+**Legend**:
+- **Rectangle**: Process/Action
+- **Diamond**: Decision point
+- **Rounded**: Start/End state
+
+---
+
+## 8. State Management
+
+### StateFlow Pattern
+
+**Why StateFlow**: Type-safe, lifecycle-aware, prevents crashes from race conditions
+
+**Implementation**:
+```kotlin
+@HiltViewModel
+class ProductListViewModel @Inject constructor(
+    private val repository: ProductRepository
+) : ViewModel() {
+    
+    // Private mutable state
+    private val _uiState = MutableStateFlow(ProductListUiState())
+    
+    // Public immutable state
+    val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
+    
+    init {
+        loadProducts()
+    }
+    
+    private fun loadProducts() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
+            repository.getProducts()
+                .catch { error ->
+                    _uiState.update { 
+                        it.copy(isLoading = false, error = error.message)
+                    }
+                }
+                .collect { products ->
+                    _uiState.update { 
+                        it.copy(isLoading = false, products = products, error = null)
+                    }
+                }
+        }
+    }
+}
+
+data class ProductListUiState(
+    val isLoading: Boolean = false,
+    val products: List<Product> = emptyList(),
+    val error: String? = null
+)
+```
+
+### State Hoisting in Compose
+
+**Pattern**: Lift state to common ancestor
+
+```kotlin
+@Composable
+fun ProductListScreen(
+    viewModel: ProductListViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    
+    ProductListContent(
+        products = uiState.products,
+        isLoading = uiState.isLoading,
+        onProductClick = viewModel::onProductClick,
+        onRefresh = viewModel::refresh
+    )
+}
+
+@Composable
+fun ProductListContent(
+    products: List<Product>,
+    isLoading: Boolean,
+    onProductClick: (Product) -> Unit,
+    onRefresh: () -> Unit
+) {
+    // Stateless composable - easier to test and reuse
+}
+```
+
+### SavedStateHandle
+
+**Process Death Survival**:
+```kotlin
+@HiltViewModel
+class FilterViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
+    private val repository: ProductRepository
+) : ViewModel() {
+    
+    // Survives process death
+    var selectedCategory: String?
+        get() = savedStateHandle.get<String>("category")
+        set(value) { savedStateHandle["category"] = value }
+    
+    val filters = savedStateHandle.getStateFlow("filters", FilterState())
+}
+```
+
+### DataStore for Preferences
+
+**Files**: `data/preferences/UserPreferencesDataStore.kt`
+
+```kotlin
+class UserPreferencesDataStore @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private val dataStore = context.dataStore
+    
+    val userPreferences: Flow<UserPreferences> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            UserPreferences(
+                theme = preferences[THEME_KEY] ?: "system",
+                notificationsEnabled = preferences[NOTIFICATIONS_KEY] ?: true
+            )
+        }
+    
+    suspend fun updateTheme(theme: String) {
+        dataStore.edit { preferences ->
+            preferences[THEME_KEY] = theme
+        }
+    }
+}
+```
+
+---
+
+## 9. Dependency Injection (Hilt)
+
+### Module Organization
+
+**Files in `di/` package**:
+- `AppModule.kt` - Application-level dependencies
+- `NetworkModule.kt` - Retrofit, Firebase, OkHttp
+- `DatabaseModule.kt` - Room database, DAOs
+- `RepositoryModule.kt` - Repository bindings
+- `WorkerModule.kt` - WorkManager dependencies
+
+### Scopes
+
+| Scope | Lifetime | Use Case |
+|-------|----------|----------|
+| `@Singleton` | App lifetime | Database, network clients, datastores |
+| `@ViewModelScoped` | ViewModel lifetime | Use cases, interactors |
+| `@ActivityRetainedScoped` | Activity (survives config changes) | Session managers |
+
+### Module Example
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
+    
+    @Provides
+    @Singleton
+    fun provideDatabase(
+        @ApplicationContext context: Context
+    ): RostryDatabase {
+        val passphrase = SQLiteDatabase.getBytes(
+            // Load from secure storage
+            context.getString(R.string.db_key).toCharArray()
+        )
+        
+        return Room.databaseBuilder(
+            context,
+            RostryDatabase::class.java,
+            "rostry.db"
+        )
+            .openHelperFactory(SupportFactory(passphrase))
+            .addMigrations(*ALL_MIGRATIONS)
+            .build()
+    }
+    
+    @Provides
+    fun provideProductDao(database: RostryDatabase): ProductDao {
+        return database.productDao()
+    }
+}
+```
+
+### Qualifiers
+
+**For multiple implementations**:
+```kotlin
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class LocalDataSource
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class RemoteDataSource
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DataSourceModule {
+    
+    @Binds
+    @LocalDataSource
+    abstract fun bindLocalDataSource(
+        impl: RoomDataSource
+    ): ProductDataSource
+    
+    @Binds
+    @RemoteDataSource
+    abstract fun bindRemoteDataSource(
+        impl: FirestoreDataSource
+    ): ProductDataSource
+}
+```
+
+### Testing with Hilt
+
+**Test Module**:
+```kotlin
+@Module
+@TestInstallIn(
+    components = [SingletonComponent::class],
+    replaces = [RepositoryModule::class]
+)
+abstract class TestRepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindProductRepository(
+        fake: FakeProductRepository
+    ): ProductRepository
+}
+```
+
+---
+
+## 10. Error Handling
+
+### Result Type Pattern
+
+**File**: `util/Result.kt`
+
+```kotlin
+sealed class Result<out T> {
+    data class Success<T>(val data: T) : Result<T>()
+    data class Error(val message: String, val exception: Exception? = null) : Result<Nothing>()
+    object Loading : Result<Nothing>()
+}
+
+// Extension functions
+fun <T> Result<T>.onSuccess(action: (T) -> Unit): Result<T> {
+    if (this is Result.Success) action(data)
+    return this
+}
+
+fun <T> Result<T>.onError(action: (String) -> Unit): Result<T> {
+    if (this is Result.Error) action(message)
+    return this
+}
+```
+
+### Repository Error Handling
+
+```kotlin
+override suspend fun createProduct(product: Product): Result<String> {
+    return try {
+        // Validate
+        if (product.name.isBlank()) {
+            return Result.Error("Product name is required")
+        }
+        
+        // Save locally
+        val entity = product.toEntity()
+        productDao.insert(entity)
+        
+        // Upload to Firestore
+        firestore.collection("products")
+            .document(product.id)
+            .set(product)
+            .await()
+        
+        Result.Success(product.id)
+        
+    } catch (e: FirebaseNetworkException) {
+        // Network error - data saved locally, will sync later
+        Result.Success(product.id)
+        
+    } catch (e: Exception) {
+        Timber.e(e, "Failed to create product")
+        Result.Error(
+            message = "Failed to create product: ${e.localizedMessage}",
+            exception = e
+        )
+    }
+}
+```
+
+### User-Facing Messages
+
+**ViewModel**:
+```kotlin
+private fun handleError(error: String) {
+    _uiState.update { 
+        it.copy(
+            isLoading = false,
+            error = when {
+                error.contains("network", ignoreCase = true) -> 
+                    "No internet connection. Changes saved locally."
+                error.contains("permission", ignoreCase = true) -> 
+                    "You don't have permission to perform this action."
+                else -> 
+                    "Something went wrong. Please try again."
+            }
+        )
+    }
+}
+```
+
+### Logging
+
+**Timber Configuration** (`RostryApp.kt`):
+```kotlin
+if (BuildConfig.DEBUG) {
+    Timber.plant(Timber.DebugTree())
+} else {
+    Timber.plant(CrashlyticsTree())
+}
+
+class CrashlyticsTree : Timber.Tree() {
+    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        if (priority >= Log.ERROR) {
+            FirebaseCrashlytics.getInstance().apply {
+                setCustomKey("priority", priority)
+                tag?.let { setCustomKey("tag", it) }
+                t?.let { recordException(it) }
+                log(message)
+            }
+        }
+    }
+}
+```
+
+---
+
+## 11. Security Architecture
+
+### Authentication Flow
+
+**Phone Authentication**:
+1. User enters phone number
+2. Firebase sends SMS with OTP
+3. User enters OTP
+4. Firebase verifies and issues JWT token
+5. Token stored in DataStore (encrypted)
+6. Token attached to all API requests
+
+**Implementation**: `data/auth/AuthRepositoryImpl.kt`
+
+### Role-Based Access Control (RBAC)
+
+**Roles**:
+- `GENERAL` - Basic app access
+- `FARMER` - Farm management features
+- `ENTHUSIAST` - Breeding and showing features
+- `ADMIN` - Full access
+
+**Check**: `util/RbacManager.kt`
+```kotlin
+fun hasPermission(user: User, permission: Permission): Boolean {
+    return user.role.permissions.contains(permission)
+}
+
+// Usage in ViewModel
+if (rbacManager.hasPermission(currentUser, Permission.CREATE_TRANSFER)) {
+    // Allow action
+} else {
+    showError("You don't have permission")
+}
+```
+
+### Data Encryption
+
+**SQLCipher for Room**: See [ADR-001](adrs/adr-001-database-encryption.md)
+- All local data encrypted at rest
+- Passphrase derived from device keystore
+- Re-encryption on passphrase change
+
+**Sensitive Fields**:
+```kotlin
+@Entity
+data class UserEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    @Encrypted val phoneNumber: String, // Custom converter
+    @Encrypted val address: String
+)
+```
+
+### Secure Communication
+
+**HTTPS Only**:
+```kotlin
+val okHttpClient = OkHttpClient.Builder()
+    .certificatePinner(
+        CertificatePinner.Builder()
+            .add("api.rostry.com", "sha256/...")
+            .build()
+    )
+    .build()
+```
+
+**Firebase Security Rules**: `firebase/firestore.rules`
+```javascript
+match /products/{productId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null 
+    && request.resource.data.sellerId == request.auth.uid;
+  allow update, delete: if request.auth != null 
+    && resource.data.sellerId == request.auth.uid;
+}
+```
+
+**Complete Guide**: [security-encryption.md](security-encryption.md)
+
+---
+
+## 12. Performance Considerations
+
+### Caching Strategy
+
+**Multi-Level Cache**:
+1. **Memory**: ViewModel StateFlow (in-memory)
+2. **Disk**: Room database (persistent)
+3. **Network**: Firebase Firestore (cloud)
+
+**Cache Invalidation**:
+```kotlin
+suspend fun refreshProducts() {
+    // Clear stale data
+    productDao.deleteOlderThan(System.currentTimeMillis() - CACHE_DURATION)
+    
+    // Fetch fresh data
+    val fresh = firestoreDataSource.getProducts()
+    productDao.insertAll(fresh)
+}
+```
+
+### Pagination
+
+**Paging 3 Integration**:
+```kotlin
+@Dao
+interface ProductDao {
+    @Query("SELECT * FROM products ORDER BY created_at DESC")
+    fun getProductsPaged(): PagingSource<Int, ProductEntity>
+}
+
+// ViewModel
+val products: Flow<PagingData<Product>> = Pager(
+    config = PagingConfig(pageSize = 20),
+    pagingSourceFactory = { productDao.getProductsPaged() }
+).flow
+    .map { pagingData -> pagingData.map { it.toDomain() } }
+    .cachedIn(viewModelScope)
+```
+
+### Lazy Loading
+
+**Images with Coil**:
+```kotlin
+AsyncImage(
+    model = ImageRequest.Builder(LocalContext.current)
+        .data(product.imageUrl)
+        .crossfade(true)
+        .memoryCacheKey(product.id)
+        .diskCacheKey(product.id)
+        .build(),
+    contentDescription = product.name
+)
+```
+
+### Memory Management
+
+**Large Lists**:
+- Use `LazyColumn`/`LazyRow` instead of `Column`/`Row`
+- Implement proper `key` in `items()` for recomposition optimization
+- Release resources in `onDispose`
+
+**Complete Guide**: [performance-optimization.md](performance-optimization.md)
+
+---
+
+## 13. Testing Architecture
+
+### Testing Layers
+
+**Unit Tests** (`test/`):
+- ViewModels
+- Repositories
+- Utilities
+- Use cases
+
+**Integration Tests** (`androidTest/`):
+- Database migrations
+- Repository + DAO integration
+- Navigation flows
+
+**UI Tests** (`androidTest/`):
+- Compose semantics tests
+- User flows
+- Accessibility tests
+
+### Test Structure
+
+```
+app/src/
+├── test/java/com/rio/rostry/
+│   ├── ui/
+│   │   └── ProductViewModelTest.kt
+│   ├── data/repository/
+│   │   └── ProductRepositoryTest.kt
+│   └── util/
+│       └── ValidationUtilsTest.kt
+└── androidTest/java/com/rio/rostry/
+    ├── ui/
+    │   └── ProductListScreenTest.kt
+    ├── data/
+    │   └── MigrationTest.kt
+    └── navigation/
+        └── NavigationTest.kt
+```
+
+### Test Patterns
+
+**ViewModel Test**:
+```kotlin
+@ExperimentalCoroutinesTest
+class ProductViewModelTest {
+    @get:Rule
+    val instantExecutorRule = InstantTaskExecutorRule()
+    
+    private val testDispatcher = StandardTestDispatcher()
+    private val repository = mockk<ProductRepository>()
+    private lateinit var viewModel: ProductViewModel
+    
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+        viewModel = ProductViewModel(repository)
+    }
+    
+    @Test
+    fun `loadProducts success updates state`() = runTest {
+        // Given
+        val expected = listOf(Product("1", "Test"))
+        coEvery { repository.getProducts() } returns flowOf(expected)
+        
+        // When
+        viewModel.loadProducts()
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        // Then
+        assertEquals(expected, viewModel.uiState.value.products)
+        assertFalse(viewModel.uiState.value.isLoading)
+    }
+}
+```
+
+**Complete Testing Guide**: [testing-strategy.md](testing-strategy.md)
+
+---
+
+## 14. Recent Major Updates
 
 ### Database Migration 15→16 (Community Features)
 Added 4 new entities for community engagement:
@@ -182,8 +838,39 @@ New reusable components in `ui/components/`:
 
 See `user-experience-guidelines.md` for usage patterns.
 
-## 9. Future Considerations
-- Split monolithic `AppDatabase.kt` into feature-specific modules if size impacts maintainability.
-- Consider documenting each migration in dedicated ADRs to track schema evolution.
-- Evaluate per-feature module separation (Gradle feature modules) for build performance and encapsulation.
-- Explore multi-module architecture for improved build times and team scalability.
+## 15. Future Considerations
+
+### Multi-Module Architecture
+- Split monolithic app into Gradle feature modules
+- Benefits: Improved build times, better encapsulation, parallel builds
+- Proposed structure:
+  ```
+  :app (shell)
+  :feature:marketplace
+  :feature:social
+  :feature:monitoring
+  :core:ui
+  :core:data
+  :core:network
+  ```
+
+### Database Optimization
+- Split `AppDatabase.kt` into feature-specific databases
+- Implement database sharding for large datasets
+- Document each migration in dedicated ADRs
+
+### Performance Improvements
+- Implement Baseline Profiles for faster startup
+- Add Macrobenchmark tests for performance regression detection
+- Optimize Compose recomposition with stability annotations
+
+### Architecture Evolution
+- Evaluate MVI (Model-View-Intent) for complex flows
+- Consider adopting Kotlin Multiplatform for shared logic
+- Implement server-driven UI for dynamic features
+
+**See**: [ROADMAP.md](../ROADMAP.md) for detailed future plans
+
+---
+
+**For questions or improvements to this architecture, please open an issue or submit a PR.**

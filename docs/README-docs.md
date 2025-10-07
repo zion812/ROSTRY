@@ -2,16 +2,18 @@
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2025-10-01  
-**Documentation Version**: 2.0
+**Last Updated**: 2025-01-15  
+**Documentation Version**: 3.0
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
 - [Core Architecture](#core-architecture)
+- [API & Development Standards](#api--development-standards)
 - [Feature Guides](#feature-guides)
 - [Operations & Testing](#operations--testing)
 - [Architecture Decisions (ADRs)](#architecture-decisions-adrs)
+- [Documentation Quality](#documentation-quality)
 - [How to Use This Documentation](#how-to-use-this-documentation)
 
 ## Getting Started
@@ -34,6 +36,20 @@ Understanding the ROSTRY system:
 | `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation |
 | `testing-strategy.md` | Comprehensive testing approach and patterns |
 | `testing-operations.md` | Testing procedures, security practices, incident response |
+
+---
+
+## API & Development Standards
+
+Essential guides for developers working on ROSTRY:
+
+| Document | Description | Audience |
+|----------|-------------|----------|
+| `api-documentation.md` | KDoc standards, Dokka configuration, documentation requirements | All developers |
+| `firebase-setup.md` | Complete Firebase configuration, security rules, Cloud Functions | Developers, DevOps |
+| `database-migrations.md` | Room migration guide, schema evolution, testing migrations | Backend developers |
+| `ci-cd.md` | GitHub Actions workflows, deployment automation, pipeline configuration | DevOps, Contributors |
+| `api-keys-setup.md` | Secure API key management, environment configuration | All developers |
 
 ## Feature Guides
 
@@ -136,12 +152,15 @@ Decision records documenting key architectural choices:
 | Task | Relevant Documentation |
 |------|------------------------|
 | Adding a new screen | `architecture.md`, `user-experience-guidelines.md`, `CODE_STYLE.md` |
-| Database migration | `data-contracts.md`, `architecture.md` |
+| Database migration | `database-migrations.md`, `data-contracts.md`, `architecture.md` |
 | Background worker | `background-jobs.md`, `architecture.md` |
-| Firebase integration | `api-integration.md`, `data-contracts.md` |
+| Firebase setup/integration | `firebase-setup.md`, `api-integration.md`, `data-contracts.md` |
 | Adding tests | `testing-strategy.md`, `CODE_STYLE.md` |
 | UX component | `user-experience-guidelines.md`, `CODE_STYLE.md` |
 | Security feature | `security-encryption.md`, `rbac-permissions.md` |
+| API documentation | `api-documentation.md`, `CODE_STYLE.md` |
+| CI/CD pipeline | `ci-cd.md`, `deployment.md` |
+| API key management | `api-keys-setup.md`, `firebase-setup.md` |
 
 ## Documentation Standards
 
@@ -154,12 +173,80 @@ When updating documentation:
 - **Use consistent formatting**: Follow markdown best practices
 - **Include diagrams**: Use Mermaid for architecture diagrams
 
+---
+
+## Documentation Quality
+
+All documentation should meet these quality standards:
+
+### Quality Checklist
+
+When creating or updating documentation:
+
+**Content**:
+- [ ] Metadata included (Version, Last Updated, Audience)
+- [ ] Table of contents for docs >200 lines
+- [ ] Clear purpose statement
+- [ ] Target audience identified
+- [ ] Prerequisites listed (if applicable)
+
+**Structure**:
+- [ ] Logical section organization
+- [ ] Consistent heading hierarchy
+- [ ] Code examples with syntax highlighting
+- [ ] Screenshots/diagrams where helpful
+- [ ] Cross-references to related docs
+
+**Technical Accuracy**:
+- [ ] Code examples are runnable
+- [ ] File paths are correct
+- [ ] Commands are tested
+- [ ] Links are valid
+- [ ] No outdated information
+
+**Clarity**:
+- [ ] Written in clear, concise language
+- [ ] Technical jargon explained
+- [ ] Examples provided for complex concepts
+- [ ] Common pitfalls documented
+- [ ] Troubleshooting section included
+
+**Maintenance**:
+- [ ] Document version updated
+- [ ] Last updated date current
+- [ ] Breaking changes highlighted
+- [ ] Deprecation warnings included
+- [ ] Migration guides provided (if needed)
+
+### Documentation Types
+
+**Reference Documentation**:
+- API documentation (KDoc + Dokka)
+- Data contracts and schemas
+- Configuration files
+
+**Guides**:
+- How-to guides for specific tasks
+- Step-by-step tutorials
+- Best practices
+
+**Explanations**:
+- Architecture decisions (ADRs)
+- Design patterns
+- System overview
+
+**Quick Reference**:
+- Cheat sheets
+- Command reference
+- Quick start guides
+
 ## Contributing to Documentation
 
 See `CONTRIBUTING.md` for:
 - When to update documentation
 - Documentation file structure
 - KDoc requirements for code
+- Pull request process
 
 ---
 

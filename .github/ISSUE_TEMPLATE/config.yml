@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/zion812/ROSTRY/blob/main/docs/README-docs.md
+    about: Browse our comprehensive documentation for guides and tutorials
+  - name: 🔧 Troubleshooting Guide
+    url: https://github.com/zion812/ROSTRY/blob/main/docs/troubleshooting.md
+    about: Check common issues and solutions before creating a new issue
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/zion812/ROSTRY/security/advisories/new
+    about: Report security vulnerabilities privately (DO NOT create public issues for security issues)
+  - name: 💬 Discussions
+    url: https://github.com/zion812/ROSTRY/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🚀 Developer Onboarding
+    url: https://github.com/zion812/ROSTRY/blob/main/docs/developer-onboarding.md
+    about: New to the project? Start here for setup and getting started guides

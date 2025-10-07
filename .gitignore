@@ -16,3 +16,27 @@ local.properties
 
 # Firebase config (do not commit)
 app/google-services.json
+
+# Obsidian note-taking app
+.obsidian/
+
+# Temporary documentation files
+*_IMPLEMENTATION_*.md
+*_VERIFICATION_*.md
+*_SPRINT_*.md
+*_BRIDGE_*.md
+*_FIXES_*.md
+*_STATUS.md
+*_COMPLETE.md
+*_SUMMARY.md
+*_PROGRESS.md
+*_CHECKLIST.md
+
+# IDE-specific files
+.idea/
+*.iml
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
