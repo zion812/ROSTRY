@@ -1,5 +1,6 @@
 package com.rio.rostry.ui.verification
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.UserEntity
@@ -7,7 +8,10 @@ import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.media.MediaUploadManager
+import com.rio.rostry.utils.validation.VerificationValidationService
+import com.rio.rostry.notifications.VerificationNotificationService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -21,7 +25,10 @@ import org.json.JSONObject
 @HiltViewModel
 class VerificationViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val mediaUploadManager: MediaUploadManager
+    private val mediaUploadManager: MediaUploadManager,
+    private val verificationValidationService: VerificationValidationService,
+    private val verificationNotificationService: VerificationNotificationService,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     data class UiState(
@@ -32,7 +39,12 @@ class VerificationViewModel @Inject constructor(
         val uploadProgress: Map<String, Int> = emptyMap(),
         val uploadedDocuments: List<String> = emptyList(),
         val uploadedImages: List<String> = emptyList(),
-        val uploadError: String? = null
+        val uploadError: String? = null,
+        val isSubmitting: Boolean = false,
+        val exifWarnings: List<String> = emptyList(),
+        val validationErrors: Map<String, String> = emptyMap(),
+        val submissionSuccess: Boolean = false,
+        val uploadedDocTypes: Map<String, String> = emptyMap(),
     )
 
     private val _ui = MutableStateFlow(UiState())
@@ -64,7 +76,6 @@ class VerificationViewModel @Inject constructor(
                 farmLocationLat = lat,
                 farmLocationLng = lng,
                 locationVerified = false,
-                verificationStatus = VerificationStatus.PENDING,
                 updatedAt = System.currentTimeMillis()
             )
             val res = userRepository.updateUserProfile(updated)
@@ -82,7 +93,6 @@ class VerificationViewModel @Inject constructor(
             _ui.value = _ui.value.copy(isLoading = true)
             val updated = current.copy(
                 kycLevel = level,
-                verificationStatus = VerificationStatus.PENDING,
                 updatedAt = System.currentTimeMillis()
             )
             val res = userRepository.updateUserProfile(updated)
@@ -96,25 +106,43 @@ class VerificationViewModel @Inject constructor(
 
     fun uploadDocument(localUri: String, documentType: String) {
         val userId = _ui.value.user?.userId ?: return
+        viewModelScope.launch {
+            when (val vr = verificationValidationService.validateDocumentFile(localUri, appContext)) {
+                is VerificationValidationService.ValidationResult.Error -> {
+                    _ui.value = _ui.value.copy(uploadError = vr.message)
+                    return@launch
+                }
+                else -> {}
+            }
+        }
         val remotePath = "kyc/$userId/documents/${UUID.randomUUID()}_$documentType"
-        val task = MediaUploadManager.UploadTask(
-            localPath = localUri,
-            remotePath = remotePath,
-            compress = true
-        )
-        mediaUploadManager.enqueue(task)
+        val ctx = JSONObject().apply { put("docType", documentType) }.toString()
+        mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath, contextJson = ctx)
     }
 
     fun uploadImage(localUri: String, imageType: String) {
         val userId = _ui.value.user?.userId ?: return
+        viewModelScope.launch {
+            val imgVr = verificationValidationService.validateImageFile(localUri, appContext)
+            if (imgVr is VerificationValidationService.ValidationResult.Error) {
+                _ui.value = _ui.value.copy(uploadError = imgVr.message)
+                return@launch
+            }
+            // If farmer photos and location set, do EXIF validation as a warning-only
+            val u = _ui.value.user
+            val lat = u?.farmLocationLat
+            val lng = u?.farmLocationLng
+            if (lat != null && lng != null) {
+                val exif = verificationValidationService.validateFarmPhotoLocation(localUri, lat, lng, appContext)
+                if (!exif.isValid) {
+                    val warns = _ui.value.exifWarnings.toMutableList()
+                    exif.errorMessage?.let { warns.add(it) }
+                    _ui.value = _ui.value.copy(exifWarnings = warns)
+                }
+            }
+        }
         val remotePath = "kyc/$userId/images/${UUID.randomUUID()}_$imageType"
-        val task = MediaUploadManager.UploadTask(
-            localPath = localUri,
-            remotePath = remotePath,
-            compress = true,
-            sizeLimitBytes = 1_500_000L
-        )
-        mediaUploadManager.enqueue(task)
+        mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath)
     }
 
     private fun observeUploadEvents() {
@@ -132,17 +160,22 @@ class VerificationViewModel @Inject constructor(
                         
                         val documents = _ui.value.uploadedDocuments.toMutableList()
                         val images = _ui.value.uploadedImages.toMutableList()
+                        val docTypes = _ui.value.uploadedDocTypes.toMutableMap()
                         
                         if (event.remotePath.contains("/documents/")) {
-                            documents.add(event.remotePath)
+                            documents.add(event.downloadUrl)
+                            // Extract type from remotePath suffix if present, e.g., _AADHAAR
+                            val docType = event.remotePath.substringAfterLast('_').uppercase()
+                            docTypes[event.downloadUrl] = docType
                         } else if (event.remotePath.contains("/images/")) {
-                            images.add(event.remotePath)
+                            images.add(event.downloadUrl)
                         }
                         
                         _ui.value = _ui.value.copy(
                             uploadProgress = progress,
                             uploadedDocuments = documents,
-                            uploadedImages = images
+                            uploadedImages = images,
+                            uploadedDocTypes = docTypes
                         )
                     }
                     is MediaUploadManager.UploadEvent.Failed -> {
@@ -160,6 +193,11 @@ class VerificationViewModel @Inject constructor(
                     }
                     is MediaUploadManager.UploadEvent.Retrying -> {
                         // Update UI to show retry attempt
+                    }
+                    is MediaUploadManager.UploadEvent.Cancelled -> {
+                        val progress = _ui.value.uploadProgress.toMutableMap()
+                        progress.remove(event.remotePath)
+                        _ui.value = _ui.value.copy(uploadProgress = progress)
                     }
                 }
             }
@@ -188,7 +226,7 @@ class VerificationViewModel @Inject constructor(
 
     fun submitKycWithDocuments() {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
+            _ui.value = _ui.value.copy(isLoading = false, isSubmitting = true, submissionSuccess = false, error = null, message = null)
             
             // Fetch the latest user data to preserve recently entered location/KYC level
             val latestUserResource = userRepository.getCurrentUser().first()
@@ -196,7 +234,7 @@ class VerificationViewModel @Inject constructor(
                 is Resource.Success -> latestUserResource.data
                 else -> {
                     _ui.value = _ui.value.copy(
-                        isLoading = false,
+                        isSubmitting = false,
                         error = "Failed to retrieve latest user data"
                     )
                     return@launch
@@ -204,20 +242,33 @@ class VerificationViewModel @Inject constructor(
             }
             
             if (current == null) {
-                _ui.value = _ui.value.copy(isLoading = false, error = "User not found")
+                _ui.value = _ui.value.copy(isSubmitting = false, error = "User not found")
+                return@launch
+            }
+
+            // Duplicate prevention centralized here
+            if (verificationValidationService.checkDuplicateSubmission(current.userId)) {
+                _ui.value = _ui.value.copy(isSubmitting = false, error = "Verification already pending. Please wait for review.")
                 return@launch
             }
             
+            // Validate submission
+            val validation = if (current.userType?.name == "FARMER") {
+                verificationValidationService.validateFarmerSubmission(current.farmLocationLat, current.farmLocationLng, _ui.value.uploadedImages, _ui.value.uploadedDocuments)
+            } else {
+                verificationValidationService.validateEnthusiastSubmission(_ui.value.uploadedImages, _ui.value.uploadedDocuments, _ui.value.uploadedDocTypes)
+            }
+            if (validation is VerificationValidationService.ValidationResult.Error) {
+                _ui.value = _ui.value.copy(isSubmitting = false, validationErrors = mapOf((validation.field ?: "general") to validation.message))
+                return@launch
+            }
+
             // Serialize document lists to JSON
             val documentUrlsJson = JSONArray(_ui.value.uploadedDocuments).toString()
             val imageUrlsJson = JSONArray(_ui.value.uploadedImages).toString()
             
-            // Create document types map (placeholder - could be enhanced)
-            val docTypesMap = JSONObject()
-            _ui.value.uploadedDocuments.forEach { url ->
-                val type = url.substringAfterLast("_").substringBefore(".")
-                docTypesMap.put(url, type)
-            }
+            // Create document types map from tracked types
+            val docTypesMap = JSONObject(_ui.value.uploadedDocTypes)
             
             val updated = current.copy(
                 kycDocumentUrls = documentUrlsJson,
@@ -225,16 +276,30 @@ class VerificationViewModel @Inject constructor(
                 kycDocumentTypes = docTypesMap.toString(),
                 kycUploadStatus = "UPLOADED",
                 kycUploadedAt = System.currentTimeMillis(),
-                verificationStatus = VerificationStatus.PENDING,
                 updatedAt = System.currentTimeMillis()
             )
             
             val res = userRepository.updateUserProfile(updated)
-            _ui.value = if (res is Resource.Error) {
-                _ui.value.copy(isLoading = false, error = res.message)
+            if (res is Resource.Error) {
+                _ui.value = _ui.value.copy(isSubmitting = false, error = res.message)
             } else {
-                _ui.value.copy(isLoading = false, message = "KYC with documents submitted for verification")
+                // Send pending notification (non-blocking)
+                runCatching { verificationNotificationService.notifyVerificationPending(current.userId ?: "") }
+                _ui.value = _ui.value.copy(isSubmitting = false, submissionSuccess = true, message = "Submitted for verification")
             }
+        }
+    }
+
+    // Update only farm location in profile without touching verificationStatus
+    fun updateFarmLocation(lat: Double, lng: Double) {
+        val current = _ui.value.user ?: return
+        viewModelScope.launch {
+            val updated = current.copy(
+                farmLocationLat = lat,
+                farmLocationLng = lng,
+                updatedAt = System.currentTimeMillis()
+            )
+            userRepository.updateUserProfile(updated)
         }
     }
 }

@@ -30,6 +30,9 @@ interface UserRepository {
     suspend fun seedDemoUsers()
 
     suspend fun upsertDemoUser(userEntity: UserEntity): Resource<Unit>
+
+    // Moderation and verification queries
+    fun streamPendingVerifications(): Flow<Resource<List<UserEntity>>>
 }
 // Add other user-related operations like:
 // suspend fun signInWithEmail(email: String, password: String): Resource<UserEntity>

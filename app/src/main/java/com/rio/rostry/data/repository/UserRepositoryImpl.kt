@@ -203,6 +203,18 @@ class UserRepositoryImpl @Inject constructor(
         Unit
     }.firstOrNull() ?: Resource.Error("Failed to upsert demo user")
 
+    override fun streamPendingVerifications(): Flow<Resource<List<UserEntity>>> =
+        flow<Resource<List<UserEntity>>> {
+            val query = usersCollection.whereEqualTo("verificationStatus", VerificationStatus.PENDING)
+            val snap = query.get().await()
+            val users = snap.toObjects(UserEntity::class.java)
+            emit(Resource.Success(users))
+        }
+            .onStart { emit(Resource.Loading()) }
+            .catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                emit(Resource.Error("Failed to load pending verifications: ${e.message}"))
+            }
     // Implement other methods like signIn, signUp, signOut, etc.
     // Example:
     // override suspend fun signInWithEmail(email: String, password: String): Resource<UserEntity> {

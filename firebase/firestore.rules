@@ -10,6 +10,10 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
     
     // ===== Enthusiasts Scoped Collections =====
     // Scoped under enthusiasts/{userId}
@@ -130,10 +134,32 @@ service cloud.firestore {
                       isOwner(userId) &&
                       request.resource.data.userId == userId;
       
-      allow update: if isAuthenticated() && 
-                      isOwner(userId) &&
-                      request.resource.data.userId == userId; // Prevent userId changes
-      
+      // Users can update their own non-admin verification fields, but cannot self-approve.
+      allow update: if isAuthenticated() && isOwner(userId) &&
+        request.resource.data.userId == userId &&
+        // Prevent changing admin-controlled fields
+        request.resource.data.verificationStatus == resource.data.verificationStatus &&
+        request.resource.data.kycVerifiedAt == resource.data.kycVerifiedAt &&
+        request.resource.data.locationVerified == resource.data.locationVerified &&
+        request.resource.data.kycRejectionReason == resource.data.kycRejectionReason &&
+        // Rate-limit new submissions (24h) unless first time
+        (
+          (resource.data.kycUploadedAt == null) ||
+          (request.resource.data.kycUploadedAt - resource.data.kycUploadedAt > 86400000)
+        ) &&
+        // Validate KYC URLs look like Firebase Storage or gs:// links when provided
+        (
+          !("kycDocumentUrls" in request.resource.data) ||
+          request.resource.data.kycDocumentUrls.matches('^\\s*\\[\\s*("(https://firebasestorage\\.googleapis\\.com/|gs://)[^"]+"\\s*,\\s*)*"(https://firebasestorage\\.googleapis\\.com/|gs://)[^"]+"\\s*\\]\\s*$')
+        ) &&
+        (
+          !("kycImageUrls" in request.resource.data) ||
+          request.resource.data.kycImageUrls.matches('^\\s*\\[\\s*("(https://firebasestorage\\.googleapis\\.com/|gs://)[^"]+"\\s*,\\s*)*"(https://firebasestorage\\.googleapis\\.com/|gs://)[^"]+"\\s*\\]\\s*$')
+        );
+
+      // Admins can update verification fields
+      allow update: if isAuthenticated() && isAdmin() &&
+        request.resource.data.keys().hasAny(['verificationStatus','kycVerifiedAt','locationVerified','kycRejectionReason']);
       allow delete: if false; // Prevent profile deletion
       
       // Protect sensitive PII fields
@@ -222,6 +248,12 @@ service cloud.firestore {
       allow delete: if false;
     }
     
+    // ===== Verification Audits Collection =====
+    match /verification_audits/{docId} {
+      allow read: if isAdmin();
+      allow write: if false; // Server-side only (Cloud Functions)
+    }
+
     // ===== Analytics Collection =====
     // Server-side only
     match /analytics/{document=**} {

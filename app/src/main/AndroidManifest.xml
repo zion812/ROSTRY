@@ -2,12 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Location permission for GPS verification in transfer flows -->
+    <!-- Location permissions for GPS verification in transfer flows -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Camera permission for capturing verification photos -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Internet permission for Firebase, Maps, and Places API requests -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Storage/media read permissions for selecting verification documents/images -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
     <application
         android:name=".RostryApp"
@@ -65,7 +71,32 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="rostry" android:host="hatching" android:pathPrefix="/batch" />
             </intent-filter>
+
+            <!-- Deep link for profile: rostry://profile -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rostry" android:host="profile" />
+            </intent-filter>
+
+            <!-- Deep link for verification resubmit: rostry://verification/resubmit -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rostry" android:host="verification" android:pathPrefix="/resubmit" />
+            </intent-filter>
         </activity>
+
+        <!-- Firebase Cloud Messaging service -->
+        <service
+            android:name=".services.AppFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- FileProvider for sharing report files securely -->
         <provider

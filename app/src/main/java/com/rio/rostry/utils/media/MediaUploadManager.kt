@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
@@ -25,7 +26,8 @@ import java.util.UUID
  */
 @Singleton
 class MediaUploadManager @Inject constructor(
-    private val connectivityManager: ConnectivityManager
+    private val connectivityManager: ConnectivityManager,
+    private val firebaseStorageUploader: FirebaseStorageUploader,
 ) {
     data class UploadTask(
         val localPath: String,
@@ -37,13 +39,15 @@ class MediaUploadManager @Inject constructor(
 
     sealed class UploadEvent {
         data class Progress(val remotePath: String, val percent: Int): UploadEvent()
-        data class Success(val remotePath: String): UploadEvent()
+        data class Success(val remotePath: String, val downloadUrl: String): UploadEvent()
         data class Failed(val remotePath: String, val error: String): UploadEvent()
         data class Queued(val remotePath: String): UploadEvent()
         data class Retrying(val remotePath: String, val attempt: Int): UploadEvent()
+        data class Cancelled(val remotePath: String): UploadEvent()
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + Job())
+    private val activeUploads = mutableMapOf<String, Job>()
     private val _events = MutableSharedFlow<UploadEvent>(replay = 0, extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val events = _events.asSharedFlow()
 
@@ -57,35 +61,46 @@ class MediaUploadManager @Inject constructor(
     }
 
     fun enqueue(task: UploadTask) {
-        scope.launch {
+        val job = scope.launch {
             _events.emit(UploadEvent.Queued(task.remotePath))
-            // Placeholder: here we'd compress, chunk, and upload via Storage SDK
             var attempt = 0
             val maxAttempts = 3
             while (attempt < maxAttempts) {
                 try {
                     if (!connectivityManager.isOnline()) {
-                        kotlinx.coroutines.delay(1000)
+                        delay(1000)
+                        attempt++
+                        _events.emit(UploadEvent.Retrying(task.remotePath, attempt))
                         continue
                     }
-                    // Simulate progress
-                    for (p in listOf(10, 30, 60, 100)) {
-                        _events.emit(UploadEvent.Progress(task.remotePath, p))
-                        kotlinx.coroutines.delay(100)
-                    }
-                    _events.emit(UploadEvent.Success(task.remotePath))
-                    return@launch
+                    val result = firebaseStorageUploader.uploadFile(
+                        localUriString = task.localPath,
+                        remotePath = task.remotePath,
+                        compress = task.compress,
+                        sizeLimitBytes = task.sizeLimitBytes,
+                        onProgress = { p -> scope.launch { _events.emit(UploadEvent.Progress(task.remotePath, p)) } }
+                    )
+                    _events.emit(UploadEvent.Success(task.remotePath, downloadUrl = result.downloadUrl))
+                    break
                 } catch (t: Throwable) {
                     attempt++
                     _events.emit(UploadEvent.Retrying(task.remotePath, attempt))
                     if (attempt >= maxAttempts) {
                         _events.emit(UploadEvent.Failed(task.remotePath, t.message ?: "Upload failed"))
                     } else {
-                        kotlinx.coroutines.delay(500L * attempt)
+                        val backoff = 500L * (1 shl (attempt - 1))
+                        delay(backoff)
                     }
                 }
             }
+            activeUploads.remove(task.remotePath)
         }
+        activeUploads[task.remotePath] = job
+    }
+
+    fun cancelUpload(remotePath: String) {
+        activeUploads.remove(remotePath)?.cancel()
+        scope.launch { _events.emit(UploadEvent.Cancelled(remotePath)) }
     }
 
     /**

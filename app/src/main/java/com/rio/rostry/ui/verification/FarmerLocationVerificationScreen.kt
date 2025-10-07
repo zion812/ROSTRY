@@ -58,6 +58,11 @@ import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.rio.rostry.BuildConfig
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun FarmerLocationVerificationScreen(
@@ -70,6 +75,9 @@ fun FarmerLocationVerificationScreen(
     val lngState = remember { mutableStateOf("") }
     val addressState = remember { mutableStateOf("") }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val markerState = remember { mutableStateOf<Marker?>(null) }
 
     val farmPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { viewModel.uploadImage(it.toString(), "FARM_PHOTO") }
@@ -140,6 +148,7 @@ fun FarmerLocationVerificationScreen(
     ) {
         Text("Farmer Location Verification")
         Text("Enter approximate farm location (lat/lng)")
+        Text("Tap on the map to set location", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
             value = addressState.value,
             onValueChange = { addressState.value = it },
@@ -176,6 +185,12 @@ fun FarmerLocationVerificationScreen(
         ) {
             Text("Use current location")
         }
+        OutlinedButton(onClick = {
+            latState.value = ""
+            lngState.value = ""
+            markerState.value?.remove()
+            markerState.value = null
+        }, modifier = Modifier.padding(top = 4.dp)) { Text("Clear location") }
         // Embedded Google Map
         AndroidView(
             modifier = Modifier
@@ -187,7 +202,7 @@ fun FarmerLocationVerificationScreen(
                 MapView(ctx).apply {
                     onCreate(null)
                     getMapAsync { map ->
-                        configureMap(map, latState.value, lngState.value) { newLat, newLng ->
+                        configureMap(map, latState.value, lngState.value, markerState) { newLat, newLng ->
                             latState.value = newLat
                             lngState.value = newLng
                         }
@@ -197,7 +212,7 @@ fun FarmerLocationVerificationScreen(
             },
             update = { mapView ->
                 mapView.getMapAsync { map ->
-                    updateMapMarker(map, latState.value, lngState.value)
+                    updateMapMarker(map, latState.value, lngState.value, markerState)
                 }
             }
         )
@@ -255,23 +270,40 @@ fun FarmerLocationVerificationScreen(
                 }
             }
         }
-        
+
+        // EXIF Warnings
+        if (ui.exifWarnings.isNotEmpty()) {
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Photo location warnings", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.tertiary)
+                    ui.exifWarnings.forEach { w ->
+                        Text("• $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("Tip: Take photos at your farm location to speed up verification.", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
         // Uploaded Documents
-        ui.uploadedDocuments.forEach { doc ->
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                Row(
-                    Modifier.padding(8.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(doc.substringAfterLast("/"), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { viewModel.removeUploadedFile(doc, true) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete")
+        if (ui.uploadedDocuments.isNotEmpty()) {
+            Text("Uploaded Documents (${ui.uploadedDocuments.size})", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
+            ui.uploadedDocuments.forEach { doc ->
+                Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Row(
+                        Modifier
+                            .padding(8.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(doc.substringAfterLast('/'), modifier = Modifier.weight(1f))
+                        IconButton(onClick = { viewModel.removeUploadedFile(doc, true) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
+                        }
                     }
                 }
             }
         }
-        
+
         // Upload Error
         ui.uploadError?.let { error ->
             Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -284,21 +316,37 @@ fun FarmerLocationVerificationScreen(
                 }
             }
         }
-        
+
+        // Validation errors
+        if (ui.validationErrors.isNotEmpty()) {
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Please fix the following:", color = MaterialTheme.colorScheme.error)
+                    ui.validationErrors.forEach { (field, msg) ->
+                        Text("• $field: $msg", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+
         Button(
             onClick = {
                 val lat = latState.value.toDoubleOrNull()
                 val lng = lngState.value.toDoubleOrNull()
                 if (lat != null && lng != null && ui.uploadedImages.isNotEmpty()) {
-                    viewModel.submitFarmerLocation(lat, lng)
+                    viewModel.updateFarmLocation(lat, lng)
                     viewModel.submitKycWithDocuments()
-                    onDone()
                 }
             },
-            enabled = latState.value.toDoubleOrNull() != null && lngState.value.toDoubleOrNull() != null && ui.uploadedImages.isNotEmpty(),
+            enabled = !ui.isSubmitting && latState.value.toDoubleOrNull() != null && lngState.value.toDoubleOrNull() != null && ui.uploadedImages.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         ) {
-            Text("Submit Location & Documents")
+            if (ui.isSubmitting) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                Text("  Submitting...")
+            } else {
+                Text("Submit Location & Documents")
+            }
         }
         if (latState.value.toDoubleOrNull() == null || lngState.value.toDoubleOrNull() == null || ui.uploadedImages.isEmpty()) {
             Text(
@@ -308,8 +356,20 @@ fun FarmerLocationVerificationScreen(
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
-        ui.error?.let { Text("Error: $it", modifier = Modifier.padding(top = 8.dp)) }
-        ui.message?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }
+        ui.error?.let { Text("Error: ${'$'}it", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.error) }
+        ui.message?.let { Text(it, modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.primary) }
+
+        // Success dialog & navigation
+        if (ui.submissionSuccess) {
+            AlertDialog(
+                onDismissRequest = { onDone() },
+                confirmButton = {
+                    Button(onClick = { onDone() }) { Text("OK") }
+                },
+                title = { Text("Submission received") },
+                text = { Text("Your verification documents have been submitted. We'll review them within 24-48 hours.") }
+            )
+        }
     }
 }
 
@@ -341,12 +401,11 @@ private fun fetchCurrentLocation(
     }
 }
 
-private var currentMarker: Marker? = null
-
 private fun configureMap(
     map: GoogleMap,
     lat: String,
     lng: String,
+    markerState: androidx.compose.runtime.MutableState<Marker?>,
     onPick: (lat: String, lng: String) -> Unit
 ) {
     map.uiSettings.isZoomControlsEnabled = true
@@ -357,23 +416,24 @@ private fun configureMap(
 
     map.setOnMapClickListener { ll ->
         onPick(ll.latitude.toString(), ll.longitude.toString())
-        updateMapMarker(map, ll.latitude.toString(), ll.longitude.toString())
+        updateMapMarker(map, ll.latitude.toString(), ll.longitude.toString(), markerState)
     }
 
-    updateMapMarker(map, lat, lng)
+    updateMapMarker(map, lat, lng, markerState)
 }
 
 private fun updateMapMarker(
     map: GoogleMap,
     lat: String,
-    lng: String
+    lng: String,
+    markerState: androidx.compose.runtime.MutableState<Marker?>
 ) {
     val dLat = lat.toDoubleOrNull()
     val dLng = lng.toDoubleOrNull()
     if (dLat != null && dLng != null) {
         val pos = LatLng(dLat, dLng)
-        currentMarker?.remove()
-        currentMarker = map.addMarker(MarkerOptions().position(pos).title("Selected location"))
+        markerState.value?.remove()
+        markerState.value = map.addMarker(MarkerOptions().position(pos).title("Selected location"))
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
     }
 }

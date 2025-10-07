@@ -60,6 +60,19 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun updateUser(user: UserEntity) {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isLoading = true)
+            val res = userRepository.updateUserProfile(user)
+            _ui.value = if (res is Resource.Error) {
+                _ui.value.copy(isLoading = false, error = res.message)
+            } else {
+                _ui.value.copy(isLoading = false, message = "Profile updated")
+            }
+            refresh()
+        }
+    }
+
     fun updateVerification(status: VerificationStatus) {
         val userId = _ui.value.user?.userId ?: return
         viewModelScope.launch {

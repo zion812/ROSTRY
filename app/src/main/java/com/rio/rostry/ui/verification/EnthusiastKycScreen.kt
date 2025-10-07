@@ -22,6 +22,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +48,7 @@ fun EnthusiastKycScreen(
     val ui by viewModel.ui.collectAsState()
     val levelState = remember { mutableStateOf("") }
     var selectedDocType by remember { mutableStateOf("AADHAAR") }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { viewModel.uploadDocument(it.toString(), selectedDocType) }
@@ -77,14 +84,23 @@ fun EnthusiastKycScreen(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Select document type:")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf("AADHAAR","PAN","DL","PASSPORT","ADDRESS_PROOF").forEach { type ->
+                        AssistChip(
+                            onClick = { selectedDocType = type },
+                            label = { Text(type) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (selectedDocType == type) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    }
+                }
                 OutlinedButton(
-                    onClick = {
-                        selectedDocType = "AADHAAR"
-                        documentPicker.launch("*/*")
-                    },
+                    onClick = { documentPicker.launch("*/*") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Upload ID Proof (Aadhaar/PAN/DL)")
+                    Text("Upload Selected Document")
                 }
                 OutlinedButton(
                     onClick = { imagePicker.launch("image/*") },
@@ -92,16 +108,17 @@ fun EnthusiastKycScreen(
                 ) {
                     Text("Upload Selfie")
                 }
-                OutlinedButton(
-                    onClick = {
-                        selectedDocType = "ADDRESS_PROOF"
-                        documentPicker.launch("*/*")
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Upload Address Proof")
-                }
             }
+        }
+
+        // Progress summary
+        item {
+            val required = 3
+            val done = (if (ui.uploadedDocuments.any { it.contains("AADHAAR") || it.contains("PAN") || it.contains("DL") || it.contains("PASSPORT") }) 1 else 0) +
+                (if (ui.uploadedImages.isNotEmpty()) 1 else 0) +
+                (if (ui.uploadedDocuments.any { it.contains("ADDRESS_PROOF") }) 1 else 0)
+            Text("Progress: $done of $required required documents")
+            LinearProgressIndicator(progress = done / required.toFloat(), modifier = Modifier.fillMaxWidth())
         }
 
         // Upload Progress
@@ -120,7 +137,7 @@ fun EnthusiastKycScreen(
             }
         }
 
-        // Uploaded Documents
+        // Uploaded Documents (with basic badge by type)
         if (ui.uploadedDocuments.isNotEmpty()) {
             item {
                 Text("Uploaded Documents (${ui.uploadedDocuments.size})", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
@@ -182,6 +199,19 @@ fun EnthusiastKycScreen(
             }
         }
 
+        // Validation errors
+        if (ui.validationErrors.isNotEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("Please fix the following:", color = MaterialTheme.colorScheme.error)
+                        ui.validationErrors.forEach { (field, msg) ->
+                            Text("• ${field}: ${msg}", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+        }
         item {
             Button(
                 onClick = {
@@ -189,13 +219,17 @@ fun EnthusiastKycScreen(
                         val level = levelState.value.toIntOrNull()
                         viewModel.submitEnthusiastKyc(level)
                         viewModel.submitKycWithDocuments()
-                        onDone()
                     }
                 },
-                enabled = ui.uploadedDocuments.isNotEmpty() && ui.uploadedImages.isNotEmpty(),
+                enabled = !ui.isSubmitting && ui.uploadedDocuments.isNotEmpty() && ui.uploadedImages.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) {
-                Text("Submit KYC with Documents")
+                if (ui.isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Text("  Submitting...")
+                } else {
+                    Text("Submit KYC with Documents")
+                }
             }
             if (ui.uploadedDocuments.isEmpty() || ui.uploadedImages.isEmpty()) {
                 Text(
@@ -215,6 +249,18 @@ fun EnthusiastKycScreen(
         ui.message?.let {
             item {
                 Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+
+        // Success dialog
+        if (ui.submissionSuccess) {
+            item {
+                AlertDialog(
+                    onDismissRequest = onDone,
+                    confirmButton = { Button(onClick = onDone) { Text("OK") } },
+                    title = { Text("Submission received") },
+                    text = { Text("Your KYC documents have been submitted for verification. You'll be notified within 2-3 business days.") }
+                )
             }
         }
     }

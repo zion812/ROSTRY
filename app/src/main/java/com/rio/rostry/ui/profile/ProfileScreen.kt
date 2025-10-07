@@ -48,6 +48,56 @@ fun ProfileScreen(
 
             Divider(modifier = Modifier.padding(vertical = 12.dp))
 
+            // Verification status section
+            when (user.verificationStatus) {
+                VerificationStatus.UNVERIFIED, null -> {
+                    Text("Not Verified", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                    when (user.userType) {
+                        UserType.FARMER -> Button(onClick = onVerifyFarmerLocation, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Start Location Verification") }
+                        UserType.ENTHUSIAST -> Button(onClick = onVerifyEnthusiastKyc, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Start KYC Verification") }
+                        else -> {}
+                    }
+                }
+                VerificationStatus.PENDING -> {
+                    Text("Verification Pending", color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary)
+                    Text("We're reviewing your documents. This usually takes 24-48 hours.")
+                }
+                VerificationStatus.VERIFIED -> {
+                    Text("Verified", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                    if (user.userType == UserType.FARMER) {
+                        Text("Farm Location Verified: ${user.farmLocationLat}, ${user.farmLocationLng}")
+                    }
+                    if (user.userType == UserType.ENTHUSIAST) {
+                        Text("KYC Level: ${user.kycLevel ?: "-"}")
+                    }
+                }
+                VerificationStatus.REJECTED -> {
+                    Text("Verification Rejected", color = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                    if (!user.kycRejectionReason.isNullOrEmpty()) {
+                        Text("Reason: ${user.kycRejectionReason}")
+                    }
+                    Button(
+                        onClick = {
+                            // Reset verification fields locally and request update
+                            val reset = user.copy(
+                                verificationStatus = VerificationStatus.UNVERIFIED,
+                                kycDocumentUrls = null,
+                                kycImageUrls = null,
+                                kycDocumentTypes = null,
+                                kycUploadStatus = null,
+                                kycUploadedAt = null,
+                                kycRejectionReason = null,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                            viewModel.updateUser(reset)
+                            // Navigate to appropriate flow
+                            if (user.userType == UserType.FARMER) onVerifyFarmerLocation() else if (user.userType == UserType.ENTHUSIAST) onVerifyEnthusiastKyc()
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) { Text("Resubmit Verification") }
+                }
+            }
+
             // Role upgrades
             when (user.userType) {
                 UserType.GENERAL -> {

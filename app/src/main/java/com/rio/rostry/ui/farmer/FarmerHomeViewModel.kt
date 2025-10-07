@@ -8,11 +8,11 @@ import com.rio.rostry.data.repository.monitoring.BreedingRepository
 import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -42,6 +42,7 @@ data class FarmerHomeUiState(
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class FarmerHomeViewModel @Inject constructor(
     private val vaccinationRecordDao: com.rio.rostry.data.database.dao.VaccinationRecordDao,
@@ -66,64 +67,71 @@ class FarmerHomeViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), System.currentTimeMillis())
 
-    // Reactive farmerId from Firebase Auth
-    private val farmerId: Flow<String> = callbackFlow {
+    // Reactive farmerId from Firebase Auth (nullable). Emits null when signed out so UI can stop loading.
+    private val farmerId: Flow<String?> = callbackFlow {
         val authStateListener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth ->
-            auth.currentUser?.uid?.let { trySend(it) }
+            trySend(auth.currentUser?.uid)
         }
         firebaseAuth.addAuthStateListener(authStateListener)
-        firebaseAuth.currentUser?.uid?.let { send(it) }
+        // Emit current state (may be null)
+        trySend(firebaseAuth.currentUser?.uid)
         awaitClose { firebaseAuth.removeAuthStateListener(authStateListener) }
     }.distinctUntilChanged()
 
-    val uiState: StateFlow<FarmerHomeUiState> = farmerId.flatMapLatest { id: String ->
-        timeTickerFlow.flatMapLatest { now: Long ->
-            // Compute time windows reactively
-            val endOfDay = now + TimeUnit.DAYS.toMillis(1)
-            val weekStart = now - TimeUnit.DAYS.toMillis(7)
-            val weekEnd = now + TimeUnit.DAYS.toMillis(7)
-            val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
-            
-            combine(
-                vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay),
-                vaccinationRecordDao.observeOverdueForFarmer(id, now),
-                growthRecordDao.observeCountForFarmerBetween(id, weekStart, now),
-                quarantineRecordDao.observeActiveForFarmer(id),
-                quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo),
-                hatchingBatchDao.observeActiveForFarmer(id, now),
-                hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd),
-                mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now),
-                breedingRepository.observeActiveCount(id),
-                farmAlertRepository.observeUnread(id),
-                farmerDashboardRepository.observeLatest(id)
-            ) { values: Array<Any?> ->
-                val vacDue = values[0] as Int
-                val vacOverdue = values[1] as Int
-                val growth = values[2] as Int
-                val quarActive = values[3] as Int
-                val quarOverdue = values[4] as Int
-                val hatchActive = values[5] as Int
-                val hatchDue = values[6] as Int
-                val mortality = values[7] as Int
-                val breeding = values[8] as Int
-                val alerts = values[9] as List<FarmAlertEntity>
-                val snapshot = values[10] as FarmerDashboardSnapshotEntity?
-                
-                FarmerHomeUiState(
-                    vaccinationDueCount = vacDue,
-                    vaccinationOverdueCount = vacOverdue,
-                    growthRecordsThisWeek = growth,
-                    quarantineActiveCount = quarActive,
-                    quarantineUpdatesDue = quarOverdue,
-                    hatchingBatchesActive = hatchActive,
-                    hatchingDueThisWeek = hatchDue,
-                    mortalityLast7Days = mortality,
-                    breedingPairsActive = breeding,
-                    productsReadyToListCount = snapshot?.productsReadyToListCount ?: 0,
-                    unreadAlerts = alerts,
-                    weeklySnapshot = snapshot,
-                    isLoading = false
-                )
+    val uiState: StateFlow<FarmerHomeUiState> = farmerId.flatMapLatest { id: String? ->
+        // If no authenticated Firebase user, show non-loading empty dashboard instead of spinning forever
+        if (id == null) {
+            flow { emit(FarmerHomeUiState(isLoading = false)) }
+        } else {
+            timeTickerFlow.flatMapLatest { now: Long ->
+                // Compute time windows reactively
+                val endOfDay = now + TimeUnit.DAYS.toMillis(1)
+                val weekStart = now - TimeUnit.DAYS.toMillis(7)
+                val weekEnd = now + TimeUnit.DAYS.toMillis(7)
+                val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
+
+                combine(
+                    vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay),
+                    vaccinationRecordDao.observeOverdueForFarmer(id, now),
+                    growthRecordDao.observeCountForFarmerBetween(id, weekStart, now),
+                    quarantineRecordDao.observeActiveForFarmer(id),
+                    quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo),
+                    hatchingBatchDao.observeActiveForFarmer(id, now),
+                    hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd),
+                    mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now),
+                    breedingRepository.observeActiveCount(id),
+                    farmAlertRepository.observeUnread(id),
+                    farmerDashboardRepository.observeLatest(id)
+                ) { values: Array<Any?> ->
+                    val vacDue = values[0] as? Int ?: 0
+                    val vacOverdue = values[1] as? Int ?: 0
+                    val growth = values[2] as? Int ?: 0
+                    val quarActive = values[3] as? Int ?: 0
+                    val quarOverdue = values[4] as? Int ?: 0
+                    val hatchActive = values[5] as? Int ?: 0
+                    val hatchDue = values[6] as? Int ?: 0
+                    val mortality = values[7] as? Int ?: 0
+                    val breeding = values[8] as? Int ?: 0
+                    @Suppress("UNCHECKED_CAST")
+                    val alerts = values[9] as? List<FarmAlertEntity> ?: emptyList()
+                    val snapshot = values[10] as? FarmerDashboardSnapshotEntity
+
+                    FarmerHomeUiState(
+                        vaccinationDueCount = vacDue,
+                        vaccinationOverdueCount = vacOverdue,
+                        growthRecordsThisWeek = growth,
+                        quarantineActiveCount = quarActive,
+                        quarantineUpdatesDue = quarOverdue,
+                        hatchingBatchesActive = hatchActive,
+                        hatchingDueThisWeek = hatchDue,
+                        mortalityLast7Days = mortality,
+                        breedingPairsActive = breeding,
+                        productsReadyToListCount = snapshot?.productsReadyToListCount ?: 0,
+                        unreadAlerts = alerts,
+                        weeklySnapshot = snapshot,
+                        isLoading = false
+                    )
+                }
             }
         }
     }.stateIn(

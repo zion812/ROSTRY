@@ -25,9 +25,21 @@ interface UploadTaskDao {
     @Query("UPDATE upload_tasks SET progress = :progress, status = 'UPLOADING', updatedAt = :now WHERE taskId = :taskId")
     suspend fun updateProgress(taskId: String, progress: Int, now: Long)
 
-    @Query("UPDATE upload_tasks SET status = 'SUCCESS', progress = 100, updatedAt = :now, error = NULL WHERE taskId = :taskId")
-    suspend fun markSuccess(taskId: String, now: Long)
+    @Query("UPDATE upload_tasks SET status = 'SUCCESS', progress = 100, contextJson = :contextJson, updatedAt = :now, error = NULL WHERE taskId = :taskId")
+    suspend fun markSuccess(taskId: String, contextJson: String?, now: Long)
 
     @Query("UPDATE upload_tasks SET status = 'FAILED', updatedAt = :now, error = :error, retries = retries + 1 WHERE taskId = :taskId")
     suspend fun markFailed(taskId: String, error: String?, now: Long)
+
+    @Query("UPDATE upload_tasks SET retries = retries + 1, updatedAt = :timestamp WHERE taskId = :taskId")
+    suspend fun incrementRetries(taskId: String, timestamp: Long)
+
+    @Query("SELECT * FROM upload_tasks WHERE remotePath = :remotePath LIMIT 1")
+    suspend fun getByRemotePath(remotePath: String): UploadTaskEntity?
+
+    @Query("DELETE FROM upload_tasks WHERE status IN ('SUCCESS','FAILED') AND updatedAt < :cutoffTime")
+    suspend fun deleteOldCompleted(cutoffTime: Long)
+
+    @Query("SELECT * FROM upload_tasks WHERE status = 'FAILED' AND retries < 3 ORDER BY createdAt ASC LIMIT :limit")
+    suspend fun getFailedTasks(limit: Int): List<UploadTaskEntity>
 }
