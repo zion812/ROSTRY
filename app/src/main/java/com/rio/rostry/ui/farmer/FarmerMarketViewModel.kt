@@ -130,6 +130,8 @@ class FarmerMarketViewModel @Inject constructor(
 
     private fun applyFilters(source: List<ProductEntity>, c: CategoryFilter, t: TraceFilter): List<ProductEntity> {
         return source.asSequence()
+            // Exclude farm-only private items from marketplace
+            .filter { p -> p.status?.equals("private", ignoreCase = true) != true }
             .filter { p ->
                 when (c) {
                     CategoryFilter.All -> true

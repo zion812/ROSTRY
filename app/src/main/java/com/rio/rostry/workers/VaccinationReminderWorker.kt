@@ -8,12 +8,15 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.rio.rostry.data.repository.monitoring.VaccinationRepository
+import com.google.gson.Gson
+import com.rio.rostry.data.database.dao.TaskDao
+import com.rio.rostry.data.repository.monitoring.TaskRepository
 import com.rio.rostry.utils.MilestoneNotifier
 import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTracker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
@@ -22,24 +25,35 @@ import kotlin.random.Random
 class VaccinationReminderWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val repo: VaccinationRepository,
-    private val analytics: GeneralAnalyticsTracker
+    private val taskRepository: TaskRepository,
+    private val taskDao: TaskDao,
+    private val analytics: GeneralAnalyticsTracker,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             MilestoneNotifier.ensureChannel(applicationContext)
             val now = System.currentTimeMillis()
-            val due = repo.dueReminders(now)
-            due.forEach { rec ->
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@withContext Result.success()
+            // Use repository flow then filter by type
+            val dueTasks = taskRepository.observeDue(farmerId, now).first().filter { it.taskType == "VACCINATION" }
+            dueTasks.forEach { task ->
                 MilestoneNotifier.notify(
                     applicationContext,
-                    rec.productId,
+                    task.productId ?: farmerId,
                     title = "Vaccination due",
-                    message = "${rec.vaccineType} scheduled"
+                    message = task.title
                 )
+                // Mark notifiedAt in metadata
+                val meta = mutableMapOf<String, Any?>()
+                task.metadata?.let { existing ->
+                    runCatching { Gson().fromJson(existing, Map::class.java) as Map<String, Any?> }.getOrNull()?.let { meta.putAll(it) }
+                }
+                meta["notifiedAt"] = now
+                taskDao.updateMetadata(task.taskId, Gson().toJson(meta), now)
             }
-            analytics.offlineBannerSeen("vaccination_reminder_worker_dispatched:${due.size}")
+            analytics.offlineBannerSeen("vaccination_reminder_worker_dispatched:${dueTasks.size}")
             Result.success()
         } catch (e: Exception) {
             Result.retry()

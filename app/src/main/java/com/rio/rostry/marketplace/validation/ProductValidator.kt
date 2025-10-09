@@ -3,11 +3,17 @@ package com.rio.rostry.marketplace.validation
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.marketplace.model.AgeGroup
 import com.rio.rostry.marketplace.model.ProductCategory
+import com.rio.rostry.data.repository.TraceabilityRepository
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Validates product listings for marketplace rules.
  */
-object ProductValidator {
+@Singleton
+class ProductValidator @Inject constructor(
+    private val traceabilityRepository: TraceabilityRepository
+) {
 
     data class ValidationResult(
         val valid: Boolean,
@@ -29,6 +35,12 @@ object ProductValidator {
 
         // Image quality/count
         if (product.imageUrls.size < 2) reasons += "At least 2 product images are required"
+
+        // Lifecycle enforcement
+        val lifecycle = product.lifecycleStatus?.uppercase()
+        if (lifecycle == "QUARANTINE" || lifecycle == "DECEASED" || lifecycle == "TRANSFERRED") {
+            reasons += "Listing blocked: lifecycleStatus is $lifecycle"
+        }
 
         // Category mapping and rules
         val category = ProductCategory.fromString(product.category)
@@ -73,6 +85,10 @@ object ProductValidator {
                 if (product.familyTreeId.isNullOrBlank()) {
                     reasons += "Family tree documentation is required for traceable adoption"
                 }
+                // Require explicit parent links for traceable adoption
+                if (product.parentMaleId.isNullOrBlank() || product.parentFemaleId.isNullOrBlank()) {
+                    reasons += "Both parentMaleId and parentFemaleId are required for traceable adoption"
+                }
             }
             is ProductCategory.AdoptionNonTraceable -> {
                 // No lineage required
@@ -92,6 +108,34 @@ object ProductValidator {
             null -> price <= 0.0
         }
         if (suspicious) reasons += "Price appears unreasonable for the selected age group"
+
+        return ValidationResult(valid = reasons.isEmpty(), reasons = reasons)
+    }
+
+    /**
+     * Extended validation that performs lineage verification using injected TraceabilityRepository.
+     * Returns combined reasons from basic validation and lineage checks.
+     */
+    suspend fun validateWithTraceability(
+        product: ProductEntity,
+        now: Long = System.currentTimeMillis()
+    ): ValidationResult {
+        val base = validate(product, now)
+        val reasons = base.reasons.toMutableList()
+
+        val category = ProductCategory.fromString(product.category)
+        if (category is ProductCategory.AdoptionTraceable) {
+            val male = product.parentMaleId
+            val female = product.parentFemaleId
+            if (!male.isNullOrBlank() && !female.isNullOrBlank()) {
+                when (val res = traceabilityRepository.verifyParentage(product.productId, male, female)) {
+                    is com.rio.rostry.utils.Resource.Success -> if (res.data != true) {
+                        reasons += "Parentage verification failed for provided parentMaleId/parentFemaleId"
+                    }
+                    else -> reasons += "Unable to verify parentage at this time"
+                }
+            }
+        }
 
         return ValidationResult(valid = reasons.isEmpty(), reasons = reasons)
     }

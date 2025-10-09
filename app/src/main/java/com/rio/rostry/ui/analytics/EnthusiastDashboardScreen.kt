@@ -23,6 +23,7 @@ fun EnthusiastDashboardScreen(
     onOpenPerformance: () -> Unit = {},
     onOpenFinancial: () -> Unit = {},
     onOpenTraceability: (String) -> Unit = {},
+    onOpenEggCollection: () -> Unit = {},
 ) {
     val d = vm.dashboard.collectAsState().value
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -40,6 +41,7 @@ fun EnthusiastDashboardScreen(
                 }
                 Button(onClick = onOpenReports, modifier = Modifier.padding(top = 12.dp)) { Text("Open Reports") }
                 Button(onClick = onOpenFeed, modifier = Modifier.padding(top = 8.dp)) { Text("Open Feed") }
+                Button(onClick = onOpenEggCollection, modifier = Modifier.padding(top = 8.dp)) { Text("Log Egg Collection") }
             }
         }
 

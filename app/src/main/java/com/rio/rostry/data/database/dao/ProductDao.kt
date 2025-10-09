@@ -100,7 +100,40 @@ interface ProductDao {
     )
     suspend fun purgeStaleMarketplace(thresholdMillis: Long)
 
-    // Count active products (birds) owned by a farmer for mortality rate calculation
-    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :ownerId AND isDeleted = 0 AND status = 'ACTIVE'")
+    // Count active products (birds) owned by a farmer using lifecycle awareness
+    // Consider ACTIVE as lifecycleStatus = 'ACTIVE' or null (legacy rows)
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :ownerId AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
     suspend fun countActiveByOwnerId(ownerId: String): Int
+
+    // Lifecycle-aware queries
+    @Query("SELECT * FROM products WHERE sellerId = :farmerId AND stage = :stage AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
+    fun observeByStage(farmerId: String, stage: String): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE sellerId = :farmerId AND lifecycleStatus = :status")
+    fun observeByLifecycleStatus(farmerId: String, status: String): Flow<List<ProductEntity>>
+
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND stage = 'BREEDER' AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
+    fun observeBreederCount(farmerId: String): Flow<Int>
+
+    @Query("SELECT * FROM products WHERE sellerId = :farmerId AND breederEligibleAt IS NOT NULL AND breederEligibleAt <= :now AND (stage IS NULL OR stage != 'BREEDER')")
+    suspend fun getBreederEligible(farmerId: String, now: Long): List<ProductEntity>
+
+    @Query("UPDATE products SET stage = :stage, lastStageTransitionAt = :transitionAt, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun updateStage(productId: String, stage: String, transitionAt: Long, updatedAt: Long)
+
+    @Query("UPDATE products SET lifecycleStatus = :status, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun updateLifecycleStatus(productId: String, status: String, updatedAt: Long)
+
+    @Query("UPDATE products SET ageWeeks = :ageWeeks WHERE productId = :productId")
+    suspend fun updateAgeWeeks(productId: String, ageWeeks: Int)
+
+    @Query("UPDATE products SET breederEligibleAt = :eligibleAt, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun updateBreederEligibleAt(productId: String, eligibleAt: Long, updatedAt: Long)
+
+    // Active birds with birthDate set (used by LifecycleWorker to reduce load)
+    @Query("SELECT * FROM products WHERE (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND birthDate IS NOT NULL")
+    fun observeActiveWithBirth(): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND birthDate IS NOT NULL")
+    suspend fun getActiveWithBirth(): List<ProductEntity>
 }

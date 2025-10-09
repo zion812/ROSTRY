@@ -80,6 +80,8 @@ class TransferVerificationViewModel @Inject constructor(
         val uploadedBeforeUrl: String? = null,
         val uploadedAfterUrl: String? = null,
         val uploadedIdentityRef: String? = null,
+        val trustScore: Int? = null,
+        val trustBreakdown: Map<String, Int> = emptyMap(),
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -100,6 +102,23 @@ class TransferVerificationViewModel @Inject constructor(
         data class IdentityNumber(val number: String): TempUpdate()
     }
 
+    // Compose a simple breakdown matching TransferWorkflowRepository scoring
+    private fun computeBreakdown(
+        verifications: List<TransferVerificationEntity>,
+        disputes: List<com.rio.rostry.data.database.entity.DisputeEntity>
+    ): Map<String, Int> {
+        var seller = if (verifications.any { it.step == "SELLER_INIT" && it.status == "APPROVED" }) 10 else 0
+        var buyer = if (verifications.any { it.step == "BUYER_VERIFY" && it.status == "APPROVED" }) 15 else 0
+        var platform = if (verifications.any { it.step == "PLATFORM_REVIEW" && it.status == "APPROVED" }) 15 else 0
+        val disputesPenalty = -(disputes.size * 5)
+        return linkedMapOf(
+            "Seller evidence" to seller,
+            "Buyer verification" to buyer,
+            "Platform review" to platform,
+            "Disputes" to disputesPenalty,
+        )
+    }
+
     fun load(transferId: String) {
         viewModelScope.launch {
             try {
@@ -113,12 +132,30 @@ class TransferVerificationViewModel @Inject constructor(
                     val v = arr[1] as List<TransferVerificationEntity>
                     val a = arr[2] as List<AuditLogEntity>
                     val d = arr[3] as List<com.rio.rostry.data.database.entity.DisputeEntity>
+                    // Update base state
                     _state.value = _state.value.copy(loading = false, transfer = t, verifications = v, auditLogs = a, disputes = d)
-                    // Funnel start analytics once per transfer
+                    // Compute trust score and breakdown
                     val id = t?.transferId
-                    if (!id.isNullOrBlank() && startedTransfers.add(id)) {
+                    if (!id.isNullOrBlank()) {
+                        viewModelScope.launch {
+                            when (val res = workflow.computeTrustScore(id)) {
+                                is Resource.Success -> {
+                                    val score = res.data
+                                    val breakdown = computeBreakdown(v, d)
+                                    _state.value = _state.value.copy(trustScore = score, trustBreakdown = breakdown)
+                                }
+                                is Resource.Error -> {
+                                    _state.value = _state.value.copy(error = res.message)
+                                }
+                                else -> Unit
+                            }
+                        }
+                    }
+                    // Funnel start analytics once per transfer
+                    val tid = t?.transferId
+                    if (!tid.isNullOrBlank() && startedTransfers.add(tid)) {
                         val userId = currentUserProvider.userIdOrNull()
-                        analytics.trackTransferVerificationStart(id, userId)
+                        analytics.trackTransferVerificationStart(tid, userId)
                     }
                 }
             } catch (e: Exception) {

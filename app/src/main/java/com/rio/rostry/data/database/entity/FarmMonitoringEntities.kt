@@ -54,6 +54,7 @@ data class QuarantineRecordEntity(
     val reason: String,
     val protocol: String? = null,
     val medicationScheduleJson: String? = null,
+    val statusHistoryJson: String? = null,
     val vetNotes: String? = null,
     val startedAt: Long = System.currentTimeMillis(),
     val lastUpdatedAt: Long = System.currentTimeMillis(),

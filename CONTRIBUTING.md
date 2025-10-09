@@ -22,6 +22,16 @@ Thank you for your interest in contributing! This guide explains how to set up y
 - [Issue Reporting](#issue-reporting)
 - [Release Process](#release-process)
 
+## 📝 Quick Contribution Checklist
+- [ ] Read the **[Quick Start](../QUICK_START.md)** and run the app
+- [ ] Create a feature branch: `feat/<short-description>`
+- [ ] Follow **[CODE_STYLE.md](CODE_STYLE.md)** conventions
+- [ ] Write or update **tests** and **docs**
+- [ ] Run `./gradlew ktlintCheck detekt test` locally
+- [ ] Submit a PR using the provided template
+
+---
+
 ## Getting Started
 
 1. **Clone the repository** and open in Android Studio (latest stable version).
@@ -33,38 +43,18 @@ Thank you for your interest in contributing! This guide explains how to set up y
 4. **Sync Gradle**: Allow Android Studio to sync dependencies automatically.
 5. **Run the app**: Build and run in debug mode to ensure everything works.
 
-See [developer-onboarding.md](docs/developer-onboarding.md) for comprehensive onboarding guide.
+See [developer-onboarding.md](docs/developer-onboarding.md) for comprehensive onboarding. For a fast start see [QUICK_START.md](QUICK_START.md) and handy commands in [CHEAT_SHEET.md](CHEAT_SHEET.md).
 
 ---
 
-## Code of Conduct
+## Code of Conduct (Summary)
+We are committed to a **welcoming, inclusive, harassment-free** community.
 
-### Our Pledge
+- Be respectful and constructive
+- No harassment or discrimination
+- Report unacceptable behavior privately (see [SECURITY.md](SECURITY.md))
 
-We as members, contributors, and leaders pledge to make participation in ROSTRY a harassment-free experience for everyone. We are committed to providing a welcoming and inclusive environment.
-
-### Our Standards
-
-**Expected Behavior**:
-- Be respectful and inclusive
-- Welcome and support newcomers
-- Provide constructive feedback
-- Focus on what is best for the community
-- Show empathy towards others
-
-**Unacceptable Behavior**:
-- Harassment, trolling, or insulting comments
-- Public or private harassment
-- Publishing others' private information
-- Other conduct inappropriate in a professional setting
-
-### Enforcement
-
-Instances of unacceptable behavior may be reported by contacting the project team. All complaints will be reviewed and investigated promptly and fairly.
-
-**Full Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-
-**Reporting**: If you experience or witness unacceptable behavior, please report it to the maintainers privately.
+By contributing you agree to follow these guidelines. The Code of Conduct is maintained here as a concise summary to reduce redundancy.
 
 ---
 
@@ -230,7 +220,7 @@ suspend fun createProduct(product: Product): Result<String>
 open app/build/dokka/html/index.html
 ```
 
-**Complete KDoc Guide**: See [docs/api-documentation.md](docs/api-documentation.md)
+**Complete KDoc Guide**: See [docs/api-documentation.md](docs/api-documentation.md). Also follow our [Documentation Standards](docs/DOCUMENTATION_STANDARDS.md).
 
 ---
 
@@ -481,18 +471,12 @@ We follow [Semantic Versioning](https://semver.org/):
 4. Push tag: `git push origin v1.2.0`
 5. Create GitHub release with changelog
 
-## Community Guidelines
+## Contributing Guidelines
 
 - Be respectful and constructive
 - Welcome newcomers and help them get started
 - Focus on the code, not the person
 - Celebrate successes and learn from failures
-
-## Communication Channels
-
-- **GitHub Issues**: Bug reports, feature requests, discussions
-- **Pull Requests**: Code review and technical discussions
-
 ## Getting Help
 
 - Review `docs/developer-onboarding.md` for setup help
@@ -500,6 +484,8 @@ We follow [Semantic Versioning](https://semver.org/):
 - Ask questions in GitHub Discussions
 - Review existing issues and PRs for similar problems
 
----
+Please read this document before contributing to ensure a smooth collaboration.
 
-Thank you for contributing to ROSTRY! Your efforts help build a better platform for the poultry farming community.
+Quick references:
+- Code style quick reference: [docs/code-style-quick-reference.md](docs/code-style-quick-reference.md)
+- Full code style: [CODE_STYLE.md](CODE_STYLE.md)

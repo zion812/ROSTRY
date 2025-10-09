@@ -20,11 +20,12 @@ import com.rio.rostry.data.database.entity.HatchingLogEntity
 import com.rio.rostry.data.database.entity.MatingLogEntity
 import com.rio.rostry.data.database.entity.EggCollectionEntity
 import com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity
+import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.data.database.entity.TaskEntity
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-
 /**
  * FirestoreService centralizes Firestore operations used by SyncManager.
  * Provides delta queries by updatedAt and batched writes with basic conflict handling.
@@ -38,6 +39,9 @@ class FirestoreService @Inject constructor(
     private val transfers = firestore.collection("transfers")
     private val trackings = firestore.collection("productTrackings")
     private val chats = firestore.collection("chats")
+    // collectionGroup() takes a subcollection ID only (no '/'). These exist under multiple parents.
+    private val dailyLogs = firestore.collectionGroup("daily_logs")
+    private val tasks = firestore.collectionGroup("tasks")
 
     suspend fun fetchUpdatedProducts(since: Long, limit: Int = 500): List<ProductEntity> =
         products.whereGreaterThan("updatedAt", since)
@@ -80,6 +84,54 @@ class FirestoreService @Inject constructor(
         entities.forEach { e ->
             val doc = products.document(e.productId)
             batch.set(doc, e, SetOptions.merge())
+        }
+        batch.commit().await()
+        return entities.size
+    }
+
+    // ==============================
+    // Sprint 1: Daily Logs & Tasks
+    // ==============================
+
+    suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int = 1000): List<DailyLogEntity> =
+        firestore.collection("farmers").document(farmerId).collection("daily_logs")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(DailyLogEntity::class.java) }
+
+    suspend fun pushDailyLogs(farmerId: String, entities: List<DailyLogEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("farmers").document(farmerId).collection("daily_logs")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.logId)
+            batch.set(doc, e, SetOptions.merge())
+            batch.update(doc, mapOf("updatedAt" to now))
+        }
+        batch.commit().await()
+        return entities.size
+    }
+
+    suspend fun fetchUpdatedTasks(farmerId: String, since: Long, limit: Int = 1000): List<TaskEntity> =
+        firestore.collection("farmers").document(farmerId).collection("tasks")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(TaskEntity::class.java) }
+
+    suspend fun pushTasks(farmerId: String, entities: List<TaskEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("farmers").document(farmerId).collection("tasks")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.taskId)
+            batch.set(doc, e, SetOptions.merge())
+            batch.update(doc, mapOf("updatedAt" to now))
         }
         batch.commit().await()
         return entities.size

@@ -36,11 +36,15 @@ object Routes {
         const val GENERAL = "onboard/general"
         const val FARMER = "onboard/farmer"
         const val ENTHUSIAST = "onboard/enthusiast"
+        const val FARM_BIRD = "onboard/farm/bird"
+        const val FARM_BATCH = "onboard/farm/batch"
     }
 
     object Product {
         const val DETAILS = "product/{productId}"
         const val TRACEABILITY = "traceability/{productId}"
+        const val FAMILY_TREE = "product/{productId}/family_tree"
+        const val LINEAGE_PREVIEW = "lineage/{productId}"
         const val CREATE = "product/create"
         const val EXPLORE = "product/explore"
         const val MARKET = "product/market"
@@ -99,6 +103,9 @@ object Routes {
         const val HATCHING_BATCH = "hatching/batch/{batchId}"
         const val DASHBOARD = "monitoring/dashboard"
         const val PERFORMANCE = "monitoring/performance"
+        const val DAILY_LOG = "monitoring/daily_log"
+        const val DAILY_LOG_PRODUCT = "monitoring/daily_log/{productId}"
+        const val TASKS = "monitoring/tasks"
     }
 
     // Loveable product feature routes
@@ -135,6 +142,7 @@ object Routes {
         const val CREATE = "enthusiast/create"
         const val DASHBOARD = "enthusiast/dashboard"
         const val TRANSFERS = "enthusiast/transfers"
+        const val EGG_COLLECTION = "enthusiast/egg_collection"
     }
 
     private val generalConfig = RoleNavigationConfig(
@@ -177,7 +185,12 @@ object Routes {
             Social.GROUPS,
             Social.EVENTS,
             Transfers.DETAILS,
-            Analytics.FARMER
+            Analytics.FARMER,
+            Monitoring.DAILY_LOG,
+            Monitoring.DAILY_LOG_PRODUCT,
+            Monitoring.TASKS,
+            Onboarding.FARM_BIRD,
+            Onboarding.FARM_BATCH
         )
     )
 
@@ -203,7 +216,12 @@ object Routes {
             Transfers.DETAILS,
             Transfers.LIST,
             Product.TRACEABILITY,
-            Messaging.THREAD
+            Messaging.THREAD,
+            Monitoring.DAILY_LOG,
+            Monitoring.DAILY_LOG_PRODUCT,
+            Monitoring.TASKS,
+            Product.FAMILY_TREE,
+            EnthusiastNav.EGG_COLLECTION
         )
     )
 
@@ -226,6 +244,8 @@ object Routes {
     const val ONBOARD_ENTHUSIAST = Onboarding.ENTHUSIAST
     const val PRODUCT_DETAILS = Product.DETAILS
     const val TRACEABILITY = Product.TRACEABILITY
+    const val PRODUCT_FAMILY_TREE = Product.FAMILY_TREE
+    const val LINEAGE_PREVIEW = Product.LINEAGE_PREVIEW
     const val SCAN_QR = Scan.QR
     const val PRODUCT_CREATE = Product.CREATE
     const val PRODUCT_EXPLORE = Product.EXPLORE
@@ -262,6 +282,9 @@ object Routes {
     const val MONITORING_HATCHING = Monitoring.HATCHING
     const val MONITORING_HATCHING_BATCH = Monitoring.HATCHING_BATCH
     const val MONITORING_PERFORMANCE = Monitoring.PERFORMANCE
+    const val MONITORING_DAILY_LOG = Monitoring.DAILY_LOG
+    const val MONITORING_DAILY_LOG_PRODUCT = Monitoring.DAILY_LOG_PRODUCT
+    const val MONITORING_TASKS = Monitoring.TASKS
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS

@@ -31,7 +31,8 @@ class FarmerCreateViewModel @Inject constructor(
     private val vaccinationRepository: com.rio.rostry.data.repository.monitoring.VaccinationRepository,
     private val quarantineRepository: com.rio.rostry.data.repository.monitoring.QuarantineRepository,
     private val breedingRepository: com.rio.rostry.data.repository.monitoring.BreedingRepository,
-    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository
+    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository,
+    private val productValidator: com.rio.rostry.marketplace.validation.ProductValidator
 ) : ViewModel() {
 
     private var prefillProductId: String? = null
@@ -510,12 +511,36 @@ class FarmerCreateViewModel @Inject constructor(
                     )
                     return@launch
                 }
+
+                // Additional lifecycle validation: block DECEASED or TRANSFERRED
+                val productRes = productRepository.getProductById(prefillProductId!!).first { it !is Resource.Loading }
+                val p = (productRes as? Resource.Success)?.data
+                if (p != null) {
+                    val status = p.lifecycleStatus?.uppercase()
+                    if (status == "DECEASED" || status == "TRANSFERRED") {
+                        _ui.value = UiState(
+                            isSubmitting = false,
+                            error = "Cannot list products that are ${status?.lowercase()}."
+                        )
+                        return@launch
+                    }
+                }
             }
             
             try {
-                val product = mapToEntity(currentUser, form)
+                val candidate = mapToEntity(currentUser, form)
+                // Validate with traceability before any heavy work
+                val validation = productValidator.validateWithTraceability(candidate)
+                if (!validation.valid) {
+                    _ui.value = UiState(
+                        isSubmitting = false,
+                        error = validation.reasons.joinToString(separator = "; ")
+                    )
+                    return@launch
+                }
+
                 val imageBytes = resolveAndCompress(form.photoUris)
-                val baseProduct = if (imageBytes.isNotEmpty()) product.copy(imageUrls = emptyList()) else product
+                val baseProduct = if (imageBytes.isNotEmpty()) candidate.copy(imageUrls = emptyList()) else candidate
                 when (val res = marketplace.createProduct(baseProduct, imageBytes)) {
                     is Resource.Success -> {
                         _ui.value = UiState(isSubmitting = false, successProductId = res.data)

@@ -79,6 +79,7 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
     private val productDao: ProductDao,
     private val db: com.rio.rostry.data.database.AppDatabase,
     private val analytics: com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker,
+    private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
 ) : EnthusiastBreedingRepository {
 
     override suspend fun createPair(
@@ -249,6 +250,12 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
             )
             hatchingBatchDao.upsert(batch)
             analytics.trackIncubationStart(batchId, batch.eggsCount ?: collection.eggsCollected)
+            // Schedule daily incubation checks until expected hatch
+            var cursor = now + 24L * 60 * 60 * 1000
+            while (cursor <= expectedHatchAt) {
+                taskRepository.generateIncubationCheckTask(batchId, pair.farmerId, cursor)
+                cursor += 24L * 60 * 60 * 1000
+            }
             Resource.Success(batchId)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to start incubation")

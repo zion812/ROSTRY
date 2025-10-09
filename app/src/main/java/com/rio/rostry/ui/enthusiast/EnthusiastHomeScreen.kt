@@ -42,6 +42,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.FilterList
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Scaffold
+import com.rio.rostry.ui.components.AddToFarmDialog
 
 /**
  * Advanced Enthusiast interface with premium farm management features.
@@ -65,6 +69,8 @@ fun EnthusiastHomeScreen(
     onOpenMortality: () -> Unit,
     onOpenQuarantine: () -> Unit,
     onOpenBreeding: () -> Unit,
+    onNavigateToAddBird: () -> Unit = {},
+    onNavigateToAddBatch: () -> Unit = {},
 ) {
     val vm: EnthusiastHomeViewModel = hiltViewModel()
     val ui by vm.ui.collectAsState()
@@ -81,13 +87,22 @@ fun EnthusiastHomeScreen(
     }
     val flockVm: EnthusiastFlockViewModel = hiltViewModel()
     val flock by flockVm.state.collectAsState()
-    SwipeRefresh(state = swipeState, onRefresh = vm::refresh) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
+            }
+        }
+    ) { padding ->
+        SwipeRefresh(state = swipeState, onRefresh = vm::refresh) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(padding),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
         PremiumGateCard(
             title = "Premium Enthusiast",
             description = "Access advanced analytics, transfers, and leadership tools. Verify KYC to unlock full features.",
@@ -294,7 +309,22 @@ fun EnthusiastHomeScreen(
                 }
             }
         }
+            }
         }
+    }
+
+    if (showAddDialog) {
+        AddToFarmDialog(
+            onDismiss = { showAddDialog = false },
+            onSelectIndividual = {
+                showAddDialog = false
+                onNavigateToAddBird()
+            },
+            onSelectBatch = {
+                showAddDialog = false
+                onNavigateToAddBatch()
+            }
+        )
     }
 }
 

@@ -1,7 +1,7 @@
 # ADR-001: Database Encryption Strategy
 
-- Status: Accepted
-- Date: 2025-09-28
+- Status: Draft
+- Date: 2025-10-10
 
 ## Context
 Secure local storage is required for sensitive user and livestock data in an agricultural marketplace app.

@@ -108,6 +108,11 @@ data class FarmerDashboardSnapshotEntity(
     val growthRecordsCount: Int = 0,
     val quarantineActiveCount: Int = 0,
     val productsReadyToListCount: Int = 0, // Farm-marketplace bridge: Products with growth records and not in quarantine
+    // Daily log metrics (Sprint 1)
+    val avgFeedKg: Double? = null,
+    val medicationUsageCount: Int? = null,
+    val dailyLogComplianceRate: Double? = null,
+    val actionSuggestions: String? = null, // JSON array of suggestions
     val createdAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
     val syncedAt: Long? = null

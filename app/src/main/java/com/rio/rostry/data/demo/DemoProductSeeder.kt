@@ -1,6 +1,8 @@
 package com.rio.rostry.data.demo
 
 import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.database.dao.UserDao
+import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,7 +17,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class DemoProductSeeder @Inject constructor(
-    private val productDao: ProductDao
+    private val productDao: ProductDao,
+    private val userDao: UserDao
 ) {
     
     private data class BreedTemplate(
@@ -67,18 +70,26 @@ class DemoProductSeeder @Inject constructor(
     
     suspend fun seedProducts() = withContext(Dispatchers.IO) {
         try {
-            // Check if already seeded by querying products
             val existingProducts = productDao.findById("demo_prod_check")
             if (existingProducts != null) {
                 Timber.d("DemoProductSeeder: Database already seeded")
                 return@withContext
             }
-            
+
             Timber.i("DemoProductSeeder: Starting to seed 80 sample products...")
+
+            // Ensure demo sellers exist to satisfy FK on products.sellerId
+            val demoUsers = sellerIds.map { sid ->
+                UserEntity(
+                    userId = sid,
+                    fullName = sid.replace('_', ' ').replaceFirstChar { it.uppercase() },
+                    email = "$sid@example.com"
+                )
+            }
+            userDao.insertUsers(demoUsers)
             
             val products = mutableListOf<ProductEntity>()
             val now = System.currentTimeMillis()
-            
             // Generate products for each breed
             for (breedTemplate in breeds) {
                 // Generate 13-14 products per breed (total ~80)

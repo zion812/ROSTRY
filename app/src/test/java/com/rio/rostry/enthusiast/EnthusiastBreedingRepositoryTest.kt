@@ -30,6 +30,7 @@ class EnthusiastBreedingRepositoryTest {
     private lateinit var productDao: ProductDao
     private lateinit var appDb: com.rio.rostry.data.database.AppDatabase
     private lateinit var analytics: com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
+    private lateinit var taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository
 
     @Before
     fun setUp() {
@@ -41,6 +42,7 @@ class EnthusiastBreedingRepositoryTest {
         productDao = mock(ProductDao::class.java)
         appDb = mock(com.rio.rostry.data.database.AppDatabase::class.java)
         analytics = mock(com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker::class.java)
+        taskRepository = mock(com.rio.rostry.data.repository.monitoring.TaskRepository::class.java)
         repo = EnthusiastBreedingRepositoryImpl(
             matingLogDao = matingDao,
             eggCollectionDao = eggDao,
@@ -50,6 +52,7 @@ class EnthusiastBreedingRepositoryTest {
             productDao = productDao,
             db = appDb,
             analytics = analytics,
+            taskRepository = taskRepository,
         )
     }
 

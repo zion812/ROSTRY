@@ -1,3 +1,31 @@
+### Now / Next / Later (Summary)
+
+| Horizon | Focus | Target |
+|---------|-------|--------|
+| **Now** | Enhanced Search & Discovery; Payment Gateway Integration; Video Support | Q1 2025 |
+| **Next** | Notification Enhancements; Accessibility Improvements; Offline Mode Enhancements | Q1–Q2 2025 |
+| **Later** | Advanced Analytics; Marketplace Enhancements; AI-Powered Insights; Multi-language support | Q2–Q3 2025 |
+
+See detailed sections below for scope and metrics. Longer technical details will be consolidated into architecture docs over time.
+# Timeline
+
+```mermaid
+gantt
+  title ROSTRY Roadmap 2025
+  dateFormat  YYYY-MM-DD
+  section Now (Q1)
+  Enhanced Search & Discovery   :now1, 2025-01-15, 21d
+  Payment Gateway Integration   :now2, 2025-02-05, 28d
+  Video Support (short-form)    :now3, 2025-03-05, 21d
+  section Next (Q1–Q2)
+  Notifications Enhancements    :next1, 2025-03-20, 28d
+  Accessibility Upgrades (AA)   :next2, 2025-04-01, 35d
+  Offline Mode Enhancements     :next3, 2025-05-10, 21d
+  section Later (Q2–Q3)
+  AI-Powered Insights           :later1, 2025-06-01, 42d
+  Advanced Analytics            :later2, 2025-07-15, 35d
+  Marketplace Enhancements      :later3, 2025-08-20, 28d
+```
 # ROSTRY Product Roadmap
 
 **Version:** 1.0  

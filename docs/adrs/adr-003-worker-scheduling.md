@@ -1,7 +1,7 @@
 # ADR-003: Background Worker Scheduling
 
-- Status: Accepted
-- Date: 2025-09-28
+- Status: Draft
+- Date: 2025-10-10
 
 ## Context
 Need reliable background execution within Android system constraints and battery optimizations.

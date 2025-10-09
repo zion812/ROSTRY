@@ -99,14 +99,12 @@ fun GeneralCartRoute(
         onCheckout = viewModel::checkout
     )
     
-    // Marketplace-to-farm bridge: Show dialog after farmer purchases
+    // Marketplace-to-farm bridge: Show onboarding choice after farmer purchases
     if (uiState.showAddToFarmDialog && uiState.addToFarmProductId != null) {
         AddToFarmDialog(
-            productName = uiState.addToFarmProductName ?: "this product",
-            productId = uiState.addToFarmProductId!!,
-            onConfirm = { productId -> viewModel.addToFarmMonitoring(productId) },
             onDismiss = { viewModel.dismissAddToFarmDialog() },
-            isLoading = uiState.isAddingToFarm
+            onSelectIndividual = { viewModel.addToFarmMonitoring(uiState.addToFarmProductId!!) },
+            onSelectBatch = { viewModel.addToFarmMonitoring(uiState.addToFarmProductId!!) }
         )
     }
 }

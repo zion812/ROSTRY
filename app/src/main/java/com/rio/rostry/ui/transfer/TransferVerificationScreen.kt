@@ -106,6 +106,34 @@ fun TransferVerificationScreen(
         Text("Transfer Verification: $transferId")
         state.error?.let { Text("Error: $it") }
 
+        // Trust score badge & breakdown
+        if (state.trustScore != null) {
+            val score = state.trustScore ?: 0
+            val color = when (score) {
+                in 0..30 -> Color(0xFFC62828) // red
+                in 31..60 -> Color(0xFFF57C00) // orange
+                in 61..80 -> Color(0xFFFBC02D) // yellow
+                else -> Color(0xFF2E7D32) // green
+            }
+            ElevatedCard {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Trust Score")
+                        Text(score.toString(), color = color)
+                    }
+                    if (state.trustBreakdown.isNotEmpty()) {
+                        state.trustBreakdown.forEach { (k, v) ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(k)
+                                val sign = if (v >= 0) "+" else ""
+                                Text("$sign$v")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Step 1: Seller Photo Verification")

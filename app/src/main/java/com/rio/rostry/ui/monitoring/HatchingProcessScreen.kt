@@ -26,6 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -137,6 +139,12 @@ private fun HatchingBatchCard(
     viewModel: HatchingViewModel
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var showDialog by remember { mutableStateOf(false) }
+    val hatchedCount = remember { mutableStateOf("") }
+    val failedCount = remember { mutableStateOf("") }
+    val parentMaleId = remember { mutableStateOf("") }
+    val parentFemaleId = remember { mutableStateOf("") }
+    val notes = remember { mutableStateOf("") }
     
     // Update every second for live countdown
     LaunchedEffect(Unit) {
@@ -157,6 +165,13 @@ private fun HatchingBatchCard(
     val minutes = TimeUnit.MILLISECONDS.toMinutes(timeRemaining) % 60
     val seconds = TimeUnit.MILLISECONDS.toSeconds(timeRemaining) % 60
     
+    // Observe tasks for this batch
+    val tasks by viewModel.tasksFor(batch.batchId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val nowTs = currentTime
+    val totalCount = tasks.size
+    val overdueCount = tasks.count { it.completedAt == null && it.dueAt < nowTs }
+    val dueCount = tasks.count { it.completedAt == null && (it.snoozeUntil == null || it.snoozeUntil <= nowTs) && it.dueAt <= nowTs }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(
@@ -235,6 +250,13 @@ private fun HatchingBatchCard(
             }
             
             Spacer(Modifier.height(4.dp))
+
+            // Tasks summary row
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Text("Tasks: $totalCount", style = MaterialTheme.typography.bodyMedium)
+                Text("Due: $dueCount", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                Text("Overdue: $overdueCount", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
             
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -246,13 +268,75 @@ private fun HatchingBatchCard(
                 ) {
                     Text("View Logs")
                 }
-                OutlinedButton(
-                    onClick = { /* Update status */ },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Update")
+                if (isDueSoon || isOverdue) {
+                    Button(
+                        onClick = {
+                            // Prefill if available; batch doesn't hold parents, leave empty
+                            showDialog = true
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Log Hatch Outcome")
+                    }
                 }
             }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                Button(onClick = {
+                    val count = hatchedCount.value.toIntOrNull() ?: 0
+                    viewModel.logHatchOutcome(
+                        batchId = batch.batchId,
+                        count = count,
+                        parentMaleId = parentMaleId.value.ifBlank { null },
+                        parentFemaleId = parentFemaleId.value.ifBlank { null },
+                        notes = notes.value.ifBlank { null }
+                    )
+                    showDialog = false
+                }) { Text("Confirm") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDialog = false }) { Text("Cancel") }
+            },
+            title = { Text("Log Hatch Outcome") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = hatchedCount.value,
+                        onValueChange = { s -> hatchedCount.value = s.filter { it.isDigit() } },
+                        label = { Text("Hatched Count") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = failedCount.value,
+                        onValueChange = { s -> failedCount.value = s.filter { it.isDigit() } },
+                        label = { Text("Failed Count (optional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = parentMaleId.value,
+                        onValueChange = { parentMaleId.value = it },
+                        label = { Text("Parent Male ID (optional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = parentFemaleId.value,
+                        onValueChange = { parentFemaleId.value = it },
+                        label = { Text("Parent Female ID (optional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = notes.value,
+                        onValueChange = { notes.value = it },
+                        label = { Text("Notes") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        )
     }
 }

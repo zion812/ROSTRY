@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.product
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -18,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -152,6 +155,10 @@ private fun ProductDetailsContent(
         if (product.familyTreeId != null) {
             item {
                 TraceabilityCard(onOpenTraceability = onOpenTraceability)
+            }
+            // Export Lineage (link/QR entry)
+            item {
+                ExportLineageCard(product)
             }
         }
 
@@ -728,4 +735,115 @@ private fun sellerRating(sellerId: String): String {
     val normalized = (sellerId.hashCode().absoluteValue % 20) / 10.0
     val rating = 4.0 + normalized
     return "%.1f".format(rating.coerceIn(4.0, 5.0))
+}
+
+@Composable
+private fun ExportLineageCard(product: ProductEntity) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val localSnackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    val link = remember(product.productId) { "https://rostry.app/lineage/${product.productId}" }
+
+    val qrImage by remember(link) { mutableStateOf(generateQrImage(link, size = 512)) }
+
+    Scaffold(snackbarHost = { SnackbarHost(localSnackbar) }) { _ ->
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Export Lineage Proof", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text("Share a verifiable link to this bird's lineage and breeding records.", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(link))
+                        scope.launch { localSnackbar.showSnackbar("Lineage link copied") }
+                    }) { Text("Copy Link") }
+                    Button(onClick = {
+                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TEXT, link)
+                        }
+                        val chooser = android.content.Intent.createChooser(send, "Share lineage link")
+                        ctx.startActivity(chooser)
+                    }) { Text("Share") }
+                }
+                Spacer(Modifier.height(12.dp))
+                qrImage?.let { bmp ->
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = "Lineage QR",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = {
+                        val ok = saveQrToPictures(ctx, link)
+                        scope.launch { localSnackbar.showSnackbar(if (ok) "QR saved to Pictures" else "Failed to save QR") }
+                    }) { Text("Save QR") }
+                }
+            }
+        }
+    }
+}
+
+private fun generateQrImage(text: String, size: Int): androidx.compose.ui.graphics.ImageBitmap? {
+    return try {
+        val bitMatrix = com.google.zxing.qrcode.QRCodeWriter().encode(
+            text,
+            com.google.zxing.BarcodeFormat.QR_CODE,
+            size,
+            size
+        )
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bmp.setPixel(x, y, if (bitMatrix.get(x, y)) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            }
+        }
+        bmp.asImageBitmap()
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun saveQrToPictures(ctx: android.content.Context, link: String): Boolean {
+    return try {
+        val size = 1024
+        val bitMatrix = com.google.zxing.qrcode.QRCodeWriter().encode(
+            link,
+            com.google.zxing.BarcodeFormat.QR_CODE,
+            size,
+            size
+        )
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bmp.setPixel(x, y, if (bitMatrix.get(x, y)) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            }
+        }
+
+        val filename = "rostry_lineage_${System.currentTimeMillis()}.png"
+        val resolver = ctx.contentResolver
+        val contentValues = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/ROSTRY")
+        }
+        val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            ?: return false
+        resolver.openOutputStream(uri)?.use { out ->
+            bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        } ?: return false
+        true
+    } catch (_: Exception) {
+        false
+    }
 }

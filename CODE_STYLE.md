@@ -18,6 +18,30 @@ This document defines coding conventions for consistency, readability, and maint
 - [Git Practices](#git-practices)
 - [Dependencies](#dependencies)
 
+## 🚩 Priority Levels
+| Level | Description |
+|-------|-------------|
+| **Must Follow** | Critical rules impacting correctness, security, or performance |
+| **Should Follow** | Recommended best practices for readability & maintainability |
+| **Nice to Have** | Stylistic preferences with minimal impact on functionality |
+
+## 🔎 Quick Reference Table
+| Category | Rule | Example |
+|----------|------|---------|
+| Null Safety | Avoid `!!` | `val name = user?.name ?: "Unknown"` |
+| Collections | Prefer functional APIs | `products.filter { it.active }` |
+| Compose | Stateless composables | `@Composable fun ProductCard(...)` |
+| Naming | CamelCase & meaningful | `ProductListViewModel` |
+| Immutability | Prefer `val` | `val uiState` not `var` |
+| Error Handling | Use sealed `Result` | `Result.Error(message)` |
+| Tests | Descriptive names | `shouldReturnActiveProducts()` |
+
+> For full details see the sections below.
+
+Quick links: see `docs/DOCUMENTATION_STANDARDS.md` and `docs/api-documentation.md` for documentation style, and `docs/README-docs.md` for navigation.
+
+---
+
 ## File Organization
 
 ### Package Structure
@@ -661,3 +685,25 @@ Closes #123
 - [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)
 - [Android Kotlin Style Guide](https://developer.android.com/kotlin/style-guide)
 - [Jetpack Compose Guidelines](https://developer.android.com/jetpack/compose/mental-model)
+
+---
+
+## Linting & Static Analysis
+
+### Run Locally
+```bash
+./gradlew ktlintCheck detekt
+```
+
+### Auto-fix
+```bash
+# If ktlint plugin with format task is configured
+./gradlew ktlintFormat
+```
+
+### IDE Integration
+- Android Studio: enable Kotlin style formatting and import optimization
+- Install ktlint and detekt plugins if preferred; set to run on save
+
+### CI Requirements
+- All PRs must pass ktlint and detekt; see `CONTRIBUTING.md` and `docs/ci-cd.md`

@@ -28,6 +28,9 @@ class BreedingManagementViewModel @Inject constructor(
 
     private val farmerId = flow { firebaseAuth.currentUser?.uid?.let { emit(it) } }
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     val breedingPairs: StateFlow<List<BreedingPairEntity>> = farmerId
         .flatMapLatest { id ->
             breedingRepository.observeActive(id)
@@ -46,13 +49,36 @@ class BreedingManagementViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            _error.value = null
+
+            // Basic validations
+            if (maleProductId == femaleProductId) {
+                _error.value = "Cannot pair the same product"
+                return@launch
+            }
             
             // Validate products exist
             val maleProduct = productDao.findById(maleProductId)
             val femaleProduct = productDao.findById(femaleProductId)
             
             if (maleProduct == null || femaleProduct == null) {
-                // Emit error state
+                _error.value = "Invalid product IDs"
+                return@launch
+            }
+
+            if (maleProduct.lifecycleStatus != "ACTIVE" || femaleProduct.lifecycleStatus != "ACTIVE") {
+                _error.value = "Both products must be ACTIVE"
+                return@launch
+            }
+
+            // Prevent duplicate active pair with same members (order-insensitive)
+            val activePairs = breedingRepository.observeActive(farmerId).first()
+            val dup = activePairs.any { p ->
+                (p.maleProductId == maleProductId && p.femaleProductId == femaleProductId) ||
+                (p.maleProductId == femaleProductId && p.femaleProductId == maleProductId)
+            }
+            if (dup) {
+                _error.value = "Pair already exists"
                 return@launch
             }
 
@@ -73,6 +99,10 @@ class BreedingManagementViewModel @Inject constructor(
 
             breedingRepository.upsert(pair)
         }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 
     fun retirePair(pairId: String) {

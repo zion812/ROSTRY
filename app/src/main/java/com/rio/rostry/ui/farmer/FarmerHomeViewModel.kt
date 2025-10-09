@@ -7,6 +7,8 @@ import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
 import com.rio.rostry.data.repository.monitoring.BreedingRepository
 import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
+import com.rio.rostry.data.database.dao.TaskDao
+import com.rio.rostry.data.database.dao.DailyLogDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
@@ -37,6 +39,9 @@ data class FarmerHomeUiState(
     val mortalityLast7Days: Int = 0,
     val breedingPairsActive: Int = 0,
     val productsReadyToListCount: Int = 0, // Farm-marketplace bridge
+    val tasksDueCount: Int = 0,
+    val tasksOverdueCount: Int = 0,
+    val dailyLogsThisWeek: Int = 0,
     val unreadAlerts: List<FarmAlertEntity> = emptyList(),
     val weeklySnapshot: FarmerDashboardSnapshotEntity? = null,
     val isLoading: Boolean = true
@@ -53,6 +58,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val breedingRepository: BreedingRepository,
     private val farmAlertRepository: FarmAlertRepository,
     private val farmerDashboardRepository: FarmerDashboardRepository,
+    private val taskDao: TaskDao,
+    private val dailyLogDao: DailyLogDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
@@ -101,7 +108,11 @@ class FarmerHomeViewModel @Inject constructor(
                     mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now),
                     breedingRepository.observeActiveCount(id),
                     farmAlertRepository.observeUnread(id),
-                    farmerDashboardRepository.observeLatest(id)
+                    farmerDashboardRepository.observeLatest(id),
+                    taskDao.observeOverdueCountForFarmer(id, now),
+                    taskDao.observeOverdueForFarmer(id, now),
+                    taskDao.observeDueForFarmer(id, now),
+                    dailyLogDao.observeCountForFarmerBetween(id, weekStart, now)
                 ) { values: Array<Any?> ->
                     val vacDue = values[0] as? Int ?: 0
                     val vacOverdue = values[1] as? Int ?: 0
@@ -115,6 +126,12 @@ class FarmerHomeViewModel @Inject constructor(
                     @Suppress("UNCHECKED_CAST")
                     val alerts = values[9] as? List<FarmAlertEntity> ?: emptyList()
                     val snapshot = values[10] as? FarmerDashboardSnapshotEntity
+                    val overdueCount = values[11] as? Int ?: 0
+                    @Suppress("UNCHECKED_CAST")
+                    val overdueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
+                    @Suppress("UNCHECKED_CAST")
+                    val dueTasks = values[13] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
+                    val dailyLogsCount = values[14] as? Int ?: 0
 
                     FarmerHomeUiState(
                         vaccinationDueCount = vacDue,
@@ -127,6 +144,9 @@ class FarmerHomeViewModel @Inject constructor(
                         mortalityLast7Days = mortality,
                         breedingPairsActive = breeding,
                         productsReadyToListCount = snapshot?.productsReadyToListCount ?: 0,
+                        tasksDueCount = dueTasks.size,
+                        tasksOverdueCount = overdueCount,
+                        dailyLogsThisWeek = dailyLogsCount,
                         unreadAlerts = alerts,
                         weeklySnapshot = snapshot,
                         isLoading = false
@@ -155,5 +175,10 @@ class FarmerHomeViewModel @Inject constructor(
         viewModelScope.launch {
             _navigationEvent.emit(route)
         }
+    }
+
+    fun markTaskComplete(taskId: String) {
+        // wired in Sprint 1 UI -> will call TaskRepository via VM handling layer
+        // Intentionally left minimal here per current plan
     }
 }

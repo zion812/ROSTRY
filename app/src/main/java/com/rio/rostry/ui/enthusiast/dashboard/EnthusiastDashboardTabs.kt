@@ -52,7 +52,9 @@ fun EnthusiastDashboardTabs(
             }
         }
         when (tabIndex) {
-            0 -> OverviewTab(onOpenReports, onOpenFeed)
+            0 -> OverviewTab(onOpenReports, onOpenFeed) {
+                navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION)
+            }
             1 -> FamilyTreeTab(onOpenTraceability, navController)
             2 -> BreedingTab()
             3 -> AnalyticsTab(onOpenReports, onOpenFeed)
@@ -62,11 +64,12 @@ fun EnthusiastDashboardTabs(
 }
 
 @Composable
-private fun OverviewTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit) {
+private fun OverviewTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit, onOpenEggCollection: () -> Unit) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
             onOpenReports = onOpenReports,
-            onOpenFeed = onOpenFeed
+            onOpenFeed = onOpenFeed,
+            onOpenEggCollection = onOpenEggCollection
         )
     }
 }

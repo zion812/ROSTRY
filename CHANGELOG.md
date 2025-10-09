@@ -1,3 +1,7 @@
+---
+
+[Unreleased]: https://github.com/your-org/ROSTRY/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/your-org/ROSTRY/releases/tag/v1.0.0
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -83,6 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated testing stack documentation
 - Added payments & DI section
 - Consolidated recent changes
+
+### Deprecated
+- (none)
+
+### Removed
+- (none)
 
 ### Fixed
 

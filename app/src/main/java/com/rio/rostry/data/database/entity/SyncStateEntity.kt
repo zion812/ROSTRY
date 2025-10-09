@@ -25,5 +25,8 @@ data class SyncStateEntity(
     val lastHatchingLogSyncAt: Long = 0L,
     // Enthusiast-specific windows
     val lastEnthusiastBreedingSyncAt: Long = 0L,
-    val lastEnthusiastDashboardSyncAt: Long = 0L
+    val lastEnthusiastDashboardSyncAt: Long = 0L,
+    // Dedicated cursors
+    val lastDailyLogSyncAt: Long = 0L,
+    val lastTaskSyncAt: Long = 0L
 )

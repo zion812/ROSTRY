@@ -25,17 +25,17 @@ The ROSTRY team takes security vulnerabilities seriously. We appreciate your eff
 
 **Please do NOT report security vulnerabilities through public GitHub issues.**
 
-Instead, use one of these private channels:
+Use one of these private channels:
 
-1. **GitHub Security Advisory (Recommended)**
-   - Navigate to the [Security tab](../../security/advisories/new)
+1. **GitHub Security Advisory (Primary)**
+   - Go to the [Security tab](../../security/advisories/new)
    - Click "Report a vulnerability"
-   - Fill out the advisory form with details
+   - Provide clear reproduction steps, impact, and environment details
 
-2. **Email**
-   - Send an email to: security@rostry.example.com
-   - Use PGP encryption if possible (key available on request)
-   - Include "SECURITY" in the subject line
+2. **Email (Fallback)**
+   - security@rostry.dev
+   - Include reproduction steps and impact assessment
+   - PGP available on request
 
 ### What to Include
 
@@ -130,6 +130,22 @@ If you're contributing to ROSTRY:
 ```properties
 MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
+
+---
+
+## 🛡️ Security Checklist
+Developers must complete this checklist **before every PR merge**:
+- [ ] No hard-coded secrets (API keys, tokens, passwords)
+- [ ] Input validation & output sanitization
+- [ ] Proper authentication / authorization checks
+- [ ] HTTPS for all network calls (Retrofit baseUrl uses `https://`)
+- [ ] Room queries use parameter binding (no raw string concat)
+- [ ] Crash logs do **not** expose sensitive data
+- [ ] ProGuard / R8 rules preserve crypto classes
+- [ ] New Firebase rules reviewed
+- [ ] Updated dependency versions scanned for CVEs
+
+> Detailed guidelines: [`docs/security-encryption.md`](docs/security-encryption.md)
 
 ---
 
@@ -254,8 +270,8 @@ We're working on establishing a bug bounty program. Check back for updates.
 
 ## Contact
 
-For security-related questions (non-vulnerabilities):
-- Email: security@rostry.example.com
+For non-vulnerability questions:
+- Email: security@rostry.dev
 - GitHub Discussions: [Security Category](../../discussions/categories/security)
 
 For general issues, use our [issue tracker](../../issues).

@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.rio.rostry.data.repository.TraceabilityRepository
 /**
  * SyncManager coordinates incremental, offline-first sync across entities.
  * It demonstrates a pattern and leaves actual network I/O to the caller (e.g., repositories or API services).
@@ -37,11 +38,15 @@ import javax.inject.Singleton
         private val mortalityRecordDao: com.rio.rostry.data.database.dao.MortalityRecordDao,
         private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
         private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
+        // Sprint 1 DAOs
+        private val dailyLogDao: com.rio.rostry.data.database.dao.DailyLogDao,
+        private val taskDao: com.rio.rostry.data.database.dao.TaskDao,
         // Enthusiast DAOs
         private val matingLogDao: com.rio.rostry.data.database.dao.MatingLogDao,
         private val eggCollectionDao: com.rio.rostry.data.database.dao.EggCollectionDao,
         private val enthusiastDashboardSnapshotDao: com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,
-        private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+        private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+        private val traceabilityRepository: TraceabilityRepository
         ) {
         data class SyncStats(
             val pushed: Int = 0,
@@ -62,9 +67,80 @@ import javax.inject.Singleton
         val lineageKept = local.copy(
             familyTreeId = remote.familyTreeId ?: local.familyTreeId,
             parentIdsJson = remote.parentIdsJson ?: local.parentIdsJson,
-            transferHistoryJson = remote.transferHistoryJson ?: local.transferHistoryJson
+            transferHistoryJson = remote.transferHistoryJson ?: local.transferHistoryJson,
+            // Explicit lineage links: parentMaleId/parentFemaleId
+            parentMaleId = remote.parentMaleId ?: local.parentMaleId,
+            parentFemaleId = remote.parentFemaleId ?: local.parentFemaleId
         )
         return lineageKept
+    }
+
+    private suspend fun mergeProductRemoteLocal(remote: ProductEntity, local: ProductEntity?): ProductEntity {
+        if (local == null) return remote
+        // Last-write-wins by updatedAt for general fields
+        fun pickString(remoteVal: String?, localVal: String?, rUpdated: Long, lUpdated: Long): String? =
+            if ((remoteVal != localVal) && (rUpdated > lUpdated)) remoteVal else localVal
+
+        fun pickInt(remoteVal: Int?, localVal: Int?, rUpdated: Long, lUpdated: Long): Int? =
+            if ((remoteVal != localVal) && (rUpdated > lUpdated)) remoteVal else localVal
+
+        val rU = remote.updatedAt
+        val lU = local.updatedAt
+
+        // Lineage: if differs, verify before accepting remote. Skip if remote IDs are null/blank.
+        val canVerify = !remote.parentMaleId.isNullOrBlank() && !remote.parentFemaleId.isNullOrBlank()
+        val verified: Boolean = if (canVerify && rU > lU) {
+            when (val res = traceabilityRepository.verifyParentage(
+                remote.productId,
+                remote.parentMaleId!!,
+                remote.parentFemaleId!!
+            )) {
+                is Resource.Success -> res.data == true
+                else -> false
+            }
+        } else false
+
+        val acceptParentMale = if (remote.parentMaleId != local.parentMaleId && rU > lU && verified) {
+            remote.parentMaleId
+        } else local.parentMaleId
+
+        val acceptParentFemale = if (remote.parentFemaleId != local.parentFemaleId && rU > lU && verified) {
+            remote.parentFemaleId
+        } else local.parentFemaleId
+
+        // Prefer stage based on lastStageTransitionAt recency (not updatedAt)
+        val stageByTransition = when {
+            remote.lastStageTransitionAt != null && (local.lastStageTransitionAt == null || remote.lastStageTransitionAt > local.lastStageTransitionAt) -> remote.stage
+            else -> local.stage
+        }
+
+        // Prefer lifecycleStatus based on breederEligibleAt recency when applicable; otherwise fallback to LWW
+        val lifecycleByEligibility = when {
+            (remote.breederEligibleAt ?: 0L) > (local.breederEligibleAt ?: 0L) -> remote.lifecycleStatus
+            else -> pickString(remote.lifecycleStatus, local.lifecycleStatus, rU, lU)
+        }
+
+        // Age weeks should be monotonic non-decreasing; do not use updatedAt to regress
+        val ageWeeksResolved = listOfNotNull(remote.ageWeeks, local.ageWeeks).maxOrNull()
+
+        return local.copy(
+            // core simple fields via per-field strategies
+            stage = stageByTransition,
+            lifecycleStatus = lifecycleByEligibility,
+            ageWeeks = ageWeeksResolved,
+            lastStageTransitionAt = when {
+                remote.lastStageTransitionAt != null && (local.lastStageTransitionAt == null || remote.lastStageTransitionAt > local.lastStageTransitionAt) -> remote.lastStageTransitionAt
+                else -> local.lastStageTransitionAt
+            },
+            breederEligibleAt = when {
+                (remote.breederEligibleAt ?: 0L) > (local.breederEligibleAt ?: 0L) -> remote.breederEligibleAt
+                else -> local.breederEligibleAt
+            },
+            parentMaleId = acceptParentMale,
+            parentFemaleId = acceptParentFemale,
+            updatedAt = maxOf(rU, lU),
+            dirty = false
+        )
     }
 
     private suspend fun <T> withRetry(
@@ -196,8 +272,13 @@ import javax.inject.Singleton
                     firestoreService.fetchUpdatedProducts(state.lastProductSyncAt)
                 }
                 if (remoteProductsUpdated.isNotEmpty()) {
-                    productDao.insertProducts(remoteProductsUpdated)
-                    pulls += remoteProductsUpdated.size
+                    // Merge with local on pull
+                    val resolved = remoteProductsUpdated.map { remote ->
+                        val local = productDao.findById(remote.productId)
+                        if (local != null) mergeProductRemoteLocal(remote, local) else remote
+                    }
+                    productDao.insertProducts(resolved)
+                    pulls += resolved.size
                 }
 
                 // Push (dirty only)
@@ -529,6 +610,54 @@ import javax.inject.Singleton
                 }
             }
 
+            // ===================
+            // Daily Logs (Sprint 1)
+            // ===================
+            run {
+                val userId = firebaseAuth.currentUser?.uid
+                if (userId != null) {
+                    val remoteLogs: List<DailyLogEntity> = withRetry {
+                        firestoreService.fetchUpdatedDailyLogs(userId, state.lastDailyLogSyncAt)
+                    }
+                    if (remoteLogs.isNotEmpty()) {
+                        for (e in remoteLogs) {
+                            dailyLogDao.upsert(e)
+                        }
+                        pulls += remoteLogs.size
+                    }
+                    val localDirty: List<DailyLogEntity> = dailyLogDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushDailyLogs(userId, localDirty) }
+                        dailyLogDao.clearDirty(localDirty.map { it.logId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+            }
+
+            // ============
+            // Tasks (Sprint 1)
+            // ============
+            run {
+                val userId = firebaseAuth.currentUser?.uid
+                if (userId != null) {
+                    val remoteTasks: List<TaskEntity> = withRetry {
+                        firestoreService.fetchUpdatedTasks(userId, state.lastTaskSyncAt)
+                    }
+                    if (remoteTasks.isNotEmpty()) {
+                        for (t in remoteTasks) {
+                            taskDao.upsert(t)
+                        }
+                        pulls += remoteTasks.size
+                    }
+                    val localDirty: List<TaskEntity> = taskDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushTasks(userId, localDirty) }
+                        taskDao.clearDirty(localDirty.map { it.taskId }, now)
+                        pushes += localDirty.size
+                    }
+                }
+            }
+
             // Update sync state for all domains once at the end
             syncStateDao.upsert(
                 state.copy(
@@ -548,7 +677,9 @@ import javax.inject.Singleton
                     lastHatchingSyncAt = now,
                     lastHatchingLogSyncAt = now,
                     lastEnthusiastBreedingSyncAt = now,
-                    lastEnthusiastDashboardSyncAt = now
+                    lastEnthusiastDashboardSyncAt = now,
+                    lastDailyLogSyncAt = now,
+                    lastTaskSyncAt = now
                 )
             )
 

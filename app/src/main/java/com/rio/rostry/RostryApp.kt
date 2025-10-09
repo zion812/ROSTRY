@@ -12,6 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.Configuration
 import com.rio.rostry.workers.SyncWorker
 import com.rio.rostry.workers.LifecycleWorker
 import com.rio.rostry.workers.TransferTimeoutWorker
@@ -27,6 +28,10 @@ import coil.ImageLoader
 import coil.util.DebugLogger
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
+import androidx.hilt.work.HiltWorkerFactory
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
@@ -40,9 +45,24 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 @HiltAndroidApp
-class RostryApp : Application() {
-    
+class RostryApp : Application(), Configuration.Provider {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface WorkerFactoryEntryPoint {
+fun   hiltWorkerFactory(): HiltWorkerFactory
+    }
+
+    override val workManagerConfiguration: Configuration
+        get() {
+            val entryPoint = EntryPointAccessors.fromApplication(
+                this,
+                WorkerFactoryEntryPoint::class.java
+            )
+            return Configuration.Builder()
+                .setWorkerFactory(entryPoint.hiltWorkerFactory())
+                .build()
+        }
     
     override fun onCreate() {
         super.onCreate()
@@ -77,6 +97,9 @@ class RostryApp : Application() {
         Coil.setImageLoader(imageLoader)
         // Attach MediaUploadManager outbox at startup (initializer has side-effects in init)
         entryPoint.mediaUploadInitializer()
+
+        // Initialize WorkManager with our custom WorkerFactory configuration
+        WorkManager.initialize(this, workManagerConfiguration)
 
         // Schedule periodic sync (every 6 hours, requires network)
         val constraints = Constraints.Builder()

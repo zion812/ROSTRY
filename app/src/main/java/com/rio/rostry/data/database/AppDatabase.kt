@@ -89,9 +89,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MatingLogEntity::class,
         EggCollectionEntity::class,
         EnthusiastDashboardSnapshotEntity::class,
-        UploadTaskEntity::class
+        UploadTaskEntity::class,
+        // New Sprint 1 entities
+        DailyLogEntity::class,
+        TaskEntity::class
     ],
-    version = 27, // Bumped to 27 to add upload_tasks outbox table
+    version = 31, // 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -178,6 +181,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun enthusiastDashboardSnapshotDao(): EnthusiastDashboardSnapshotDao
     abstract fun uploadTaskDao(): UploadTaskDao
 
+    // Sprint 1 new DAOs
+    abstract fun dailyLogDao(): com.rio.rostry.data.database.dao.DailyLogDao
+    abstract fun taskDao(): com.rio.rostry.data.database.dao.TaskDao
+
     object Converters {
         @TypeConverter
         @JvmStatic
@@ -196,6 +203,34 @@ abstract class AppDatabase : RoomDatabase() {
                         "PRIMARY KEY(`taskId`))"
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_upload_tasks_status_createdAt` ON `upload_tasks` (`status`, `createdAt`)")
+            }
+        }
+
+        // Add dedicated sync cursors to sync_state (28 -> 29)
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastDailyLogSyncAt` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastTaskSyncAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // Add UNIQUE(productId, logDate) for daily_logs to avoid duplicates (29 -> 30)
+        val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_daily_logs_product_date_unique` ON `daily_logs` (`productId`, `logDate`)")
+            }
+        }
+
+        // Add statusHistoryJson to quarantine_records and attempt best-effort backfill (30 -> 31)
+        val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `statusHistoryJson` TEXT")
+                // Best-effort: if medicationScheduleJson contains 'statusHistory', copy entire JSON to statusHistoryJson
+                // SQLite has limited JSON parsing; do a conservative update using LIKE
+                db.execSQL(
+                    "UPDATE `quarantine_records` SET `statusHistoryJson` = `medicationScheduleJson` " +
+                    "WHERE `statusHistoryJson` IS NULL AND `medicationScheduleJson` LIKE '%statusHistory%'"
+                )
             }
         }
 
@@ -240,6 +275,59 @@ abstract class AppDatabase : RoomDatabase() {
         // Alias migrations defined in Converters for external references
         val MIGRATION_24_25: Migration = Converters.MIGRATION_24_25
         val MIGRATION_26_27: Migration = Converters.MIGRATION_26_27
+        val MIGRATION_28_29: Migration = Converters.MIGRATION_28_29
+        val MIGRATION_29_30: Migration = Converters.MIGRATION_29_30
+        val MIGRATION_30_31: Migration = Converters.MIGRATION_30_31
+
+        // Add daily_logs and tasks tables; add lifecycle columns to products
+        val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create daily_logs table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `daily_logs` (" +
+                        "`logId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `logDate` INTEGER NOT NULL, " +
+                        "`weightGrams` REAL, `feedKg` REAL, `medicationJson` TEXT, `symptomsJson` TEXT, `activityLevel` TEXT, `photoUrls` TEXT, `notes` TEXT, `temperature` REAL, `humidity` REAL, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, `deviceTimestamp` INTEGER NOT NULL, `author` TEXT, " +
+                        "PRIMARY KEY(`logId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_productId` ON `daily_logs` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_farmerId` ON `daily_logs` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_logDate` ON `daily_logs` (`logDate`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_createdAt` ON `daily_logs` (`createdAt`)")
+
+                // Create tasks table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `tasks` (" +
+                        "`taskId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `productId` TEXT, `batchId` TEXT, `taskType` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `dueAt` INTEGER NOT NULL, " +
+                        "`completedAt` INTEGER, `completedBy` TEXT, `priority` TEXT NOT NULL, `recurrence` TEXT, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, `snoozeUntil` INTEGER, `metadata` TEXT, " +
+                        "PRIMARY KEY(`taskId`), " +
+                        "FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tasks_farmerId` ON `tasks` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tasks_taskType` ON `tasks` (`taskType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tasks_dueAt` ON `tasks` (`dueAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tasks_completedAt` ON `tasks` (`completedAt`)")
+
+                // Add lifecycle columns to products
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `stage` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `lifecycleStatus` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `parentMaleId` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `parentFemaleId` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `ageWeeks` INTEGER")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `lastStageTransitionAt` INTEGER")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `breederEligibleAt` INTEGER")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `isBatch` INTEGER")
+                // Default lifecycleStatus to ACTIVE for existing rows
+                db.execSQL("UPDATE `products` SET lifecycleStatus = 'ACTIVE' WHERE lifecycleStatus IS NULL")
+
+                // Extend farmer_dashboard_snapshots with daily log metrics
+                db.execSQL("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `avgFeedKg` REAL")
+                db.execSQL("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `medicationUsageCount` INTEGER")
+                db.execSQL("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `dailyLogComplianceRate` REAL")
+                db.execSQL("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `actionSuggestions` TEXT")
+            }
+        }
 
         // Minimal migration creating new tables (idempotent IF NOT EXISTS)
         val MIGRATION_2_3 = object : Migration(2, 3) {

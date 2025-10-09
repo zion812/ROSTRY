@@ -16,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MarketplaceSandboxViewModel @Inject constructor(
     private val productRepo: ProductMarketplaceRepository,
-    private val demoPayments: DemoPaymentService
+    private val demoPayments: DemoPaymentService,
+    private val productValidator: ProductValidator
 ) : ViewModel() {
 
     data class UiState(
@@ -31,8 +32,13 @@ class MarketplaceSandboxViewModel @Inject constructor(
     val ui: StateFlow<UiState> = _ui
 
     fun validateSample(product: ProductEntity) {
-        val res = ProductValidator.validate(product)
-        _ui.value = _ui.value.copy(lastValidationResult = res, message = if (res.valid) "Validation passed" else res.reasons.joinToString("; "))
+        viewModelScope.launch {
+            val res = productValidator.validateWithTraceability(product)
+            _ui.value = _ui.value.copy(
+                lastValidationResult = res,
+                message = if (res.valid) "Validation passed" else res.reasons.joinToString("; ")
+            )
+        }
     }
 
     fun createSample(product: ProductEntity) {

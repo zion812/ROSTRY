@@ -33,7 +33,8 @@ class FarmPerformanceWorker @AssistedInject constructor(
     private val orderDao: OrderDao,
     private val productDao: ProductDao,
     private val farmerDashboardSnapshotDao: FarmerDashboardSnapshotDao,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val dailyLogDao: DailyLogDao
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -100,6 +101,20 @@ class FarmPerformanceWorker @AssistedInject constructor(
                 .map { it.productId }
                 .toSet()
             val productsReadyToListCount = productsWithGrowth.count { !activeQuarantineProducts.contains(it) }
+
+            // Daily logs aggregation for the week
+            val weeklyLogs = dailyLogDao.observeForFarmerBetween(farmerId, weekStart, weekEnd).first()
+            val avgFeedKg = weeklyLogs.mapNotNull { it.feedKg }.let { list -> if (list.isNotEmpty()) list.average() else null }
+            val medicationUsageCount = weeklyLogs.count { !it.medicationJson.isNullOrBlank() }
+            val activityCounts = weeklyLogs.groupBy { it.activityLevel ?: "UNKNOWN" }.mapValues { it.value.size }
+            // Compliance: expect ~1 log per bird per day
+            val expectedLogs = (estimatedPopulation * 7).coerceAtLeast(1)
+            val dailyLogComplianceRate = if (expectedLogs > 0) weeklyLogs.size.toDouble() / expectedLogs else null
+            // Suggestions
+            val suggestions = mutableListOf<String>()
+            if ((dailyLogComplianceRate ?: 1.0) < 0.5) suggestions += "Log daily observations for better insights"
+            if (medicationUsageCount > 0) suggestions += "Review medication usage trends"
+            val actionSuggestions = if (suggestions.isNotEmpty()) suggestions.joinToString(prefix = "[\"", separator = "\",\"", postfix = "\"]") else null
             
             // Create snapshot
             val snapshot = FarmerDashboardSnapshotEntity(
@@ -116,6 +131,10 @@ class FarmPerformanceWorker @AssistedInject constructor(
                 growthRecordsCount = growthRecordsCount,
                 quarantineActiveCount = quarantineActiveCount,
                 productsReadyToListCount = productsReadyToListCount,
+                avgFeedKg = avgFeedKg,
+                medicationUsageCount = medicationUsageCount,
+                dailyLogComplianceRate = dailyLogComplianceRate,
+                actionSuggestions = actionSuggestions,
                 createdAt = System.currentTimeMillis(),
                 dirty = true
             )

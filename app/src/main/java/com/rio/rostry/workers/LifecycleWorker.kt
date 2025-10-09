@@ -14,6 +14,8 @@ import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.entity.LifecycleEventEntity
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
+import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.MilestoneNotifier
@@ -35,22 +37,58 @@ class LifecycleWorker @AssistedInject constructor(
     private val traitDao: ProductTraitDao,
     private val alertDao: FarmAlertDao,
     private val traceability: TraceabilityRepository,
+    private val taskRepository: TaskRepository,
+    private val taskDao: TaskDao,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             val now = System.currentTimeMillis()
             MilestoneNotifier.ensureChannel(applicationContext)
-            // For simplicity, scan products snapshot; in a full impl, add DAO to list active items only
-            val products = productDao.getAllProducts().first()
+            // Restrict to active birds with known birth dates to reduce load
+            val products = productDao.getActiveWithBirth()
             for (p in products) {
                 val week = p.birthDate?.let { ((now - it) / (7L * 24 * 60 * 60 * 1000)).toInt() } ?: continue
                 val stage = when {
                     week < 5 -> "CHICK"
-                    week < 20 -> "GROWTH"
+                    week < 20 -> "JUVENILE"
                     week < 52 -> "ADULT"
                     else -> "BREEDER"
                 }
+
+                // Batch split detection: recommend split at >= 12 weeks
+                if (p.isBatch == true && (p.lifecycleStatus == "ACTIVE" || p.lifecycleStatus == null)) {
+                    if (week >= 12 && p.splitAt == null) {
+                        alertDao.upsert(
+                            FarmAlertEntity(
+                                alertId = UUID.randomUUID().toString(),
+                                farmerId = p.sellerId,
+                                alertType = "BATCH_SPLIT_DUE",
+                                severity = "INFO",
+                                message = "Batch ${p.name} is ready for individual tracking. Consider splitting for sex/color separation.",
+                                actionRoute = "monitoring/growth?productId=${p.productId}",
+                                createdAt = now
+                            )
+                        )
+                    }
+                }
+
+                // Persist age cache without bumping updatedAt (avoid breaking LWW merges)
+                productDao.updateAgeWeeks(p.productId, week)
+                if (p.stage != stage) {
+                    productDao.updateStage(p.productId, stage, now, now)
+                    lifecycleDao.insert(
+                        LifecycleEventEntity(
+                            eventId = UUID.randomUUID().toString(),
+                            productId = p.productId,
+                            week = week,
+                            stage = stage,
+                            type = "STAGE_TRANSITION",
+                            notes = "Stage changed to $stage"
+                        )
+                    )
+                }
+
                 // Sample milestone rules
                 val milestones = mutableListOf<LifecycleEventEntity>()
                 if (stage == "CHICK" && (week == 0 || week == 2 || week == 4)) {
@@ -63,7 +101,7 @@ class LifecycleWorker @AssistedInject constructor(
                         notes = "Vaccination checkpoint (week $week)"
                     )
                 }
-                if (stage == "GROWTH") {
+                if (stage == "JUVENILE") {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
@@ -92,14 +130,37 @@ class LifecycleWorker @AssistedInject constructor(
                         type = "MILESTONE",
                         notes = "Breeder eligibility"
                     )
+                    productDao.updateBreederEligibleAt(p.productId, now, now)
                 }
                 // Persist generated milestones and notify
                 milestones.forEach { 
                     lifecycleDao.insert(it)
                     MilestoneNotifier.notify(applicationContext, p.productId, it)
+                    if (it.type == "VACCINATION") {
+                        // Deduped vaccination task scheduled at end-of-day
+                        val vaxType = "IMMUNIZATION"
+                        val dueAt = endOfDay(now)
+                        val existing = taskDao.findPendingByTypeProduct(p.sellerId, p.productId, "VACCINATION")
+                        if (existing.isNotEmpty()) {
+                            val earliest = existing.minBy { t -> t.dueAt ?: Long.MAX_VALUE }
+                            val newDue = minOf(earliest.dueAt ?: dueAt, dueAt)
+                            taskDao.updateDueAt(earliest.taskId, newDue, now)
+                        } else {
+                            taskRepository.generateVaccinationTask(p.productId, p.sellerId, vaxType, dueAt)
+                        }
+                    }
                     if (it.type == "GROWTH_UPDATE") {
+                        // Deduped growth update task scheduled at end-of-week
+                        val dueAt = endOfWeek(now)
+                        val existing = taskDao.findPendingByTypeProduct(p.sellerId, p.productId, "GROWTH_UPDATE")
+                        if (existing.isNotEmpty()) {
+                            val earliest = existing.minBy { t -> t.dueAt ?: Long.MAX_VALUE }
+                            val newDue = minOf(earliest.dueAt ?: dueAt, dueAt)
+                            taskDao.updateDueAt(earliest.taskId, newDue, now)
+                        } else {
+                            taskRepository.generateGrowthTask(p.productId, p.sellerId, week, dueAt)
+                        }
                         EnthusiastNotifier.ensureChannel(applicationContext)
-                        // No placeholder broadcast; specific notifications below
                     }
                     if (it.type == "MILESTONE" && it.notes?.contains("Breeder eligibility") == true) {
                         EnthusiastNotifier.breederEligible(applicationContext, p.productId)
@@ -160,5 +221,29 @@ class LifecycleWorker @AssistedInject constructor(
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
         }
+    }
+
+    private fun endOfDay(now: Long): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = now
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    private fun endOfWeek(now: Long): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = now
+        cal.firstDayOfWeek = java.util.Calendar.MONDAY
+        cal.set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.SUNDAY)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        // If current day is already Sunday past time, push to next Sunday
+        if (cal.timeInMillis < now) cal.add(java.util.Calendar.WEEK_OF_YEAR, 1)
+        return cal.timeInMillis
     }
 }

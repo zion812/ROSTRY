@@ -24,6 +24,16 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.ROSTRY">
+        <!-- Disable WorkManager's default initializer so we can provide a custom WorkerFactory -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                tools:node="remove" />
+        </provider>
         <!-- Google Maps API Key for Maps and Places SDK (value from BuildConfig MAPS_API_KEY) -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -86,6 +96,14 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="rostry" android:host="verification" android:pathPrefix="/resubmit" />
+            </intent-filter>
+
+            <!-- Verified App Link: https lineage preview https://rostry.app/lineage/{productId} -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="rostry.app" android:pathPrefix="/lineage" />
             </intent-filter>
         </activity>
 

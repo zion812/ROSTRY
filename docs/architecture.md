@@ -4,6 +4,9 @@
 **Last Updated:** 2025-01-15  
 **Audience:** All developers  
 **Related Documentation:**
+- [state-management.md](state-management.md) - StateFlow, hoisting, SavedStateHandle, DataStore
+- [dependency-injection.md](dependency-injection.md) - Hilt modules, scopes, qualifiers, testing
+- [error-handling.md](error-handling.md) - Result pattern, repository/UI mapping, logging, Crashlytics
 - [testing-strategy.md](testing-strategy.md) - Testing architecture
 - [security-encryption.md](security-encryption.md) - Security architecture
 - [performance-optimization.md](performance-optimization.md) - Performance considerations
@@ -13,6 +16,8 @@
 - [adrs/adr-002-offline-first.md](adrs/adr-002-offline-first.md) - Offline-first strategy
 
 ---
+
+> This document provides a high-level architecture overview. For implementation details, refer to the focused guides above.
 
 ## 1. Solution Snapshot
 

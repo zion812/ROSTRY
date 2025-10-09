@@ -29,6 +29,29 @@ object FarmNotifier {
         }
     }
 
+    fun notifyBirdOnboarded(context: Context, birdName: String, productId: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + com.rio.rostry.ui.navigation.Routes.MONITORING_DAILY_LOG).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (productId + "_onboard").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_input_add)
+            .setContentTitle("Bird Added to Farm")
+            .setContentText("$birdName has been successfully onboarded. Start logging daily activities!")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("onboard_" + productId).hashCode(), notification)
+    }
+
     fun notifyVaccinationDue(context: Context, productId: String, vaccineType: String) {
         val deepLink = "rostry://${Routes.MONITORING_VACCINATION}".toUri()
         val pendingIntent = PendingIntent.getActivity(

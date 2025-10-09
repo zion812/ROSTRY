@@ -16,26 +16,36 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 - [Documentation Quality](#documentation-quality)
 - [How to Use This Documentation](#how-to-use-this-documentation)
 
-## Getting Started
+## Audience-Based Navigation
 
-Essential reading for new developers:
+### For New Developers
+- `../QUICK_START.md` — 5-minute setup
+- `developer-onboarding.md` — First week guide
+- `demo_quick_start.md` — Explore the app via demo mode
+- `architecture.md` — High-level overview
 
-| Document | Description | Audience |
-|----------|-------------|----------|
-| `developer-onboarding.md` | Complete setup guide, first steps, and tips | New developers |
-| `demo_quick_start.md` | Quick demo mode walkthrough | All users |
-| `architecture.md` | High-level system architecture overview | All developers |
+### For Contributors
+- `architecture.md` — Patterns, layers, data flow
+- `../CODE_STYLE.md` — Style guide
+- `../CHEAT_SHEET.md` — Commands and patterns
+- `testing-strategy.md` — Testing approach
+
+### For R&D / Architecture
+- `architecture.md` — Big picture
+- `state-management.md`, `dependency-injection.md`, `error-handling.md` — Focused guides
+- `adrs/` — Architecture decisions
 
 ## Core Architecture
 
 Understanding the ROSTRY system:
 
-| Document | Description |
-|----------|-------------|
-| `architecture.md` | Layers, navigation, background jobs, integrations, diagrams |
-| `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation |
-| `testing-strategy.md` | Comprehensive testing approach and patterns |
-| `testing-operations.md` | Testing procedures, security practices, incident response |
+| Document | Description | Status |
+|----------|-------------|--------|
+| `architecture.md` | Layers, navigation, background jobs, integrations, diagrams | ✅ Up-to-date |
+| `state-management.md` | StateFlow, hoisting, SavedStateHandle, DataStore | ✅ Up-to-date |
+| `dependency-injection.md` | Hilt modules, scopes, testing, qualifiers | ✅ Up-to-date |
+| `error-handling.md` | Result pattern, repository/UI mapping, logging, Crashlytics | ✅ Up-to-date |
+| `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation | ⚠️ Needs update |
 
 ---
 
@@ -91,12 +101,12 @@ Essential guides for developers working on ROSTRY:
 
 ## Operations & Testing
 
-| Document | Description |
-|----------|-------------|
-| `testing-strategy.md` | Unit, integration, UI testing approaches |
-| `testing-operations.md` | Security practices, operational procedures |
-| `troubleshooting.md` | Common issues and fixes |
-| `deployment.md` | Deployment procedures and checklists |
+| Document | Description | Status |
+|----------|-------------|--------|
+| `testing-strategy.md` | Unit, integration, UI testing approaches | ✅ Up-to-date |
+| `troubleshooting.md` | Common issues and fixes | ⚠️ Expanding |
+| `deployment.md` | Deployment procedures and checklists | ✅ Up-to-date |
+| `release-checklist.md` | Pre/post release steps and rollback plan | ✅ Up-to-date |
 
 ## Architecture Decisions (ADRs)
 
@@ -120,11 +130,10 @@ Decision records documenting key architectural choices:
 ## How to Use This Documentation
 
 ### For New Developers
-
-1. **Start here**: `developer-onboarding.md`
+1. **Start here**: `../QUICK_START.md`
 2. **Understand architecture**: `architecture.md`
-3. **Learn patterns**: `CODE_STYLE.md`
-4. **Contribute**: `CONTRIBUTING.md`
+3. **Learn patterns**: `../CODE_STYLE.md`
+4. **Contribute**: `../CONTRIBUTING.md`
 
 ### For Feature Development
 
@@ -141,11 +150,11 @@ Decision records documenting key architectural choices:
 3. **Search**: Existing issues and PRs in repository
 
 ### For Release Preparation
-
-1. **Test**: Follow `testing-operations.md` checklist
+1. **Test**: Follow `testing-strategy.md`
 2. **Review**: Security checklist in `security-encryption.md`
-3. **Update**: `CHANGELOG.md` with release notes
-4. **Deploy**: Follow `deployment.md` procedures
+3. **Update**: `../CHANGELOG.md`
+4. **Checklist**: `release-checklist.md`
+5. **Deploy**: `deployment.md`
 
 ## Common Tasks Quick Reference
 

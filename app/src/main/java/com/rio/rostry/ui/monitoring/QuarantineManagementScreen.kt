@@ -371,12 +371,17 @@ private fun UpdateQuarantineDialog(
                     minLines = 2
                 )
                 
-                OutlinedTextField(
-                    value = healthStatus,
-                    onValueChange = { healthStatus = it },
-                    label = { Text("Health Status (optional)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Text("Health Status")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    val options = listOf("IMPROVING", "STABLE", "DECLINING")
+                    options.forEach { opt ->
+                        FilterChip(
+                            selected = healthStatus == opt,
+                            onClick = { healthStatus = opt },
+                            label = { Text(opt) }
+                        )
+                    }
+                }
             }
         },
         confirmButton = {

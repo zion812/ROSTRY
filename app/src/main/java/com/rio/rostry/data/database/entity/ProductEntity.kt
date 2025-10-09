@@ -54,5 +54,27 @@ data class ProductEntity(
     val lastModifiedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
-    val dirty: Boolean = false
+    val dirty: Boolean = false,
+
+    // Lifecycle tracking (nullable for backward compatibility)
+    // Stage of the bird: CHICK, JUVENILE, ADULT, BREEDER
+    val stage: String? = null,
+    // Explicit lifecycle status: ACTIVE, QUARANTINE, DECEASED, TRANSFERRED, etc.
+    val lifecycleStatus: String? = null,
+    // Direct lineage links
+    val parentMaleId: String? = null,
+    val parentFemaleId: String? = null,
+    // Cached age in weeks (updated by LifecycleWorker)
+    val ageWeeks: Int? = null,
+    // Timestamp of last stage transition
+    val lastStageTransitionAt: Long? = null,
+    // When the bird became eligible for breeding (e.g., ~12 months)
+    val breederEligibleAt: Long? = null,
+    // Whether this product represents a batch (for batch onboarding/splitting)
+    val isBatch: Boolean? = null,
+    // Batch split metadata
+    val splitAt: Long? = null, // Timestamp when batch was split into individuals
+    val splitIntoIds: String? = null, // JSON array of productIds created from batch split
+    // Proof documents (certificates, pedigree papers)
+    val documentUrls: List<String> = emptyList()
 )

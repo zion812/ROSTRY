@@ -59,6 +59,10 @@ import com.rio.rostry.data.repository.monitoring.HatchingRepository
 import com.rio.rostry.data.repository.monitoring.HatchingRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepository
 import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.DailyLogRepository
+import com.rio.rostry.data.repository.monitoring.DailyLogRepositoryImpl
+import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.data.repository.monitoring.TaskRepositoryImpl
 import com.rio.rostry.marketplace.payment.DefaultPaymentGateway
 import com.rio.rostry.marketplace.payment.PaymentGateway
 
@@ -212,6 +216,15 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindEnthusiastBreedingRepository(impl: EnthusiastBreedingRepositoryImpl): EnthusiastBreedingRepository
+
+    // Sprint 1 repositories
+    @Binds
+    @Singleton
+    abstract fun bindDailyLogRepository(impl: DailyLogRepositoryImpl): DailyLogRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTaskRepository(impl: TaskRepositoryImpl): TaskRepository
 }
 
 @Module

@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rio.rostry.ui.components.AddToFarmDialog
 
 data class FetcherCard(
     val title: String,
@@ -30,6 +31,8 @@ data class FetcherCard(
 @Composable
 fun FarmerHomeScreen(
     viewModel: FarmerHomeViewModel = hiltViewModel(),
+    onOpenDailyLog: () -> Unit = {},
+    onOpenTasks: () -> Unit = {},
     onOpenVaccination: () -> Unit = {},
     onOpenGrowth: () -> Unit = {},
     onOpenQuarantine: () -> Unit = {},
@@ -38,148 +41,179 @@ fun FarmerHomeScreen(
     onOpenBreeding: () -> Unit = {},
     onOpenListing: () -> Unit = {},
     onOpenAlerts: () -> Unit = {},
-    onNavigateToGrowthWithList: (String) -> Unit = {}
+    onNavigateToGrowthWithList: (String) -> Unit = {},
+    onNavigateToAddBird: () -> Unit = {},
+    onNavigateToAddBatch: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Weekly KPI Cards
-        uiState.weeklySnapshot?.let { snapshot ->
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .padding(padding),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Weekly KPI Cards
+            uiState.weeklySnapshot?.let { snapshot ->
+                Text(
+                    "Weekly Performance",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        KpiCard("Revenue", "₹${snapshot.revenueInr.toInt()}")
+                    }
+                    item {
+                        KpiCard("Orders", snapshot.ordersCount.toString())
+                    }
+                    item {
+                        KpiCard("Hatch Rate", "${(snapshot.hatchSuccessRate * 100).toInt()}%")
+                    }
+                    item {
+                        KpiCard("Mortality", "${(snapshot.mortalityRate * 100).toInt()}%")
+                    }
+                }
+            }
+
+            // Alerts Banner
+            if (uiState.unreadAlerts.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    onClick = onOpenAlerts
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Warning, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "${uiState.unreadAlerts.size} Urgent Alerts",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        Icon(Icons.Filled.ChevronRight, contentDescription = null)
+                    }
+                }
+            }
+
+            // Fetcher Grid
             Text(
-                "Weekly Performance",
+                "Farm Monitoring",
                 style = MaterialTheme.typography.titleLarge
             )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                item {
-                    KpiCard("Revenue", "₹${snapshot.revenueInr.toInt()}")
-                }
-                item {
-                    KpiCard("Orders", snapshot.ordersCount.toString())
-                }
-                item {
-                    KpiCard("Hatch Rate", "${(snapshot.hatchSuccessRate * 100).toInt()}%")
-                }
-                item {
-                    KpiCard("Mortality", "${(snapshot.mortalityRate * 100).toInt()}%")
-                }
-            }
-        }
 
-        // Alerts Banner
-        if (uiState.unreadAlerts.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                onClick = onOpenAlerts
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Warning, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${uiState.unreadAlerts.size} Urgent Alerts",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                    Icon(Icons.Filled.ChevronRight, contentDescription = null)
-                }
-            }
-        }
-
-        // Fetcher Grid
-        Text(
-            "Farm Monitoring",
-            style = MaterialTheme.typography.titleLarge
-        )
-
-        val fetcherCards = listOf(
-            FetcherCard(
-                title = "Vaccination Today",
-                count = uiState.vaccinationDueCount,
-                badgeCount = uiState.vaccinationOverdueCount,
-                badgeColor = Color.Red,
-                icon = Icons.Filled.Vaccines,
-                action = "View Schedule",
-                onClick = onOpenVaccination
-            ),
-            FetcherCard(
-                title = "Growth Updates",
-                count = uiState.growthRecordsThisWeek,
-                icon = Icons.Filled.TrendingUp,
-                action = "Record Growth",
-                onClick = onOpenGrowth
-            ),
-            FetcherCard(
-                title = "Quarantine 12h",
-                count = uiState.quarantineActiveCount,
-                badgeCount = uiState.quarantineUpdatesDue,
-                badgeColor = MaterialTheme.colorScheme.tertiary,
-                icon = Icons.Filled.LocalHospital,
-                action = "Update Now",
-                onClick = onOpenQuarantine
-            ),
-            FetcherCard(
-                title = "Hatching Batches",
-                count = uiState.hatchingBatchesActive,
-                badgeCount = uiState.hatchingDueThisWeek,
-                badgeColor = MaterialTheme.colorScheme.secondary,
-                icon = Icons.Filled.EggAlt,
-                action = "View Batches",
-                onClick = onOpenHatching
-            ),
-            FetcherCard(
-                title = "Mortality Log",
-                count = uiState.mortalityLast7Days,
-                icon = Icons.Filled.Warning,
-                action = "Report Mortality",
-                onClick = onOpenMortality
-            ),
-            FetcherCard(
-                title = "Breeding Pairs",
-                count = uiState.breedingPairsActive,
-                icon = Icons.Filled.Favorite,
-                action = "Manage Pairs",
-                onClick = onOpenBreeding
-            ),
-            FetcherCard(
-                title = "Ready to List",
-                count = uiState.productsReadyToListCount,
-                badgeCount = if (uiState.productsReadyToListCount > 0) uiState.productsReadyToListCount else 0,
-                badgeColor = MaterialTheme.colorScheme.primaryContainer,
-                icon = Icons.Filled.Storefront,
-                action = "Quick List",
-                onClick = onOpenGrowth // Navigate to growth tracking to see products
-            ),
-            FetcherCard(
-                title = "New Listing",
-                count = 0,
-                icon = Icons.Filled.AddCircle,
-                action = "Create Listing",
-                onClick = onOpenListing
+            val fetcherCards = listOf(
+                // Daily Log (Sprint 1 priority)
+                FetcherCard(
+                    title = "Daily Log",
+                    count = uiState.dailyLogsThisWeek,
+                    icon = Icons.Filled.EditNote,
+                    action = "Log Today",
+                    onClick = onOpenDailyLog
+                ),
+                // Tasks (Sprint 1 priority)
+                FetcherCard(
+                    title = "Tasks Due",
+                    count = uiState.tasksDueCount,
+                    badgeCount = uiState.tasksOverdueCount,
+                    badgeColor = Color.Red,
+                    icon = Icons.Filled.Task,
+                    action = "View Tasks",
+                    onClick = onOpenTasks
+                ),
+                FetcherCard(
+                    title = "Vaccination Today",
+                    count = uiState.vaccinationDueCount,
+                    badgeCount = uiState.vaccinationOverdueCount,
+                    badgeColor = Color.Red,
+                    icon = Icons.Filled.Vaccines,
+                    action = "View Schedule",
+                    onClick = onOpenVaccination
+                ),
+                FetcherCard(
+                    title = "Growth Updates",
+                    count = uiState.growthRecordsThisWeek,
+                    icon = Icons.Filled.TrendingUp,
+                    action = "Record Growth",
+                    onClick = onOpenGrowth
+                ),
+                FetcherCard(
+                    title = "Quarantine 12h",
+                    count = uiState.quarantineActiveCount,
+                    badgeCount = uiState.quarantineUpdatesDue,
+                    badgeColor = MaterialTheme.colorScheme.tertiary,
+                    icon = Icons.Filled.LocalHospital,
+                    action = "Update Now",
+                    onClick = onOpenQuarantine
+                ),
+                FetcherCard(
+                    title = "Hatching Batches",
+                    count = uiState.hatchingBatchesActive,
+                    badgeCount = uiState.hatchingDueThisWeek,
+                    badgeColor = MaterialTheme.colorScheme.secondary,
+                    icon = Icons.Filled.EggAlt,
+                    action = "View Batches",
+                    onClick = onOpenHatching
+                ),
+                FetcherCard(
+                    title = "Mortality Log",
+                    count = uiState.mortalityLast7Days,
+                    icon = Icons.Filled.Warning,
+                    action = "Report Mortality",
+                    onClick = onOpenMortality
+                ),
+                FetcherCard(
+                    title = "Breeding Pairs",
+                    count = uiState.breedingPairsActive,
+                    icon = Icons.Filled.Favorite,
+                    action = "Manage Pairs",
+                    onClick = onOpenBreeding
+                ),
+                FetcherCard(
+                    title = "Ready to List",
+                    count = uiState.productsReadyToListCount,
+                    badgeCount = if (uiState.productsReadyToListCount > 0) uiState.productsReadyToListCount else 0,
+                    badgeColor = MaterialTheme.colorScheme.primaryContainer,
+                    icon = Icons.Filled.Storefront,
+                    action = "Quick List",
+                    onClick = onOpenGrowth // Navigate to growth tracking to see products
+                ),
+                FetcherCard(
+                    title = "New Listing",
+                    count = 0,
+                    icon = Icons.Filled.AddCircle,
+                    action = "Create Listing",
+                    onClick = onOpenListing
+                )
             )
-        )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(fetcherCards) { card ->
-                FetcherCardItem(card)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(fetcherCards) { card ->
+                    FetcherCardItem(card)
+                }
             }
         }
     }
@@ -191,6 +225,20 @@ fun FarmerHomeScreen(
         ) {
             CircularProgressIndicator()
         }
+    }
+
+    if (showAddDialog) {
+        AddToFarmDialog(
+            onDismiss = { showAddDialog = false },
+            onSelectIndividual = {
+                showAddDialog = false
+                onNavigateToAddBird()
+            },
+            onSelectBatch = {
+                showAddDialog = false
+                onNavigateToAddBatch()
+            }
+        )
     }
 }
 

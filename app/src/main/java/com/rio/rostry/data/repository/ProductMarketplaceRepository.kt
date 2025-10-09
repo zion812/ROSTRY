@@ -28,7 +28,8 @@ interface ProductMarketplaceRepository {
 
 @Singleton
 class ProductMarketplaceRepositoryImpl @Inject constructor(
-    private val productDao: ProductDao
+    private val productDao: ProductDao,
+    private val productValidator: ProductValidator
 ) : ProductMarketplaceRepository {
 
     override suspend fun createProduct(product: ProductEntity, imageBytes: List<ByteArray>): Resource<String> = try {
@@ -130,11 +131,9 @@ class ProductMarketplaceRepositoryImpl @Inject constructor(
         Resource.Error(e.message ?: "Date filter failed")
     }
 
-    private fun validateProduct(product: ProductEntity) {
-        // Enforce comprehensive marketplace rules using ProductValidator
-        val result = ProductValidator.validate(product)
-        require(result.valid) {
-            result.reasons.joinToString(separator = "; ")
-        }
+    private suspend fun validateProduct(product: ProductEntity) {
+        // Enforce comprehensive marketplace rules using ProductValidator with lineage checks when applicable
+        val result = productValidator.validateWithTraceability(product)
+        require(result.valid) { result.reasons.joinToString(separator = "; ") }
     }
 }

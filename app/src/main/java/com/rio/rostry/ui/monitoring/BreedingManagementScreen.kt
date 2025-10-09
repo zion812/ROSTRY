@@ -23,6 +23,7 @@ fun BreedingManagementScreen(
     onListProduct: (productId: String, pairId: String) -> Unit = { _, _ -> }
 ) {
     val breedingPairs by viewModel.breedingPairs.collectAsState()
+    val error by viewModel.error.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedPairId by remember { mutableStateOf<String?>(null) }
 
@@ -50,6 +51,22 @@ fun BreedingManagementScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (error != null) {
+                item {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(error ?: "", color = MaterialTheme.colorScheme.onErrorContainer)
+                            TextButton(onClick = { viewModel.clearError() }) {
+                                Text("Dismiss")
+                            }
+                        }
+                    }
+                }
+            }
             items(breedingPairs) { pair ->
                 BreedingPairCard(
                     pair = pair,

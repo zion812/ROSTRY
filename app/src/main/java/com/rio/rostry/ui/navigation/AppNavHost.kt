@@ -112,6 +112,16 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.combinedClickable
 import com.rio.rostry.ui.showcase.ComponentGalleryScreen
 import com.rio.rostry.BuildConfig
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import com.rio.rostry.utils.export.PdfExporter
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import kotlin.math.roundToInt
 
 @Composable
 fun AppNavHost() {
@@ -280,35 +290,35 @@ private fun RoleNavScaffold(
 
     // Removed premature manual navigate. NavHost below already uses startDestination = navConfig.startDestination.
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("ROSTRY") },
-                actions = {
-                    AccountMenuAction(
-                        navController = navController,
-                        onSignOut = { sessionVm.signOut() }
-                    )
-                    NotificationsAction(navController = navController)
-                }
-            )
-        },
-        bottomBar = {
-            RoleBottomBar(
-                navController = navController,
-                navConfig = navConfig,
-                currentRoute = currentRoute
-            )
-        },
-        floatingActionButton = {
-            if (state.authMode == SessionManager.AuthMode.DEMO) {
-                FloatingActionButton(onClick = { showSwitcher = true }) {
-                    Text("Demo")
-                }
+    // Wrap Scaffold in a Box to overlay a draggable FAB above all content
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("ROSTRY") },
+                    actions = {
+                        AccountMenuAction(
+                            navController = navController,
+                            onSignOut = { sessionVm.signOut() }
+                        )
+                        NotificationsAction(navController = navController)
+                    }
+                )
+            },
+            bottomBar = {
+                RoleBottomBar(
+                    navController = navController,
+                    navConfig = navConfig,
+                    currentRoute = currentRoute
+                )
             }
+        ) { padding ->
+            RoleNavGraph(navController = navController, navConfig = navConfig, modifier = Modifier.padding(padding))
         }
-    ) { padding ->
-        RoleNavGraph(navController = navController, navConfig = navConfig, modifier = Modifier.padding(padding))
+
+        if (state.authMode == SessionManager.AuthMode.DEMO) {
+            DraggableDemoFab(onClick = { showSwitcher = true })
+        }
     }
 
     if (showSwitcher && state.authMode == SessionManager.AuthMode.DEMO) {
@@ -325,6 +335,38 @@ private fun RoleNavScaffold(
             },
             onDismiss = { showSwitcher = false }
         )
+    }
+}
+
+@Composable
+private fun DraggableDemoFab(onClick: () -> Unit) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val maxW = with(density) { maxWidth.toPx() }
+        val maxH = with(density) { maxHeight.toPx() }
+        val fabSizePx = with(density) { 56.dp.toPx() }
+        val paddingPx = with(density) { 16.dp.toPx() }
+
+        var offsetX by rememberSaveable { mutableStateOf(maxW - fabSizePx - paddingPx) }
+        var offsetY by rememberSaveable { mutableStateOf(maxH - fabSizePx - paddingPx) }
+
+        fun clampX(x: Float) = x.coerceIn(0f, maxW - fabSizePx)
+        fun clampY(y: Float) = y.coerceIn(0f, maxH - fabSizePx)
+
+        FloatingActionButton(
+            onClick = onClick,
+            modifier = Modifier
+                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                .pointerInput(Unit) {
+                    detectDragGestures(onDrag = { change, drag ->
+                        change.consume()
+                        offsetX = clampX(offsetX + drag.x)
+                        offsetY = clampY(offsetY + drag.y)
+                    })
+                }
+        ) {
+            Text("Demo")
+        }
     }
 }
 
@@ -391,6 +433,8 @@ private fun RoleNavGraph(
             val viewModel: com.rio.rostry.ui.farmer.FarmerHomeViewModel = hiltViewModel()
             FarmerHomeScreen(
                 viewModel = viewModel,
+                onOpenDailyLog = { navController.navigate(Routes.MONITORING_DAILY_LOG) },
+                onOpenTasks = { navController.navigate(Routes.MONITORING_TASKS) },
                 onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
                 onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
@@ -398,7 +442,9 @@ private fun RoleNavGraph(
                 onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
                 onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
                 onOpenListing = { navController.navigate(Routes.FarmerNav.CREATE) },
-                onOpenAlerts = { navController.navigate(Routes.NOTIFICATIONS) }
+                onOpenAlerts = { navController.navigate(Routes.NOTIFICATIONS) },
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
             )
         }
         composable(Routes.FarmerNav.MARKET) {
@@ -522,6 +568,32 @@ private fun RoleNavGraph(
         ) { _ ->
             com.rio.rostry.ui.monitoring.HatchingProcessScreen()
         }
+
+        // Daily Log (list and single product)
+        composable(Routes.MONITORING_DAILY_LOG) {
+            com.rio.rostry.ui.monitoring.DailyLogScreen(
+                onNavigateBack = { navController.popBackStack() },
+                productId = null
+            )
+        }
+        composable(
+            route = Routes.MONITORING_DAILY_LOG_PRODUCT,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val pid = backStackEntry.arguments?.getString("productId")
+            com.rio.rostry.ui.monitoring.DailyLogScreen(
+                onNavigateBack = { navController.popBackStack() },
+                productId = pid
+            )
+        }
+
+        // Tasks
+        composable(Routes.MONITORING_TASKS) {
+            com.rio.rostry.ui.monitoring.TasksScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> navController.navigate("product/$productId") }
+            )
+        }
         composable(Routes.HOME_ENTHUSIAST) {
             EnthusiastHomeScreen(
                 onOpenProfile = { navController.navigate(Routes.PROFILE) },
@@ -537,7 +609,9 @@ private fun RoleNavGraph(
                 onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
                 onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
-                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) }
+                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD + "?role=enthusiast") },
+                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH + "?role=enthusiast") }
             )
         }
 
@@ -575,6 +649,13 @@ private fun RoleNavGraph(
             )
         }
 
+        // Enthusiast Egg Collection route (optional pairId argument via query)
+        composable(Routes.EnthusiastNav.EGG_COLLECTION) {
+            com.rio.rostry.ui.enthusiast.breeding.EggCollectionScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
@@ -591,6 +672,34 @@ private fun RoleNavGraph(
         composable(Routes.ONBOARD_GENERAL) { PlaceholderScreen(title = "Onboarding - General") }
         composable(Routes.ONBOARD_FARMER) { PlaceholderScreen(title = "Onboarding - Farmer") }
         composable(Routes.ONBOARD_ENTHUSIAST) { PlaceholderScreen(title = "Onboarding - Enthusiast") }
+        composable(
+            route = Routes.Onboarding.FARM_BIRD + "?role={role}",
+            arguments = listOf(navArgument("role") { type = NavType.StringType; nullable = true; defaultValue = null })
+        ) { backStackEntry ->
+            val role = backStackEntry.arguments?.getString("role")
+            com.rio.rostry.ui.onboarding.OnboardFarmBirdScreen(
+                onDone = { _ ->
+                    val popTarget = if (role == "enthusiast") Routes.HOME_ENTHUSIAST else Routes.HOME_FARMER
+                    navController.navigate(Routes.MONITORING_DAILY_LOG) { popUpTo(popTarget) }
+                },
+                onBack = { navController.popBackStack() },
+                role = role
+            )
+        }
+        composable(
+            route = Routes.Onboarding.FARM_BATCH + "?role={role}",
+            arguments = listOf(navArgument("role") { type = NavType.StringType; nullable = true; defaultValue = null })
+        ) { backStackEntry ->
+            val role = backStackEntry.arguments?.getString("role")
+            com.rio.rostry.ui.onboarding.OnboardFarmBatchScreen(
+                onDone = { _ ->
+                    val popTarget = if (role == "enthusiast") Routes.HOME_ENTHUSIAST else Routes.HOME_FARMER
+                    navController.navigate(Routes.MONITORING_DAILY_LOG) { popUpTo(popTarget) }
+                },
+                onBack = { navController.popBackStack() },
+                role = role
+            )
+        }
 
         composable(
             route = Routes.PRODUCT_DETAILS,
@@ -614,7 +723,49 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             val vm: TraceabilityViewModel = hiltViewModel()
-            TraceabilityScreen(vm = vm, productId = productId, onBack = { navController.popBackStack() })
+            // If we just returned from scanner with a result, navigate to that product's tree
+            val scanned = navController.currentBackStackEntry?.savedStateHandle?.get<String>("scannedProductId")
+            if (!scanned.isNullOrBlank() && scanned != productId) {
+                navController.currentBackStackEntry?.savedStateHandle?.remove<String>("scannedProductId")
+                LaunchedEffect(scanned) { navController.navigate("traceability/$scanned") }
+            }
+            TraceabilityScreen(
+                vm = vm,
+                productId = productId,
+                onBack = { navController.popBackStack() },
+                onScanQr = { navController.navigate(Routes.SCAN_QR) }
+            )
+        }
+
+        // Lightweight lineage preview (deep link target for https links)
+        composable(
+            route = Routes.LINEAGE_PREVIEW,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType }),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://rostry.app/lineage/{productId}" }
+            )
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.traceability.LineagePreviewScreen(
+                productId = productId,
+                onOpenFullTree = { pid -> navController.navigate("traceability/$pid") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Family Tree explicit route (aliases to TraceabilityScreen full view)
+        composable(
+            route = Routes.PRODUCT_FAMILY_TREE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            val vm: TraceabilityViewModel = hiltViewModel()
+            TraceabilityScreen(
+                vm = vm,
+                productId = productId,
+                onBack = { navController.popBackStack() },
+                onScanQr = { navController.navigate(Routes.SCAN_QR) }
+            )
         }
 
         // Scanner route (placeholder implementation)
@@ -1062,11 +1213,17 @@ private fun TransferDetailsScreen(transferId: String, onOpenVerify: (String) -> 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TraceabilityScreen(vm: TraceabilityViewModel, productId: String, onBack: () -> Unit) {
+private fun TraceabilityScreen(
+    vm: TraceabilityViewModel,
+    productId: String,
+    onBack: () -> Unit,
+    onScanQr: () -> Unit
+) {
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) vm.load(productId)
     }
     val state by vm.state.collectAsState()
+    val context = LocalContext.current
     Column(Modifier.padding(16.dp)) {
         TopAppBar(
             title = { Text(text = "Traceability") },
@@ -1077,6 +1234,23 @@ private fun TraceabilityScreen(vm: TraceabilityViewModel, productId: String, onB
             }
         )
         Text(text = "For: ${state.rootId}", modifier = Modifier.padding(top = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onScanQr, modifier = Modifier.padding(top = 8.dp)) {
+                Text("Scan QR")
+            }
+            OutlinedButton(onClick = {
+                // Generate via ViewModel method
+                val uri = kotlinx.coroutines.runBlocking { vm.generateLineageProof(state.rootId) }
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/pdf"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(share, "Share Lineage Proof"))
+            }, modifier = Modifier.padding(top = 8.dp)) {
+                Text("Export Proof")
+            }
+        }
         var resetKey by remember { mutableIntStateOf(0) }
         OutlinedButton(onClick = { resetKey++ }, modifier = Modifier.padding(top = 8.dp)) {
             Text("Reset Zoom & Center")
