@@ -11,12 +11,15 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.ui.components.AddToFarmDialog
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 data class FetcherCard(
     val title: String,
@@ -43,26 +46,34 @@ fun FarmerHomeScreen(
     onOpenAlerts: () -> Unit = {},
     onNavigateToGrowthWithList: (String) -> Unit = {},
     onNavigateToAddBird: () -> Unit = {},
-    onNavigateToAddBatch: () -> Unit = {}
+    onNavigateToAddBatch: () -> Unit = {},
+    onNavigateRoute: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val refreshingState = rememberSwipeRefreshState(isRefreshing = false)
 
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(padding),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        SwipeRefresh(state = refreshingState, onRefresh = {
+            viewModel.refreshData()
+        }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .padding(padding),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Weekly KPI Cards
             uiState.weeklySnapshot?.let { snapshot ->
                 Text(
@@ -215,6 +226,7 @@ fun FarmerHomeScreen(
                     FetcherCardItem(card)
                 }
             }
+            }
         }
     }
 
@@ -224,6 +236,20 @@ fun FarmerHomeScreen(
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator()
+        }
+    }
+
+    // Observe navigation events and route out
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { route ->
+            onNavigateRoute(route)
+        }
+    }
+
+    // Observe error events and show snackbar
+    LaunchedEffect(Unit) {
+        viewModel.errorEvents.collect { msg ->
+            scope.launch { snackbarHostState.showSnackbar(message = msg) }
         }
     }
 

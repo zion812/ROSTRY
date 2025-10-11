@@ -140,9 +140,15 @@ fun OnboardFarmBirdScreen(
                     }
                     // Gender quick selectors
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(gender = "Male") } }) { Text("Male") }
-                        OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(gender = "Female") } }) { Text("Female") }
-                        OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(gender = "Unknown") } }) { Text("Unknown") }
+                        val selectedGender = state.coreDetails.gender
+                        if (selectedGender == "Male") Button(onClick = { vm.updateCoreDetails { it.copy(gender = "Male") } }) { Text("Male") }
+                        else OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(gender = "Male") } }) { Text("Male") }
+                        
+                        if (selectedGender == "Female") Button(onClick = { vm.updateCoreDetails { it.copy(gender = "Female") } }) { Text("Female") }
+                        else OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(gender = "Female") } }) { Text("Female") }
+                        
+                        if (selectedGender == "Unknown") Button(onClick = { vm.updateCoreDetails { it.copy(gender = "Unknown") } }) { Text("Unknown") }
+                        else OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(gender = "Unknown") } }) { Text("Unknown") }
                     }
                     OutlinedTextField(
                         value = state.coreDetails.breed,

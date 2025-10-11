@@ -20,6 +20,7 @@ import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.MilestoneNotifier
 import com.rio.rostry.utils.notif.EnthusiastNotifier
+import com.rio.rostry.utils.notif.FarmNotifier
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +71,8 @@ class LifecycleWorker @AssistedInject constructor(
                                 createdAt = now
                             )
                         )
+                        // Notify farmer about batch split due
+                        // FarmNotifier.batchSplitDue(applicationContext, p.productId, p.name ?: "Batch")
                     }
                 }
 
@@ -77,16 +80,17 @@ class LifecycleWorker @AssistedInject constructor(
                 productDao.updateAgeWeeks(p.productId, week)
                 if (p.stage != stage) {
                     productDao.updateStage(p.productId, stage, now, now)
-                    lifecycleDao.insert(
-                        LifecycleEventEntity(
-                            eventId = UUID.randomUUID().toString(),
-                            productId = p.productId,
-                            week = week,
-                            stage = stage,
-                            type = "STAGE_TRANSITION",
-                            notes = "Stage changed to $stage"
-                        )
+                    val transition = LifecycleEventEntity(
+                        eventId = UUID.randomUUID().toString(),
+                        productId = p.productId,
+                        week = week,
+                        stage = stage,
+                        type = "STAGE_TRANSITION",
+                        notes = "Stage changed to $stage"
                     )
+                    lifecycleDao.insert(transition)
+                    // Notify on stage transition with deep link handled by MilestoneNotifier
+                    MilestoneNotifier.notify(applicationContext, p.productId, transition)
                 }
 
                 // Sample milestone rules

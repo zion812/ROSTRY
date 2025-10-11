@@ -178,12 +178,22 @@ class QuarantineViewModel @Inject constructor(
         quarantineId: String,
         notes: String?,
         medication: String?,
-        status: String?
+        status: String?,
+        photoUri: String? = null
     ) {
         viewModelScope.launch {
             val active = _ui.value.active.find { it.quarantineId == quarantineId } ?: return@launch
             
             val now = System.currentTimeMillis()
+            // Enforce photo and notes when overdue
+            val nextDue = active.lastUpdatedAt + java.util.concurrent.TimeUnit.HOURS.toMillis(12)
+            val isOverdue = now > nextDue
+            if (isOverdue) {
+                if (photoUri.isNullOrBlank() || notes.isNullOrBlank()) {
+                    // Reject update silently; UI should prompt requirements
+                    return@launch
+                }
+            }
             val newStatusHistoryJson = status?.let { appendStatusHistoryArrayJson(active.statusHistoryJson, it, now) } ?: active.statusHistoryJson
             val updated = active.copy(
                 vetNotes = notes,

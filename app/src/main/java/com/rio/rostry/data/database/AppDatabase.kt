@@ -94,7 +94,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyLogEntity::class,
         TaskEntity::class
     ],
-    version = 31, // 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
+    version = 32, // 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -234,6 +234,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Add productId index to tasks for foreign key optimization (31 -> 32)
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tasks_productId` ON `tasks` (`productId`)")
+            }
+        }
+
         // ... existing migrations up to 23_24 defined below (omitted in this view) ...
 
         // Add enthusiast-specific sync windows to sync_state
@@ -278,6 +285,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_28_29: Migration = Converters.MIGRATION_28_29
         val MIGRATION_29_30: Migration = Converters.MIGRATION_29_30
         val MIGRATION_30_31: Migration = Converters.MIGRATION_30_31
+        val MIGRATION_31_32: Migration = Converters.MIGRATION_31_32
 
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {

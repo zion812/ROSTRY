@@ -21,6 +21,9 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 import androidx.room.withTransaction
+import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.data.database.entity.VaccinationRecordEntity
+import com.rio.rostry.utils.notif.EnthusiastNotifier
 
 interface EnthusiastBreedingRepository {
     suspend fun createPair(
@@ -62,6 +65,13 @@ interface EnthusiastBreedingRepository {
     fun observeIncubationTimers(farmerId: String): Flow<List<HatchingBatchEntity>>
     fun observeHatchingDue(farmerId: String, withinDays: Int): Flow<List<HatchingBatchEntity>>
     suspend fun getPairPerformance(pairId: String): Resource<PairPerformanceData>
+
+    suspend fun completeHatch(
+        batchId: String,
+        successCount: Int,
+        failureCount: Int,
+        culledCount: Int
+    ): Resource<String>
 }
 
 data class PairPerformanceData(
@@ -80,6 +90,7 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
     private val db: com.rio.rostry.data.database.AppDatabase,
     private val analytics: com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker,
     private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
+    private val vaccinationRepository: com.rio.rostry.data.repository.monitoring.VaccinationRepository,
 ) : EnthusiastBreedingRepository {
 
     override suspend fun createPair(
@@ -311,6 +322,162 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
             Resource.Success(logId)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to log hatch event")
+        }
+    }
+
+    override suspend fun completeHatch(
+        batchId: String,
+        successCount: Int,
+        failureCount: Int,
+        culledCount: Int
+    ): Resource<String> = withContext(Dispatchers.IO) {
+        try {
+            if (successCount < 0 || failureCount < 0 || culledCount < 0) return@withContext Resource.Error("Counts cannot be negative")
+            val batch = hatchingBatchDao.getById(batchId) ?: return@withContext Resource.Error("Batch not found")
+            val now = System.currentTimeMillis()
+            val farmerId = batch.farmerId
+
+            // Derive pair lineage if possible
+            val pairIds = batch.sourceCollectionId?.let { cid -> eggCollectionDao.getById(cid)?.pairId }
+            val pair = pairIds?.let { breedingPairDao.getById(it) }
+            val male = pair?.maleProductId
+            val female = pair?.femaleProductId
+
+            db.withTransaction {
+                // 1) Summary log
+                val summaryLogId = UUID.randomUUID().toString()
+                hatchingLogDao.upsert(
+                    HatchingLogEntity(
+                        logId = summaryLogId,
+                        batchId = batchId,
+                        farmerId = farmerId,
+                        productId = null,
+                        eventType = "HATCH_COMPLETED",
+                        qualityScore = null,
+                        temperatureC = null,
+                        humidityPct = null,
+                        notes = "success=$successCount, failure=$failureCount, culled=$culledCount",
+                        createdAt = now,
+                        updatedAt = now,
+                        dirty = true,
+                        syncedAt = null
+                    )
+                )
+
+                // 2) Update batch status
+                hatchingBatchDao.upsert(
+                    batch.copy(
+                        updatedAt = now,
+                        dirty = true
+                    )
+                )
+
+                // 3) Auto-create chicks
+                repeat(successCount) { idx ->
+                    val chickId = "chick_${now}_${idx}_${UUID.randomUUID().toString().take(6)}"
+                    val product = ProductEntity(
+                        productId = chickId,
+                        sellerId = farmerId,
+                        name = "Chick ${idx + 1}",
+                        description = "Auto-created from batch $batchId",
+                        category = "BIRD",
+                        price = 0.0,
+                        quantity = 1.0,
+                        unit = "unit",
+                        location = "",
+                        imageUrls = emptyList(),
+                        status = "available",
+                        condition = null,
+                        harvestDate = null,
+                        expiryDate = null,
+                        birthDate = now,
+                        vaccinationRecordsJson = null,
+                        weightGrams = null,
+                        heightCm = null,
+                        gender = null,
+                        color = null,
+                        breed = null,
+                        familyTreeId = null,
+                        parentIdsJson = null,
+                        breedingStatus = null,
+                        transferHistoryJson = null,
+                        createdAt = now,
+                        updatedAt = now,
+                        lastModifiedAt = now,
+                        isDeleted = false,
+                        deletedAt = null,
+                        dirty = true,
+                        stage = "CHICK",
+                        lifecycleStatus = "ACTIVE",
+                        parentMaleId = male,
+                        parentFemaleId = female,
+                        ageWeeks = 0,
+                        lastStageTransitionAt = now,
+                        breederEligibleAt = null,
+                        isBatch = false
+                    )
+                    productDao.upsert(product)
+
+                    // Child log
+                    hatchingLogDao.upsert(
+                        HatchingLogEntity(
+                            logId = UUID.randomUUID().toString(),
+                            batchId = batchId,
+                            farmerId = farmerId,
+                            productId = chickId,
+                            eventType = "HATCHED",
+                            notes = null,
+                            createdAt = now,
+                            updatedAt = now,
+                            dirty = true,
+                            syncedAt = null
+                        )
+                    )
+
+                    // Schedule Day-1 and Day-7 vaccines + growth check
+                    val day1At = now + (1L * 24 * 60 * 60 * 1000)
+                    val day7At = now + (7L * 24 * 60 * 60 * 1000)
+                    val v1 = VaccinationRecordEntity(
+                        vaccinationId = UUID.randomUUID().toString(),
+                        productId = chickId,
+                        farmerId = farmerId,
+                        vaccineType = "STARTER_VACCINE_DAY1",
+                        scheduledAt = day1At,
+                        createdAt = now,
+                        updatedAt = now,
+                        dirty = true
+                    )
+                    val v2 = VaccinationRecordEntity(
+                        vaccinationId = UUID.randomUUID().toString(),
+                        productId = chickId,
+                        farmerId = farmerId,
+                        vaccineType = "BOOSTER_VACCINE_DAY7",
+                        scheduledAt = day7At,
+                        createdAt = now,
+                        updatedAt = now,
+                        dirty = true
+                    )
+                    vaccinationRepository.upsert(v1)
+                    vaccinationRepository.upsert(v2)
+                    taskRepository.generateVaccinationTask(chickId, farmerId, v1.vaccineType, day1At)
+                    taskRepository.generateVaccinationTask(chickId, farmerId, v2.vaccineType, day7At)
+                    taskRepository.generateGrowthTask(chickId, farmerId, 1, day7At)
+                }
+
+                // 4) Update pair KPI hatch success
+                if (pair != null) {
+                    val eggsSet = batch.eggsCount ?: eggCollectionDao.getById(batch.sourceCollectionId ?: "")?.eggsCollected ?: 0
+                    val newHatchedTotal = hatchingLogDao.countByBatchAndType(batchId, "HATCHED") + successCount
+                    val rate = if (eggsSet > 0) newHatchedTotal.toDouble() / eggsSet else 0.0
+                    breedingPairDao.upsert(pair.copy(hatchSuccessRate = rate, updatedAt = now, dirty = true))
+                }
+            }
+
+            // Notify - skip notification as context not available in repository
+            // EnthusiastNotifier can be called from UI layer after success
+            Resource.Success(batchId)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to complete hatch")
         }
     }
 

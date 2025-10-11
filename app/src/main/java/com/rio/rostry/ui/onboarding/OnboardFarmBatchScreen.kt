@@ -67,17 +67,35 @@ fun OnboardFarmBatchScreen(
                     Text("Select Path")
                     val enthusiast = role.equals("enthusiast", ignoreCase = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
-                        OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                        when (state.isTraceable) {
+                            true -> {
+                                Button(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
+                                OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                            }
+                            false -> {
+                                OutlinedButton(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
+                                Button(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                            }
+                            null -> {
+                                OutlinedButton(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
+                                OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                            }
+                        }
                     }
                     state.validationErrors["path"]?.let { Text(it) }
                 }
                 OnboardFarmBatchViewModel.WizardStep.AGE_GROUP -> {
                     Text("Select Age Group")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }) { Text("Chick") }
-                        Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }) { Text("Adult") }
-                        Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }) { Text("Breeder") }
+                        val sel = state.ageGroup
+                        if (sel == OnboardingValidator.AgeGroup.CHICK) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }) { Text("Chick") }
+                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }) { Text("Chick") }
+                        
+                        if (sel == OnboardingValidator.AgeGroup.ADULT) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }) { Text("Adult") }
+                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }) { Text("Adult") }
+                        
+                        if (sel == OnboardingValidator.AgeGroup.BREEDER) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }) { Text("Breeder") }
+                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }) { Text("Breeder") }
                     }
                     state.validationErrors["ageGroup"]?.let { Text(it) }
                 }
@@ -191,12 +209,25 @@ fun OnboardFarmBatchScreen(
             }
 
             Spacer(Modifier.height(8.dp))
+            // Conditional gating for Next button
+            val canProceed = when (state.currentStep) {
+                OnboardFarmBatchViewModel.WizardStep.PATH_SELECTION -> state.isTraceable != null
+                OnboardFarmBatchViewModel.WizardStep.AGE_GROUP -> state.ageGroup != null
+                OnboardFarmBatchViewModel.WizardStep.BATCH_DETAILS -> {
+                    state.batchDetails.batchName.isNotBlank() && 
+                    (state.batchDetails.count.toIntOrNull() ?: 0) >= 2 &&
+                    state.batchDetails.hatchDate != null
+                }
+                OnboardFarmBatchViewModel.WizardStep.LINEAGE -> true
+                OnboardFarmBatchViewModel.WizardStep.PROOFS -> true
+                OnboardFarmBatchViewModel.WizardStep.REVIEW -> true
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { vm.previousStep(onBack) }) { Text("Back") }
                 if (state.currentStep == OnboardFarmBatchViewModel.WizardStep.REVIEW) {
                     Button(onClick = { vm.save() }, enabled = !state.saving) { Text("Submit") }
                 } else {
-                    Button(onClick = { vm.nextStep() }) { Text("Next") }
+                    Button(onClick = { vm.nextStep() }, enabled = canProceed) { Text("Next") }
                 }
             }
             state.error?.let { Text(it) }

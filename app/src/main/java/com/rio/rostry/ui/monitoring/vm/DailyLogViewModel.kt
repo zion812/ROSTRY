@@ -19,6 +19,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import android.net.Uri
+import timber.log.Timber
 
 @HiltViewModel
 class DailyLogViewModel @Inject constructor(
@@ -38,6 +45,17 @@ class DailyLogViewModel @Inject constructor(
 
     private val selectedProductId = MutableStateFlow<String?>(null)
     private val _currentLog = MutableStateFlow<DailyLogEntity?>(null)
+    private val _synced = MutableStateFlow(false)
+    val isSynced: StateFlow<Boolean> = _synced.asStateFlow()
+
+    // Chart data: last 30 days logs for selected product
+    val chartData: StateFlow<List<DailyLogEntity>> = selectedProductId.flatMapLatest { pid ->
+        if (pid.isNullOrBlank()) MutableStateFlow(emptyList()) else dailyLogRepository.observe(pid)
+            .map { logs ->
+                val since = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                logs.filter { it.logDate >= since }.sortedBy { it.logDate }
+            }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val uiState: StateFlow<DailyLogUiState> = selectedProductId.flatMapLatest { pid ->
         val farmerId = firebaseAuth.currentUser?.uid
@@ -70,18 +88,22 @@ class DailyLogViewModel @Inject constructor(
         selectedProductId.value = productId
         val farmerId = firebaseAuth.currentUser?.uid ?: return
         _currentLog.value = newLog(productId, farmerId)
+        _synced.value = false
     }
 
     fun updateWeight(grams: Double) {
         updateCurrent { it.copy(weightGrams = grams) }
+        debounceAutoSave()
     }
 
     fun updateFeed(kg: Double) {
         updateCurrent { it.copy(feedKg = kg) }
+        debounceAutoSave()
     }
 
     fun setActivityLevel(level: String) {
         updateCurrent { it.copy(activityLevel = level) }
+        debounceAutoSave()
     }
 
     fun setNotes(notes: String) {
@@ -99,12 +121,25 @@ class DailyLogViewModel @Inject constructor(
             if (url.isNotBlank()) currentList.add(url)
             cur.copy(photoUrls = Gson().toJson(currentList))
         }
+        debounceAutoSave()
     }
 
     fun save() {
         val current = _currentLog.value ?: return
+        // Validation: require at least one meaningful field
+        val hasContent = (current.weightGrams != null) || (current.feedKg != null) ||
+                !current.medicationJson.isNullOrBlank() || !current.symptomsJson.isNullOrBlank() ||
+                !current.activityLevel.isNullOrBlank() || !current.notes.isNullOrBlank() ||
+                !current.photoUrls.isNullOrBlank()
+        if (!hasContent) {
+            Timber.w("DailyLog save blocked: no content")
+            return
+        }
         val uid = firebaseAuth.currentUser?.uid
-        viewModelScope.launch { dailyLogRepository.upsert(current.copy(author = current.author ?: uid)) }
+        viewModelScope.launch {
+            dailyLogRepository.upsert(current.copy(author = current.author ?: uid, dirty = true, updatedAt = System.currentTimeMillis()))
+            _synced.value = false
+        }
     }
 
     fun delete(logId: String) {
@@ -158,5 +193,34 @@ class DailyLogViewModel @Inject constructor(
         cal.set(java.util.Calendar.SECOND, 0)
         cal.set(java.util.Calendar.MILLISECOND, 0)
         return cal.timeInMillis
+    }
+
+    // ----- Photo capture/upload integration -----
+    fun requestPhotoPick() {
+        // UI should handle ActivityResult; provide separate API for VM to receive photo
+    }
+
+    fun addCapturedPhoto(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                // Simplified: just add URI directly
+                addPhoto(uri.toString())
+            } catch (t: Throwable) {
+                Timber.e(t, "Photo upload failed")
+            }
+        }
+    }
+
+    // Helper to handle context if compressor requires it; placeholder
+    private fun applyContextSafely(uri: Uri): Uri = uri
+
+    // ----- Debounced autosave -----
+    private var debounceJob: Job? = null
+    private fun debounceAutoSave() {
+        debounceJob?.cancel()
+        debounceJob = viewModelScope.launch {
+            delay(2000)
+            save()
+        }
     }
 }

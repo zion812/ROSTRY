@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -18,9 +22,14 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +57,9 @@ fun FamilyTreeView(
     resetKey: Int = 0,
     modifier: Modifier = Modifier,
     onNodeClick: ((String) -> Unit)? = null,
+    onScan: (() -> Unit)? = null,
+    onLoadMoreUp: (() -> Unit)? = null,
+    onLoadMoreDown: (() -> Unit)? = null,
 ) {
     val scroll = rememberScrollState()
 
@@ -61,15 +73,15 @@ fun FamilyTreeView(
         offsetY += panChange.y
     }
 
+    Box(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .horizontalScroll(scroll)
-            .padding(16.dp)
-            ,
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Track node centers for connectors
-        val nodeCenters = remember(resetKey) { mutableMapOf<String, Offset>() }
+        // Track node centers for connectors (stateful cache)
+        val nodeCenters = remember(resetKey) { mutableStateMapOf<String, Offset>() }
 
         // Ancestors (upwards)
         if (layersUp.isNotEmpty()) {
@@ -170,10 +182,13 @@ fun FamilyTreeView(
         // Connectors overlay
         if (edges.isNotEmpty()) {
             Canvas(modifier = Modifier) {
+                val w = size.width
+                val h = size.height
+                fun visible(p: Offset) = p.x in 0f..w && p.y in 0f..h
                 edges.forEach { (from, to) ->
                     val p1 = nodeCenters[from]
                     val p2 = nodeCenters[to]
-                    if (p1 != null && p2 != null) {
+                    if (p1 != null && p2 != null && (visible(p1) || visible(p2))) {
                         drawLine(
                             color = Color(0xFF9E9E9E),
                             start = p1,
@@ -184,5 +199,30 @@ fun FamilyTreeView(
                 }
             }
         }
+
+        // Progressive loading controls
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 12.dp)) {
+            if (onLoadMoreUp != null) {
+                androidx.compose.material3.OutlinedButton(onClick = onLoadMoreUp) { Text("Load more ancestors") }
+            }
+            if (onLoadMoreDown != null) {
+                androidx.compose.material3.OutlinedButton(onClick = onLoadMoreDown) { Text("Load more descendants") }
+            }
+        }
+    }
+
+    // Scan FAB
+    if (onScan != null) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            FloatingActionButton(
+                onClick = onScan,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan QR")
+            }
+        }
+    }
     }
 }

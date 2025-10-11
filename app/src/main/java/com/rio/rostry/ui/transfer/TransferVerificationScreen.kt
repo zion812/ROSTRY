@@ -106,6 +106,18 @@ fun TransferVerificationScreen(
         Text("Transfer Verification: $transferId")
         state.error?.let { Text("Error: $it") }
 
+        // Admin review gate for high-value transfers
+        val threshold = 10000.0
+        val requiresAdmin = (state.transfer?.amount ?: 0.0) > threshold
+        if (requiresAdmin) {
+            ElevatedCard {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Pending Admin Review", color = Color(0xFFF57C00))
+                    Text("This transfer exceeds the review threshold. Buyer actions are disabled until approved.")
+                }
+            }
+        }
+
         // Trust score badge & breakdown
         if (state.trustScore != null) {
             val score = state.trustScore ?: 0
@@ -138,10 +150,10 @@ fun TransferVerificationScreen(
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Step 1: Seller Photo Verification")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pickBefore() }, enabled = !state.submitting) { Text("Pick Before Photo") }
-                    OutlinedButton(onClick = { pickAfter() }, enabled = !state.submitting) { Text("Pick After Photo") }
-                    OutlinedButton(onClick = { captureBefore() }, enabled = !state.submitting) { Text("Capture Before") }
-                    OutlinedButton(onClick = { captureAfter() }, enabled = !state.submitting) { Text("Capture After") }
+                    OutlinedButton(onClick = { pickBefore() }, enabled = !state.submitting && !requiresAdmin) { Text("Pick Before Photo") }
+                    OutlinedButton(onClick = { pickAfter() }, enabled = !state.submitting && !requiresAdmin) { Text("Pick After Photo") }
+                    OutlinedButton(onClick = { captureBefore() }, enabled = !state.submitting && !requiresAdmin) { Text("Capture Before") }
+                    OutlinedButton(onClick = { captureAfter() }, enabled = !state.submitting && !requiresAdmin) { Text("Capture After") }
                 }
                 // Previews are omitted in favor of unified pipeline; see Uploads card below for progress
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -207,11 +219,11 @@ fun TransferVerificationScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { requestLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION) }, enabled = !state.submitting) { Text("Use Current Location") }
+                    OutlinedButton(onClick = { requestLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION) }, enabled = !state.submitting && !requiresAdmin) { Text("Use Current Location") }
                     val canSubmitGps = when (within) {
-                        null -> !state.submitting // no baseline to compare; allow
-                        true -> !state.submitting
-                        false -> !state.submitting && state.tempGpsExplanation.isNotBlank() // require explanation when outside
+                        null -> !state.submitting && !requiresAdmin // no baseline to compare; allow
+                        true -> !state.submitting && !requiresAdmin
+                        false -> !state.submitting && !requiresAdmin && state.tempGpsExplanation.isNotBlank() // require explanation when outside
                     }
                     Button(onClick = { vm.submitGpsConfirm() }, enabled = canSubmitGps) { Text("Submit GPS") }
                     if (state.submitting) { CircularProgressIndicator(modifier = Modifier.padding(start = 8.dp)) }

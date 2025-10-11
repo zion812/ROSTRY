@@ -540,5 +540,25 @@ class TransferVerificationViewModel @Inject constructor(
     fun consumeSuccess() {
         _state.value = _state.value.copy(success = null)
     }
+
+    // --- Epic 7 helpers ---
+    fun checkGpsProximity(sellerLat: Double, sellerLng: Double, buyerLat: Double, buyerLng: Double): Boolean {
+        return try {
+            VerificationUtils.withinRadius(sellerLat, sellerLng, buyerLat, buyerLng, 100.0)
+        } catch (_: Exception) { false }
+    }
+
+    /**
+     * Convenience wrapper to trigger the shared upload pipeline and set temp fields.
+     * step: "before" | "after" | "identity".
+     */
+    fun uploadVerificationPhoto(step: String, photoUri: Uri) {
+        when (step.lowercase()) {
+            "before" -> updateTemp(TempUpdate.BeforePhoto(photoUri.toString()))
+            "after" -> updateTemp(TempUpdate.AfterPhoto(photoUri.toString()))
+            "identity" -> updateTemp(TempUpdate.IdentityRef(photoUri.toString()))
+        }
+        startUpload(step, photoUri.toString())
+    }
 }
 

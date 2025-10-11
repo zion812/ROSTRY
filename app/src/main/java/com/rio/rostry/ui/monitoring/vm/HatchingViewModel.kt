@@ -10,6 +10,7 @@ import com.rio.rostry.data.database.dao.HatchingBatchDao
 import com.rio.rostry.data.database.dao.EggCollectionDao
 import com.rio.rostry.data.database.dao.BreedingPairDao
 import com.rio.rostry.data.database.dao.BreedingRecordDao
+import com.rio.rostry.data.repository.EnthusiastBreedingRepository
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
@@ -36,7 +37,8 @@ class HatchingViewModel @Inject constructor(
     private val hatchingBatchDao: HatchingBatchDao,
     private val eggCollectionDao: EggCollectionDao,
     private val breedingPairDao: BreedingPairDao,
-    private val breedingRecordDao: BreedingRecordDao
+    private val breedingRecordDao: BreedingRecordDao,
+    private val enthusiastBreedingRepository: EnthusiastBreedingRepository,
 ) : ViewModel() {
 
     data class UiState(
@@ -283,6 +285,18 @@ class HatchingViewModel @Inject constructor(
                 _ui.update { it.copy(successMessage = "Logged hatch outcome and created $count chicks") }
             } catch (e: Exception) {
                 _ui.update { it.copy(error = e.message ?: "Failed to log hatch outcome") }
+            }
+        }
+    }
+
+    // New: complete hatch with summary counts, leveraging EnthusiastBreedingRepository
+    fun completeHatch(batchId: String, successCount: Int, failureCount: Int, culledCount: Int) {
+        viewModelScope.launch {
+            val res = enthusiastBreedingRepository.completeHatch(batchId, successCount, failureCount, culledCount)
+            when (res) {
+                is com.rio.rostry.utils.Resource.Success -> _ui.update { it.copy(successMessage = "${successCount} chicks added to your flock") }
+                is com.rio.rostry.utils.Resource.Error -> _ui.update { it.copy(error = res.message ?: "Failed to complete hatch") }
+                else -> {}
             }
         }
     }

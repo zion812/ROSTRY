@@ -44,7 +44,12 @@ object DynamicListingValidator {
         val errors = mutableListOf<String>()
 
         if (input.title.isNullOrBlank()) errors += "Title is required"
-        if (input.photosCount < 2) errors += "At least 2 photos required"
+        // Base photo requirement varies by traceability
+        if (input.isTraceable) {
+            if (input.photosCount < 3) errors += "At least 3 photos required for traceable listings"
+        } else {
+            if (input.photosCount < 1) errors += "At least 1 photo is required"
+        }
         if (input.latitude == null || input.longitude == null) errors += "GPS location required"
 
         // Date validations
@@ -75,6 +80,11 @@ object DynamicListingValidator {
                 if (input.birthDateMillis == null) errors += "Birth date required"
                 if (input.birthPlace.isNullOrBlank()) errors += "Birth place required"
                 if (input.vaccinationRecords.isNullOrBlank()) errors += "Vaccination records mandatory"
+                // Birth date should be within last 30 days
+                input.birthDateMillis?.let { b ->
+                    val thirtyDays = 30L * 24 * 60 * 60 * 1000
+                    if (now - b > thirtyDays) errors += "Birth date must be within the last 30 days for chicks"
+                }
                 if (input.isTraceable && input.parentInfo.isNullOrBlank()) errors += "Parent bird information required for traceable chicks"
             }
             AgeGroup.YOUNG_5_20_WEEKS -> {
@@ -100,6 +110,25 @@ object DynamicListingValidator {
                 if (input.awards.isNullOrBlank()) errors += "Championship or award records required"
                 if (input.lineageDoc.isNullOrBlank()) errors += "Detailed lineage documentation required"
             }
+        }
+
+        // Traceability additional constraints (family-tree proxy via lineageDoc, photos, vaccination, weight & height)
+        if (input.isTraceable) {
+            if (input.lineageDoc.isNullOrBlank() && input.parentInfo.isNullOrBlank()) errors += "Lineage information (parents or document) required for traceable listing"
+            if (input.vaccinationRecords.isNullOrBlank()) errors += "Vaccination records required for traceable listing"
+            if (input.weightGrams == null || input.sizeCm == null) errors += "Both weight and height required for traceable listing"
+        }
+
+        // Non-traceable requirements: basic details already partially covered above, ensure min photo
+        if (!input.isTraceable && input.photosCount < 1) {
+            errors += "At least 1 photo required for non-traceable listing"
+        }
+
+        // Category-specific: Meat requires weight, age (birthDate), health records
+        if (input.category is ProductCategory.Meat) {
+            if (input.weightGrams == null) errors += "Weight required for meat category"
+            if (input.birthDateMillis == null) errors += "Age (birth date) required for meat category"
+            if (input.healthRecords.isNullOrBlank()) errors += "Health records required for meat category"
         }
 
         // Price sanity

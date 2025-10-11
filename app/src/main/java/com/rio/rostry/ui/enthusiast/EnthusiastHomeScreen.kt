@@ -46,6 +46,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import com.rio.rostry.ui.components.AddToFarmDialog
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 
 /**
  * Advanced Enthusiast interface with premium farm management features.
@@ -71,6 +73,7 @@ fun EnthusiastHomeScreen(
     onOpenBreeding: () -> Unit,
     onNavigateToAddBird: () -> Unit = {},
     onNavigateToAddBatch: () -> Unit = {},
+    onNavigateRoute: (String) -> Unit = {},
 ) {
     val vm: EnthusiastHomeViewModel = hiltViewModel()
     val ui by vm.ui.collectAsState()
@@ -88,7 +91,11 @@ fun EnthusiastHomeScreen(
     val flockVm: EnthusiastFlockViewModel = hiltViewModel()
     val flock by flockVm.state.collectAsState()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
@@ -310,6 +317,23 @@ fun EnthusiastHomeScreen(
             }
         }
             }
+        }
+    }
+
+    // Observe navigation events
+    LaunchedEffect(Unit) {
+        vm.navigationEvent.collect { route -> onNavigateRoute(route) }
+    }
+
+    // Observe error events and show snackbar
+    LaunchedEffect(Unit) {
+        vm.errorEvents.collect { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+    }
+
+    // Loading overlay
+    if (ui.isLoading) {
+        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            CircularProgressIndicator()
         }
     }
 

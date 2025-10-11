@@ -331,9 +331,10 @@ private fun QuarantineCard(
     if (showUpdateDialog) {
         UpdateQuarantineDialog(
             record = record,
+            isOverdue = isOverdue,
             onDismiss = { showUpdateDialog = false },
-            onConfirm = { notes, medication, status ->
-                viewModel.updateQuarantine(record.quarantineId, notes, medication, status)
+            onConfirm = { notes, medication, status, photoUri ->
+                viewModel.updateQuarantine(record.quarantineId, notes, medication, status, photoUri)
                 showUpdateDialog = false
             }
         )
@@ -343,12 +344,15 @@ private fun QuarantineCard(
 @Composable
 private fun UpdateQuarantineDialog(
     record: QuarantineRecordEntity,
+    isOverdue: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (notes: String?, medication: String?, status: String?) -> Unit
+    onConfirm: (notes: String?, medication: String?, status: String?, photoUri: String?) -> Unit
 ) {
     var vetNotes by remember { mutableStateOf(record.vetNotes ?: "") }
     var medication by remember { mutableStateOf(record.medicationScheduleJson ?: "") }
     var healthStatus by remember { mutableStateOf("") }
+    var photoUri by remember { mutableStateOf<String?>(null) }
+    var attempted by remember { mutableStateOf(false) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -362,6 +366,9 @@ private fun UpdateQuarantineDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )
+                if (isOverdue && attempted && vetNotes.isBlank()) {
+                    Text("Notes are required for overdue updates", color = MaterialTheme.colorScheme.error)
+                }
                 
                 OutlinedTextField(
                     value = medication,
@@ -382,16 +389,29 @@ private fun UpdateQuarantineDialog(
                         )
                     }
                 }
+
+                // Photo capture (placeholder launcher handled by screen-level host; here we accept a URI string)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { /* launch camera from host; here simulate */ photoUri = "stub://photo" }) { Text("Add Photo") }
+                    Text(photoUri?.let { "1 photo attached" } ?: "No photo")
+                }
+                if (isOverdue && attempted && photoUri.isNullOrBlank()) {
+                    Text("Photo is required for overdue updates", color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onConfirm(
-                        vetNotes.ifBlank { null },
-                        medication.ifBlank { null },
-                        healthStatus.ifBlank { null }
-                    )
+                    attempted = true
+                    if (!isOverdue || (vetNotes.isNotBlank() && photoUri != null)) {
+                        onConfirm(
+                            vetNotes.ifBlank { null },
+                            medication.ifBlank { null },
+                            healthStatus.ifBlank { null },
+                            photoUri
+                        )
+                    }
                 }
             ) {
                 Text("Save Update")

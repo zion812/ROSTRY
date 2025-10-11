@@ -133,6 +133,8 @@ fun   hiltWorkerFactory(): HiltWorkerFactory
         // Schedule farm monitoring workers
         VaccinationReminderWorker.schedule(this)
         FarmPerformanceWorker.schedule(this)
+        // Schedule quarantine overdue reminder
+        com.rio.rostry.workers.QuarantineReminderWorker.schedule(this)
         // Schedule enthusiast KPIs aggregation (weekly)
         com.rio.rostry.workers.EnthusiastPerformanceWorker.schedule(this)
 

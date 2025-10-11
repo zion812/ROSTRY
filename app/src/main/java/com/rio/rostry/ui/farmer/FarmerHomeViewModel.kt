@@ -9,6 +9,8 @@ import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
 import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.sync.SyncManager
+import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
@@ -60,11 +63,15 @@ class FarmerHomeViewModel @Inject constructor(
     private val farmerDashboardRepository: FarmerDashboardRepository,
     private val taskDao: TaskDao,
     private val dailyLogDao: DailyLogDao,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
     val navigationEvent = _navigationEvent.asSharedFlow()
+
+    private val _errorEvents = MutableSharedFlow<String>()
+    val errorEvents = _errorEvents.asSharedFlow()
 
     // Reactive time ticker for live updates (updates every minute)
     private val timeTickerFlow = flow {
@@ -85,6 +92,14 @@ class FarmerHomeViewModel @Inject constructor(
         awaitClose { firebaseAuth.removeAuthStateListener(authStateListener) }
     }.distinctUntilChanged()
 
+    // Helper to make a flow resilient and emit a default on error
+    private fun <T> Flow<T>.orDefault(default: T): Flow<T> = this.catch { e ->
+        Timber.e(e, "FarmerHome flow failed; emitting default")
+        // notify UI once per failure site
+        viewModelScope.launch { _errorEvents.emit("Failed to load data. Pull to refresh.") }
+        emit(default)
+    }
+
     val uiState: StateFlow<FarmerHomeUiState> = farmerId.flatMapLatest { id: String? ->
         // If no authenticated Firebase user, show non-loading empty dashboard instead of spinning forever
         if (id == null) {
@@ -96,23 +111,23 @@ class FarmerHomeViewModel @Inject constructor(
                 val weekStart = now - TimeUnit.DAYS.toMillis(7)
                 val weekEnd = now + TimeUnit.DAYS.toMillis(7)
                 val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
-
+                val startNs = System.nanoTime()
                 combine(
-                    vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay),
-                    vaccinationRecordDao.observeOverdueForFarmer(id, now),
-                    growthRecordDao.observeCountForFarmerBetween(id, weekStart, now),
-                    quarantineRecordDao.observeActiveForFarmer(id),
-                    quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo),
-                    hatchingBatchDao.observeActiveForFarmer(id, now),
-                    hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd),
-                    mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now),
-                    breedingRepository.observeActiveCount(id),
-                    farmAlertRepository.observeUnread(id),
-                    farmerDashboardRepository.observeLatest(id),
-                    taskDao.observeOverdueCountForFarmer(id, now),
-                    taskDao.observeOverdueForFarmer(id, now),
-                    taskDao.observeDueForFarmer(id, now),
-                    dailyLogDao.observeCountForFarmerBetween(id, weekStart, now)
+                    vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay).orDefault(0),
+                    vaccinationRecordDao.observeOverdueForFarmer(id, now).orDefault(0),
+                    growthRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+                    quarantineRecordDao.observeActiveForFarmer(id).orDefault(0),
+                    quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo).orDefault(0),
+                    hatchingBatchDao.observeActiveForFarmer(id, now).orDefault(0),
+                    hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd).orDefault(0),
+                    mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+                    breedingRepository.observeActiveCount(id).orDefault(0),
+                    farmAlertRepository.observeUnread(id).orDefault(emptyList()),
+                    farmerDashboardRepository.observeLatest(id).orDefault(null),
+                    taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
+                    taskDao.observeOverdueForFarmer(id, now).orDefault(emptyList()),
+                    taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
+                    dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0)
                 ) { values: Array<Any?> ->
                     val vacDue = values[0] as? Int ?: 0
                     val vacOverdue = values[1] as? Int ?: 0
@@ -132,6 +147,11 @@ class FarmerHomeViewModel @Inject constructor(
                     @Suppress("UNCHECKED_CAST")
                     val dueTasks = values[13] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
                     val dailyLogsCount = values[14] as? Int ?: 0
+
+                    val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+                    if (elapsedMs > 3000) {
+                        Timber.w("FarmerHome combine slow: %d ms", elapsedMs)
+                    }
 
                     FarmerHomeUiState(
                         vaccinationDueCount = vacDue,
@@ -161,8 +181,13 @@ class FarmerHomeViewModel @Inject constructor(
     )
 
     fun refreshData() {
-        // Flows are reactive and auto-update; no manual refresh needed
-        // This method kept for compatibility
+        viewModelScope.launch {
+            try {
+                syncManager.syncAll()
+            } catch (t: Throwable) {
+                Timber.e(t, "Sync failed from FarmerHome refreshData()")
+            }
+        }
     }
 
     fun markAlertRead(alertId: String) {

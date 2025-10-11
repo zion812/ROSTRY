@@ -210,3 +210,33 @@
 # Keep session and connectivity managers
 -keep class com.rio.rostry.session.** { *; }
 -keep class com.rio.rostry.utils.network.ConnectivityManager { *; }
+
+# --- Additional rules per hardening plan ---
+# SQLCipher
+-keep class net.sqlcipher.** { *; }
+-keep class net.sqlcipher.database.** { *; }
+
+# Compose runtime
+-keep class androidx.compose.runtime.** { *; }
+-keep class androidx.compose.ui.** { *; }
+-keepclassmembers class * { @androidx.compose.runtime.Stable <methods>; }
+
+# WorkManager Workers
+-keep class * extends androidx.work.Worker { *; }
+-keep class * extends androidx.work.CoroutineWorker { *; }
+-keepclassmembers class * extends androidx.work.Worker { <init>(...); }
+
+# Outbox entity serialization
+-keep class com.rio.rostry.data.database.entity.OutboxEntity { *; }
+
+# FCM service
+-keep class com.rio.rostry.services.AppFirebaseMessagingService { *; }
+
+# Crash reporting keep attributes
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+
+# Reflection-based classes
+-keep class com.rio.rostry.ui.**.*ViewModel { *; }
+-keep class com.rio.rostry.data.repository.** { *; }
+-keep class com.rio.rostry.data.database.dao.** { *; }

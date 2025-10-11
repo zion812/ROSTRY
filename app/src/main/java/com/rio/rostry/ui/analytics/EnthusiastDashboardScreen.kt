@@ -9,11 +9,18 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @Composable
 fun EnthusiastDashboardScreen(
@@ -26,7 +33,11 @@ fun EnthusiastDashboardScreen(
     onOpenEggCollection: () -> Unit = {},
 ) {
     val d = vm.dashboard.collectAsState().value
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { inner ->
+    Column(Modifier.fillMaxSize().padding(inner).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Enthusiast Dashboard", style = MaterialTheme.typography.titleMedium)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -42,6 +53,27 @@ fun EnthusiastDashboardScreen(
                 Button(onClick = onOpenReports, modifier = Modifier.padding(top = 12.dp)) { Text("Open Reports") }
                 Button(onClick = onOpenFeed, modifier = Modifier.padding(top = 8.dp)) { Text("Open Feed") }
                 Button(onClick = onOpenEggCollection, modifier = Modifier.padding(top = 8.dp)) { Text("Log Egg Collection") }
+                Button(onClick = {
+                    val kpis = mapOf(
+                        "Breeding Success Rate (%)" to (d.breedingSuccessRate * 100.0),
+                        "Transfers" to d.transfers,
+                        "Engagement Score (7d)" to d.engagementScore
+                    )
+                    val res = com.rio.rostry.utils.export.CsvExporter.exportKpis(
+                        context,
+                        kpis,
+                        fileName = "enthusiast_kpis.csv",
+                        dateRange = null
+                    )
+                    when (res) {
+                        is com.rio.rostry.utils.Resource.Success -> {
+                            res.data?.let { com.rio.rostry.utils.export.CsvExporter.showExportNotification(context, it) }
+                            scope.launch { snackbarHostState.showSnackbar("Report exported") }
+                        }
+                        is com.rio.rostry.utils.Resource.Error -> scope.launch { snackbarHostState.showSnackbar(res.message ?: "Export failed") }
+                        else -> {}
+                    }
+                }, modifier = Modifier.padding(top = 8.dp)) { Text("Export CSV") }
             }
         }
 
@@ -62,5 +94,6 @@ fun EnthusiastDashboardScreen(
                 })
             }
         }
+    }
     }
 }

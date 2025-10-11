@@ -36,6 +36,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,13 +95,31 @@ fun DailyLogScreen(
                 val weightInput = remember { mutableStateOf("") }
                 val feedInput = remember { mutableStateOf("") }
                 val notesInput = remember { mutableStateOf("") }
+
+                // Quick chips row
+                val weightFocus = remember { FocusRequester() }
+                val feedFocus = remember { FocusRequester() }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val chips = listOf("Weight", "Feed", "Medication", "Symptoms", "Activity")
+                    chips.forEach { label ->
+                        FilterChip(selected = false, onClick = {
+                            when (label) {
+                                "Weight" -> weightFocus.requestFocus()
+                                "Feed" -> feedFocus.requestFocus()
+                                "Medication" -> { /* scroll to medication section */ }
+                                "Symptoms" -> { /* scroll to symptoms section */ }
+                                "Activity" -> { /* focus activity chips */ }
+                            }
+                        }, label = { Text(label) })
+                    }
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = weightInput.value,
                         onValueChange = { weightInput.value = it.filter { ch -> ch.isDigit() || ch == '.' } },
                         label = { Text("Weight (g)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).focusRequester(weightFocus)
                     )
                     OutlinedButton(onClick = {
                         weightInput.value.toDoubleOrNull()?.let { vm.updateWeight(it) }
@@ -107,7 +131,7 @@ fun DailyLogScreen(
                         onValueChange = { feedInput.value = it.filter { ch -> ch.isDigit() || ch == '.' } },
                         label = { Text("Feed (kg)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).focusRequester(feedFocus)
                     )
                     OutlinedButton(onClick = {
                         feedInput.value.toDoubleOrNull()?.let { vm.updateFeed(it) }
@@ -122,6 +146,35 @@ fun DailyLogScreen(
                     label = { Text("Notes") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Inline weight trend chart (last 30 days)
+                val chartLogs by vm.chartData.collectAsState()
+                if (chartLogs.isNotEmpty()) {
+                    Text("Weight trend (30 days)", fontWeight = FontWeight.SemiBold)
+                    val maxW = chartLogs.maxOfOrNull { it.weightGrams ?: 0.0 } ?: 0.0
+                    val minW = chartLogs.filter { it.weightGrams != null }.minOfOrNull { it.weightGrams!! } ?: 0.0
+                    val points = chartLogs.mapIndexedNotNull { idx, l ->
+                        val w = l.weightGrams ?: return@mapIndexedNotNull null
+                        idx to w
+                    }
+                    if (points.size >= 2 && maxW > 0) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+                            val stepX = size.width / (points.size - 1).coerceAtLeast(1)
+                            val range = (maxW - minW).takeIf { it > 0 } ?: 1.0
+                            var prev: Offset? = null
+                            points.forEachIndexed { i, (idx, w) ->
+                                val x = idx * stepX
+                                val yRatio = ((w - minW) / range).toFloat()
+                                val y = size.height * (1f - yRatio)
+                                val cur = Offset(x, y)
+                                prev?.let { p ->
+                                    drawLine(Color(0xFF1976D2), p, cur, strokeWidth = 4f)
+                                }
+                                prev = cur
+                            }
+                        }
+                    }
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     val activity = listOf("LOW", "NORMAL", "HIGH")
                     activity.forEach { level ->
@@ -146,17 +199,21 @@ fun DailyLogScreen(
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        // Stub photo picker: replace with real picker if available
-                        vm.addPhoto("stub://photo")
-                    }) { Text("Add Photo") }
+                    OutlinedButton(onClick = { vm.requestPhotoPick() }) { Text("Add Photo") }
                     val alreadyLogged = state.hasToday
                     if (alreadyLogged) {
                         // Show timestamp/author of the existing log
                         val tLog = todayLog
                         val ts = tLog?.deviceTimestamp
                         val formatted = ts?.let { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(java.util.Date(it)) } ?: "-"
-                        Text("Logged Today • $formatted • by ${tLog?.author ?: "unknown"}", modifier = Modifier.weight(1f))
+                        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Logged Today • $formatted • by ${tLog?.author ?: "unknown"}")
+                            if ((tLog?.dirty == true)) {
+                                Text("Offline", color = Color.Red)
+                            } else {
+                                Text("Synced ✓", color = Color(0xFF2E7D32))
+                            }
+                        }
                     } else {
                         Button(onClick = { vm.save() }, enabled = true, modifier = Modifier.weight(1f)) {
                             Text("Log Today")

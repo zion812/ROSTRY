@@ -17,6 +17,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index(value = ["farmerId"]),
+        Index(value = ["productId"]),
         Index(value = ["taskType"]),
         Index(value = ["dueAt"]),
         Index(value = ["completedAt"]) 

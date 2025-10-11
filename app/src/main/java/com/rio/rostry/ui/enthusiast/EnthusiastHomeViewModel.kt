@@ -19,6 +19,7 @@ import com.rio.rostry.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
 import javax.inject.Inject
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +31,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.catch
+import timber.log.Timber
 
 @HiltViewModel
 class EnthusiastHomeViewModel @Inject constructor(
@@ -64,44 +68,45 @@ class EnthusiastHomeViewModel @Inject constructor(
         val eventsToday: List<EventEntity> = emptyList(),
         val alerts: List<FarmAlertEntity> = emptyList(),
         val topBloodlines: List<Pair<String, Int>> = emptyList(),
+        val isLoading: Boolean = true,
     )
 
     private val uid = currentUserProvider.userIdOrNull()
 
     private val dashboardFlow = (uid?.let { analyticsRepository.enthusiastDashboard(it) }
-        ?: MutableStateFlow(EnthusiastDashboard(0.0, 0, 0.0, emptyList())))
+        ?: MutableStateFlow(EnthusiastDashboard(0.0, 0, 0.0, emptyList()))).orDefault(EnthusiastDashboard(0.0, 0, 0.0, emptyList()))
 
     private val transfersPendingFlow = if (uid != null) {
         combine(transferDao.getTransfersFromUser(uid), transferDao.getTransfersToUser(uid)) { a, b ->
             (a + b).count { it.status.equals("PENDING", ignoreCase = true) }
-        }
+        }.orDefault(0)
     } else MutableStateFlow(0)
 
     private val transfersDisputedFlow = if (uid != null) {
         combine(transferDao.getTransfersFromUser(uid), transferDao.getTransfersToUser(uid)) { a, b ->
             (a + b).count { it.status.equals("DISPUTED", ignoreCase = true) }
-        }
+        }.orDefault(0)
     } else MutableStateFlow(0)
 
     // Additional fetcher flows
-    private val pairsToMateFlow = if (uid != null) breedingRepository.observePairsToMate(uid).map { it.size } else MutableStateFlow(0)
-    private val eggsCollectedTodayFlow = if (uid != null) breedingRepository.observeEggsCollectedToday(uid) else MutableStateFlow(0)
+    private val pairsToMateFlow = if (uid != null) breedingRepository.observePairsToMate(uid).map { it.size }.orDefault(0) else MutableStateFlow(0)
+    private val eggsCollectedTodayFlow = if (uid != null) breedingRepository.observeEggsCollectedToday(uid).orDefault(0) else MutableStateFlow(0)
     private val incubationTimersFlow = if (uid != null) breedingRepository.observeIncubationTimers(uid).map { batches ->
         batches.map { IncubationTimer(it.batchId, it.name, it.expectedHatchAt) }
-    } else MutableStateFlow(emptyList())
-    private val hatchingDueFlow = if (uid != null) breedingRepository.observeHatchingDue(uid, withinDays = 7).map { it.size } else MutableStateFlow(0)
+    }.orDefault(emptyList()) else MutableStateFlow(emptyList())
+    private val hatchingDueFlow = if (uid != null) breedingRepository.observeHatchingDue(uid, withinDays = 7).map { it.size }.orDefault(0) else MutableStateFlow(0)
 
     private val weeklyGrowthUpdatesFlow = if (uid != null) {
         val now = System.currentTimeMillis()
         val weekStart = startOfWeek(now)
         val weekEnd = endOfWeek(now)
-        growthRecordDao.observeCountForFarmerBetween(uid, weekStart, weekEnd)
+        growthRecordDao.observeCountForFarmerBetween(uid, weekStart, weekEnd).orDefault(0)
     } else MutableStateFlow(0)
 
     private val breederStatusChecksFlow = if (uid != null) {
         breedingPairDao.observeActive(uid).map { pairs ->
             pairs.filter { it.eggsCollected > 0 }.map { BreederStatus(it.pairId, it.hatchSuccessRate) }
-        }
+        }.orDefault(emptyList())
     } else MutableStateFlow(emptyList())
 
     private val transferVerificationsFlow = if (uid != null) {
@@ -114,10 +119,10 @@ class EnthusiastHomeViewModel @Inject constructor(
         val now = System.currentTimeMillis()
         val dayStart = startOfDay(now)
         val dayEnd = endOfDay(now)
-        eventsDao.streamUpcoming(now).map { it.filter { e -> e.startTime in dayStart..dayEnd } }
+        eventsDao.streamUpcoming(now).map { it.filter { e -> e.startTime in dayStart..dayEnd } }.orDefault(emptyList())
     } else MutableStateFlow(emptyList())
 
-    private val alertsFlow = if (uid != null) farmAlertDao.observeUnread(uid) else MutableStateFlow(emptyList())
+    private val alertsFlow = if (uid != null) farmAlertDao.observeUnread(uid).orDefault(emptyList()) else MutableStateFlow(emptyList())
 
     private val topBloodlinesFlow = if (uid != null) {
         dashboardSnapshotDao.observeLatest(uid).map { snap ->
@@ -130,7 +135,7 @@ class EnthusiastHomeViewModel @Inject constructor(
                     if (id != null && eggsNum != null) id to eggsNum else null
                 }.sortedByDescending { it.second }.take(5)
             } catch (_: Exception) { emptyList() }
-        }
+        }.orDefault(emptyList())
     } else MutableStateFlow(emptyList())
 
     // Active pairs for quick egg collection dialog
@@ -165,6 +170,7 @@ class EnthusiastHomeViewModel @Inject constructor(
         alertsFlow,
         topBloodlinesFlow,
     ) { values: Array<Any?> ->
+        val startNs = System.nanoTime()
         val d = values[0] as EnthusiastDashboard
         val p = values[1] as Int
         val disputed = values[2] as Int
@@ -177,7 +183,7 @@ class EnthusiastHomeViewModel @Inject constructor(
         val events = values[9] as List<EventEntity>
         val alerts = values[10] as List<FarmAlertEntity>
         val bloodlines = values[11] as List<Pair<String, Int>>
-        UiState(
+        val ui = UiState(
             dashboard = d,
             pendingTransfersCount = p,
             disputedTransfersCount = disputed,
@@ -191,7 +197,11 @@ class EnthusiastHomeViewModel @Inject constructor(
             eventsToday = events,
             alerts = alerts,
             topBloodlines = bloodlines,
+            isLoading = false,
         )
+        val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+        if (elapsedMs > 3000) Timber.w("EnthusiastHome combine slow: %d ms", elapsedMs)
+        ui
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     // Timers flow updates at 1 Hz but only affects timers list
@@ -203,6 +213,21 @@ class EnthusiastHomeViewModel @Inject constructor(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
+    private val _navigationEvent = MutableSharedFlow<String>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val navigationEvent = _navigationEvent
+
+    private val _errorEvents = MutableSharedFlow<String>(extraBufferCapacity = 2, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val errorEvents = _errorEvents
+
+    // Flow catch helper emitting default and an error message
+    private fun <T> StateFlow<T>.orDefault(default: T): StateFlow<T> = this
+    private fun <T> kotlinx.coroutines.flow.Flow<T>.orDefault(default: T): kotlinx.coroutines.flow.Flow<T> =
+        this.catch { e ->
+            Timber.e(e, "EnthusiastHome flow failed; emitting default")
+            viewModelScope.launch { _errorEvents.emit("Failed to load data. Pull to refresh.") }
+            emit(default)
+        }
 
     fun refresh() {
         viewModelScope.launch {
@@ -218,6 +243,10 @@ class EnthusiastHomeViewModel @Inject constructor(
                 _isRefreshing.value = false
             }
         }
+    }
+
+    fun navigateTo(route: String) {
+        viewModelScope.launch { _navigationEvent.emit(route) }
     }
 
     fun quickCollectEggs(pairId: String, count: Int, grade: String, weight: Double?) {

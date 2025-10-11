@@ -140,6 +140,7 @@ private fun HatchingBatchCard(
 ) {
     var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showDialog by remember { mutableStateOf(false) }
+    var showCompleteDialog by remember { mutableStateOf(false) }
     val hatchedCount = remember { mutableStateOf("") }
     val failedCount = remember { mutableStateOf("") }
     val parentMaleId = remember { mutableStateOf("") }
@@ -278,6 +279,10 @@ private fun HatchingBatchCard(
                     ) {
                         Text("Log Hatch Outcome")
                     }
+                    Button(
+                        onClick = { showCompleteDialog = true },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Complete Hatch") }
                 }
             }
         }
@@ -335,6 +340,56 @@ private fun HatchingBatchCard(
                         label = { Text("Notes") },
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+            }
+        )
+    }
+
+    if (showCompleteDialog) {
+        val successTxt = remember { mutableStateOf("") }
+        val failureTxt = remember { mutableStateOf("") }
+        val culledTxt = remember { mutableStateOf("") }
+        val err = remember { mutableStateOf<String?>(null) }
+        AlertDialog(
+            onDismissRequest = { showCompleteDialog = false },
+            confirmButton = {
+                Button(onClick = {
+                    val success = successTxt.value.toIntOrNull() ?: 0
+                    val failure = failureTxt.value.toIntOrNull() ?: 0
+                    val culled = culledTxt.value.toIntOrNull() ?: 0
+                    val eggs = batch.eggsCount ?: 0
+                    if (success + failure + culled > eggs) {
+                        err.value = "Counts exceed total eggs ($eggs)"
+                        return@Button
+                    }
+                    viewModel.completeHatch(batch.batchId, success, failure, culled)
+                    showCompleteDialog = false
+                }) { Text("Confirm") }
+            },
+            dismissButton = { OutlinedButton(onClick = { showCompleteDialog = false }) { Text("Cancel") } },
+            title = { Text("Complete Hatch") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = successTxt.value,
+                        onValueChange = { s -> successTxt.value = s.filter { it.isDigit() } },
+                        label = { Text("Success Count") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = failureTxt.value,
+                        onValueChange = { s -> failureTxt.value = s.filter { it.isDigit() } },
+                        label = { Text("Failure Count") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = culledTxt.value,
+                        onValueChange = { s -> culledTxt.value = s.filter { it.isDigit() } },
+                        label = { Text("Culled Count") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    err.value?.let { Text(it, color = Color.Red) }
+                    Text("Total eggs: ${batch.eggsCount ?: 0}")
                 }
             }
         )
