@@ -23,7 +23,8 @@ class QuarantineViewModel @Inject constructor(
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     @ApplicationContext private val appContext: android.content.Context,
     private val productDao: com.rio.rostry.data.database.dao.ProductDao,
-    private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository
+    private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
+    private val mediaUploadManager: com.rio.rostry.utils.media.MediaUploadManager
 ) : ViewModel() {
 
     data class QuarantineStatusEntry(val status: String, val at: Long)
@@ -39,6 +40,40 @@ class QuarantineViewModel @Inject constructor(
     )
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
+
+    // Error channel for user-facing messages
+    private val _errors = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    val errors: SharedFlow<String> = _errors.asSharedFlow()
+
+    // Track enqueue mapping so we can update the right record on upload success
+    private val pendingUploads = mutableMapOf<String, PendingUpload>() // remotePath -> info
+    private data class PendingUpload(val quarantineId: String, val localPath: String, val at: Long)
+
+    init {
+        // Observe upload events to finalize attachment URLs
+        viewModelScope.launch {
+            mediaUploadManager.events.collect { ev ->
+                when (ev) {
+                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
+                        val info = pendingUploads.remove(ev.remotePath) ?: return@collect
+                        // Update the corresponding record's attachments to set remote url
+                        val current = _ui.value.active.find { it.quarantineId == info.quarantineId }
+                            ?: _ui.value.history.find { it.quarantineId == info.quarantineId }
+                        current?.let { rec ->
+                            val updatedJson = upsertAttachment(rec.medicationScheduleJson, local = info.localPath, remote = ev.downloadUrl, at = info.at)
+                            val updated = rec.copy(
+                                medicationScheduleJson = updatedJson,
+                                updatedAt = System.currentTimeMillis(),
+                                dirty = true
+                            )
+                            repo.update(updated)
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
 
     fun observe(productId: String) {
         _ui.update { it.copy(productId = productId) }
@@ -190,14 +225,23 @@ class QuarantineViewModel @Inject constructor(
             val isOverdue = now > nextDue
             if (isOverdue) {
                 if (photoUri.isNullOrBlank() || notes.isNullOrBlank()) {
-                    // Reject update silently; UI should prompt requirements
+                    // Reject and emit error message for UI
+                    _errors.tryEmit("Overdue update requires both a photo and notes")
                     return@launch
                 }
             }
             val newStatusHistoryJson = status?.let { appendStatusHistoryArrayJson(active.statusHistoryJson, it, now) } ?: active.statusHistoryJson
+            // Offline-first attachment: write local placeholder into medicationScheduleJson.attachments
+            val newMedicationJson = when {
+                photoUri.isNullOrBlank() -> medication ?: active.medicationScheduleJson
+                else -> {
+                    val base = medication ?: active.medicationScheduleJson
+                    upsertAttachment(base, local = photoUri, remote = null, at = now)
+                }
+            }
             val updated = active.copy(
                 vetNotes = notes,
-                medicationScheduleJson = medication ?: active.medicationScheduleJson,
+                medicationScheduleJson = newMedicationJson,
                 statusHistoryJson = newStatusHistoryJson,
                 lastUpdatedAt = now,
                 updatesCount = active.updatesCount + 1,
@@ -205,6 +249,18 @@ class QuarantineViewModel @Inject constructor(
                 dirty = true
             )
             repo.update(updated)
+
+            // If photo provided, enqueue upload via outbox
+            if (!photoUri.isNullOrBlank()) {
+                val remotePath = "quarantine/${quarantineId}/update_${now}.jpg"
+                val ctxJson = com.google.gson.Gson().toJson(mapOf(
+                    "type" to "quarantine_update",
+                    "quarantineId" to quarantineId,
+                    "at" to now
+                ))
+                pendingUploads[remotePath] = PendingUpload(quarantineId = quarantineId, localPath = photoUri, at = now)
+                mediaUploadManager.enqueueToOutbox(localPath = photoUri, remotePath = remotePath, contextJson = ctxJson)
+            }
 
             // Complete existing pending quarantine-check tasks instead of scheduling new ones
             val farmerId = firebaseAuth.currentUser?.uid
@@ -216,5 +272,30 @@ class QuarantineViewModel @Inject constructor(
                 taskRepository.generateQuarantineCheckTask(active.productId, farmerId, now + twelveHours)
             }
         }
+    }
+
+    private fun upsertAttachment(existing: String?, local: String, remote: String?, at: Long): String {
+        val gson = com.google.gson.Gson()
+        val obj = when {
+            existing.isNullOrBlank() -> com.google.gson.JsonObject()
+            else -> runCatching { com.google.gson.JsonParser.parseString(existing).asJsonObject }.getOrElse { com.google.gson.JsonObject() }
+        }
+        val arr = if (obj.has("attachments")) obj.getAsJsonArray("attachments") else com.google.gson.JsonArray()
+        // Try to find by local path
+        val existingIdx = arr.indexOfFirst { el ->
+            el.asJsonObject?.get("local")?.asString == local
+        }
+        val entry = com.google.gson.JsonObject().apply {
+            addProperty("local", local)
+            remote?.let { addProperty("remote", it) }
+            addProperty("at", at)
+        }
+        if (existingIdx >= 0) {
+            arr.set(existingIdx, entry)
+        } else {
+            arr.add(entry)
+        }
+        obj.add("attachments", arr)
+        return gson.toJson(obj)
     }
 }

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -20,6 +19,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.FloatingActionButton
@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,96 +81,136 @@ fun FamilyTreeView(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Track node centers for connectors (stateful cache)
+        // Track node centers relative to the transformed container
         val nodeCenters = remember(resetKey) { mutableStateMapOf<String, Offset>() }
+        // Container origin in root coordinates to compute local positions
+        var containerOrigin by remember(resetKey) { mutableStateOf(Offset.Zero) }
+        var containerSize by remember(resetKey) { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
-        // Ancestors (upwards)
-        if (layersUp.isNotEmpty()) {
-            Text("Ancestors", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Box(
-                modifier = Modifier
-                    .transformable(transformState)
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offsetX,
-                        translationY = offsetY,
-                        transformOrigin = TransformOrigin(0f, 0f)
-                    )
-            ) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    items(layersUp.toSortedMap().entries.toList(), key = { it.key }) { entry ->
-                        val depth = entry.key
-                        val ids = entry.value
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Gen -$depth:", fontWeight = FontWeight.SemiBold)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                items(ids, key = { it }) { id ->
-                                    Box(
-                                        modifier = Modifier
-                                            .background(Color(0xFFE3F2FD))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                            .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
-                                            .onGloballyPositioned { c ->
-                                                val center = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
-                                                nodeCenters[id] = center
-                                            }
-                                    ) {
-                                        Text(id, color = Color(0xFF0D47A1))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // Root
-        Text("Root", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+        // One unified transformed container for nodes and connectors
         Box(
             modifier = Modifier
-                .background(Color(0xFFF1F8E9))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .onGloballyPositioned { c ->
-                    val center = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
-                    nodeCenters[rootId] = center
+                .transformable(transformState)
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offsetX,
+                    translationY = offsetY,
+                    transformOrigin = TransformOrigin(0f, 0f)
+                )
+                .onGloballyPositioned { coords ->
+                    containerOrigin = coords.positionInRoot()
+                    containerSize = coords.size
                 }
         ) {
-            Text(rootId, color = Color(0xFF1B5E20))
-        }
-        // Descendants (downwards)
-        if (layersDown.isNotEmpty()) {
-            Text("Descendants", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-            Box(
-                modifier = Modifier
-                    .transformable(transformState)
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offsetX,
-                        translationY = offsetY,
-                        transformOrigin = TransformOrigin(0f, 0f)
-                    )
-            ) {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    items(layersDown.toSortedMap().entries.toList(), key = { it.key }) { entry ->
-                        val depth = entry.key
-                        val ids = entry.value
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Gen +$depth:", fontWeight = FontWeight.SemiBold)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                items(ids, key = { it }) { id ->
-                                    Box(
-                                        modifier = Modifier
-                                            .background(Color(0xFFFFF3E0))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                            .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
-                                            .onGloballyPositioned { c ->
-                                                val center = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
-                                                nodeCenters[id] = center
-                                            }
-                                    ) {
-                                        Text(id, color = Color(0xFFE65100))
+            // Content column inside transformed space
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Ancestors
+                if (layersUp.isNotEmpty()) {
+                    Text("Ancestors", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        items(layersUp.toSortedMap().entries.toList(), key = { it.key }) { entry ->
+                            val depth = entry.key
+                            val ids = entry.value
+                            // Viewport in model space for culling
+                            val w = containerSize.width.toFloat().coerceAtLeast(1f)
+                            val h = containerSize.height.toFloat().coerceAtLeast(1f)
+                            val invScale = if (scale != 0f) 1f / scale else 1f
+                            val viewLeft = -offsetX * invScale
+                            val viewTop = -offsetY * invScale
+                            val viewRight = viewLeft + w * invScale
+                            val viewBottom = viewTop + h * invScale
+                            val pad = 96f * invScale // inflate to avoid pop-in
+                            val l = viewLeft - pad
+                            val t = viewTop - pad
+                            val r = viewRight + pad
+                            val b = viewBottom + pad
+                            val totalNodes = layersUp.values.sumOf { it.size } + 1 + layersDown.values.sumOf { it.size }
+                            val visibleIds = if (totalNodes > 60 && nodeCenters.isNotEmpty()) {
+                                ids.filter { id ->
+                                    nodeCenters[id]?.let { c -> c.x in l..r && c.y in t..b } ?: true
+                                }
+                            } else ids
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Gen -$depth:", fontWeight = FontWeight.SemiBold)
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    items(visibleIds, key = { it }) { id ->
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFFE3F2FD))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
+                                                .onGloballyPositioned { c ->
+                                                    // store centers relative to container
+                                                    val centerInRoot = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
+                                                    nodeCenters[id] = centerInRoot - containerOrigin
+                                                }
+                                        ) {
+                                            Text(id, color = Color(0xFF0D47A1))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Root node
+                Text("Root", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFF1F8E9))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .onGloballyPositioned { c ->
+                            val centerInRoot = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
+                            nodeCenters[rootId] = centerInRoot - containerOrigin
+                        }
+                ) {
+                    Text(rootId, color = Color(0xFF1B5E20))
+                }
+
+                // Descendants
+                if (layersDown.isNotEmpty()) {
+                    Text("Descendants", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        items(layersDown.toSortedMap().entries.toList(), key = { it.key }) { entry ->
+                            val depth = entry.key
+                            val ids = entry.value
+                            // Viewport in model space for culling
+                            val w = containerSize.width.toFloat().coerceAtLeast(1f)
+                            val h = containerSize.height.toFloat().coerceAtLeast(1f)
+                            val invScale = if (scale != 0f) 1f / scale else 1f
+                            val viewLeft = -offsetX * invScale
+                            val viewTop = -offsetY * invScale
+                            val viewRight = viewLeft + w * invScale
+                            val viewBottom = viewTop + h * invScale
+                            val pad = 96f * invScale
+                            val l = viewLeft - pad
+                            val t = viewTop - pad
+                            val r = viewRight + pad
+                            val b = viewBottom + pad
+                            val totalNodes = layersUp.values.sumOf { it.size } + 1 + layersDown.values.sumOf { it.size }
+                            val visibleIds = if (totalNodes > 60 && nodeCenters.isNotEmpty()) {
+                                ids.filter { id ->
+                                    nodeCenters[id]?.let { c -> c.x in l..r && c.y in t..b } ?: true
+                                }
+                            } else ids
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Gen +$depth:", fontWeight = FontWeight.SemiBold)
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    items(visibleIds, key = { it }) { id ->
+                                        Box(
+                                            modifier = Modifier
+                                                .background(Color(0xFFFFF3E0))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
+                                                .onGloballyPositioned { c ->
+                                                    val centerInRoot = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
+                                                    nodeCenters[id] = centerInRoot - containerOrigin
+                                                }
+                                        ) {
+                                            Text(id, color = Color(0xFFE65100))
+                                        }
                                     }
                                 }
                             }
@@ -177,24 +218,39 @@ fun FamilyTreeView(
                     }
                 }
             }
-        }
 
-        // Connectors overlay
-        if (edges.isNotEmpty()) {
-            Canvas(modifier = Modifier) {
-                val w = size.width
-                val h = size.height
-                fun visible(p: Offset) = p.x in 0f..w && p.y in 0f..h
-                edges.forEach { (from, to) ->
-                    val p1 = nodeCenters[from]
-                    val p2 = nodeCenters[to]
-                    if (p1 != null && p2 != null && (visible(p1) || visible(p2))) {
-                        drawLine(
-                            color = Color(0xFF9E9E9E),
-                            start = p1,
-                            end = p2,
-                            strokeWidth = 3f
-                        )
+            // Connectors drawn within the same transformed space
+            if (edges.isNotEmpty()) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    clipRect {
+                        val w = containerSize.width.toFloat().coerceAtLeast(1f)
+                        val h = containerSize.height.toFloat().coerceAtLeast(1f)
+                        val invScale = if (scale != 0f) 1f / scale else 1f
+                        val viewLeft = -offsetX * invScale
+                        val viewTop = -offsetY * invScale
+                        val viewRight = viewLeft + w * invScale
+                        val viewBottom = viewTop + h * invScale
+                        val pad = 48f * invScale
+                        val l = viewLeft - pad
+                        val t = viewTop - pad
+                        val r = viewRight + pad
+                        val b = viewBottom + pad
+                        edges.forEach { (from, to) ->
+                            val p1 = nodeCenters[from]
+                            val p2 = nodeCenters[to]
+                            if (p1 != null && p2 != null) {
+                                val p1In = p1.x in l..r && p1.y in t..b
+                                val p2In = p2.x in l..r && p2.y in t..b
+                                if (p1In || p2In) {
+                                    drawLine(
+                                        color = Color(0xFF9E9E9E),
+                                        start = p1,
+                                        end = p2,
+                                        strokeWidth = 3f
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -29,11 +29,13 @@ class ProductValidatorTest {
         override suspend fun verifyPath(productId: String, ancestorId: String, maxDepth: Int): Resource<Boolean> =
             Resource.Success(true)
 
-        override suspend fun verifyParentage(productId: String, maleId: String, femaleId: String): Resource<Boolean> =
+        override suspend fun verifyParentage(childId: String, parentId: String, partnerId: String): Resource<Boolean> =
             Resource.Success(true)
 
         override suspend fun getTransferChain(productId: String): Resource<List<Any>> =
             Resource.Success(emptyList())
+
+        override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? = null
     }
 
     private val pv = ProductValidator(fakeTraceability)

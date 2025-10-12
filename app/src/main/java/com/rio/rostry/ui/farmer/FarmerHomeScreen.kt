@@ -20,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.ui.components.AddToFarmDialog
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import com.rio.rostry.ui.navigation.Routes
 
 data class FetcherCard(
     val title: String,
@@ -52,7 +53,8 @@ fun FarmerHomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val refreshingState = rememberSwipeRefreshState(isRefreshing = false)
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val refreshingState = rememberSwipeRefreshState(isRefreshing = isRefreshing)
 
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -64,9 +66,7 @@ fun FarmerHomeScreen(
             }
         }
     ) { padding ->
-        SwipeRefresh(state = refreshingState, onRefresh = {
-            viewModel.refreshData()
-        }) {
+        SwipeRefresh(state = refreshingState, onRefresh = { viewModel.refreshData() }) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -139,7 +139,7 @@ fun FarmerHomeScreen(
                     count = uiState.dailyLogsThisWeek,
                     icon = Icons.Filled.EditNote,
                     action = "Log Today",
-                    onClick = onOpenDailyLog
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_DAILY_LOG) }
                 ),
                 // Tasks (Sprint 1 priority)
                 FetcherCard(
@@ -149,7 +149,7 @@ fun FarmerHomeScreen(
                     badgeColor = Color.Red,
                     icon = Icons.Filled.Task,
                     action = "View Tasks",
-                    onClick = onOpenTasks
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_TASKS) }
                 ),
                 FetcherCard(
                     title = "Vaccination Today",
@@ -158,14 +158,14 @@ fun FarmerHomeScreen(
                     badgeColor = Color.Red,
                     icon = Icons.Filled.Vaccines,
                     action = "View Schedule",
-                    onClick = onOpenVaccination
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_VACCINATION) }
                 ),
                 FetcherCard(
                     title = "Growth Updates",
                     count = uiState.growthRecordsThisWeek,
                     icon = Icons.Filled.TrendingUp,
                     action = "Record Growth",
-                    onClick = onOpenGrowth
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) }
                 ),
                 FetcherCard(
                     title = "Quarantine 12h",
@@ -174,7 +174,7 @@ fun FarmerHomeScreen(
                     badgeColor = MaterialTheme.colorScheme.tertiary,
                     icon = Icons.Filled.LocalHospital,
                     action = "Update Now",
-                    onClick = onOpenQuarantine
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_QUARANTINE) }
                 ),
                 FetcherCard(
                     title = "Hatching Batches",
@@ -183,21 +183,21 @@ fun FarmerHomeScreen(
                     badgeColor = MaterialTheme.colorScheme.secondary,
                     icon = Icons.Filled.EggAlt,
                     action = "View Batches",
-                    onClick = onOpenHatching
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_HATCHING) }
                 ),
                 FetcherCard(
                     title = "Mortality Log",
                     count = uiState.mortalityLast7Days,
                     icon = Icons.Filled.Warning,
                     action = "Report Mortality",
-                    onClick = onOpenMortality
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_MORTALITY) }
                 ),
                 FetcherCard(
                     title = "Breeding Pairs",
                     count = uiState.breedingPairsActive,
                     icon = Icons.Filled.Favorite,
                     action = "Manage Pairs",
-                    onClick = onOpenBreeding
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_BREEDING) }
                 ),
                 FetcherCard(
                     title = "Ready to List",
@@ -206,14 +206,14 @@ fun FarmerHomeScreen(
                     badgeColor = MaterialTheme.colorScheme.primaryContainer,
                     icon = Icons.Filled.Storefront,
                     action = "Quick List",
-                    onClick = onOpenGrowth // Navigate to growth tracking to see products
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) } // Navigate to growth tracking to see products
                 ),
                 FetcherCard(
                     title = "New Listing",
                     count = 0,
                     icon = Icons.Filled.AddCircle,
                     action = "Create Listing",
-                    onClick = onOpenListing
+                    onClick = { viewModel.navigateToModule(Routes.PRODUCT_CREATE) }
                 )
             )
 

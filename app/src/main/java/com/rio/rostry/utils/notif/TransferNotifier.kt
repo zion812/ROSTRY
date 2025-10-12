@@ -17,6 +17,7 @@ interface TransferNotifier {
     fun notifyCompleted(transferId: String)
     fun notifyCancelled(transferId: String)
     fun notifyDisputeOpened(transferId: String)
+    fun notifyTimedOut(transferId: String)
 }
 
 @Singleton
@@ -65,5 +66,9 @@ class TransferNotifierImpl @Inject constructor(
 
     override fun notifyDisputeOpened(transferId: String) {
         post("Dispute Opened", "Dispute opened for transfer $transferId")
+    }
+
+    override fun notifyTimedOut(transferId: String) {
+        post("Transfer Timed Out", "Transfer $transferId timed out")
     }
 }

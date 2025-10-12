@@ -11,6 +11,8 @@ import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.utils.notif.TransferNotifier
+import com.rio.rostry.data.database.dao.PaymentDao
+import com.rio.rostry.data.repository.PaymentRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.UUID
@@ -23,6 +25,8 @@ class TransferTimeoutWorker @AssistedInject constructor(
     private val transferDao: TransferDao,
     private val auditLogDao: AuditLogDao,
     private val notifier: TransferNotifier,
+    private val paymentDao: PaymentDao,
+    private val paymentRepository: PaymentRepository,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -43,7 +47,20 @@ class TransferTimeoutWorker @AssistedInject constructor(
                             createdAt = now
                         )
                     )
-                    notifier.notifyCancelled(t.transferId) // reuse cancel channel for timeout notification
+                    // Notify timeout explicitly
+                    notifier.notifyTimedOut(t.transferId)
+
+                    // Issue refund idempotently if linked to an order with a payment
+                    try {
+                        val orderId = t.orderId
+                        if (orderId != null) {
+                            val payment = paymentDao.findLatestByOrder(orderId)
+                            if (payment != null) {
+                                // refundPayment handles idempotency via totals
+                                paymentRepository.refundPayment(payment.paymentId, reason = "Transfer timed out")
+                            }
+                        }
+                    } catch (_: Exception) { /* best-effort refund */ }
                 }
             }
             Result.success()
@@ -55,7 +72,8 @@ class TransferTimeoutWorker @AssistedInject constructor(
     companion object {
         private const val UNIQUE_NAME = "transfer_timeout_worker"
         fun schedule(context: Context) {
-            val req = PeriodicWorkRequestBuilder<TransferTimeoutWorker>(15, TimeUnit.MINUTES)
+            // Daily schedule per requirements
+            val req = PeriodicWorkRequestBuilder<TransferTimeoutWorker>(1, TimeUnit.DAYS)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, req

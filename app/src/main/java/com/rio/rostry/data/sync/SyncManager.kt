@@ -25,7 +25,7 @@ import com.rio.rostry.data.repository.TraceabilityRepository
         private val transferDao: TransferDao,
         private val syncStateDao: SyncStateDao,
         private val outboxDao: OutboxDao,
-        private val firestoreService: FirestoreService,
+        private val firestoreService: SyncRemote,
         private val connectivityManager: ConnectivityManager,
         private val gson: Gson,
         // Farm monitoring DAOs

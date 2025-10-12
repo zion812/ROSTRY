@@ -18,6 +18,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import java.util.UUID
 import javax.inject.Inject
+import com.rio.rostry.domain.model.LifecycleStage
+import com.rio.rostry.utils.validation.OnboardingValidator
 
 @HiltViewModel
 class OnboardFarmBatchViewModel @Inject constructor(
@@ -192,7 +194,7 @@ class OnboardFarmBatchViewModel @Inject constructor(
             location = "",
             isBatch = true,
             status = "private",
-            stage = (s.ageGroup ?: com.rio.rostry.utils.validation.OnboardingValidator.AgeGroup.CHICK).name,
+            stage = mapAgeGroupToStage(s.ageGroup ?: OnboardingValidator.AgeGroup.CHICK),
             lifecycleStatus = "ACTIVE",
             updatedAt = now,
             lastModifiedAt = now,
@@ -275,5 +277,12 @@ class OnboardFarmBatchViewModel @Inject constructor(
                 is Resource.Loading -> {}
             }
         }
+    }
+
+    private fun mapAgeGroupToStage(age: OnboardingValidator.AgeGroup): LifecycleStage = when (age) {
+        OnboardingValidator.AgeGroup.CHICK -> LifecycleStage.CHICK
+        OnboardingValidator.AgeGroup.JUVENILE -> LifecycleStage.JUVENILE
+        OnboardingValidator.AgeGroup.ADULT -> LifecycleStage.ADULT
+        OnboardingValidator.AgeGroup.BREEDER -> LifecycleStage.BREEDER
     }
 }

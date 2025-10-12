@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.rio.rostry.domain.model.LifecycleStage
 
 @Entity(
     tableName = "products",
@@ -58,7 +59,7 @@ data class ProductEntity(
 
     // Lifecycle tracking (nullable for backward compatibility)
     // Stage of the bird: CHICK, JUVENILE, ADULT, BREEDER
-    val stage: String? = null,
+    val stage: LifecycleStage? = null,
     // Explicit lifecycle status: ACTIVE, QUARANTINE, DECEASED, TRANSFERRED, etc.
     val lifecycleStatus: String? = null,
     // Direct lineage links
@@ -76,5 +77,7 @@ data class ProductEntity(
     val splitAt: Long? = null, // Timestamp when batch was split into individuals
     val splitIntoIds: String? = null, // JSON array of productIds created from batch split
     // Proof documents (certificates, pedigree papers)
-    val documentUrls: List<String> = emptyList()
+    val documentUrls: List<String> = emptyList(),
+    // Stored URL to a generated QR code image for deep links
+    val qrCodeUrl: String? = null
 )

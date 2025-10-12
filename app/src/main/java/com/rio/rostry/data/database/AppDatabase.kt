@@ -94,7 +94,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyLogEntity::class,
         TaskEntity::class
     ],
-    version = 32, // 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
+    version = 34, // 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -241,6 +241,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Add status and hatchedAt to hatching_batches (32 -> 33)
+        val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Backfill defaults safely
+                db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `status` TEXT NOT NULL DEFAULT 'ACTIVE'")
+                db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `hatchedAt` INTEGER")
+            }
+        }
+
+        // Add qrCodeUrl to products (33 -> 34)
+        val MIGRATION_33_34 = object : Migration(33, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `qrCodeUrl` TEXT")
+            }
+        }
+
         // ... existing migrations up to 23_24 defined below (omitted in this view) ...
 
         // Add enthusiast-specific sync windows to sync_state
@@ -274,6 +290,15 @@ abstract class AppDatabase : RoomDatabase() {
         @TypeConverter
         @JvmStatic
         fun toVerificationStatus(name: String?): VerificationStatus? = name?.let { runCatching { VerificationStatus.valueOf(it) }.getOrNull() }
+
+        // LifecycleStage enum converters
+        @TypeConverter
+        @JvmStatic
+        fun fromLifecycleStage(stage: com.rio.rostry.domain.model.LifecycleStage?): String? = stage?.name
+
+        @TypeConverter
+        @JvmStatic
+        fun toLifecycleStage(name: String?): com.rio.rostry.domain.model.LifecycleStage? = name?.let { runCatching { com.rio.rostry.domain.model.LifecycleStage.valueOf(it) }.getOrNull() }
     }
 
     companion object {
@@ -286,6 +311,8 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_29_30: Migration = Converters.MIGRATION_29_30
         val MIGRATION_30_31: Migration = Converters.MIGRATION_30_31
         val MIGRATION_31_32: Migration = Converters.MIGRATION_31_32
+        val MIGRATION_32_33: Migration = Converters.MIGRATION_32_33
+        val MIGRATION_33_34: Migration = Converters.MIGRATION_33_34
 
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {

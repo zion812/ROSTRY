@@ -32,6 +32,7 @@ class EnthusiastBreedingRepositoryTest {
     private lateinit var analytics: com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
     private lateinit var taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository
     private lateinit var vaccinationRepository: com.rio.rostry.data.repository.monitoring.VaccinationRepository
+    private lateinit var traceabilityRepository: com.rio.rostry.data.repository.TraceabilityRepository
 
     @Before
     fun setUp() {
@@ -45,6 +46,7 @@ class EnthusiastBreedingRepositoryTest {
         analytics = mock(com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker::class.java)
         taskRepository = mock(com.rio.rostry.data.repository.monitoring.TaskRepository::class.java)
         vaccinationRepository = mock(com.rio.rostry.data.repository.monitoring.VaccinationRepository::class.java)
+        traceabilityRepository = mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java)
         repo = EnthusiastBreedingRepositoryImpl(
             matingLogDao = matingDao,
             eggCollectionDao = eggDao,
@@ -55,7 +57,8 @@ class EnthusiastBreedingRepositoryTest {
             db = appDb,
             analytics = analytics,
             taskRepository = taskRepository,
-            vaccinationRepository = vaccinationRepository
+            vaccinationRepository = vaccinationRepository,
+            traceabilityRepository = traceabilityRepository
         )
     }
 

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -91,9 +92,15 @@ class EnthusiastHomeViewModel @Inject constructor(
     // Additional fetcher flows
     private val pairsToMateFlow = if (uid != null) breedingRepository.observePairsToMate(uid).map { it.size }.orDefault(0) else MutableStateFlow(0)
     private val eggsCollectedTodayFlow = if (uid != null) breedingRepository.observeEggsCollectedToday(uid).orDefault(0) else MutableStateFlow(0)
-    private val incubationTimersFlow = if (uid != null) breedingRepository.observeIncubationTimers(uid).map { batches ->
-        batches.map { IncubationTimer(it.batchId, it.name, it.expectedHatchAt) }
-    }.orDefault(emptyList()) else MutableStateFlow(emptyList())
+    private val incubationTimersFlow = if (uid != null) breedingRepository.observeIncubationTimers(uid)
+        .map { batches -> batches.map { IncubationTimer(it.batchId, it.name, it.expectedHatchAt) } }
+        .distinctUntilChanged { a, b ->
+            if (a.size != b.size) return@distinctUntilChanged false
+            val pa = a.map { it.batchId to (it.expectedHatchAt ?: 0L) }
+            val pb = b.map { it.batchId to (it.expectedHatchAt ?: 0L) }
+            pa == pb
+        }
+        .orDefault(emptyList()) else MutableStateFlow(emptyList())
     private val hatchingDueFlow = if (uid != null) breedingRepository.observeHatchingDue(uid, withinDays = 7).map { it.size }.orDefault(0) else MutableStateFlow(0)
 
     private val weeklyGrowthUpdatesFlow = if (uid != null) {

@@ -9,6 +9,12 @@ import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.flow.emitAll
+
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
@@ -24,58 +30,47 @@ class ProductRepositoryImpl @Inject constructor(
 
     // Always serve from local database (source of truth for UI)
     override fun getAllProducts(): Flow<Resource<List<ProductEntity>>> = flow {
-        emit(Resource.Loading())
-        try {
-            productDao.getAllProducts().collect { products ->
-                emit(Resource.Success(products))
-            }
-        } catch (e: Exception) {
-            emit(Resource.Error("Error fetching products from local DB: ${e.message}"))
-        }
+        emit(Resource.Loading<List<ProductEntity>>())
+        val inner = productDao.getAllProducts()
+            .map { products -> Resource.Success<List<ProductEntity>>(products) as Resource<List<ProductEntity>> }
+            .catch { e -> emit(Resource.Error<List<ProductEntity>>("Error fetching products from local DB: ${e.message}")) }
+        emitAll(inner)
     }
 
     override fun getProductById(productId: String): Flow<Resource<ProductEntity?>> = flow {
-        emit(Resource.Loading())
-        try {
-            productDao.getProductById(productId).collect { product ->
+        emit(Resource.Loading<ProductEntity?>())
+        val inner = productDao.getProductById(productId)
+            .transform { product ->
                 if (product != null) {
-                    emit(Resource.Success(product))
+                    emit(Resource.Success<ProductEntity?>(product))
                 } else {
-                    // Optionally try to fetch from remote if not found locally, then cache
                     val remoteProduct = productsCollection.document(productId).get().await().toObject(ProductEntity::class.java)
                     if (remoteProduct != null) {
                         productDao.insertProduct(remoteProduct)
-                        emit(Resource.Success(remoteProduct))
+                        emit(Resource.Success<ProductEntity?>(remoteProduct))
                     } else {
-                        emit(Resource.Error("Product not found locally or remotely"))
+                        emit(Resource.Error<ProductEntity?>("Product not found locally or remotely"))
                     }
                 }
             }
-        } catch (e: Exception) {
-            emit(Resource.Error("Error fetching product: ${e.message}"))
-        }
+            .catch { e -> emit(Resource.Error<ProductEntity?>("Error fetching product: ${e.message}")) }
+        emitAll(inner)
     }
 
     override fun getProductsBySeller(sellerId: String): Flow<Resource<List<ProductEntity>>> = flow {
-        emit(Resource.Loading())
-        try {
-            productDao.getProductsBySeller(sellerId).collect { products ->
-                emit(Resource.Success(products))
-            }
-        } catch (e: Exception) {
-            emit(Resource.Error("Error fetching products by seller: ${e.message}"))
-        }
+        emit(Resource.Loading<List<ProductEntity>>())
+        val inner = productDao.getProductsBySeller(sellerId)
+            .map { products -> Resource.Success<List<ProductEntity>>(products) as Resource<List<ProductEntity>> }
+            .catch { e -> emit(Resource.Error<List<ProductEntity>>("Error fetching products by seller: ${e.message}")) }
+        emitAll(inner)
     }
 
     override fun getProductsByCategory(category: String): Flow<Resource<List<ProductEntity>>> = flow {
-        emit(Resource.Loading())
-        try {
-            productDao.getProductsByCategory(category).collect { products ->
-                emit(Resource.Success(products))
-            }
-        } catch (e: Exception) {
-            emit(Resource.Error("Error fetching products by category: ${e.message}"))
-        }
+        emit(Resource.Loading<List<ProductEntity>>())
+        val inner = productDao.getProductsByCategory(category)
+            .map { products -> Resource.Success<List<ProductEntity>>(products) as Resource<List<ProductEntity>> }
+            .catch { e -> emit(Resource.Error<List<ProductEntity>>("Error fetching products by category: ${e.message}")) }
+        emitAll(inner)
     }
 
     override suspend fun addProduct(product: ProductEntity): Resource<String> = safeCall<String> {
@@ -136,15 +131,13 @@ class ProductRepositoryImpl @Inject constructor(
     }.firstOrNull() ?: Resource.Error("Failed to sync products")
 
     override fun searchProducts(query: String): Flow<Resource<List<ProductEntity>>> = flow {
-        emit(Resource.Loading())
-        try {
-            productDao.searchProducts(query).collect { products ->
-                emit(Resource.Success(products))
-            }
-        } catch (e: Exception) {
-            emit(Resource.Error("Error searching products: ${e.message}"))
-        }
+        emit(Resource.Loading<List<ProductEntity>>())
+        val inner = productDao.searchProducts(query)
+            .map { products -> Resource.Success<List<ProductEntity>>(products) as Resource<List<ProductEntity>> }
+            .catch { e -> emit(Resource.Error<List<ProductEntity>>("Error searching products: ${e.message}")) }
+        emitAll(inner)
     }
+
     override suspend fun autocompleteProducts(prefix: String, limit: Int): List<ProductEntity> = try {
         productDao.autocomplete(prefix, limit)
     } catch (e: Exception) {

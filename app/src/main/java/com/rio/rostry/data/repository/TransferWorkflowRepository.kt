@@ -48,9 +48,18 @@ interface TransferWorkflowRepository {
         identityDocType: String?,
         identityDocRef: String?,
         identityDocNumber: String?,
+        buyerPhotoMetaJson: String? = null,
+        gpsExplanation: String? = null,
     ): Resource<Unit>
 
     suspend fun platformApproveIfNeeded(transferId: String): Resource<Unit>
+
+    suspend fun platformReview(
+        transferId: String,
+        approved: Boolean,
+        notes: String?,
+        actorUserId: String?
+    ): Resource<Unit>
 
     suspend fun complete(transferId: String): Resource<Unit>
 
@@ -150,6 +159,41 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun platformReview(
+        transferId: String,
+        approved: Boolean,
+        notes: String?,
+        actorUserId: String?
+    ): Resource<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val status = if (approved) "APPROVED" else "REJECTED"
+            val ver = TransferVerificationEntity(
+                verificationId = UUID.randomUUID().toString(),
+                transferId = transferId,
+                step = "PLATFORM_REVIEW",
+                status = status,
+                notes = notes,
+                createdAt = now(),
+                updatedAt = now()
+            )
+            verificationDao.upsert(ver)
+            auditLogDao.insert(
+                AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "VERIFICATION",
+                    refId = ver.verificationId,
+                    action = if (approved) "PLATFORM_APPROVE" else "PLATFORM_REJECT",
+                    actorUserId = actorUserId,
+                    detailsJson = notes,
+                    createdAt = now()
+                )
+            )
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Platform review failed")
+        }
+    }
+
     override suspend fun appendSellerEvidence(
         transferId: String,
         photoBeforeUrl: String?,
@@ -198,6 +242,8 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         identityDocType: String?,
         identityDocRef: String?,
         identityDocNumber: String?,
+        buyerPhotoMetaJson: String?,
+        gpsExplanation: String?,
     ): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
             val transfer = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
@@ -212,11 +258,15 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                 step = "BUYER_VERIFY",
                 status = if (gpsOk) "APPROVED" else "REJECTED",
                 photoAfterUrl = buyerPhotoUrl,
+                photoAfterMetaJson = buyerPhotoMetaJson,
                 gpsLat = buyerGpsLat,
                 gpsLng = buyerGpsLng,
                 identityDocType = identityDocType,
                 identityDocRef = identityDocRef,
-                notes = identityDocNumber?.let { "identityDocNumber=$it" },
+                notes = listOfNotNull(
+                    identityDocNumber?.let { "identityDocNumber=$it" },
+                    gpsExplanation?.let { "gpsExplanation=$it" }
+                ).joinToString(";"),
                 createdAt = now(),
                 updatedAt = now()
             )

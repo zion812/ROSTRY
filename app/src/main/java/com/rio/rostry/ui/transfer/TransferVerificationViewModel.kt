@@ -68,6 +68,9 @@ class TransferVerificationViewModel @Inject constructor(
         val success: String? = null,
         val tempBeforeUrl: String = "",
         val tempAfterUrl: String = "",
+        val tempBeforeExifJson: String? = null,
+        val tempAfterExifJson: String? = null,
+        val tempBuyerPhotoExifJson: String? = null,
         val tempLat: String = "",
         val tempLng: String = "",
         val tempSignatureRef: String = "",
@@ -241,6 +244,12 @@ class TransferVerificationViewModel @Inject constructor(
             val compressed = ImageCompressor.compressForUpload(appContext, inputFile, lowBandwidth = !connectivityManager.isOnWifi())
             val remotePath = "transfers/${transferId}/${kind}_${System.currentTimeMillis()}.jpg"
             val ctx = gson.toJson(mapOf("transferId" to transferId, "type" to kind))
+            // Extract EXIF from original local URI and stash in state for persistence
+            when (kind.lowercase()) {
+                "before" -> _state.value = _state.value.copy(tempBeforeExifJson = exifJsonFor(localUri))
+                "after" -> _state.value = _state.value.copy(tempAfterExifJson = exifJsonFor(localUri))
+                "identity" -> _state.value = _state.value.copy(tempBuyerPhotoExifJson = exifJsonFor(localUri))
+            }
             uploadManager.enqueueToOutbox(
                 localPath = compressed.absolutePath,
                 remotePath = remotePath,
@@ -275,10 +284,12 @@ class TransferVerificationViewModel @Inject constructor(
                         buyerGpsLng = null,
                         identityDocType = _state.value.tempIdentityDocType.takeIf { it.isNotBlank() } ?: "GOVT_ID",
                         identityDocRef = remotePath,
-                        identityDocNumber = _state.value.tempIdentityDocNumber.takeIf { it.isNotBlank() }
+                        identityDocNumber = _state.value.tempIdentityDocNumber.takeIf { it.isNotBlank() },
+                        buyerPhotoMetaJson = _state.value.tempBuyerPhotoExifJson,
+                        gpsExplanation = _state.value.tempGpsExplanation.takeIf { it.isNotBlank() }
                     )) {
                         is Resource.Success -> {
-                            _state.value = _state.value.copy(uploadedIdentityRef = remotePath, success = "Identity uploaded")
+                            _state.value = _state.value.copy(uploadedIdentityRef = remotePath, success = "Identity uploaded", tempBuyerPhotoExifJson = null)
                             analytics.trackTransferVerifyStep(transferId, "IDENTITY")
                         }
                         is Resource.Error -> _state.value = _state.value.copy(error = res.message)
@@ -295,9 +306,11 @@ class TransferVerificationViewModel @Inject constructor(
         val after = _state.value.uploadedAfterUrl
         if (before.isNullOrBlank() || after.isNullOrBlank()) return
         viewModelScope.launch {
-            when (val res = workflow.appendSellerEvidence(transferId, before, after, null, null)) {
+            val beforeMeta = _state.value.tempBeforeExifJson
+            val afterMeta = _state.value.tempAfterExifJson
+            when (val res = workflow.appendSellerEvidence(transferId, before, after, beforeMeta, afterMeta)) {
                 is Resource.Success -> {
-                    _state.value = _state.value.copy(success = "Photos submitted", uploadedBeforeUrl = null, uploadedAfterUrl = null)
+                    _state.value = _state.value.copy(success = "Photos submitted", uploadedBeforeUrl = null, uploadedAfterUrl = null, tempBeforeExifJson = null, tempAfterExifJson = null)
                     analytics.trackTransferVerifyStep(transferId, "SELLER_INIT")
                 }
                 is Resource.Error -> _state.value = _state.value.copy(error = res.message)
@@ -325,7 +338,9 @@ class TransferVerificationViewModel @Inject constructor(
                 buyerGpsLng = lng,
                 identityDocType = _state.value.tempIdentityDocType.takeIf { it.isNotBlank() },
                 identityDocRef = _state.value.tempIdentityDocRef.takeIf { it.isNotBlank() },
-                identityDocNumber = _state.value.tempIdentityDocNumber.takeIf { it.isNotBlank() }
+                identityDocNumber = _state.value.tempIdentityDocNumber.takeIf { it.isNotBlank() },
+                buyerPhotoMetaJson = null,
+                gpsExplanation = _state.value.tempGpsExplanation.takeIf { it.isNotBlank() }
             )) {
                 is Resource.Success -> {
                     _state.value = _state.value.copy(
@@ -423,7 +438,8 @@ class TransferVerificationViewModel @Inject constructor(
         val transferId = _state.value.transfer?.transferId ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(submitting = true, error = null)
-            when (val res = workflow.platformApproveIfNeeded(transferId)) {
+            val actor = currentUserProvider.userIdOrNull()
+            when (val res = workflow.platformReview(transferId, approved, notes.ifBlank { null }, actor)) {
                 is Resource.Success -> {
                     _state.value = _state.value.copy(
                         submitting = false,

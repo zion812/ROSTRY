@@ -17,4 +17,9 @@ object QrUtils {
         }
         return bmp
     }
+
+    fun productQrBitmap(id: String, size: Int = 512): Bitmap {
+        val deepLink = "rostry://product/$id"
+        return generateQr(deepLink, size)
+    }
 }

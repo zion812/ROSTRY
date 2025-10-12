@@ -10,11 +10,13 @@ import javax.inject.Singleton
 interface TaskRepository {
     fun observeDue(farmerId: String, now: Long): Flow<List<TaskEntity>>
     fun observeOverdue(farmerId: String, now: Long): Flow<List<TaskEntity>>
+    fun observeDueWindow(farmerId: String, now: Long, endOfDay: Long): Flow<List<TaskEntity>>
     fun observeOverdueCount(farmerId: String, now: Long): Flow<Int>
     fun observeRecentCompleted(farmerId: String, limit: Int): Flow<List<TaskEntity>>
     fun observeByBatch(batchId: String): Flow<List<TaskEntity>>
     suspend fun upsert(task: TaskEntity)
     suspend fun markComplete(taskId: String, completedBy: String)
+    suspend fun snooze(taskId: String, snoozeUntil: Long)
     suspend fun delete(taskId: String)
     suspend fun generateVaccinationTask(productId: String, farmerId: String, vaccineType: String, dueAt: Long)
     suspend fun generateGrowthTask(productId: String, farmerId: String, week: Int, dueAt: Long)
@@ -33,6 +35,8 @@ class TaskRepositoryImpl @Inject constructor(
 
     override fun observeOverdue(farmerId: String, now: Long): Flow<List<TaskEntity>> = dao.observeOverdueForFarmer(farmerId, now)
 
+    override fun observeDueWindow(farmerId: String, now: Long, endOfDay: Long): Flow<List<TaskEntity>> = dao.observeDueWindowForFarmer(farmerId, now, endOfDay)
+
     override fun observeOverdueCount(farmerId: String, now: Long): Flow<Int> = dao.observeOverdueCountForFarmer(farmerId, now)
 
     override fun observeRecentCompleted(farmerId: String, limit: Int): Flow<List<TaskEntity>> = dao.observeRecentCompletedForFarmer(farmerId, limit)
@@ -47,6 +51,11 @@ class TaskRepositoryImpl @Inject constructor(
     override suspend fun markComplete(taskId: String, completedBy: String) {
         val now = System.currentTimeMillis()
         dao.markComplete(taskId, now, completedBy, now)
+    }
+
+    override suspend fun snooze(taskId: String, snoozeUntil: Long) {
+        val now = System.currentTimeMillis()
+        dao.updateSnoozeUntil(taskId, snoozeUntil, now)
     }
 
     override suspend fun delete(taskId: String) {

@@ -12,6 +12,7 @@ import com.rio.rostry.data.database.dao.BreedingPairDao
 import com.rio.rostry.data.database.dao.BreedingRecordDao
 import com.rio.rostry.data.repository.EnthusiastBreedingRepository
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
 import com.rio.rostry.data.database.entity.HatchingLogEntity
@@ -210,7 +211,7 @@ class HatchingViewModel @Inject constructor(
                         isDeleted = false,
                         deletedAt = null,
                         dirty = true,
-                        stage = "CHICK",
+                        stage = LifecycleStage.CHICK,
                         lifecycleStatus = "ACTIVE",
                         parentMaleId = resolvedMale,
                         parentFemaleId = resolvedFemale,

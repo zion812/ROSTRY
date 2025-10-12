@@ -141,6 +141,8 @@ data class HatchingBatchEntity(
     val eggsCount: Int? = null,
     val sourceCollectionId: String? = null,
     val notes: String? = null,
+    val status: String = "ACTIVE",
+    val hatchedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
     val syncedAt: Long? = null

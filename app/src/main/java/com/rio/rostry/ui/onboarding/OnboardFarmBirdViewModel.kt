@@ -21,6 +21,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import java.util.UUID
 import javax.inject.Inject
+import com.rio.rostry.domain.model.LifecycleStage
 
 @HiltViewModel
 class OnboardFarmBirdViewModel @Inject constructor(
@@ -240,7 +241,7 @@ class OnboardFarmBirdViewModel @Inject constructor(
             location = "",
             isBatch = false,
             status = "private",
-            stage = s.ageGroup.name,
+            stage = mapAgeGroupToStage(s.ageGroup),
             lifecycleStatus = "ACTIVE",
             updatedAt = now,
             lastModifiedAt = now,
@@ -325,4 +326,11 @@ class OnboardFarmBirdViewModel @Inject constructor(
             }
         }
     }
+}
+
+private fun mapAgeGroupToStage(age: OnboardingValidator.AgeGroup): LifecycleStage = when (age) {
+    OnboardingValidator.AgeGroup.CHICK -> LifecycleStage.CHICK
+    OnboardingValidator.AgeGroup.JUVENILE -> LifecycleStage.JUVENILE
+    OnboardingValidator.AgeGroup.ADULT -> LifecycleStage.ADULT
+    OnboardingValidator.AgeGroup.BREEDER -> LifecycleStage.BREEDER
 }

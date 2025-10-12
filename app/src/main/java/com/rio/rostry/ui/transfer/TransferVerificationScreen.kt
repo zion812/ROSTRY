@@ -56,11 +56,14 @@ import com.rio.rostry.marketplace.media.MediaManager
 
 @Composable
 fun TransferVerificationScreen(
-    transferId: String
+    transferId: String,
+    onScanProduct: () -> Unit = {}
 ) {
     val vm: TransferVerificationViewModel = hiltViewModel()
     val sessionVm: SessionViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
+    val sessionState by sessionVm.uiState.collectAsState()
+    val role = sessionState.role
     val context = LocalContext.current
 
     androidx.compose.runtime.LaunchedEffect(transferId) {
@@ -105,6 +108,10 @@ fun TransferVerificationScreen(
     Column(Modifier.padding(inner).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Transfer Verification: $transferId")
         state.error?.let { Text("Error: $it") }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onScanProduct) { Text("Scan Product QR") }
+        }
 
         // Admin review gate for high-value transfers
         val threshold = 10000.0
@@ -327,7 +334,6 @@ fun TransferVerificationScreen(
                         state.disputes.forEach { d ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("${d.reason} — ${d.status}")
-                                val role = sessionVm.uiState.collectAsState().value.role
                                 val canModerate = role?.name in setOf("ADMIN", "MODERATOR")
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (d.status == "OPEN" && canModerate) {

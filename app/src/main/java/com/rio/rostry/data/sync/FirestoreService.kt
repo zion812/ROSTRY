@@ -27,13 +27,58 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 /**
+ * SyncRemote abstracts the remote API used by SyncManager. Implemented by FirestoreService in prod
+ * and by fakes in androidTest.
+ */
+interface SyncRemote {
+    suspend fun fetchUpdatedProducts(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.ProductEntity>
+    suspend fun fetchUpdatedOrders(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.OrderEntity>
+    suspend fun fetchUpdatedTransfers(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.TransferEntity>
+    suspend fun fetchUpdatedTrackings(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.ProductTrackingEntity>
+    suspend fun fetchUpdatedChats(since: Long, limit: Int = 1000): List<com.rio.rostry.data.database.entity.ChatMessageEntity>
+    suspend fun pushProducts(entities: List<com.rio.rostry.data.database.entity.ProductEntity>): Int
+    suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int = 1000): List<com.rio.rostry.data.database.entity.DailyLogEntity>
+    suspend fun pushDailyLogs(farmerId: String, entities: List<com.rio.rostry.data.database.entity.DailyLogEntity>): Int
+    suspend fun fetchUpdatedTasks(farmerId: String, since: Long, limit: Int = 1000): List<com.rio.rostry.data.database.entity.TaskEntity>
+    suspend fun pushTasks(farmerId: String, entities: List<com.rio.rostry.data.database.entity.TaskEntity>): Int
+    suspend fun pushOrders(entities: List<com.rio.rostry.data.database.entity.OrderEntity>): Int
+    suspend fun pushTransfers(entities: List<com.rio.rostry.data.database.entity.TransferEntity>): Int
+    suspend fun pushTrackings(entities: List<com.rio.rostry.data.database.entity.ProductTrackingEntity>): Int
+    suspend fun pushChats(entities: List<com.rio.rostry.data.database.entity.ChatMessageEntity>): Int
+    suspend fun fetchUpdatedBreedingPairs(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.BreedingPairEntity>
+    suspend fun pushBreedingPairs(farmerId: String, entities: List<com.rio.rostry.data.database.entity.BreedingPairEntity>): Int
+    suspend fun fetchUpdatedAlerts(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.FarmAlertEntity>
+    suspend fun pushAlerts(farmerId: String, entities: List<com.rio.rostry.data.database.entity.FarmAlertEntity>): Int
+    suspend fun fetchUpdatedDashboardSnapshots(farmerId: String, since: Long, limit: Int = 100): List<com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity>
+    suspend fun pushDashboardSnapshots(farmerId: String, entities: List<com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity>): Int
+    suspend fun fetchUpdatedVaccinations(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.VaccinationRecordEntity>
+    suspend fun pushVaccinations(farmerId: String, entities: List<com.rio.rostry.data.database.entity.VaccinationRecordEntity>): Int
+    suspend fun fetchUpdatedGrowthRecords(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.GrowthRecordEntity>
+    suspend fun pushGrowthRecords(farmerId: String, entities: List<com.rio.rostry.data.database.entity.GrowthRecordEntity>): Int
+    suspend fun fetchUpdatedQuarantineRecords(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.QuarantineRecordEntity>
+    suspend fun pushQuarantineRecords(farmerId: String, entities: List<com.rio.rostry.data.database.entity.QuarantineRecordEntity>): Int
+    suspend fun fetchUpdatedMortalityRecords(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.MortalityRecordEntity>
+    suspend fun pushMortalityRecords(farmerId: String, entities: List<com.rio.rostry.data.database.entity.MortalityRecordEntity>): Int
+    suspend fun fetchUpdatedHatchingBatches(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.HatchingBatchEntity>
+    suspend fun pushHatchingBatches(farmerId: String, entities: List<com.rio.rostry.data.database.entity.HatchingBatchEntity>): Int
+    suspend fun fetchUpdatedHatchingLogs(farmerId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.HatchingLogEntity>
+    suspend fun pushHatchingLogs(farmerId: String, entities: List<com.rio.rostry.data.database.entity.HatchingLogEntity>): Int
+    suspend fun fetchUpdatedMatingLogs(userId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.MatingLogEntity>
+    suspend fun pushMatingLogs(userId: String, entities: List<com.rio.rostry.data.database.entity.MatingLogEntity>): Int
+    suspend fun fetchUpdatedEggCollections(userId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.EggCollectionEntity>
+    suspend fun pushEggCollections(userId: String, entities: List<com.rio.rostry.data.database.entity.EggCollectionEntity>): Int
+    suspend fun fetchUpdatedEnthusiastSnapshots(userId: String, since: Long, limit: Int = 100): List<com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity>
+    suspend fun pushEnthusiastSnapshots(userId: String, entities: List<com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity>): Int
+}
+
+/**
  * FirestoreService centralizes Firestore operations used by SyncManager.
  * Provides delta queries by updatedAt and batched writes with basic conflict handling.
  */
 @Singleton
 class FirestoreService @Inject constructor(
     private val firestore: FirebaseFirestore
-) {
+) : SyncRemote {
     private val products = firestore.collection("products")
     private val orders = firestore.collection("orders")
     private val transfers = firestore.collection("transfers")
@@ -43,42 +88,42 @@ class FirestoreService @Inject constructor(
     private val dailyLogs = firestore.collectionGroup("daily_logs")
     private val tasks = firestore.collectionGroup("tasks")
 
-    suspend fun fetchUpdatedProducts(since: Long, limit: Int = 500): List<ProductEntity> =
+    override suspend fun fetchUpdatedProducts(since: Long, limit: Int): List<ProductEntity> =
         products.whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
             .limit(limit.toLong())
             .get().await()
             .documents.mapNotNull { it.toObject(ProductEntity::class.java) }
 
-    suspend fun fetchUpdatedOrders(since: Long, limit: Int = 500): List<OrderEntity> =
+    override suspend fun fetchUpdatedOrders(since: Long, limit: Int): List<OrderEntity> =
         orders.whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
             .limit(limit.toLong())
             .get().await()
             .documents.mapNotNull { it.toObject(OrderEntity::class.java) }
 
-    suspend fun fetchUpdatedTransfers(since: Long, limit: Int = 500): List<TransferEntity> =
+    override suspend fun fetchUpdatedTransfers(since: Long, limit: Int): List<TransferEntity> =
         transfers.whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
             .limit(limit.toLong())
             .get().await()
             .documents.mapNotNull { it.toObject(TransferEntity::class.java) }
 
-    suspend fun fetchUpdatedTrackings(since: Long, limit: Int = 500): List<ProductTrackingEntity> =
+    override suspend fun fetchUpdatedTrackings(since: Long, limit: Int): List<ProductTrackingEntity> =
         trackings.whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
             .limit(limit.toLong())
             .get().await()
             .documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
 
-    suspend fun fetchUpdatedChats(since: Long, limit: Int = 1000): List<ChatMessageEntity> =
+    override suspend fun fetchUpdatedChats(since: Long, limit: Int): List<ChatMessageEntity> =
         chats.whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
             .limit(limit.toLong())
             .get().await()
             .documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
 
-    suspend fun pushProducts(entities: List<ProductEntity>): Int {
+    override suspend fun pushProducts(entities: List<ProductEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         entities.forEach { e ->
@@ -93,7 +138,7 @@ class FirestoreService @Inject constructor(
     // Sprint 1: Daily Logs & Tasks
     // ==============================
 
-    suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int = 1000): List<DailyLogEntity> =
+    override suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int): List<DailyLogEntity> =
         firestore.collection("farmers").document(farmerId).collection("daily_logs")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -101,7 +146,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(DailyLogEntity::class.java) }
 
-    suspend fun pushDailyLogs(farmerId: String, entities: List<DailyLogEntity>): Int {
+    override suspend fun pushDailyLogs(farmerId: String, entities: List<DailyLogEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val col = firestore.collection("farmers").document(farmerId).collection("daily_logs")
@@ -115,7 +160,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedTasks(farmerId: String, since: Long, limit: Int = 1000): List<TaskEntity> =
+    override suspend fun fetchUpdatedTasks(farmerId: String, since: Long, limit: Int): List<TaskEntity> =
         firestore.collection("farmers").document(farmerId).collection("tasks")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -123,7 +168,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(TaskEntity::class.java) }
 
-    suspend fun pushTasks(farmerId: String, entities: List<TaskEntity>): Int {
+    override suspend fun pushTasks(farmerId: String, entities: List<TaskEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val col = firestore.collection("farmers").document(farmerId).collection("tasks")
@@ -137,7 +182,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun pushOrders(entities: List<OrderEntity>): Int {
+    override suspend fun pushOrders(entities: List<OrderEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         entities.forEach { e ->
@@ -148,7 +193,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun pushTransfers(entities: List<TransferEntity>): Int {
+    override suspend fun pushTransfers(entities: List<TransferEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         entities.forEach { e ->
@@ -159,7 +204,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun pushTrackings(entities: List<ProductTrackingEntity>): Int {
+    override suspend fun pushTrackings(entities: List<ProductTrackingEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         entities.forEach { e ->
@@ -170,7 +215,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun pushChats(entities: List<ChatMessageEntity>): Int {
+    override suspend fun pushChats(entities: List<ChatMessageEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         entities.forEach { e ->
@@ -183,7 +228,7 @@ class FirestoreService @Inject constructor(
 
     // Farm monitoring entity sync methods (farmer-scoped subcollections)
     
-    suspend fun fetchUpdatedBreedingPairs(farmerId: String, since: Long, limit: Int = 500): List<BreedingPairEntity> =
+    override suspend fun fetchUpdatedBreedingPairs(farmerId: String, since: Long, limit: Int): List<BreedingPairEntity> =
         firestore.collection("farmers").document(farmerId).collection("breeding_pairs")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -191,7 +236,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(BreedingPairEntity::class.java) }
 
-    suspend fun pushBreedingPairs(farmerId: String, entities: List<BreedingPairEntity>): Int {
+    override suspend fun pushBreedingPairs(farmerId: String, entities: List<BreedingPairEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("breeding_pairs")
@@ -203,7 +248,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedAlerts(farmerId: String, since: Long, limit: Int = 500): List<FarmAlertEntity> =
+    override suspend fun fetchUpdatedAlerts(farmerId: String, since: Long, limit: Int): List<FarmAlertEntity> =
         firestore.collection("farmers").document(farmerId).collection("alerts")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -211,7 +256,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(FarmAlertEntity::class.java) }
 
-    suspend fun pushAlerts(farmerId: String, entities: List<FarmAlertEntity>): Int {
+    override suspend fun pushAlerts(farmerId: String, entities: List<FarmAlertEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("alerts")
@@ -223,7 +268,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedDashboardSnapshots(farmerId: String, since: Long, limit: Int = 100): List<FarmerDashboardSnapshotEntity> =
+    override suspend fun fetchUpdatedDashboardSnapshots(farmerId: String, since: Long, limit: Int): List<FarmerDashboardSnapshotEntity> =
         firestore.collection("farmers").document(farmerId).collection("dashboard_snapshots")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -231,19 +276,22 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(FarmerDashboardSnapshotEntity::class.java) }
 
-    suspend fun pushDashboardSnapshots(farmerId: String, entities: List<FarmerDashboardSnapshotEntity>): Int {
+    override suspend fun pushDashboardSnapshots(farmerId: String, entities: List<FarmerDashboardSnapshotEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("dashboard_snapshots")
+        val now = System.currentTimeMillis()
         entities.forEach { e ->
             val doc = collection.document(e.snapshotId)
             batch.set(doc, e, SetOptions.merge())
+            // Ensure updatedAt is written for delta queries
+            batch.update(doc, mapOf("updatedAt" to now))
         }
         batch.commit().await()
         return entities.size
     }
 
-    suspend fun fetchUpdatedVaccinations(farmerId: String, since: Long, limit: Int = 500): List<VaccinationRecordEntity> =
+    override suspend fun fetchUpdatedVaccinations(farmerId: String, since: Long, limit: Int): List<VaccinationRecordEntity> =
         firestore.collection("farmers").document(farmerId).collection("vaccinations")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -251,7 +299,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(VaccinationRecordEntity::class.java) }
 
-    suspend fun pushVaccinations(farmerId: String, entities: List<VaccinationRecordEntity>): Int {
+    override suspend fun pushVaccinations(farmerId: String, entities: List<VaccinationRecordEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("vaccinations")
@@ -263,7 +311,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedGrowthRecords(farmerId: String, since: Long, limit: Int = 500): List<GrowthRecordEntity> =
+    override suspend fun fetchUpdatedGrowthRecords(farmerId: String, since: Long, limit: Int): List<GrowthRecordEntity> =
         firestore.collection("farmers").document(farmerId).collection("growth_records")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -271,7 +319,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(GrowthRecordEntity::class.java) }
 
-    suspend fun pushGrowthRecords(farmerId: String, entities: List<GrowthRecordEntity>): Int {
+    override suspend fun pushGrowthRecords(farmerId: String, entities: List<GrowthRecordEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("growth_records")
@@ -283,7 +331,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedQuarantineRecords(farmerId: String, since: Long, limit: Int = 500): List<QuarantineRecordEntity> =
+    override suspend fun fetchUpdatedQuarantineRecords(farmerId: String, since: Long, limit: Int): List<QuarantineRecordEntity> =
         firestore.collection("farmers").document(farmerId).collection("quarantine_records")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -291,7 +339,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(QuarantineRecordEntity::class.java) }
 
-    suspend fun pushQuarantineRecords(farmerId: String, entities: List<QuarantineRecordEntity>): Int {
+    override suspend fun pushQuarantineRecords(farmerId: String, entities: List<QuarantineRecordEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("quarantine_records")
@@ -303,7 +351,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedMortalityRecords(farmerId: String, since: Long, limit: Int = 500): List<MortalityRecordEntity> =
+    override suspend fun fetchUpdatedMortalityRecords(farmerId: String, since: Long, limit: Int): List<MortalityRecordEntity> =
         firestore.collection("farmers").document(farmerId).collection("mortality_records")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -311,7 +359,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(MortalityRecordEntity::class.java) }
 
-    suspend fun pushMortalityRecords(farmerId: String, entities: List<MortalityRecordEntity>): Int {
+    override suspend fun pushMortalityRecords(farmerId: String, entities: List<MortalityRecordEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("mortality_records")
@@ -323,7 +371,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedHatchingBatches(farmerId: String, since: Long, limit: Int = 500): List<HatchingBatchEntity> =
+    override suspend fun fetchUpdatedHatchingBatches(farmerId: String, since: Long, limit: Int): List<HatchingBatchEntity> =
         firestore.collection("farmers").document(farmerId).collection("hatching_batches")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -331,7 +379,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(HatchingBatchEntity::class.java) }
 
-    suspend fun pushHatchingBatches(farmerId: String, entities: List<HatchingBatchEntity>): Int {
+    override suspend fun pushHatchingBatches(farmerId: String, entities: List<HatchingBatchEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("hatching_batches")
@@ -343,7 +391,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedHatchingLogs(farmerId: String, since: Long, limit: Int = 500): List<HatchingLogEntity> =
+    override suspend fun fetchUpdatedHatchingLogs(farmerId: String, since: Long, limit: Int): List<HatchingLogEntity> =
         firestore.collection("farmers").document(farmerId).collection("hatching_logs")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -351,7 +399,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(HatchingLogEntity::class.java) }
 
-    suspend fun pushHatchingLogs(farmerId: String, entities: List<HatchingLogEntity>): Int {
+    override suspend fun pushHatchingLogs(farmerId: String, entities: List<HatchingLogEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val collection = firestore.collection("farmers").document(farmerId).collection("hatching_logs")
@@ -363,13 +411,8 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    private fun log(msg: String) { Timber.d("[FirestoreService] $msg") }
-
-    // ==============================
-    // Enthusiast entity sync methods
-    // ==============================
-
-    suspend fun fetchUpdatedMatingLogs(userId: String, since: Long, limit: Int = 500): List<MatingLogEntity> =
+    // Enthusiast-scoped
+    override suspend fun fetchUpdatedMatingLogs(userId: String, since: Long, limit: Int): List<MatingLogEntity> =
         firestore.collection("enthusiasts").document(userId).collection("mating_logs")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -377,7 +420,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(MatingLogEntity::class.java) }
 
-    suspend fun pushMatingLogs(userId: String, entities: List<MatingLogEntity>): Int {
+    override suspend fun pushMatingLogs(userId: String, entities: List<MatingLogEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val col = firestore.collection("enthusiasts").document(userId).collection("mating_logs")
@@ -391,7 +434,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedEggCollections(userId: String, since: Long, limit: Int = 500): List<EggCollectionEntity> =
+    override suspend fun fetchUpdatedEggCollections(userId: String, since: Long, limit: Int): List<EggCollectionEntity> =
         firestore.collection("enthusiasts").document(userId).collection("egg_collections")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -399,7 +442,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(EggCollectionEntity::class.java) }
 
-    suspend fun pushEggCollections(userId: String, entities: List<EggCollectionEntity>): Int {
+    override suspend fun pushEggCollections(userId: String, entities: List<EggCollectionEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val col = firestore.collection("enthusiasts").document(userId).collection("egg_collections")
@@ -413,7 +456,7 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    suspend fun fetchUpdatedEnthusiastSnapshots(userId: String, since: Long, limit: Int = 100): List<EnthusiastDashboardSnapshotEntity> =
+    override suspend fun fetchUpdatedEnthusiastSnapshots(userId: String, since: Long, limit: Int): List<EnthusiastDashboardSnapshotEntity> =
         firestore.collection("enthusiasts").document(userId).collection("dashboard_snapshots")
             .whereGreaterThan("updatedAt", since)
             .orderBy("updatedAt", Query.Direction.ASCENDING)
@@ -421,7 +464,7 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(EnthusiastDashboardSnapshotEntity::class.java) }
 
-    suspend fun pushEnthusiastSnapshots(userId: String, entities: List<EnthusiastDashboardSnapshotEntity>): Int {
+    override suspend fun pushEnthusiastSnapshots(userId: String, entities: List<EnthusiastDashboardSnapshotEntity>): Int {
         if (entities.isEmpty()) return 0
         val batch = firestore.batch()
         val col = firestore.collection("enthusiasts").document(userId).collection("dashboard_snapshots")
@@ -436,4 +479,5 @@ class FirestoreService @Inject constructor(
         batch.commit().await()
         return entities.size
     }
+
 }

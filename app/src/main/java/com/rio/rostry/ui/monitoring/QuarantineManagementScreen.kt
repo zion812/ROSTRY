@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.rio.rostry.data.database.entity.QuarantineRecordEntity
 import com.rio.rostry.ui.monitoring.vm.QuarantineViewModel
 import java.text.SimpleDateFormat
@@ -60,6 +62,10 @@ fun QuarantineManagementScreen(
     var showFilters by remember { mutableStateOf(false) }
     var filterStatus by remember { mutableStateOf("All") }
     val snackbarHostState = remember { SnackbarHostState() }
+    // Listen for error messages from ViewModel and display
+    LaunchedEffect(Unit) {
+        viewModel.errors.collect { msg -> snackbarHostState.showSnackbar(message = msg) }
+    }
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()) }
 
     LaunchedEffect(productId) {
@@ -390,9 +396,11 @@ private fun UpdateQuarantineDialog(
                     }
                 }
 
-                // Photo capture (placeholder launcher handled by screen-level host; here we accept a URI string)
+                val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                    photoUri = uri?.toString()
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { /* launch camera from host; here simulate */ photoUri = "stub://photo" }) { Text("Add Photo") }
+                    OutlinedButton(onClick = { imagePicker.launch("image/*") }) { Text("Add Photo") }
                     Text(photoUri?.let { "1 photo attached" } ?: "No photo")
                 }
                 if (isOverdue && attempted && photoUri.isNullOrBlank()) {

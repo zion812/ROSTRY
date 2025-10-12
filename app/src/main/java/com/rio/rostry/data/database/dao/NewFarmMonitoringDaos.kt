@@ -90,6 +90,12 @@ interface FarmerDashboardSnapshotDao {
     @Query("SELECT * FROM farmer_dashboard_snapshots WHERE farmerId = :farmerId AND weekStartAt = :weekStartAt")
     suspend fun getByWeek(farmerId: String, weekStartAt: Long): FarmerDashboardSnapshotEntity?
 
+    @Query("SELECT * FROM farmer_dashboard_snapshots WHERE farmerId = :farmerId ORDER BY weekStartAt DESC LIMIT :limit")
+    fun observeLastN(farmerId: String, limit: Int): Flow<List<FarmerDashboardSnapshotEntity>>
+
+    @Query("SELECT * FROM farmer_dashboard_snapshots WHERE farmerId = :farmerId ORDER BY weekStartAt DESC LIMIT :limit")
+    suspend fun getLastN(farmerId: String, limit: Int): List<FarmerDashboardSnapshotEntity>
+
     @Query("SELECT * FROM farmer_dashboard_snapshots WHERE dirty = 1")
     suspend fun getDirty(): List<FarmerDashboardSnapshotEntity>
 

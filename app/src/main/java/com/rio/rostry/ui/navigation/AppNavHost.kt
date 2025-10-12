@@ -703,7 +703,10 @@ private fun RoleNavGraph(
 
         composable(
             route = Routes.PRODUCT_DETAILS,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            arguments = listOf(navArgument("productId") { type = NavType.StringType }),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "rostry://product/{productId}" }
+            )
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             ProductDetailsScreen(
@@ -733,7 +736,7 @@ private fun RoleNavGraph(
                 vm = vm,
                 productId = productId,
                 onBack = { navController.popBackStack() },
-                onScanQr = { navController.navigate(Routes.SCAN_QR) }
+                onScanQr = { navController.navigate(Routes.SCAN_QR + "?context=family_tree") }
             )
         }
 
@@ -764,15 +767,35 @@ private fun RoleNavGraph(
                 vm = vm,
                 productId = productId,
                 onBack = { navController.popBackStack() },
-                onScanQr = { navController.navigate(Routes.SCAN_QR) }
+                onScanQr = { navController.navigate(Routes.SCAN_QR + "?context=family_tree") }
             )
         }
 
-        // Scanner route (placeholder implementation)
-        composable(Routes.SCAN_QR) {
+        // Scanner route (placeholder implementation) with optional context
+        composable(
+            route = Routes.SCAN_QR + "?context={context}&transferId={transferId}",
+            arguments = listOf(
+                navArgument("context") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("transferId") { type = NavType.StringType; nullable = true; defaultValue = null }
+            )
+        ) { backStackEntry ->
+            val ctx = backStackEntry.arguments?.getString("context")
+            val tid = backStackEntry.arguments?.getString("transferId")
             QrScannerScreen(onResult = { productId ->
-                navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
-                navController.popBackStack()
+                when (ctx) {
+                    "family_tree" -> {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
+                        navController.popBackStack()
+                    }
+                    "transfer_verify" -> {
+                        // For transfer flows, open traceability for quick identity check
+                        navController.navigate("traceability/$productId")
+                    }
+                    else -> {
+                        // Default: open product details
+                        navController.navigate("product/$productId")
+                    }
+                }
             })
         }
 
@@ -796,7 +819,8 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
             TransferVerificationScreen(
-                transferId = transferId
+                transferId = transferId,
+                onScanProduct = { navController.navigate(Routes.SCAN_QR + "?context=transfer_verify&transferId=$transferId") }
             )
         }
 

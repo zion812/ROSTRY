@@ -21,6 +21,7 @@ import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.MilestoneNotifier
 import com.rio.rostry.utils.notif.EnthusiastNotifier
 import com.rio.rostry.utils.notif.FarmNotifier
+import com.rio.rostry.domain.model.LifecycleStage
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -50,12 +51,7 @@ class LifecycleWorker @AssistedInject constructor(
             val products = productDao.getActiveWithBirth()
             for (p in products) {
                 val week = p.birthDate?.let { ((now - it) / (7L * 24 * 60 * 60 * 1000)).toInt() } ?: continue
-                val stage = when {
-                    week < 5 -> "CHICK"
-                    week < 20 -> "JUVENILE"
-                    week < 52 -> "ADULT"
-                    else -> "BREEDER"
-                }
+                val stage = LifecycleStage.fromWeeks(week)
 
                 // Batch split detection: recommend split at >= 12 weeks
                 if (p.isBatch == true && (p.lifecycleStatus == "ACTIVE" || p.lifecycleStatus == null)) {
@@ -72,7 +68,7 @@ class LifecycleWorker @AssistedInject constructor(
                             )
                         )
                         // Notify farmer about batch split due
-                        // FarmNotifier.batchSplitDue(applicationContext, p.productId, p.name ?: "Batch")
+                        FarmNotifier.batchSplitDue(applicationContext, p.productId, p.name ?: "Batch")
                     }
                 }
 
@@ -84,62 +80,70 @@ class LifecycleWorker @AssistedInject constructor(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
                         week = week,
-                        stage = stage,
+                        stage = stage.name,
                         type = "STAGE_TRANSITION",
                         notes = "Stage changed to $stage"
                     )
-                    lifecycleDao.insert(transition)
-                    // Notify on stage transition with deep link handled by MilestoneNotifier
-                    MilestoneNotifier.notify(applicationContext, p.productId, transition)
+                    val exists = lifecycleDao.existsEvent(p.productId, transition.type ?: "STAGE_TRANSITION", week)
+                    if (!exists) {
+                        lifecycleDao.insert(transition)
+                        // Notify on stage transition with deep link handled by MilestoneNotifier
+                        MilestoneNotifier.notify(applicationContext, p.productId, transition)
+                    }
                 }
 
                 // Sample milestone rules
                 val milestones = mutableListOf<LifecycleEventEntity>()
-                if (stage == "CHICK" && (week == 0 || week == 2 || week == 4)) {
+                if (stage == LifecycleStage.CHICK && (week == 0 || week == 2 || week == 4)) {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
                         week = week,
-                        stage = stage,
+                        stage = stage.name,
                         type = "VACCINATION",
                         notes = "Vaccination checkpoint (week $week)"
                     )
                 }
-                if (stage == "JUVENILE") {
+                if (stage == LifecycleStage.JUVENILE) {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
                         week = week,
-                        stage = stage,
+                        stage = stage.name,
                         type = "GROWTH_UPDATE",
                         notes = "Weekly growth update"
                     )
                 }
-                if (stage == "ADULT" && (week == 20 || week == 30 || week == 40)) {
+                if (stage == LifecycleStage.ADULT && (week == 20 || week == 30 || week == 40)) {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
                         week = week,
-                        stage = stage,
+                        stage = stage.name,
                         type = "MILESTONE",
                         notes = "Adult stage milestone (week $week)"
                     )
                 }
-                if (stage == "BREEDER" && week == 52) {
+                if (stage == LifecycleStage.BREEDER && week == 52) {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
                         week = week,
-                        stage = stage,
+                        stage = stage.name,
                         type = "MILESTONE",
                         notes = "Breeder eligibility"
                     )
                     productDao.updateBreederEligibleAt(p.productId, now, now)
                 }
                 // Persist generated milestones and notify
-                milestones.forEach { 
-                    lifecycleDao.insert(it)
-                    MilestoneNotifier.notify(applicationContext, p.productId, it)
+                milestones.forEach {
+                    val mType = it.type ?: return@forEach
+                    val mWeek = it.week ?: return@forEach
+                    val exists = lifecycleDao.existsEvent(p.productId, mType, mWeek)
+                    if (!exists) {
+                        lifecycleDao.insert(it)
+                        MilestoneNotifier.notify(applicationContext, p.productId, it)
+                    }
                     if (it.type == "VACCINATION") {
                         // Deduped vaccination task scheduled at end-of-day
                         val vaxType = "IMMUNIZATION"
@@ -202,12 +206,15 @@ class LifecycleWorker @AssistedInject constructor(
                             eventId = UUID.randomUUID().toString(),
                             productId = p.productId,
                             week = week,
-                            stage = stage,
+                            stage = stage.name,
                             type = "TRAIT_MILESTONE",
                             notes = "$months-month milestone: ${highValue.joinToString { trait -> trait.name }}"
                         )
-                        lifecycleDao.insert(milestone)
-                        EnthusiastNotifier.traitMilestone(applicationContext, p.productId, milestone.notes ?: "Trait milestone")
+                        val exists = lifecycleDao.existsEvent(p.productId, milestone.type ?: "TRAIT_MILESTONE", week)
+                        if (!exists) {
+                            lifecycleDao.insert(milestone)
+                            EnthusiastNotifier.traitMilestone(applicationContext, p.productId, milestone.notes ?: "Trait milestone")
+                        }
                     }
                 }
             }

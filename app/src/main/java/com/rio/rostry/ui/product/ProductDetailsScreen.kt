@@ -42,6 +42,33 @@ fun ProductDetailsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.qrSaved.collect { uriStr ->
+            val res = snackbarHostState.showSnackbar(
+                message = "QR saved",
+                actionLabel = "Open"
+            )
+            if (res == SnackbarResult.ActionPerformed) {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                    setDataAndType(android.net.Uri.parse(uriStr), "image/*")
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                kotlin.runCatching { context.startActivity(intent) }
+            } else {
+                // Offer share as follow-up
+                val share = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri.parse(uriStr))
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                kotlin.runCatching {
+                    context.startActivity(android.content.Intent.createChooser(share, "Share Product QR"))
+                }
+            }
+        }
+    }
 
     LaunchedEffect(productId) {
         viewModel.loadProduct(productId)
@@ -93,6 +120,7 @@ fun ProductDetailsScreen(
                 onOpenTraceability = onOpenTraceability,
                 onNavigateToProduct = onNavigateToProduct,
                 onToggleWishlist = { viewModel.toggleWishlist() },
+                onGenerateProductQr = { viewModel.generateAndStoreProductQr() },
                 modifier = Modifier.padding(paddingValues)
             )
         } else {
@@ -117,6 +145,7 @@ private fun ProductDetailsContent(
     onOpenTraceability: () -> Unit,
     onNavigateToProduct: (String) -> Unit,
     onToggleWishlist: () -> Unit,
+    onGenerateProductQr: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -157,8 +186,42 @@ private fun ProductDetailsContent(
                 TraceabilityCard(onOpenTraceability = onOpenTraceability)
             }
             // Export Lineage (link/QR entry)
+            item { ExportLineageCard(product, onGenerateProductQr) }
+        }
+
+        // Saved Product QR (if generated and stored)
+        if (!product.qrCodeUrl.isNullOrBlank()) {
             item {
-                ExportLineageCard(product)
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Product QR (saved)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        AsyncImage(
+                            model = product.qrCodeUrl,
+                            contentDescription = "Saved product QR",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentScale = ContentScale.Fit
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "image/png"
+                                    putExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri.parse(product.qrCodeUrl))
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                ctx.startActivity(android.content.Intent.createChooser(intent, "Share Product QR"))
+                            }) { Text("Share QR") }
+                        }
+                    }
+                }
             }
         }
 
@@ -738,57 +801,53 @@ private fun sellerRating(sellerId: String): String {
 }
 
 @Composable
-private fun ExportLineageCard(product: ProductEntity) {
+private fun ExportLineageCard(product: ProductEntity, onGenerateProductQr: () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    val localSnackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     val link = remember(product.productId) { "https://rostry.app/lineage/${product.productId}" }
 
     val qrImage by remember(link) { mutableStateOf(generateQrImage(link, size = 512)) }
-
-    Scaffold(snackbarHost = { SnackbarHost(localSnackbar) }) { _ ->
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Export Lineage Proof", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Export Lineage Proof", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text("Share a verifiable link to this bird's lineage and breeding records.", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(link))
+                    android.widget.Toast.makeText(ctx, "Lineage link copied", android.widget.Toast.LENGTH_SHORT).show()
+                }) { Text("Copy Link") }
+                Button(onClick = {
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, link)
+                    }
+                    val chooser = android.content.Intent.createChooser(send, "Share lineage link")
+                    ctx.startActivity(chooser)
+                }) { Text("Share") }
+                OutlinedButton(onClick = onGenerateProductQr) { Text("Generate Product QR") }
+            }
+            Spacer(Modifier.height(12.dp))
+            qrImage?.let { bmp ->
+                Image(
+                    bitmap = bmp,
+                    contentDescription = "Lineage QR",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                )
                 Spacer(Modifier.height(8.dp))
-                Text("Share a verifiable link to this bird's lineage and breeding records.", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(link))
-                        scope.launch { localSnackbar.showSnackbar("Lineage link copied") }
-                    }) { Text("Copy Link") }
-                    Button(onClick = {
-                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TEXT, link)
-                        }
-                        val chooser = android.content.Intent.createChooser(send, "Share lineage link")
-                        ctx.startActivity(chooser)
-                    }) { Text("Share") }
-                }
-                Spacer(Modifier.height(12.dp))
-                qrImage?.let { bmp ->
-                    Image(
-                        bitmap = bmp,
-                        contentDescription = "Lineage QR",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = {
-                        val ok = saveQrToPictures(ctx, link)
-                        scope.launch { localSnackbar.showSnackbar(if (ok) "QR saved to Pictures" else "Failed to save QR") }
-                    }) { Text("Save QR") }
-                }
+                OutlinedButton(onClick = {
+                    val ok = saveQrToPictures(ctx, link)
+                    android.widget.Toast.makeText(ctx, if (ok) "QR saved to Pictures" else "Failed to save QR", android.widget.Toast.LENGTH_SHORT).show()
+                }) { Text("Save QR") }
             }
         }
     }

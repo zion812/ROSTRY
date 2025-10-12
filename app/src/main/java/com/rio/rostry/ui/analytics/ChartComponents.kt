@@ -38,7 +38,13 @@ fun BarChartView(
         Text("No data")
         return
     }
-    val max = (data.maxOfOrNull { it.value } ?: 0f).coerceAtLeast(1f)
+    // If all values are zero or negative, don't render zero-height bars; show placeholder
+    val maxRaw = (data.maxOfOrNull { it.value } ?: 0f)
+    if (maxRaw <= 0f) {
+        Text("No data")
+        return
+    }
+    val max = maxRaw.coerceAtLeast(1f)
     // Compute bar hit areas
     val bars = remember(data) { data }
     Box(modifier = modifier.background(Color.Transparent)) {

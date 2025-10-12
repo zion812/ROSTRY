@@ -29,6 +29,29 @@ object FarmNotifier {
         }
     }
 
+    fun batchSplitDue(context: Context, productId: String, batchName: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://monitoring/growth?productId=$productId").toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (productId + "_split").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Batch Split Recommended")
+            .setContentText("$batchName is ready for individual tracking. Consider splitting.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("batch_split_" + productId).hashCode(), notification)
+    }
+
     fun notifyBirdOnboarded(context: Context, birdName: String, productId: String) {
         ensureChannel(context)
         val deepLink = ("rostry://" + com.rio.rostry.ui.navigation.Routes.MONITORING_DAILY_LOG).toUri()

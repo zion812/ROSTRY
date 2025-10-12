@@ -22,6 +22,16 @@ Audience: Release managers, Engineers, QA
 - [ ] Security audit completed
 - [ ] Accessibility testing done
 
+### Epic-specific verifications
+- [ ] Home dashboard first render < 3s (tested via `HomeLoadPerformanceTest`)
+- [ ] Offline E2E flows: airplane mode logging, outbox reconciliation < 5 minutes, idempotent mutations
+- [ ] Quarantine enforcement: 12-hour overdue badge, discharge policy (2 healthy cycles), listing block, deep link notif
+- [ ] Hatching: auto-creation of chicks with initial `DailyLogEntity`/`GrowthRecordEntity`, lineage stamping, KPI updates
+- [ ] Transfer verification: GPS >100m requires explanation, EXIF extraction persisted, admin gate behavior
+- [ ] Listing validation: invalid states blocked, user feedback surfaced
+- [ ] Dashboards CSV parity: exported CSVs match UI totals
+- [ ] ProGuard/R8 rules verified for monitoring, analytics, and workers
+
 ## Documentation
 - [ ] CHANGELOG.md updated
 - [ ] README.md updated
@@ -35,6 +45,8 @@ Audience: Release managers, Engineers, QA
 - [ ] APK/AAB signed
 - [ ] Upload to Play Store
 - [ ] Staged rollout configured
+- [ ] Resource shrinking enabled; Crashlytics mapping upload verified
+- [ ] APK size <= 50MB guard passes (CI `checkApkSize`)
 
 ## Post-Release
 - [ ] Monitor crash reports (Crashlytics)

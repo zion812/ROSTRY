@@ -20,6 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun FarmerDashboardScreen(
@@ -28,6 +33,7 @@ fun FarmerDashboardScreen(
     onOpenFeed: () -> Unit = {},
 ) {
     val d = vm.dashboard.collectAsState().value
+    val last4 = vm.lastFour.collectAsState().value
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -55,11 +61,17 @@ fun FarmerDashboardScreen(
                             "Product Views" to d.productViews,
                             "Engagement Score (7d)" to d.engagementScore
                         )
+                        val units = mapOf(
+                            "Orders" to "count",
+                            "Product Views" to "views",
+                            "Engagement Score (7d)" to "score"
+                        )
                         val res = com.rio.rostry.utils.export.CsvExporter.exportKpis(
                             context,
                             kpis,
                             fileName = "farmer_kpis.csv",
-                            dateRange = null
+                            dateRange = null,
+                            units = units
                         )
                         when (res) {
                             is com.rio.rostry.utils.Resource.Success -> {
@@ -70,8 +82,83 @@ fun FarmerDashboardScreen(
                             else -> {}
                         }
                     }, modifier = Modifier.padding(top = 8.dp)) { Text("Export CSV") }
+
+                    Button(onClick = {
+                        val kpis = mapOf(
+                            "Orders" to d.orders,
+                            "Product Views" to d.productViews,
+                            "Engagement Score (7d)" to d.engagementScore
+                        )
+                        val units = mapOf(
+                            "Orders" to "count",
+                            "Product Views" to "views",
+                            "Engagement Score (7d)" to "score"
+                        )
+                        val res = com.rio.rostry.utils.export.CsvExporter.exportKpis(
+                            context,
+                            kpis,
+                            fileName = "farmer_kpis.csv",
+                            dateRange = null,
+                            units = units
+                        )
+                        if (res is com.rio.rostry.utils.Resource.Success) {
+                            res.data?.let { uri ->
+                                val intent = com.rio.rostry.utils.export.CsvExporter.shareCsv(context, uri)
+                                context.startActivity(intent)
+                            }
+                        }
+                    }, modifier = Modifier.padding(top = 8.dp)) { Text("Share CSV") }
                 }
             }
+
+            // Trend charts
+            if (last4.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Text("Trends (last ${last4.size} weeks)", style = MaterialTheme.typography.titleMedium)
+
+                        // Revenue trend
+                        Text("Revenue (INR)")
+                        MiniLineChart(values = last4.map { it.revenueInr })
+
+                        Spacer(Modifier.height(8.dp))
+                        // Mortality rate trend
+                        Text("Mortality Rate")
+                        MiniLineChart(values = last4.map { it.mortalityRate.coerceIn(0.0, 1.0) }, color = Color(0xFFD32F2F))
+
+                        Spacer(Modifier.height(8.dp))
+                        // Hatch success trend
+                        Text("Hatch Success Rate")
+                        MiniLineChart(values = last4.map { it.hatchSuccessRate.coerceIn(0.0, 1.0) }, color = Color(0xFF388E3C))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniLineChart(values: List<Double>, color: Color = Color(0xFF1976D2)) {
+    if (values.size < 2) return
+    val maxV = (values.maxOrNull() ?: 0.0)
+    val minV = values.minOrNull() ?: 0.0
+    val range = (maxV - minV).takeIf { it > 0 } ?: 1.0
+    Canvas(modifier = Modifier
+        .fillMaxWidth()
+        .height(100.dp)
+        .padding(vertical = 4.dp)) {
+        val stepX = if (values.size > 1) size.width / (values.size - 1) else size.width
+        var prev: Offset? = null
+        values.forEachIndexed { idx, v ->
+            val x = idx * stepX
+            val yRatio = ((v - minV) / range).toFloat()
+            val y = size.height * (1f - yRatio)
+            val cur = Offset(x, y)
+            prev?.let { p ->
+                drawLine(color, p, cur, strokeWidth = 4f)
+            }
+            prev = cur
         }
     }
 }

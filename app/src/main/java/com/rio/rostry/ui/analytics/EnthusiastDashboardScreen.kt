@@ -59,11 +59,17 @@ fun EnthusiastDashboardScreen(
                         "Transfers" to d.transfers,
                         "Engagement Score (7d)" to d.engagementScore
                     )
+                    val units = mapOf(
+                        "Breeding Success Rate (%)" to "%",
+                        "Transfers" to "count",
+                        "Engagement Score (7d)" to "score"
+                    )
                     val res = com.rio.rostry.utils.export.CsvExporter.exportKpis(
                         context,
                         kpis,
                         fileName = "enthusiast_kpis.csv",
-                        dateRange = null
+                        dateRange = null,
+                        units = units
                     )
                     when (res) {
                         is com.rio.rostry.utils.Resource.Success -> {
@@ -74,6 +80,32 @@ fun EnthusiastDashboardScreen(
                         else -> {}
                     }
                 }, modifier = Modifier.padding(top = 8.dp)) { Text("Export CSV") }
+
+                Button(onClick = {
+                    val kpis = mapOf(
+                        "Breeding Success Rate (%)" to (d.breedingSuccessRate * 100.0),
+                        "Transfers" to d.transfers,
+                        "Engagement Score (7d)" to d.engagementScore
+                    )
+                    val units = mapOf(
+                        "Breeding Success Rate (%)" to "%",
+                        "Transfers" to "count",
+                        "Engagement Score (7d)" to "score"
+                    )
+                    val res = com.rio.rostry.utils.export.CsvExporter.exportKpis(
+                        context,
+                        kpis,
+                        fileName = "enthusiast_kpis.csv",
+                        dateRange = null,
+                        units = units
+                    )
+                    if (res is com.rio.rostry.utils.Resource.Success) {
+                        res.data?.let { uri ->
+                            val intent = com.rio.rostry.utils.export.CsvExporter.shareCsv(context, uri)
+                            context.startActivity(intent)
+                        }
+                    }
+                }, modifier = Modifier.padding(top = 8.dp)) { Text("Share CSV") }
             }
         }
 

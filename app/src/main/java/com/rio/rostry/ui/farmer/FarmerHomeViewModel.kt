@@ -17,6 +17,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -72,6 +73,10 @@ class FarmerHomeViewModel @Inject constructor(
 
     private val _errorEvents = MutableSharedFlow<String>()
     val errorEvents = _errorEvents.asSharedFlow()
+
+    // Pull-to-refresh indicator
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
     // Reactive time ticker for live updates (updates every minute)
     private val timeTickerFlow = flow {
@@ -183,9 +188,12 @@ class FarmerHomeViewModel @Inject constructor(
     fun refreshData() {
         viewModelScope.launch {
             try {
+                _isRefreshing.value = true
                 syncManager.syncAll()
             } catch (t: Throwable) {
                 Timber.e(t, "Sync failed from FarmerHome refreshData()")
+            } finally {
+                _isRefreshing.value = false
             }
         }
     }

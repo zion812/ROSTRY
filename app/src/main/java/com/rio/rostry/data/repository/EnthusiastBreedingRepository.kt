@@ -22,8 +22,12 @@ import java.util.UUID
 import javax.inject.Inject
 import androidx.room.withTransaction
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.data.database.entity.GrowthRecordEntity
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
+import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.utils.notif.EnthusiastNotifier
+import com.rio.rostry.data.repository.TraceabilityRepository
 
 interface EnthusiastBreedingRepository {
     suspend fun createPair(
@@ -91,6 +95,7 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
     private val analytics: com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker,
     private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
     private val vaccinationRepository: com.rio.rostry.data.repository.monitoring.VaccinationRepository,
+    private val traceabilityRepository: TraceabilityRepository,
 ) : EnthusiastBreedingRepository {
 
     override suspend fun createPair(
@@ -364,9 +369,11 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
                     )
                 )
 
-                // 2) Update batch status
+                // 2) Update batch status and hatched timestamp
                 hatchingBatchDao.upsert(
                     batch.copy(
+                        status = "COMPLETED",
+                        hatchedAt = now,
                         updatedAt = now,
                         dirty = true
                     )
@@ -375,6 +382,8 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
                 // 3) Auto-create chicks
                 repeat(successCount) { idx ->
                     val chickId = "chick_${now}_${idx}_${UUID.randomUUID().toString().take(6)}"
+                    // Compute lineage via TraceabilityRepository
+                    val computedFamilyTreeId = traceabilityRepository.createFamilyTree(male, female, pair?.pairId)
                     val product = ProductEntity(
                         productId = chickId,
                         sellerId = farmerId,
@@ -397,7 +406,7 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
                         gender = null,
                         color = null,
                         breed = null,
-                        familyTreeId = null,
+                        familyTreeId = computedFamilyTreeId,
                         parentIdsJson = null,
                         breedingStatus = null,
                         transferHistoryJson = null,
@@ -407,7 +416,7 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
                         isDeleted = false,
                         deletedAt = null,
                         dirty = true,
-                        stage = "CHICK",
+                        stage = LifecycleStage.CHICK,
                         lifecycleStatus = "ACTIVE",
                         parentMaleId = male,
                         parentFemaleId = female,
@@ -417,6 +426,41 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
                         isBatch = false
                     )
                     productDao.upsert(product)
+
+                    // Initial onboarding Daily Log (author=farm uid), mark dirty
+                    val logDate = startOfDayMillis()
+                    db.dailyLogDao().upsert(
+                        DailyLogEntity(
+                            logId = UUID.randomUUID().toString(),
+                            productId = chickId,
+                            farmerId = farmerId,
+                            logDate = logDate,
+                            notes = "Auto-created on hatch completion for batch $batchId",
+                            createdAt = now,
+                            updatedAt = now,
+                            dirty = true,
+                            author = farmerId
+                        )
+                    )
+
+                    // Initial GrowthRecord week 0 with default/null measurements, mark dirty
+                    db.growthRecordDao().upsert(
+                        GrowthRecordEntity(
+                            recordId = UUID.randomUUID().toString(),
+                            productId = chickId,
+                            farmerId = farmerId,
+                            week = 0,
+                            weightGrams = null,
+                            heightCm = null,
+                            photoUrl = null,
+                            healthStatus = null,
+                            milestone = "Hatch",
+                            createdAt = now,
+                            updatedAt = now,
+                            dirty = true,
+                            syncedAt = null
+                        )
+                    )
 
                     // Child log
                     hatchingLogDao.upsert(
@@ -467,7 +511,7 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
                 // 4) Update pair KPI hatch success
                 if (pair != null) {
                     val eggsSet = batch.eggsCount ?: eggCollectionDao.getById(batch.sourceCollectionId ?: "")?.eggsCollected ?: 0
-                    val newHatchedTotal = hatchingLogDao.countByBatchAndType(batchId, "HATCHED") + successCount
+                    val newHatchedTotal = hatchingLogDao.countByBatchAndType(batchId, "HATCHED")
                     val rate = if (eggsSet > 0) newHatchedTotal.toDouble() / eggsSet else 0.0
                     breedingPairDao.upsert(pair.copy(hatchSuccessRate = rate, updatedAt = now, dirty = true))
                 }

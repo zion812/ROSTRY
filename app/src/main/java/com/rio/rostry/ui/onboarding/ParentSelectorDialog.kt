@@ -64,7 +64,8 @@ fun ParentSelectorDialog(
                             ElevatedCard(onClick = { onSelectParent(p) }) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                     val title = (p.name ?: "").ifBlank { p.productId ?: "" }
-                                    val meta = listOf(p.breed, p.color, p.stage).map { it ?: "" }.filter { it.isNotBlank() }.joinToString(" • ")
+                                    val stageLabel = p.stage?.displayName
+                                    val meta = listOf(p.breed, p.color, stageLabel).map { it ?: "" }.filter { it.isNotBlank() }.joinToString(" • ")
                                     Text(title, style = MaterialTheme.typography.titleMedium)
                                     Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }

@@ -25,6 +25,7 @@ interface TraceabilityRepository {
     suspend fun verifyPath(productId: String, ancestorId: String, maxDepth: Int = 10): Resource<Boolean>
     suspend fun verifyParentage(childId: String, parentId: String, partnerId: String): Resource<Boolean>
     suspend fun getTransferChain(productId: String): Resource<List<Any>>
+    fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String?
 }
 
 @Singleton
@@ -145,6 +146,14 @@ class TraceabilityRepositoryImpl @Inject constructor(
             Resource.Success(chain)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to compose transfer chain")
+        }
+    }
+
+    override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? {
+        return when {
+            !maleId.isNullOrBlank() && !femaleId.isNullOrBlank() -> "FT_${'$'}maleId_${'$'}femaleId"
+            !pairId.isNullOrBlank() -> "FT_PAIR_${'$'}pairId"
+            else -> null
         }
     }
 

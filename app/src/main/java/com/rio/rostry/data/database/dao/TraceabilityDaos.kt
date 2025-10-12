@@ -56,4 +56,8 @@ interface LifecycleEventDao {
 
     @Query("SELECT * FROM lifecycle_events WHERE productId = :productId AND week BETWEEN :startWeek AND :endWeek ORDER BY week ASC")
     suspend fun range(productId: String, startWeek: Int, endWeek: Int): List<LifecycleEventEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM lifecycle_events WHERE productId = :productId AND type = :type AND week = :week)")
+    suspend fun existsEvent(productId: String, type: String, week: Int): Boolean
 }
+

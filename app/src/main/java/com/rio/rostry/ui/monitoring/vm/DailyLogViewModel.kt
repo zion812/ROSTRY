@@ -26,12 +26,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import android.net.Uri
 import timber.log.Timber
+import com.rio.rostry.utils.media.MediaUploadManager
+import com.rio.rostry.utils.images.ImageCompressor
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import kotlinx.coroutines.flow.collect
+import java.io.File
 
 @HiltViewModel
 class DailyLogViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val dailyLogRepository: DailyLogRepository,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val mediaUploadManager: MediaUploadManager,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     data class DailyLogUiState(
@@ -84,6 +92,41 @@ class DailyLogViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyLogUiState())
 
+    init {
+        // Listen for media upload success and persist download URLs to current log
+        viewModelScope.launch {
+            mediaUploadManager.events.collect { ev ->
+                when (ev) {
+                    is MediaUploadManager.UploadEvent.Success -> {
+                        // Heuristic: only handle daily log paths
+                        if (ev.remotePath.startsWith("daily_logs/")) {
+                            // Replace placeholder entry equal to remotePath with the final download URL
+                            _currentLog.value?.let { cur ->
+                                val listType = object : TypeToken<MutableList<String>>() {}.type
+                                val currentList: MutableList<String> = when {
+                                    cur.photoUrls.isNullOrBlank() -> mutableListOf()
+                                    cur.photoUrls!!.trim().startsWith("[") -> runCatching { Gson().fromJson<MutableList<String>>(cur.photoUrls, listType) }.getOrElse { mutableListOf() }
+                                    else -> mutableListOf()
+                                }
+                                val idx = currentList.indexOf(ev.remotePath)
+                                if (idx >= 0) {
+                                    currentList[idx] = ev.downloadUrl
+                                    _currentLog.value = cur.copy(photoUrls = Gson().toJson(currentList))
+                                    save()
+                                } else {
+                                    // Fallback: append if placeholder not found
+                                    addPhoto(ev.downloadUrl)
+                                    save()
+                                }
+                            }
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
     fun loadForProduct(productId: String) {
         selectedProductId.value = productId
         val farmerId = firebaseAuth.currentUser?.uid ?: return
@@ -108,6 +151,7 @@ class DailyLogViewModel @Inject constructor(
 
     fun setNotes(notes: String) {
         updateCurrent { it.copy(notes = notes) }
+        debounceAutoSave()
     }
 
     fun addPhoto(url: String) {
@@ -197,14 +241,36 @@ class DailyLogViewModel @Inject constructor(
 
     // ----- Photo capture/upload integration -----
     fun requestPhotoPick() {
-        // UI should handle ActivityResult; provide separate API for VM to receive photo
+        // Intent handled by UI; no-op here
     }
 
     fun addCapturedPhoto(uri: Uri) {
         viewModelScope.launch {
             try {
-                // Simplified: just add URI directly
-                addPhoto(uri.toString())
+                val productId = selectedProductId.value ?: return@launch
+                val cur = _currentLog.value ?: return@launch
+                val tempFile = copyUriToTempFile(uri)
+                // Compress for upload (use low bandwidth profile if desired)
+                val compressed = ImageCompressor.compressForUpload(appContext, tempFile, lowBandwidth = true)
+                val remotePath = "daily_logs/${productId}/${cur.logId}/${System.currentTimeMillis()}.jpg"
+                // Optimistically persist placeholder with remotePath token and save immediately
+                run {
+                    val listType = object : TypeToken<MutableList<String>>() {}.type
+                    val currentList: MutableList<String> = when {
+                        cur.photoUrls.isNullOrBlank() -> mutableListOf()
+                        cur.photoUrls!!.trim().startsWith("[") -> runCatching { Gson().fromJson<MutableList<String>>(cur.photoUrls, listType) }.getOrElse { mutableListOf() }
+                        else -> mutableListOf()
+                    }
+                    currentList.add(remotePath)
+                    _currentLog.value = cur.copy(photoUrls = Gson().toJson(currentList))
+                    save()
+                }
+                // Enqueue to outbox (handled by worker/background)
+                mediaUploadManager.enqueueToOutbox(
+                    localPath = compressed.absolutePath,
+                    remotePath = remotePath,
+                    contextJson = "{\"productId\":\"$productId\",\"logId\":\"${cur.logId}\"}"
+                )
             } catch (t: Throwable) {
                 Timber.e(t, "Photo upload failed")
             }
@@ -213,6 +279,14 @@ class DailyLogViewModel @Inject constructor(
 
     // Helper to handle context if compressor requires it; placeholder
     private fun applyContextSafely(uri: Uri): Uri = uri
+
+    private fun copyUriToTempFile(uri: Uri): File {
+        val input = appContext.contentResolver.openInputStream(uri) ?: throw IllegalStateException("Cannot open input stream")
+        val outFile = File.createTempFile("dlog_", ".jpg", appContext.cacheDir)
+        outFile.outputStream().use { out -> input.copyTo(out) }
+        input.close()
+        return outFile
+    }
 
     // ----- Debounced autosave -----
     private var debounceJob: Job? = null

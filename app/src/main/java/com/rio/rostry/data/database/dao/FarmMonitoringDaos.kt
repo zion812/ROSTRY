@@ -131,6 +131,9 @@ interface VaccinationRecordDao {
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND scheduledAt BETWEEN :start AND :end")
     suspend fun countScheduledBetweenForFarmer(farmerId: String, start: Long, end: Long): Int
 
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NOT NULL AND administeredAt BETWEEN :start AND :end")
+    suspend fun countAdministeredBetweenForFarmer(farmerId: String, start: Long, end: Long): Int
+
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NULL AND scheduledAt BETWEEN :start AND :end")
     fun observeDueForFarmer(farmerId: String, start: Long, end: Long): Flow<Int>
 
@@ -153,25 +156,25 @@ interface HatchingBatchDao {
     fun observeBatches(): Flow<List<HatchingBatchEntity>>
 
     // Optimized streams (avoid in-memory filtering in repositories)
-    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now ORDER BY expectedHatchAt ASC")
+    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now ORDER BY expectedHatchAt ASC")
     fun observeActiveBatchesForFarmer(farmerId: String, now: Long): Flow<List<HatchingBatchEntity>>
 
-    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt BETWEEN :start AND :end ORDER BY expectedHatchAt ASC")
+    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt BETWEEN :start AND :end ORDER BY expectedHatchAt ASC")
     fun observeHatchingDue(farmerId: String, start: Long, end: Long): Flow<List<HatchingBatchEntity>>
 
     @Query("SELECT * FROM hatching_batches WHERE batchId = :batchId LIMIT 1")
     suspend fun getById(batchId: String): HatchingBatchEntity?
 
-    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now")
+    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now")
     suspend fun countActiveForFarmer(farmerId: String, now: Long): Int
 
-    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt BETWEEN :now AND :weekEnd")
+    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt BETWEEN :now AND :weekEnd")
     suspend fun countDueThisWeekForFarmer(farmerId: String, now: Long, weekEnd: Long): Int
 
-    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now")
+    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now")
     fun observeActiveForFarmer(farmerId: String, now: Long): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND expectedHatchAt BETWEEN :now AND :weekEnd")
+    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt BETWEEN :now AND :weekEnd")
     fun observeDueThisWeekForFarmer(farmerId: String, now: Long, weekEnd: Long): Flow<Int>
 
     // Fetch batches created from specific egg collections

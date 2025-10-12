@@ -27,4 +27,7 @@ interface PaymentDao {
 
     @Query("SELECT * FROM payments WHERE userId = :userId ORDER BY createdAt DESC")
     fun observeByUser(userId: String): Flow<List<PaymentEntity>>
+
+    @Query("SELECT * FROM payments WHERE orderId = :orderId ORDER BY createdAt DESC LIMIT 1")
+    suspend fun findLatestByOrder(orderId: String): PaymentEntity?
 }

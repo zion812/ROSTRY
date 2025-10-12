@@ -42,6 +42,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.core.content.FileProvider
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +57,17 @@ fun DailyLogScreen(
     val vm: DailyLogViewModel = hiltViewModel()
     LaunchedEffect(productId) { productId?.let { vm.loadForProduct(it) } }
     val state by vm.uiState.collectAsState()
+    val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) vm.addCapturedPhoto(uri)
+    }
+    // Camera capture launcher with a temp content Uri
+    val context = LocalContext.current
+    val captureTargetUri = remember { mutableStateOf<android.net.Uri?>(null) }
+    val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            captureTargetUri.value?.let { vm.addCapturedPhoto(it) }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -199,7 +215,16 @@ fun DailyLogScreen(
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { vm.requestPhotoPick() }) { Text("Add Photo") }
+                    OutlinedButton(onClick = { pickImageLauncher.launch("image/*") }) { Text("Add Photo") }
+                    OutlinedButton(onClick = {
+                        // Prepare a temp file and launch camera
+                        val tmp = kotlin.runCatching { java.io.File.createTempFile("dlog_cam_", ".jpg", context.cacheDir) }.getOrNull()
+                        if (tmp != null) {
+                            val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", tmp)
+                            captureTargetUri.value = uri
+                            takePictureLauncher.launch(uri)
+                        }
+                    }) { Text("Capture") }
                     val alreadyLogged = state.hasToday
                     if (alreadyLogged) {
                         // Show timestamp/author of the existing log

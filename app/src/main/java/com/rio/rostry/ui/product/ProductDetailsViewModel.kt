@@ -14,6 +14,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.rio.rostry.utils.QrUtils
+import com.rio.rostry.utils.QrStorage
+import com.rio.rostry.data.database.dao.ProductDao
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class ProductDetailsViewModel @Inject constructor(
@@ -22,7 +26,9 @@ class ProductDetailsViewModel @Inject constructor(
     private val wishlistRepository: WishlistRepository,
     private val recommendationEngine: RecommendationEngine,
     private val currentUserProvider: CurrentUserProvider,
-    private val analytics: GeneralAnalyticsTracker
+    private val analytics: GeneralAnalyticsTracker,
+    private val productDao: ProductDao,
+    @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     private val _productId = MutableStateFlow<String?>(null)
@@ -34,6 +40,9 @@ class ProductDetailsViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     private val _isLoading = MutableStateFlow(true)
     private val _cartMessage = MutableStateFlow<String?>(null)
+    private val _qrSaved = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    val qrSaved: SharedFlow<String> = _qrSaved.asSharedFlow()
 
     val uiState: StateFlow<ProductDetailsUiState> = combine(
         _product,
@@ -205,6 +214,26 @@ class ProductDetailsViewModel @Inject constructor(
         addToCart(quantity)
         // In a real app, navigate to checkout here
         _cartMessage.value = "Proceeding to checkout..."
+    }
+
+    fun generateAndStoreProductQr() {
+        val product = _product.value ?: return
+        viewModelScope.launch {
+            try {
+                val bmp = QrUtils.productQrBitmap(product.productId, size = 1024)
+                val uri = QrStorage.saveProductQr(appContext, product.productId, bmp)
+                if (uri != null) {
+                    val now = System.currentTimeMillis()
+                    productDao.updateQrCodeUrl(product.productId, uri.toString(), now)
+                    _cartMessage.value = "Product QR saved"
+                    _qrSaved.tryEmit(uri.toString())
+                } else {
+                    _error.value = "Failed to save QR"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to generate QR"
+            }
+        }
     }
 
     fun clearMessages() {

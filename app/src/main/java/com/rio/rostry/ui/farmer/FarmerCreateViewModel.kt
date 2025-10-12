@@ -57,6 +57,16 @@ class FarmerCreateViewModel @Inject constructor(
         }
     }
 
+    // Debounced autosave for wizard state mutating calls
+    private var draftDebounceJob: kotlinx.coroutines.Job? = null
+    private fun debounceSaveDraft() {
+        draftDebounceJob?.cancel()
+        draftDebounceJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(2000)
+            saveDraft()
+        }
+    }
+
     enum class WizardStep { BASICS, DETAILS, MEDIA, REVIEW }
 
     data class BasicInfoState(
@@ -377,6 +387,7 @@ class FarmerCreateViewModel @Inject constructor(
         _ui.value = _ui.value.copy(
             wizardState = current.copy(basicInfo = transform(current.basicInfo))
         )
+        debounceSaveDraft()
     }
 
     fun updateDetails(transform: (DetailsInfoState) -> DetailsInfoState) {
@@ -384,6 +395,7 @@ class FarmerCreateViewModel @Inject constructor(
         _ui.value = _ui.value.copy(
             wizardState = current.copy(detailsInfo = transform(current.detailsInfo))
         )
+        debounceSaveDraft()
     }
 
     fun addMedia(type: String, uris: List<String>) {
@@ -441,7 +453,52 @@ class FarmerCreateViewModel @Inject constructor(
                 if (state.basicInfo.availableFrom.isBlank()) put("availableFrom", "Start date required")
                 if (state.basicInfo.availableTo.isBlank()) put("availableTo", "End date required")
             }
-            WizardStep.DETAILS -> emptyMap()
+            WizardStep.DETAILS -> buildMap {
+                val category = when (state.basicInfo.category) {
+                    Category.Meat -> com.rio.rostry.marketplace.model.ProductCategory.Meat
+                    Category.Adoption -> if (state.basicInfo.traceability == Traceability.Traceable) com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable else com.rio.rostry.marketplace.model.ProductCategory.AdoptionNonTraceable
+                }
+                val ageGroup = when (state.basicInfo.ageGroup) {
+                    AgeGroup.Chick -> com.rio.rostry.marketplace.model.AgeGroup.CHICK_0_5_WEEKS
+                    AgeGroup.Grower -> com.rio.rostry.marketplace.model.AgeGroup.YOUNG_5_20_WEEKS
+                    AgeGroup.Adult -> com.rio.rostry.marketplace.model.AgeGroup.ADULT_20_52_WEEKS
+                    AgeGroup.Senior -> com.rio.rostry.marketplace.model.AgeGroup.BREEDER_12_MONTHS_PLUS
+                }
+                val input = com.rio.rostry.marketplace.form.DynamicListingValidator.Input(
+                    category = category,
+                    ageGroup = ageGroup,
+                    isTraceable = state.basicInfo.traceability == Traceability.Traceable,
+                    title = state.basicInfo.title,
+                    birthDateMillis = state.detailsInfo.birthDateMillis,
+                    birthPlace = state.detailsInfo.birthPlace.ifBlank { null },
+                    vaccinationRecords = state.detailsInfo.vaccination.ifBlank { null },
+                    healthRecordDateMillis = state.detailsInfo.healthRecordDateMillis,
+                    parentInfo = state.detailsInfo.parentInfo.ifBlank { null },
+                    weightGrams = state.detailsInfo.weightText.toDoubleOrNull(),
+                    healthRecords = state.detailsInfo.healthUri.ifBlank { null },
+                    gender = state.detailsInfo.genderText.ifBlank { null },
+                    sizeCm = state.detailsInfo.heightCm,
+                    colorPattern = state.detailsInfo.colorPattern.ifBlank { null },
+                    specialCharacteristics = state.detailsInfo.specialChars.ifBlank { null },
+                    breedingHistory = state.detailsInfo.breedingHistory.ifBlank { null },
+                    provenPairsDoc = state.detailsInfo.provenPairs.ifBlank { null },
+                    geneticTraits = state.detailsInfo.geneticTraits.ifBlank { null },
+                    awards = state.detailsInfo.awards.ifBlank { null },
+                    lineageDoc = state.detailsInfo.lineageDoc.ifBlank { null },
+                    photosCount = state.mediaInfo.photoUris.size,
+                    videosCount = state.mediaInfo.videoUris.size,
+                    audioCount = state.mediaInfo.audioUris.size,
+                    documentsCount = state.mediaInfo.documentUris.size,
+                    price = state.basicInfo.price.toDoubleOrNull(),
+                    startPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
+                    latitude = state.detailsInfo.latitude,
+                    longitude = state.detailsInfo.longitude
+                )
+                val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
+                if (!result.valid) {
+                    result.errors.forEachIndexed { index, err -> put("details.$index", err) }
+                }
+            }
             WizardStep.MEDIA -> emptyMap()
             WizardStep.REVIEW -> buildMap {
                 // Check quarantine status (already precomputed synchronously)
@@ -458,6 +515,52 @@ class FarmerCreateViewModel @Inject constructor(
                     if (state.detailsInfo.parentInfo.isBlank() && state.detailsInfo.lineageDoc.isBlank()) {
                         put("traceability", "Parent info or lineage document required for traceable products")
                     }
+                }
+
+                // Run dynamic validator again on REVIEW as a final gate
+                val category = when (state.basicInfo.category) {
+                    Category.Meat -> com.rio.rostry.marketplace.model.ProductCategory.Meat
+                    Category.Adoption -> if (state.basicInfo.traceability == Traceability.Traceable) com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable else com.rio.rostry.marketplace.model.ProductCategory.AdoptionNonTraceable
+                }
+                val ageGroup = when (state.basicInfo.ageGroup) {
+                    AgeGroup.Chick -> com.rio.rostry.marketplace.model.AgeGroup.CHICK_0_5_WEEKS
+                    AgeGroup.Grower -> com.rio.rostry.marketplace.model.AgeGroup.YOUNG_5_20_WEEKS
+                    AgeGroup.Adult -> com.rio.rostry.marketplace.model.AgeGroup.ADULT_20_52_WEEKS
+                    AgeGroup.Senior -> com.rio.rostry.marketplace.model.AgeGroup.BREEDER_12_MONTHS_PLUS
+                }
+                val input = com.rio.rostry.marketplace.form.DynamicListingValidator.Input(
+                    category = category,
+                    ageGroup = ageGroup,
+                    isTraceable = state.basicInfo.traceability == Traceability.Traceable,
+                    title = state.basicInfo.title,
+                    birthDateMillis = state.detailsInfo.birthDateMillis,
+                    birthPlace = state.detailsInfo.birthPlace.ifBlank { null },
+                    vaccinationRecords = state.detailsInfo.vaccination.ifBlank { null },
+                    healthRecordDateMillis = state.detailsInfo.healthRecordDateMillis,
+                    parentInfo = state.detailsInfo.parentInfo.ifBlank { null },
+                    weightGrams = state.detailsInfo.weightText.toDoubleOrNull(),
+                    healthRecords = state.detailsInfo.healthUri.ifBlank { null },
+                    gender = state.detailsInfo.genderText.ifBlank { null },
+                    sizeCm = state.detailsInfo.heightCm,
+                    colorPattern = state.detailsInfo.colorPattern.ifBlank { null },
+                    specialCharacteristics = state.detailsInfo.specialChars.ifBlank { null },
+                    breedingHistory = state.detailsInfo.breedingHistory.ifBlank { null },
+                    provenPairsDoc = state.detailsInfo.provenPairs.ifBlank { null },
+                    geneticTraits = state.detailsInfo.geneticTraits.ifBlank { null },
+                    awards = state.detailsInfo.awards.ifBlank { null },
+                    lineageDoc = state.detailsInfo.lineageDoc.ifBlank { null },
+                    photosCount = state.mediaInfo.photoUris.size,
+                    videosCount = state.mediaInfo.videoUris.size,
+                    audioCount = state.mediaInfo.audioUris.size,
+                    documentsCount = state.mediaInfo.documentUris.size,
+                    price = state.basicInfo.price.toDoubleOrNull(),
+                    startPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
+                    latitude = state.detailsInfo.latitude,
+                    longitude = state.detailsInfo.longitude
+                )
+                val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
+                if (!result.valid) {
+                    result.errors.forEachIndexed { index, err -> put("review.$index", err) }
                 }
             }
         }

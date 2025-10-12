@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import android.content.Intent
 import java.io.File
 import java.io.FileOutputStream
 
@@ -34,7 +35,8 @@ object CsvExporter {
         context: Context,
         kpis: Map<String, Any>,
         fileName: String,
-        dateRange: Pair<Long, Long>? = null
+        dateRange: Pair<Long, Long>? = null,
+        units: Map<String, String>? = null
     ): com.rio.rostry.utils.Resource<Uri> {
         return try {
             val dir = File(context.filesDir, "reports")
@@ -48,7 +50,7 @@ object CsvExporter {
                     val hdr = "Date Range,${fmt.format(java.util.Date(start))},${fmt.format(java.util.Date(end))}\n"
                     fos.write(hdr.toByteArray())
                 }
-                fos.write("Metric,Value\n".toByteArray())
+                fos.write("Metric,Value,Unit\n".toByteArray())
                 kpis.forEach { (k, v) ->
                     val value = when (v) {
                         is Number -> v.toString()
@@ -56,7 +58,8 @@ object CsvExporter {
                         is Boolean -> v.toString()
                         else -> v.toString().replace(",", " ")
                     }
-                    fos.write("$k,$value\n".toByteArray())
+                    val unit = units?.get(k) ?: ""
+                    fos.write("$k,$value,$unit\n".toByteArray())
                 }
                 fos.flush()
             }
@@ -66,6 +69,16 @@ object CsvExporter {
         } catch (t: Throwable) {
             com.rio.rostry.utils.Resource.Error(t.message ?: "Failed to export CSV")
         }
+    }
+
+    fun shareCsv(context: Context, uri: Uri, subject: String = "Rostry Report", title: String = "Share CSV"): Intent {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        return Intent.createChooser(intent, title)
     }
 
     fun showExportNotification(context: Context, uri: Uri, title: String = "Report exported", text: String = "Tap to view") {

@@ -18,6 +18,10 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND dueAt < :now ORDER BY dueAt ASC")
     fun observeOverdueForFarmer(farmerId: String, now: Long): Flow<List<TaskEntity>>
 
+    // Due window for today: between now and end-of-day
+    @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND (snoozeUntil IS NULL OR snoozeUntil <= :now) AND dueAt BETWEEN :now AND :endOfDay ORDER BY dueAt ASC")
+    fun observeDueWindowForFarmer(farmerId: String, now: Long, endOfDay: Long): Flow<List<TaskEntity>>
+
     @Query("SELECT COUNT(*) FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND dueAt < :now")
     fun observeOverdueCountForFarmer(farmerId: String, now: Long): Flow<Int>
 
@@ -58,6 +62,10 @@ interface TaskDao {
     // Update dueAt for an existing task
     @Query("UPDATE tasks SET dueAt = :dueAt, updatedAt = :updatedAt, dirty = 1 WHERE taskId = :taskId")
     suspend fun updateDueAt(taskId: String, dueAt: Long, updatedAt: Long)
+
+    // Snooze until timestamp
+    @Query("UPDATE tasks SET snoozeUntil = :snoozeUntil, updatedAt = :updatedAt, dirty = 1 WHERE taskId = :taskId")
+    suspend fun updateSnoozeUntil(taskId: String, snoozeUntil: Long?, updatedAt: Long)
 
     // Cursor-based incremental sync
     @Query("SELECT * FROM tasks WHERE updatedAt > :since ORDER BY updatedAt ASC LIMIT :limit")

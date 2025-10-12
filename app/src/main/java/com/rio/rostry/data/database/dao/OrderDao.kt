@@ -77,4 +77,11 @@ interface OrderDao {
 
     @Update
     suspend fun update(order: OrderEntity)
+
+    // Aggregations for analytics
+    @Query("SELECT IFNULL(SUM(totalAmount), 0) FROM orders WHERE sellerId = :sellerId AND status = 'DELIVERED' AND updatedAt BETWEEN :start AND :end")
+    suspend fun sumDeliveredForSellerBetween(sellerId: String, start: Long, end: Long): Double
+
+    @Query("SELECT COUNT(*) FROM orders WHERE sellerId = :sellerId AND status = 'DELIVERED' AND updatedAt BETWEEN :start AND :end")
+    suspend fun countDeliveredForSellerBetween(sellerId: String, start: Long, end: Long): Int
 }

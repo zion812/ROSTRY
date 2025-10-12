@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Transaction
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.domain.model.LifecycleStage
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -107,7 +108,7 @@ interface ProductDao {
 
     // Lifecycle-aware queries
     @Query("SELECT * FROM products WHERE sellerId = :farmerId AND stage = :stage AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
-    fun observeByStage(farmerId: String, stage: String): Flow<List<ProductEntity>>
+    fun observeByStage(farmerId: String, stage: LifecycleStage): Flow<List<ProductEntity>>
 
     @Query("SELECT * FROM products WHERE sellerId = :farmerId AND lifecycleStatus = :status")
     fun observeByLifecycleStatus(farmerId: String, status: String): Flow<List<ProductEntity>>
@@ -119,7 +120,7 @@ interface ProductDao {
     suspend fun getBreederEligible(farmerId: String, now: Long): List<ProductEntity>
 
     @Query("UPDATE products SET stage = :stage, lastStageTransitionAt = :transitionAt, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
-    suspend fun updateStage(productId: String, stage: String, transitionAt: Long, updatedAt: Long)
+    suspend fun updateStage(productId: String, stage: LifecycleStage, transitionAt: Long, updatedAt: Long)
 
     @Query("UPDATE products SET lifecycleStatus = :status, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
     suspend fun updateLifecycleStatus(productId: String, status: String, updatedAt: Long)
@@ -136,4 +137,7 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND birthDate IS NOT NULL")
     suspend fun getActiveWithBirth(): List<ProductEntity>
+
+    @Query("UPDATE products SET qrCodeUrl = :url, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun updateQrCodeUrl(productId: String, url: String?, updatedAt: Long)
 }
