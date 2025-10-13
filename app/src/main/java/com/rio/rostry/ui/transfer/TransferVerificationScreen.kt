@@ -105,9 +105,27 @@ fun TransferVerificationScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) { data -> Snackbar(snackbarData = data) } }
     ) { inner ->
-    Column(Modifier.padding(inner).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Transfer Verification: $transferId")
-        state.error?.let { Text("Error: $it") }
+        // Initial loading/empty handling
+        if (state.loading && state.transfer == null) {
+            Column(Modifier.padding(inner)) {
+                com.rio.rostry.ui.components.LoadingOverlay()
+            }
+            return@Scaffold
+        }
+        if (!state.loading && state.transfer == null) {
+            Column(Modifier.padding(inner)) {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "Transfer not found",
+                    subtitle = "Check the link or try again later",
+                    modifier = Modifier.fillMaxWidth().padding(24.dp)
+                )
+            }
+            return@Scaffold
+        }
+
+        Column(Modifier.padding(inner).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Transfer Verification: $transferId")
+            state.error?.let { com.rio.rostry.ui.components.ErrorBanner(it) }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onScanProduct) { Text("Scan Product QR") }

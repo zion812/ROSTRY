@@ -228,6 +228,7 @@ class LifecycleWorker @AssistedInject constructor(
         private const val UNIQUE_NAME = "LifecycleWorkerPeriodic"
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<LifecycleWorker>(1, TimeUnit.DAYS)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)

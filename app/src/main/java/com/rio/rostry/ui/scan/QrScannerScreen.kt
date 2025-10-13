@@ -3,6 +3,7 @@ package com.rio.rostry.ui.scan
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.Camera
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -10,6 +11,7 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,6 +55,8 @@ fun QrScannerScreen(
     var value by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var lastEmittedAt by rememberSaveable { mutableStateOf(0L) }
+    var torchOn by rememberSaveable { mutableStateOf(false) }
+    var boundCamera by remember { mutableStateOf<Camera?>(null) }
 
     // Feature flag guard
     if (BuildConfig.FEATURE_QR_CAMERA) {
@@ -62,6 +66,13 @@ fun QrScannerScreen(
             ElevatedCard(Modifier.padding(16.dp)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Scan QR")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        TextButton(onClick = { showManual = true }) { Text("Use manual input") }
+                        TextButton(onClick = {
+                            torchOn = !torchOn
+                            boundCamera?.cameraControl?.enableTorch(torchOn)
+                        }) { Text(if (torchOn) "Torch off" else "Torch on") }
+                    }
                     Box(Modifier.fillMaxWidth().height(280.dp)) {
                         val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
                         AndroidView(factory = { ctx ->
@@ -106,15 +117,16 @@ fun QrScannerScreen(
                                 val preview = androidx.camera.core.Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
                                 try {
                                     cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
+                                    val camera = cameraProvider.bindToLifecycle(
                                         (ctx as androidx.lifecycle.LifecycleOwner), selector, preview, analysis
                                     )
+                                    boundCamera = camera
+                                    if (torchOn) camera.cameraControl.enableTorch(true)
                                 } catch (_: Exception) {}
                             }, ContextCompat.getMainExecutor(ctx))
                             previewView
                         })
                     }
-                    TextButton(onClick = { showManual = true }) { Text("Use manual input") }
                 }
             }
         } else {
@@ -147,6 +159,10 @@ fun QrScannerScreen(
                     )
                     if (error != null) {
                         Text(error!!, color = androidx.compose.ui.graphics.Color.Red)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { error = null }) { Text("Retry") }
+                            TextButton(onClick = { value = "" }) { Text("Clear") }
+                        }
                     }
                     Button(onClick = {
                         val input = value.trim()

@@ -49,10 +49,18 @@ fun SocialFeedScreen(
             Button(onClick = onOpenEvents) { Text("Events") }
             Button(onClick = onOpenExpert) { Text("Experts") }
         }
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(feed.itemCount) { index ->
-                val post = feed[index]
-                if (post != null) PostCard(post)
+        if (feed.itemCount == 0) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No posts yet",
+                subtitle = "Follow people and groups to see updates here",
+                modifier = Modifier.fillMaxSize().padding(24.dp)
+            )
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(feed.itemCount) { index ->
+                    val post = feed[index]
+                    if (post != null) PostCard(post)
+                }
             }
         }
     }
@@ -87,8 +95,7 @@ private fun PostCard(post: PostEntity, vm: SocialFeedViewModel = hiltViewModel()
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = {
                     scope.launch {
-                        // TODO: replace "me" with real userId
-                        if (!liked) vm.like(post.postId, "me") else vm.unlike(post.postId, "me")
+                        if (!liked) vm.like(post.postId) else vm.unlike(post.postId)
                         liked = !liked
                     }
                 }) { Text(if (liked) "Unlike" else "Like") }
@@ -118,7 +125,7 @@ private fun PostCard(post: PostEntity, vm: SocialFeedViewModel = hiltViewModel()
                     confirmButton = {
                         TextButton(onClick = {
                             scope.launch {
-                                if (commentText.isNotBlank()) vm.addComment(post.postId, "me", commentText)
+                                if (commentText.isNotBlank()) vm.addComment(post.postId, commentText)
                                 commentText = ""
                                 showCommentDialog = false
                             }

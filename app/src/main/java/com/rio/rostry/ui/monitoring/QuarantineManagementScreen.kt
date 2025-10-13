@@ -192,6 +192,16 @@ fun QuarantineManagementScreen(
                     }
                 }
             }
+
+            if (uiState.active.isEmpty() && uiState.history.isEmpty()) {
+                item {
+                    com.rio.rostry.ui.components.EmptyState(
+                        title = "No quarantine records",
+                        subtitle = "Start a quarantine to see it listed here",
+                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                    )
+                }
+            }
         }
     }
 }

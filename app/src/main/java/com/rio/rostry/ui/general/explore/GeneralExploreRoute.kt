@@ -116,9 +116,15 @@ fun GeneralExploreRoute(
             )
 
             if (feedItems.itemCount == 0 && feedItems.loadState.refresh is androidx.paging.LoadState.Loading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                Box(Modifier.fillMaxSize()) {
+                    com.rio.rostry.ui.components.LoadingOverlay()
                 }
+            } else if (feedItems.itemCount == 0) {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "No results",
+                    subtitle = "Try changing filters or search terms",
+                    modifier = Modifier.fillMaxSize().padding(24.dp)
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),

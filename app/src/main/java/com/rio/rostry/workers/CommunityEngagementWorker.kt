@@ -165,6 +165,7 @@ class CommunityEngagementWorker @AssistedInject constructor(
 
             val request = PeriodicWorkRequestBuilder<CommunityEngagementWorker>(12, TimeUnit.HOURS)
                 .setConstraints(constraints)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

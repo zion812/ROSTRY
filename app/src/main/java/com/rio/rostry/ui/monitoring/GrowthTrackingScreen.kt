@@ -88,5 +88,19 @@ fun GrowthTrackingScreen(
                 }
             }
         }
+
+        if (pid.value.isBlank()) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No product selected",
+                subtitle = "Enter a Product ID to start tracking growth",
+                modifier = Modifier.fillMaxWidth().padding(24.dp)
+            )
+        } else if (state.records.isEmpty()) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No growth records",
+                subtitle = "Record today's weight and height to begin",
+                modifier = Modifier.fillMaxWidth().padding(24.dp)
+            )
+        }
     }
 }

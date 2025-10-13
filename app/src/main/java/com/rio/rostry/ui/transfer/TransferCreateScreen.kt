@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,16 +32,7 @@ fun TransferCreateScreen(
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         // Error banner
         state.error?.let { error ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-            ) {
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            com.rio.rostry.ui.components.ErrorBanner(error, modifier = Modifier.padding(bottom = 16.dp))
         }
         
         when {
@@ -164,11 +157,20 @@ private fun TransferFormStep(
         if (state.transferType == TransferCreateViewModel.TransferType.SALE) {
             OutlinedTextField(
                 value = state.amount,
-                onValueChange = onAmountChange,
+                onValueChange = {
+                    val cleaned = it.replace(Regex("[^0-9.]"), "")
+                    val parts = cleaned.split('.')
+                    val normalized = when {
+                        parts.size <= 1 -> cleaned
+                        else -> parts[0] + "." + parts.drop(1).joinToString("").take(2)
+                    }
+                    onAmountChange(normalized)
+                },
                 label = { Text("Amount (₹)") },
                 isError = state.validationErrors.containsKey("amount"),
                 supportingText = state.validationErrors["amount"]?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }
         

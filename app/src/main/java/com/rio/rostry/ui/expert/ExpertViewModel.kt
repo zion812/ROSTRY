@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.ExpertBookingsDao
 import com.rio.rostry.data.database.entity.ExpertBookingEntity
+import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,11 +16,12 @@ import javax.inject.Inject
 @HiltViewModel
 class ExpertViewModel @Inject constructor(
     private val expertBookingsDao: ExpertBookingsDao,
+    private val currentUserProvider: CurrentUserProvider,
 ) : ViewModel() {
 
-    // TODO: Replace "me" with real userId from SessionManager
+    private val userId: String = currentUserProvider.userIdOrNull() ?: ""
     val bookings: StateFlow<List<ExpertBookingEntity>> =
-        expertBookingsDao.streamUserBookings("me").stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        expertBookingsDao.streamUserBookings(userId).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun createRequest(expertId: String, userId: String, topic: String?, details: String?) {
         viewModelScope.launch {

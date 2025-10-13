@@ -37,8 +37,8 @@ fun EventsScreen(onBack: () -> Unit, vm: EventsViewModel = hiltViewModel()) {
                         Text(e.title, style = MaterialTheme.typography.titleSmall)
                         e.location?.let { Text(it) }
                         Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            Button(onClick = { vm.rsvp(e.eventId, "me", "GOING") }) { Text("RSVP Going") }
-                            Button(onClick = { vm.rsvp(e.eventId, "me", "INTERESTED") }, modifier = Modifier.padding(start = 8.dp)) { Text("Interested") }
+                            Button(onClick = { vm.rsvpSelf(e.eventId, "GOING") }) { Text("RSVP Going") }
+                            Button(onClick = { vm.rsvpSelf(e.eventId, "INTERESTED") }, modifier = Modifier.padding(start = 8.dp)) { Text("Interested") }
                         }
                     }
                 }

@@ -148,8 +148,23 @@ private fun GeneralCartScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(paddingValues), Alignment.Center) {
-                CircularProgressIndicator()
+            Box(Modifier.fillMaxSize().padding(paddingValues)) {
+                com.rio.rostry.ui.components.LoadingOverlay()
+            }
+            return@Scaffold
+        }
+
+        if (state.items.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+            ) {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "Cart is empty",
+                    subtitle = "Browse the marketplace to add items",
+                    modifier = Modifier.fillMaxSize().padding(24.dp)
+                )
             }
             return@Scaffold
         }
@@ -374,7 +389,7 @@ private fun SummarySection(state: GeneralCartViewModel.CartUiState, onCheckout: 
             }
             Button(
                 onClick = onCheckout,
-                enabled = state.items.isNotEmpty() && !state.isCheckingOut,
+                enabled = state.checkoutEnabled && !state.isCheckingOut,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (state.isCheckingOut) {
@@ -384,6 +399,13 @@ private fun SummarySection(state: GeneralCartViewModel.CartUiState, onCheckout: 
                 } else {
                     Text("Place order")
                 }
+            }
+            if (!state.checkoutEnabled && !state.isCheckingOut && state.checkoutHint != null) {
+                Text(
+                    text = state.checkoutHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

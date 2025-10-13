@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.OutgoingMessageDao
 import com.rio.rostry.data.database.entity.OutgoingMessageEntity
 import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class GroupChatViewModel @Inject constructor(
     private val messagingRepository: MessagingRepository,
     private val outgoingDao: OutgoingMessageDao,
+    private val currentUserProvider: CurrentUserProvider,
 ) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<MessagingRepository.MessageDTO>>(emptyList())
@@ -46,5 +48,10 @@ class GroupChatViewModel @Inject constructor(
             )
             outgoingDao.upsert(msg)
         }
+    }
+
+    fun sendQueuedGroupSelf(groupId: String, text: String) {
+        val uid = currentUserProvider.userIdOrNull() ?: return
+        sendQueuedGroup(groupId = groupId, fromUserId = uid, text = text)
     }
 }

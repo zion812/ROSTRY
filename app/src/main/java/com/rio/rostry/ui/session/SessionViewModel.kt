@@ -241,8 +241,14 @@ class SessionViewModel @Inject constructor(
             mockAuthManager.signOut()
             authRepository.signOut()
             _uiState.value = SessionUiState(
+                isAuthenticated = false,
+                role = null,
+                navConfig = null,
+                isLoading = false,
+                error = null,
                 demoProfiles = mockAuthManager.allProfiles(),
-                authMode = SessionManager.AuthMode.FIREBASE
+                currentDemoProfile = null,
+                authMode = SessionManager.AuthMode.DEMO
             )
         }
     }

@@ -50,6 +50,7 @@ class PrefetchWorker @AssistedInject constructor(
                 .build()
             val req = PeriodicWorkRequestBuilder<PrefetchWorker>(1, TimeUnit.DAYS)
                 .setConstraints(constraints)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.OutgoingMessageDao
 import com.rio.rostry.data.database.entity.OutgoingMessageEntity
 import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class ThreadViewModel @Inject constructor(
     private val messagingRepository: MessagingRepository,
     private val outgoingDao: OutgoingMessageDao,
+    private val currentUserProvider: CurrentUserProvider,
 ) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<MessagingRepository.MessageDTO>>(emptyList())
@@ -38,8 +40,8 @@ class ThreadViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            // TODO: replace "me" with actual current user id from SessionManager
-            messagingRepository.markThreadSeen(threadId, "me")
+            val uid = currentUserProvider.userIdOrNull() ?: return@launch
+            messagingRepository.markThreadSeen(threadId, uid)
         }
     }
 
@@ -65,6 +67,11 @@ class ThreadViewModel @Inject constructor(
             )
             outgoingDao.upsert(msg)
         }
+    }
+
+    fun sendQueuedDmSelf(threadId: String, toUserId: String, text: String) {
+        val uid = currentUserProvider.userIdOrNull() ?: return
+        sendQueuedDm(threadId = threadId, fromUserId = uid, toUserId = toUserId, text = text)
     }
 
     fun sendQueuedDmFile(threadId: String, fromUserId: String, toUserId: String, fileUri: String, fileName: String?) {

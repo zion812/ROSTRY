@@ -105,6 +105,8 @@ class GeneralCartViewModel @Inject constructor(
         val hasPendingOutbox: Boolean = false,
         val error: String? = null,
         val successMessage: String? = null,
+        val checkoutEnabled: Boolean = false,
+        val checkoutHint: String? = null,
         // Marketplace-to-farm bridge
         val showAddToFarmDialog: Boolean = false,
         val addToFarmProductId: String? = null,
@@ -327,6 +329,14 @@ class GeneralCartViewModel @Inject constructor(
                 createdAt = it.orderDate
             )
         }
+        // Determine checkout preconditions
+        val preconditionsMet = items.isNotEmpty() && !resolvedAddress.isNullOrBlank()
+        val preconditionHint = when {
+            items.isEmpty() -> "Your cart is empty"
+            resolvedAddress.isNullOrBlank() -> "Select a delivery address"
+            else -> null
+        }
+
         CartUiState(
             isAuthenticated = true,
             isLoading = base.products is Resource.Loading && items.isEmpty(),
@@ -348,6 +358,8 @@ class GeneralCartViewModel @Inject constructor(
             hasPendingOutbox = base.pendingOutbox.isNotEmpty(),
             error = status.error ?: (base.products as? Resource.Error)?.message,
             successMessage = status.success,
+            checkoutEnabled = preconditionsMet,
+            checkoutHint = preconditionHint,
             // Marketplace-to-farm bridge fields
             showAddToFarmDialog = farmDialog.showDialog,
             addToFarmProductId = farmDialog.productId,

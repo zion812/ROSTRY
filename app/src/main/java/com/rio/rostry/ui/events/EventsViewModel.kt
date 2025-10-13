@@ -6,6 +6,7 @@ import com.rio.rostry.data.database.dao.EventRsvpsDao
 import com.rio.rostry.data.database.dao.EventsDao
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.EventRsvpEntity
+import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class EventsViewModel @Inject constructor(
     private val eventsDao: EventsDao,
     private val rsvpsDao: EventRsvpsDao,
+    private val currentUserProvider: CurrentUserProvider,
 ) : ViewModel() {
 
     val upcoming: StateFlow<List<EventEntity>> =
@@ -49,5 +51,10 @@ class EventsViewModel @Inject constructor(
             )
             rsvpsDao.upsert(r)
         }
+    }
+
+    fun rsvpSelf(eventId: String, status: String) {
+        val uid = currentUserProvider.userIdOrNull() ?: return
+        rsvp(eventId, uid, status)
     }
 }

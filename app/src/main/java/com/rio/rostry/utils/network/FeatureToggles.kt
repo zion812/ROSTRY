@@ -2,6 +2,7 @@ package com.rio.rostry.utils.network
 
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.rio.rostry.BuildConfig
 
 @Singleton
 class FeatureToggles @Inject constructor(
@@ -25,4 +26,8 @@ class FeatureToggles @Inject constructor(
         NetworkQualityMonitor.Quality.WIFI, NetworkQualityMonitor.Quality.G4, NetworkQualityMonitor.Quality.G5 -> true
         else -> false
     }
+
+    // Feature gates (backed by build config for now; can be remote-config driven later)
+    fun isDemoEnabled(): Boolean = BuildConfig.DEBUG
+    fun isLiveBroadcastEnabled(): Boolean = BuildConfig.DEBUG
 }

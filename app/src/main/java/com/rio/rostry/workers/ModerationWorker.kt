@@ -12,7 +12,6 @@ import com.rio.rostry.data.database.dao.CommentsDao
 import com.rio.rostry.data.database.dao.ModerationReportsDao
 import com.rio.rostry.data.database.dao.PostsDao
 import com.rio.rostry.data.database.entity.ModerationReportEntity
-import com.rio.rostry.utils.moderation.ContentValidation
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -41,15 +40,57 @@ class ModerationWorker @AssistedInject constructor(
     }
 
     private suspend fun scanPosts() {
-        // Page through some posts via paging source is complex here; instead rely on a simple query
-        // We don't have a direct DAO method to list recent posts; add a lightweight raw query
-        // Workaround: use paging() then load first page via PagingSource is not available here. So skip if not present.
-        // Minimal placeholder: no-op. Real implementation would add a DAO to list N recent posts and validate.
+        val now = System.currentTimeMillis()
+        val banned = listOf("spam", "scam", "fraud", "hate", "abuse")
+        val top = try {
+            postsDao.getTrending(50)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        top.forEach { post ->
+            val text = (post.text ?: "").lowercase()
+            val hit = banned.any { bad -> text.contains(bad) }
+            if (hit) {
+                val report = ModerationReportEntity(
+                    reportId = java.util.UUID.randomUUID().toString(),
+                    targetType = "POST",
+                    targetId = post.postId,
+                    reporterId = "system",
+                    reason = "Auto-flag: policy keyword match",
+                    status = "OPEN",
+                    createdAt = now,
+                    updatedAt = now
+                )
+                reportsDao.upsert(report)
+            }
+        }
     }
 
     private suspend fun scanComments() {
-        // There is no direct DAO to list all recent comments; in a full implementation, add one.
-        // Placeholder no-op to keep worker functional without additional schema changes.
+        val now = System.currentTimeMillis()
+        val banned = listOf("spam", "scam", "fraud", "hate", "abuse")
+        val top = try {
+            postsDao.getTrending(30)
+        } catch (_: Exception) { emptyList() }
+        for (post in top) {
+            val comments = try { commentsDao.streamByPost(post.postId).first() } catch (_: Exception) { emptyList() }
+            comments.forEach { c ->
+                val hit = banned.any { bad -> c.text.lowercase().contains(bad) }
+                if (hit) {
+                    val report = ModerationReportEntity(
+                        reportId = java.util.UUID.randomUUID().toString(),
+                        targetType = "COMMENT",
+                        targetId = c.commentId,
+                        reporterId = "system",
+                        reason = "Auto-flag: policy keyword match",
+                        status = "OPEN",
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    reportsDao.upsert(report)
+                }
+            }
+        }
     }
 
     companion object {
@@ -58,8 +99,9 @@ class ModerationWorker @AssistedInject constructor(
             val constraints = androidx.work.Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
                 .build()
-            val request = PeriodicWorkRequestBuilder<ModerationWorker>(6, TimeUnit.HOURS)
+            val request = androidx.work.PeriodicWorkRequestBuilder<ModerationWorker>(6, TimeUnit.HOURS)
                 .setConstraints(constraints)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,

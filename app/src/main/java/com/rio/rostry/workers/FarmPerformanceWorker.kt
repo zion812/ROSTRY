@@ -150,7 +150,9 @@ class FarmPerformanceWorker @AssistedInject constructor(
     companion object {
         private const val UNIQUE_NAME = "FarmPerformanceWorkerWeekly"
         fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<FarmPerformanceWorker>(7, TimeUnit.DAYS).build()
+            val request = PeriodicWorkRequestBuilder<FarmPerformanceWorker>(7, TimeUnit.DAYS)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .build()
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
         }

@@ -124,6 +124,8 @@ import androidx.compose.foundation.layout.offset
 import kotlin.math.roundToInt
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.DisposableEffect
+import androidx.annotation.VisibleForTesting
 
 @Composable
 fun AppNavHost() {
@@ -147,6 +149,37 @@ fun AppNavHost() {
         )
     }
 }
+
+@VisibleForTesting
+internal fun roleGraphRegisteredRoutesBasic(): Set<String> = setOf(
+    // General
+    Routes.HOME_GENERAL,
+    Routes.GeneralNav.MARKET,
+    Routes.SOCIAL_FEED,
+    Routes.MESSAGES_THREAD,
+    Routes.PRODUCT_DETAILS,
+    Routes.TRACEABILITY,
+    // Farmer
+    Routes.HOME_FARMER,
+    Routes.FarmerNav.MARKET,
+    Routes.FarmerNav.CREATE + "?prefillProductId={prefillProductId}&pairId={pairId}",
+    Routes.FarmerNav.COMMUNITY,
+    Routes.FarmerNav.PROFILE,
+    // Enthusiast
+    Routes.HOME_ENTHUSIAST,
+    Routes.EnthusiastNav.EXPLORE,
+    Routes.EnthusiastNav.CREATE,
+    Routes.EnthusiastNav.DASHBOARD,
+    Routes.EnthusiastNav.TRANSFERS,
+    // Shared/Other commonly accessed
+    Routes.PRODUCT_FAMILY_TREE,
+    Routes.TRANSFER_DETAILS,
+    Routes.TRANSFER_LIST,
+    Routes.TRANSFER_VERIFY,
+    Routes.MONITORING_DAILY_LOG,
+    Routes.MONITORING_DAILY_LOG_PRODUCT,
+    Routes.MONITORING_TASKS,
+)
 
 @Composable
 private fun AuthFlow(
@@ -292,6 +325,24 @@ private fun RoleNavScaffold(
 
     // Removed premature manual navigate. NavHost below already uses startDestination = navConfig.startDestination.
 
+    // Role-based route guard: if a destination is not in the accessible set, redirect to start destination.
+    DisposableEffect(navController, navConfig.role) {
+        val allowed = navConfig.accessibleRoutes
+        val listener: (androidx.navigation.NavController, androidx.navigation.NavDestination, android.os.Bundle?) -> Unit =
+            { controller, destination, _ ->
+                val route = destination.route
+                val normalized = route?.substringBefore("?")
+                if (normalized != null && !Routes.isRouteAccessible(allowed, normalized)) {
+                    controller.navigate(navConfig.startDestination) {
+                        launchSingleTop = true
+                        popUpTo(controller.graph.startDestinationId) { inclusive = false }
+                    }
+                }
+            }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose { navController.removeOnDestinationChangedListener(listener) }
+    }
+
     // Wrap Scaffold in a Box to overlay a draggable FAB above all content
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -318,12 +369,12 @@ private fun RoleNavScaffold(
             RoleNavGraph(navController = navController, navConfig = navConfig, modifier = Modifier.padding(padding))
         }
 
-        if (state.authMode == SessionManager.AuthMode.DEMO) {
+        if (BuildConfig.DEBUG && state.authMode == SessionManager.AuthMode.DEMO) {
             DraggableDemoFab(onClick = { showSwitcher = true })
         }
     }
 
-    if (showSwitcher && state.authMode == SessionManager.AuthMode.DEMO) {
+    if (showSwitcher && BuildConfig.DEBUG && state.authMode == SessionManager.AuthMode.DEMO) {
         DemoProfilePickerDialog(
             profiles = state.demoProfiles,
             currentId = state.currentDemoProfile?.id,
@@ -494,6 +545,7 @@ private fun RoleNavGraph(
                 nonTraceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable
             )
         }
+        // Farmer Create route with optional prefill arguments
         composable(
             route = Routes.FarmerNav.CREATE + "?prefillProductId={prefillProductId}&pairId={pairId}",
             arguments = listOf(
@@ -533,6 +585,14 @@ private fun RoleNavGraph(
                 pairId = pairId
             )
         }
+        // Explicit base route without query to avoid matching issues
+        composable(Routes.FarmerNav.CREATE) {
+            FarmerCreateScreen(
+                onNavigateBack = { navController.popBackStack() },
+                prefillProductId = null,
+                pairId = null
+            )
+        }
         composable(Routes.FarmerNav.COMMUNITY) {
             FarmerCommunityScreen(
                 onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
@@ -549,7 +609,10 @@ private fun RoleNavGraph(
             )
         }
         // Shared breeding management route for enthusiasts
-        composable(Routes.MONITORING_BREEDING) {
+        composable(
+            route = Routes.MONITORING_BREEDING,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/breeding" })
+        ) {
             BreedingFlowScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenPairDetail = { pairId -> navController.navigate("breeding/pair/$pairId") },
@@ -573,7 +636,10 @@ private fun RoleNavGraph(
         }
 
         // Daily Log (list and single product)
-        composable(Routes.MONITORING_DAILY_LOG) {
+        composable(
+            route = Routes.MONITORING_DAILY_LOG,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/daily_log" })
+        ) {
             com.rio.rostry.ui.monitoring.DailyLogScreen(
                 onNavigateBack = { navController.popBackStack() },
                 productId = null
@@ -581,7 +647,8 @@ private fun RoleNavGraph(
         }
         composable(
             route = Routes.MONITORING_DAILY_LOG_PRODUCT,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            arguments = listOf(navArgument("productId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/daily_log/{productId}" })
         ) { backStackEntry ->
             val pid = backStackEntry.arguments?.getString("productId")
             com.rio.rostry.ui.monitoring.DailyLogScreen(
@@ -591,7 +658,10 @@ private fun RoleNavGraph(
         }
 
         // Tasks
-        composable(Routes.MONITORING_TASKS) {
+        composable(
+            route = Routes.MONITORING_TASKS,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/tasks" })
+        ) {
             com.rio.rostry.ui.monitoring.TasksScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToProduct = { productId -> navController.navigate("product/$productId") }
@@ -629,7 +699,10 @@ private fun RoleNavGraph(
         composable(Routes.EnthusiastNav.CREATE) {
             EnthusiastCreateScreen(
                 onScheduleContent = { _ -> navController.navigate(Routes.SOCIAL_FEED) },
-                onStartLive = { navController.navigate(Routes.LIVE_BROADCAST) },
+                onStartLive = {
+                    if (BuildConfig.DEBUG) navController.navigate(Routes.LIVE_BROADCAST)
+                    else navController.navigate(Routes.SOCIAL_FEED)
+                },
                 onCreateShowcase = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
             )
         }
@@ -664,6 +737,16 @@ private fun RoleNavGraph(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
                 onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) }
             )
+        }
+        composable(
+            route = Routes.USER_PROFILE,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val uid = backStackEntry.arguments?.getString("userId") ?: ""
+            com.rio.rostry.ui.profile.UserProfileScreen(userId = uid, onBack = { navController.popBackStack() })
+        }
+        composable(Routes.SETTINGS) {
+            com.rio.rostry.ui.settings.SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.VERIFY_FARMER_LOCATION) {
             FarmerLocationVerificationScreen(onDone = { navController.popBackStack() })
@@ -714,7 +797,8 @@ private fun RoleNavGraph(
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             ProductDetailsScreen(
                 productId = productId,
-                onOpenTraceability = { navController.navigate("traceability/$productId") }
+                onOpenTraceability = { navController.navigate("traceability/$productId") },
+                onOpenSellerProfile = { userId -> navController.navigate(Routes.USER_PROFILE.replace("{userId}", userId)) }
             )
         }
 
@@ -774,17 +858,21 @@ private fun RoleNavGraph(
             )
         }
 
-        // Scanner route (placeholder implementation) with optional context
+        // Scanner route with typed arguments and default context
         composable(
             route = Routes.SCAN_QR + "?context={context}&transferId={transferId}",
             arguments = listOf(
-                navArgument("context") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("context") { type = NavType.StringType; nullable = false; defaultValue = "traceability" },
                 navArgument("transferId") { type = NavType.StringType; nullable = true; defaultValue = null }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "rostry://scan?context={context}&transferId={transferId}" }
             )
         ) { backStackEntry ->
             val ctx = backStackEntry.arguments?.getString("context")
             val tid = backStackEntry.arguments?.getString("transferId")
-            QrScannerScreen(onResult = { productId ->
+            QrScannerScreen(
+                onResult = { productId ->
                 when (ctx) {
                     "family_tree" -> {
                         navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
@@ -799,7 +887,10 @@ private fun RoleNavGraph(
                         navController.navigate("product/$productId")
                     }
                 }
-            })
+            },
+                onValidate = { candidate -> candidate.isNotBlank() && candidate.length in 3..64 && candidate.none { it.isWhitespace() } },
+                hint = "Scan or enter ROSTRY product ID"
+            )
         }
 
         // Marketplace sandbox for QA/demo to exercise product validation and payments
@@ -897,7 +988,13 @@ private fun RoleNavGraph(
         composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
         composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
-        composable(Routes.LIVE_BROADCAST) { LiveBroadcastScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.LIVE_BROADCAST) {
+            if (BuildConfig.DEBUG) {
+                LiveBroadcastScreen(onBack = { navController.popBackStack() })
+            } else {
+                PlaceholderScreen(title = "Live (Beta)")
+            }
+        }
 
         // Community Hub destinations
         composable(Routes.COMMUNITY_HUB) {
@@ -1008,7 +1105,10 @@ private fun RoleNavGraph(
         ) {
             com.rio.rostry.ui.monitoring.HatchingProcessScreen()
         }
-        composable(Routes.MONITORING_DASHBOARD) {
+        composable(
+            route = Routes.MONITORING_DASHBOARD,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/dashboard" })
+        ) {
             val vm: com.rio.rostry.ui.monitoring.vm.FarmMonitoringViewModel = hiltViewModel()
             val summary by vm.summary.collectAsState()
             com.rio.rostry.ui.monitoring.FarmMonitoringScreen(
@@ -1022,7 +1122,10 @@ private fun RoleNavGraph(
                 summary = summary
             )
         }
-        composable(Routes.MONITORING_PERFORMANCE) {
+        composable(
+            route = Routes.MONITORING_PERFORMANCE,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/performance" })
+        ) {
             com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
         }
         
@@ -1096,7 +1199,13 @@ private fun RoleBottomBar(
         LaunchedEffect(Unit) { notifVm.refresh() }
         NavigationBar {
             navConfig.bottomNav.forEach { destination ->
-                val selected = currentRoute?.startsWith(destination.route.substringBefore("/{")) == true
+                val baseCurrent = currentRoute
+                    ?.substringBefore("/{")
+                    ?.substringBefore("?")
+                val baseDest = destination.route
+                    .substringBefore("/{")
+                    .substringBefore("?")
+                val selected = baseCurrent == baseDest
                 val labelInitial = destination.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•"
                 val badgeCount = when (destination.route) {
                     Routes.FarmerNav.MARKET -> notifState.pendingOrders
@@ -1106,11 +1215,18 @@ private fun RoleBottomBar(
                 NavigationBarItem(
                     selected = selected,
                     onClick = {
-                        navController.navigate(destination.route) {
-                            launchSingleTop = true
-                            restoreState = true
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
+                        val isCreate = destination.route.endsWith("/create")
+                        if (isCreate) {
+                            navController.navigate(destination.route) {
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navController.navigate(destination.route) {
+                                launchSingleTop = true
+                                restoreState = true
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
                             }
                         }
                     },
@@ -1194,8 +1310,7 @@ private fun AccountMenuAction(
             })
             DropdownMenuItem(text = { Text("Settings") }, onClick = {
                 expanded = false
-                // TODO: Replace with Settings route when available
-                navController.navigate(Routes.PROFILE)
+                navController.navigate(Routes.SETTINGS)
             })
             DropdownMenuItem(text = { Text("Sign out") }, onClick = {
                 expanded = false

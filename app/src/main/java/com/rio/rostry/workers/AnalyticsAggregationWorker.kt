@@ -230,6 +230,7 @@ class AnalyticsAggregationWorker @AssistedInject constructor(
             val req = androidx.work.PeriodicWorkRequestBuilder<AnalyticsAggregationWorker>(1, java.util.concurrent.TimeUnit.DAYS)
                 .setConstraints(constraints)
                 .setInitialDelay(initialDelay, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, java.util.concurrent.TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,

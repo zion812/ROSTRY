@@ -109,7 +109,17 @@ fun HatchingProcessScreen(
 
             if (uiState.isLoading) {
                 item {
-                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                    com.rio.rostry.ui.components.LoadingOverlay()
+                }
+            }
+
+            if (!uiState.isLoading && uiState.batches.isEmpty()) {
+                item {
+                    com.rio.rostry.ui.components.EmptyState(
+                        title = "No batches",
+                        subtitle = "Start a batch to track hatching progress",
+                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                    )
                 }
             }
 

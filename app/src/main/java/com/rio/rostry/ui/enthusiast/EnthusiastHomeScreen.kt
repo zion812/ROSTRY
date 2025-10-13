@@ -343,8 +343,8 @@ fun EnthusiastHomeScreen(
 
     // Loading overlay
     if (ui.isLoading) {
-        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            CircularProgressIndicator()
+        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+            com.rio.rostry.ui.components.LoadingOverlay()
         }
     }
 
@@ -472,13 +472,16 @@ fun EnthusiastExploreScreenContent(
             ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
         }
         if (state.loading && displayed.isEmpty()) {
-            ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Searching…") } }
+            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                com.rio.rostry.ui.components.LoadingOverlay()
+            }
         }
         if (!state.loading && displayed.isEmpty()) {
-            ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("No results found")
-                Text("Try adjusting breed, price range, region, or traits filters.")
-            } }
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No results",
+                subtitle = "Try adjusting breed, price, region, or traits",
+                modifier = Modifier.fillMaxSize().padding(24.dp)
+            )
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(displayed) { item ->

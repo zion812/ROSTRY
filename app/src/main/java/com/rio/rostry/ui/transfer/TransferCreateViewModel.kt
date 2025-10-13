@@ -117,11 +117,13 @@ class TransferCreateViewModel @Inject constructor(
         return buildMap {
             if (s.selectedProduct == null) put("product", "Select a product")
             if (s.selectedRecipient == null) put("recipient", "Select a recipient")
-            if (s.transferType == TransferType.SALE && s.amount.toDoubleOrNull() == null) {
-                put("amount", "Enter valid amount")
+            if (s.transferType == TransferType.SALE) {
+                val amt = s.amount.toDoubleOrNull()
+                if (amt == null) put("amount", "Enter a valid number")
+                else if (amt <= 0.0) put("amount", "Amount must be greater than 0")
             }
             val senderId = currentUserProvider.userIdOrNull()
-            if (senderId == s.toUserId) put("recipient", "Cannot transfer to yourself")
+            if (!s.toUserId.isNullOrBlank() && senderId == s.toUserId) put("recipient", "Cannot transfer to yourself")
         }
     }
 
@@ -160,6 +162,11 @@ class TransferCreateViewModel @Inject constructor(
     }
 
     fun confirmAndSubmit() {
+        val errors = validateForm()
+        if (errors.isNotEmpty()) {
+            _state.value = _state.value.copy(validationErrors = errors, error = "Please fix the highlighted fields")
+            return
+        }
         create()
     }
 

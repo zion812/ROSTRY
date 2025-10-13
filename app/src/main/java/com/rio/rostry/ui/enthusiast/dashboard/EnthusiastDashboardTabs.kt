@@ -56,7 +56,7 @@ fun EnthusiastDashboardTabs(
                 navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION)
             }
             1 -> FamilyTreeTab(onOpenTraceability, navController)
-            2 -> BreedingTab()
+            2 -> BreedingTab(navController)
             3 -> AnalyticsTab(onOpenReports, onOpenFeed)
             4 -> DocumentsTab()
         }
@@ -144,14 +144,14 @@ private fun FamilyTreeTab(onOpenTraceability: (String) -> Unit, navController: N
 }
 
 @Composable
-private fun BreedingTab() {
+private fun BreedingTab(navController: NavHostController) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Breeding Insights")
             Text("Use the Breeding Flow to manage pairs, eggs, and incubation.")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { /* navigate to breeding flow via Routes.MONITORING_BREEDING */ }) { Text("Open Breeding Flow") }
-                OutlinedButton(onClick = { /* navigate to hatching via Routes.MONITORING_HATCHING */ }) { Text("Open Hatching") }
+                OutlinedButton(onClick = { navController.navigate(Routes.MONITORING_BREEDING) }) { Text("Open Breeding Flow") }
+                OutlinedButton(onClick = { navController.navigate(Routes.MONITORING_HATCHING) }) { Text("Open Hatching") }
             }
         } }
     }

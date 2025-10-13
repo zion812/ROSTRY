@@ -142,6 +142,12 @@ fun VaccinationScheduleScreen(
                         }
                     }
                 }
+            } else {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = if (selectedTab.value == 0) "No due vaccinations" else "No overdue vaccinations",
+                    subtitle = "You're all caught up",
+                    modifier = Modifier.fillMaxWidth().padding(24.dp)
+                )
             }
 
             // Product selector

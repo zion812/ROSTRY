@@ -156,6 +156,7 @@ class OrderStatusWorker @AssistedInject constructor(
                 30, TimeUnit.MINUTES
             )
                 .setConstraints(constraints)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

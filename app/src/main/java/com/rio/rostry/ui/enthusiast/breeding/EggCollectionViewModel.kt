@@ -14,7 +14,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EggCollectionViewModel @Inject constructor(
     private val eggCollectionDao: EggCollectionDao,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
 ) : ViewModel() {
 
     data class UiState(
@@ -39,7 +39,7 @@ class EggCollectionViewModel @Inject constructor(
     fun setNotes(v: String) { _state.value = _state.value.copy(notes = v) }
 
     fun save() {
-        val farmerId = firebaseAuth.currentUser?.uid
+        val farmerId = currentUserProvider.userIdOrNull()
         if (farmerId == null) {
             _state.value = _state.value.copy(error = "Not signed in")
             return

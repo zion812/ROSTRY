@@ -37,6 +37,7 @@ fun ProductDetailsScreen(
     productId: String,
     onOpenTraceability: () -> Unit,
     onNavigateToProduct: (String) -> Unit = {},
+    onOpenSellerProfile: (String) -> Unit = {},
     viewModel: ProductDetailsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -106,10 +107,9 @@ fun ProductDetailsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
+                    .padding(paddingValues)
             ) {
-                CircularProgressIndicator()
+                com.rio.rostry.ui.components.LoadingOverlay()
             }
         } else if (uiState.product != null) {
             ProductDetailsContent(
@@ -119,6 +119,7 @@ fun ProductDetailsScreen(
                 isInWishlist = uiState.isInWishlist,
                 onOpenTraceability = onOpenTraceability,
                 onNavigateToProduct = onNavigateToProduct,
+                onOpenSellerProfile = onOpenSellerProfile,
                 onToggleWishlist = { viewModel.toggleWishlist() },
                 onGenerateProductQr = { viewModel.generateAndStoreProductQr() },
                 modifier = Modifier.padding(paddingValues)
@@ -127,10 +128,13 @@ fun ProductDetailsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
+                    .padding(paddingValues)
             ) {
-                Text("Product not found")
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "Product not found",
+                    subtitle = "This item may have been removed or is unavailable",
+                    modifier = Modifier.fillMaxSize().padding(24.dp)
+                )
             }
         }
     }
@@ -144,6 +148,7 @@ private fun ProductDetailsContent(
     isInWishlist: Boolean,
     onOpenTraceability: () -> Unit,
     onNavigateToProduct: (String) -> Unit,
+    onOpenSellerProfile: (String) -> Unit,
     onToggleWishlist: () -> Unit,
     onGenerateProductQr: () -> Unit,
     modifier: Modifier = Modifier
@@ -167,7 +172,7 @@ private fun ProductDetailsContent(
 
         // Seller Info
         item {
-            SellerInfoCard(product = product)
+            SellerInfoCard(product = product, onOpenSellerProfile = onOpenSellerProfile)
         }
 
         // Description
@@ -277,7 +282,7 @@ private fun ImageGallery(images: List<String>) {
         ) { page ->
             AsyncImage(
                 model = images[page],
-                contentDescription = null,
+                contentDescription = "Product image ${page + 1} of ${images.size}",
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -356,7 +361,7 @@ private fun ProductInfoSection(
             IconButton(onClick = onToggleWishlist) {
                 Icon(
                     imageVector = if (isInWishlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "Wishlist",
+                    contentDescription = if (isInWishlist) "Remove from wishlist" else "Add to wishlist",
                     tint = if (isInWishlist) Color.Red else MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -427,7 +432,7 @@ private fun ProductInfoSection(
 }
 
 @Composable
-private fun SellerInfoCard(product: ProductEntity) {
+private fun SellerInfoCard(product: ProductEntity, onOpenSellerProfile: (String) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -476,7 +481,7 @@ private fun SellerInfoCard(product: ProductEntity) {
                     )
                 }
             }
-            TextButton(onClick = {}) {
+            TextButton(onClick = { if (product.sellerId.isNotBlank()) onOpenSellerProfile(product.sellerId) }) {
                 Text("View Profile")
             }
         }
@@ -767,7 +772,7 @@ private fun ProductActionBar(
             ) {
                 Icon(
                     imageVector = if (isInWishlist) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "Wishlist",
+                    contentDescription = if (isInWishlist) "Remove from wishlist" else "Add to wishlist",
                     tint = if (isInWishlist) Color.Red else MaterialTheme.colorScheme.onSurface
                 )
             }

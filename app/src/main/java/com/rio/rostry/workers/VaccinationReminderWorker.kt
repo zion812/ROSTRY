@@ -70,6 +70,7 @@ class VaccinationReminderWorker @AssistedInject constructor(
             val request = PeriodicWorkRequestBuilder<VaccinationReminderWorker>(1, TimeUnit.DAYS, 3, TimeUnit.HOURS)
                 .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)
                 .setConstraints(constraints)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)

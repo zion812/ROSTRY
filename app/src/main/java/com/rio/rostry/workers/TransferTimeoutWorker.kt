@@ -74,6 +74,7 @@ class TransferTimeoutWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             // Daily schedule per requirements
             val req = PeriodicWorkRequestBuilder<TransferTimeoutWorker>(1, TimeUnit.DAYS)
+                .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, req

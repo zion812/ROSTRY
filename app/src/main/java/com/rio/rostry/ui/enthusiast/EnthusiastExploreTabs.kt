@@ -61,7 +61,16 @@ fun EnthusiastExploreTabs(
 @Composable
 private fun ProductsTab(products: List<com.rio.rostry.data.database.entity.ProductEntity>, onOpenProduct: (String) -> Unit, onShare: (String) -> Unit, loading: Boolean) {
     Column(Modifier.padding(16.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (loading) CircularProgressIndicator()
+        if (loading) {
+            com.rio.rostry.ui.components.LoadingOverlay()
+        }
+        if (!loading && products.isEmpty()) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No products",
+                subtitle = "New items will appear here",
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(products) { p ->
                 ElevatedCard(onClick = { onOpenProduct(p.productId) }) {
@@ -107,7 +116,16 @@ private fun EventsTab(
                 title = ""; location = ""; description = ""; bannerUri = ""
             }, enabled = title.isNotBlank()) { Text("Create Event") }
         }
-        if (loading) CircularProgressIndicator()
+        if (loading) {
+            com.rio.rostry.ui.components.LoadingOverlay()
+        }
+        if (!loading && events.isEmpty()) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No events",
+                subtitle = "Create one or check back later",
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(events) { ev ->
                 ElevatedCard(onClick = { onOpenEvent(ev.eventId) }) {
@@ -152,7 +170,16 @@ private fun ShowcaseTab(
                 caption = ""; mediaUri = ""
             }, enabled = mediaUri.isNotBlank()) { Text("Create Showcase Post") }
         }
-        if (loading) CircularProgressIndicator()
+        if (loading) {
+            com.rio.rostry.ui.components.LoadingOverlay()
+        }
+        if (!loading && posts.isEmpty()) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No showcase posts",
+                subtitle = "Share your work to get started",
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(posts) { post ->
                 ElevatedCard {

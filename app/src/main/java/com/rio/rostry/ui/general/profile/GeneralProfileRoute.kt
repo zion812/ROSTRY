@@ -89,22 +89,22 @@ fun GeneralProfileRoute(
                 Column(
                     modifier = Modifier
                         .padding(paddingValues)
-                        .fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxSize()
                 ) {
-                    CircularProgressIndicator()
+                    com.rio.rostry.ui.components.LoadingOverlay()
                 }
             }
             uiState.profile == null -> {
                 Column(
                     modifier = Modifier
                         .padding(paddingValues)
-                        .fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxSize()
                 ) {
-                    Text("No profile data available", style = MaterialTheme.typography.titleMedium)
+                    com.rio.rostry.ui.components.EmptyState(
+                        title = "No profile",
+                        subtitle = "Complete your profile to see details",
+                        modifier = Modifier.fillMaxSize().padding(24.dp)
+                    )
                 }
             }
             else -> {

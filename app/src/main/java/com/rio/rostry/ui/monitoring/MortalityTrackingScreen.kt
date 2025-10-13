@@ -206,6 +206,16 @@ fun MortalityTrackingScreen(
                 else -> uiState.records.filter { it.causeCategory == filterCause }
             }
 
+            if (displayedRecords.isEmpty()) {
+                item {
+                    com.rio.rostry.ui.components.EmptyState(
+                        title = "No records",
+                        subtitle = "Log a mortality event to see it here",
+                        modifier = Modifier.fillMaxWidth().padding(24.dp)
+                    )
+                }
+            }
+
             items(displayedRecords) { record ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

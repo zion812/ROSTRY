@@ -32,6 +32,10 @@ object Routes {
         const val VERIFY_ENTHUSIAST_KYC = "verify/enthusiast/kyc"
     }
 
+    object User {
+        const val PROFILE = "user/{userId}"
+    }
+
     object Onboarding {
         const val GENERAL = "onboard/general"
         const val FARMER = "onboard/farmer"
@@ -77,6 +81,10 @@ object Routes {
 
     object Notifications {
         const val LIST = "notifications"
+    }
+
+    object Settings {
+        const val ROOT = "settings"
     }
 
     // Developer/Showcase routes (debug-only usage recommended)
@@ -156,6 +164,8 @@ object Routes {
             GeneralNav.CREATE,
             GeneralNav.CART,
             GeneralNav.PROFILE,
+            Settings.ROOT,
+            User.PROFILE,
             Product.DETAILS,
             Product.TRACEABILITY,
             Social.FEED,
@@ -180,6 +190,8 @@ object Routes {
             FarmerNav.COMMUNITY,
             FarmerNav.PROFILE,
             Common.PROFILE,
+            Settings.ROOT,
+            User.PROFILE,
             Product.CREATE,
             Social.FEED,
             Social.GROUPS,
@@ -189,6 +201,16 @@ object Routes {
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,
+            // Enable all monitoring modules used by Farmer cards
+            Monitoring.VACCINATION,
+            Monitoring.MORTALITY,
+            Monitoring.QUARANTINE,
+            Monitoring.BREEDING,
+            Monitoring.GROWTH,
+            Monitoring.HATCHING,
+            Monitoring.HATCHING_BATCH,
+            Monitoring.DASHBOARD,
+            Monitoring.PERFORMANCE,
             Onboarding.FARM_BIRD,
             Onboarding.FARM_BATCH
         )
@@ -211,6 +233,8 @@ object Routes {
             EnthusiastNav.DASHBOARD,
             EnthusiastNav.TRANSFERS,
             Common.PROFILE,
+            Settings.ROOT,
+            User.PROFILE,
             Analytics.ENTHUSIAST,
             Analytics.REPORTS,
             Transfers.DETAILS,
@@ -220,6 +244,16 @@ object Routes {
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,
+            // Enable monitoring dashboard and modules for Enthusiast flows
+            Monitoring.DASHBOARD,
+            Monitoring.VACCINATION,
+            Monitoring.MORTALITY,
+            Monitoring.QUARANTINE,
+            Monitoring.BREEDING,
+            Monitoring.GROWTH,
+            Monitoring.HATCHING,
+            Monitoring.HATCHING_BATCH,
+            Monitoring.PERFORMANCE,
             Product.FAMILY_TREE,
             EnthusiastNav.EGG_COLLECTION
         )
@@ -237,6 +271,7 @@ object Routes {
     const val HOME_FARMER = FarmerNav.HOME
     const val HOME_ENTHUSIAST = EnthusiastNav.HOME
     const val PROFILE = Common.PROFILE
+    const val USER_PROFILE = User.PROFILE
     const val VERIFY_FARMER_LOCATION = Common.VERIFY_FARMER_LOCATION
     const val VERIFY_ENTHUSIAST_KYC = Common.VERIFY_ENTHUSIAST_KYC
     const val ONBOARD_GENERAL = Onboarding.GENERAL
@@ -261,6 +296,7 @@ object Routes {
     const val MESSAGES_GROUP = Messaging.GROUP
     const val MESSAGES_OUTBOX = Messaging.OUTBOX
     const val NOTIFICATIONS = Notifications.LIST
+    const val SETTINGS = Settings.ROOT
     const val GROUPS = Social.GROUPS
     const val EVENTS = Social.EVENTS
     const val EXPERT_BOOKING = Social.EXPERT
@@ -309,5 +345,23 @@ object Routes {
     const val GROUP_DETAILS = CommunityHub.GROUP_DETAILS
     const val EVENT_DETAILS = CommunityHub.EVENT_DETAILS
     const val EXPERT_PROFILE = CommunityHub.EXPERT_PROFILE
+
+    /**
+     * Check if a concrete route string (e.g., "product/123") matches any of the route patterns
+     * in [allowed], where patterns may contain path parameters in braces (e.g., "product/{productId}").
+     */
+    fun isRouteAccessible(allowed: Set<String>, concreteRoute: String): Boolean {
+        // Fast path: exact match
+        if (allowed.contains(concreteRoute)) return true
+
+        // Convert patterns with {arg} into a regex that matches a single non-separator segment
+        return allowed.any { pattern ->
+            val regex = pattern
+                .replace("/", "\\/")
+                .replace(Regex("\\{[^/}]+\\}"), "[^/]+")
+                .let { "^$it$".toRegex() }
+            regex.matches(concreteRoute)
+        }
+    }
 
 } // Closing brace for object Routes

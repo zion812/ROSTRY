@@ -386,10 +386,10 @@ private fun UpcomingTasksCard(
             }
             
             if (summary.vaccinationDue == 0 && summary.hatchDueThisWeek == 0) {
-                Text(
-                    "No upcoming tasks",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "No upcoming tasks",
+                    subtitle = "You're all caught up",
+                    modifier = Modifier.fillMaxWidth().padding(8.dp)
                 )
             }
         }
