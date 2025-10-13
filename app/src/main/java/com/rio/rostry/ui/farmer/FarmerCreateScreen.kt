@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +55,7 @@ fun FarmerCreateScreen(
 ) {
     val uiState by viewModel.ui.collectAsStateWithLifecycle()
     val wizardState = uiState.wizardState
+    val snackbarHostState = remember { SnackbarHostState() }
     
     // Media pickers
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -84,7 +86,7 @@ fun FarmerCreateScreen(
     
     LaunchedEffect(uiState.successProductId) {
         if (uiState.successProductId != null) {
-            onNavigateBack()
+            snackbarHostState.showSnackbar("Listing published successfully")
         }
     }
     
@@ -99,7 +101,8 @@ fun FarmerCreateScreen(
         return
     }
     
-    Column(Modifier.fillMaxSize()) {
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Column(Modifier.fillMaxSize().padding(padding)) {
         // Comment 6: Add error banner when uiState.error is non-null
         if (uiState.error != null) {
             Card(
@@ -178,13 +181,44 @@ fun FarmerCreateScreen(
             }
         }
         
+        var showConfirm by rememberSaveable { mutableStateOf(false) }
+        if (showConfirm) {
+            AlertDialog(
+                onDismissRequest = { showConfirm = false },
+                title = { Text("Publish Listing?") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Title: ${wizardState.basicInfo.title}")
+                        Text("Category: ${wizardState.basicInfo.category}")
+                        if (wizardState.basicInfo.priceType == PriceType.Fixed) {
+                            Text("Price: ₹${wizardState.basicInfo.price}")
+                        } else {
+                            Text("Auction start: ₹${wizardState.basicInfo.auctionStartPrice}")
+                        }
+                        Text("Traceability: ${wizardState.basicInfo.traceability}")
+                        Text("Photos: ${wizardState.mediaInfo.photoUris.size} • Videos: ${wizardState.mediaInfo.videoUris.size}")
+                        Text("Will sync when online", style = MaterialTheme.typography.bodySmall)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showConfirm = false
+                        viewModel.submitWizardListing()
+                    }) { Text("Confirm") }
+                },
+                dismissButton = { TextButton(onClick = { showConfirm = false }) { Text("Cancel") } }
+            )
+        }
+
         WizardNavigationButtons(
             currentStep = wizardState.currentStep,
             isSubmitting = uiState.isSubmitting,
             onBack = viewModel::previousStep,
             onNext = viewModel::nextStep,
-            onSubmit = viewModel::submitWizardListing
+            onSubmit = viewModel::submitWizardListing,
+            onPublishRequest = { showConfirm = true }
         )
+    }
     }
 }
 
@@ -608,7 +642,8 @@ private fun WizardNavigationButtons(
     isSubmitting: Boolean,
     onBack: () -> Unit,
     onNext: () -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    onPublishRequest: () -> Unit = onSubmit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -625,7 +660,7 @@ private fun WizardNavigationButtons(
         }
         
         if (currentStep == FarmerCreateViewModel.WizardStep.REVIEW) {
-            Button(onClick = onSubmit, enabled = !isSubmitting) {
+            Button(onClick = onPublishRequest, enabled = !isSubmitting) {
                 if (isSubmitting) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))

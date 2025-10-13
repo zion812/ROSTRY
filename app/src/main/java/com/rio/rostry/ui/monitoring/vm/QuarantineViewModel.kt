@@ -154,6 +154,19 @@ class QuarantineViewModel @Inject constructor(
         viewModelScope.launch {
             val active = _ui.value.active.find { it.quarantineId == quarantineId } ?: return@launch
             val now = System.currentTimeMillis()
+            // Server/VM-side guard: require two most recent statuses IMPROVING/STABLE and last update within 12h
+            val history = parseStatusHistory(active).sortedBy { it.at }
+            val lastTwo = history.takeLast(2)
+            val twelveHours = java.util.concurrent.TimeUnit.HOURS.toMillis(12)
+            val lastOk = lastTwo.isNotEmpty() && (now - (active.lastUpdatedAt)) <= twelveHours
+            val statusesOk = lastTwo.size >= 2 && lastTwo.all { s ->
+                val st = s.status.uppercase()
+                st == "IMPROVING" || st == "STABLE"
+            }
+            if (!(lastOk && statusesOk)) {
+                _errors.tryEmit("Cannot discharge: need 2 recent 'IMPROVING'/'STABLE' updates and a recent update within 12h")
+                return@launch
+            }
             val updated = active.copy(
                 endedAt = now,
                 status = "RECOVERED",
@@ -231,12 +244,27 @@ class QuarantineViewModel @Inject constructor(
                 }
             }
             val newStatusHistoryJson = status?.let { appendStatusHistoryArrayJson(active.statusHistoryJson, it, now) } ?: active.statusHistoryJson
-            // Offline-first attachment: write local placeholder into medicationScheduleJson.attachments
+            // Prepare upload if photo provided: resolve content URI to temp file and compress
+            var tempLocalPath: String? = null
+            if (!photoUri.isNullOrBlank()) {
+                runCatching {
+                    val input = appContext.contentResolver.openInputStream(android.net.Uri.parse(photoUri))
+                        ?: throw IllegalStateException("Cannot open input stream")
+                    val temp = java.io.File.createTempFile("qupdate_", ".jpg", appContext.cacheDir)
+                    temp.outputStream().use { out -> input.copyTo(out) }
+                    input.close()
+                    val compressed = com.rio.rostry.utils.images.ImageCompressor.compressForUpload(appContext, temp, lowBandwidth = true)
+                    tempLocalPath = compressed.absolutePath
+                }.onFailure {
+                    _errors.tryEmit("Failed to prepare photo for upload")
+                }
+            }
+            // Offline-first attachment: write local placeholder (temp path if available) into attachments
             val newMedicationJson = when {
-                photoUri.isNullOrBlank() -> medication ?: active.medicationScheduleJson
+                tempLocalPath == null -> medication ?: active.medicationScheduleJson
                 else -> {
                     val base = medication ?: active.medicationScheduleJson
-                    upsertAttachment(base, local = photoUri, remote = null, at = now)
+                    upsertAttachment(base, local = tempLocalPath!!, remote = null, at = now)
                 }
             }
             val updated = active.copy(
@@ -251,15 +279,15 @@ class QuarantineViewModel @Inject constructor(
             repo.update(updated)
 
             // If photo provided, enqueue upload via outbox
-            if (!photoUri.isNullOrBlank()) {
+            if (!tempLocalPath.isNullOrBlank()) {
                 val remotePath = "quarantine/${quarantineId}/update_${now}.jpg"
                 val ctxJson = com.google.gson.Gson().toJson(mapOf(
                     "type" to "quarantine_update",
                     "quarantineId" to quarantineId,
                     "at" to now
                 ))
-                pendingUploads[remotePath] = PendingUpload(quarantineId = quarantineId, localPath = photoUri, at = now)
-                mediaUploadManager.enqueueToOutbox(localPath = photoUri, remotePath = remotePath, contextJson = ctxJson)
+                pendingUploads[remotePath] = PendingUpload(quarantineId = quarantineId, localPath = tempLocalPath!!, at = now)
+                mediaUploadManager.enqueueToOutbox(localPath = tempLocalPath!!, remotePath = remotePath, contextJson = ctxJson)
             }
 
             // Complete existing pending quarantine-check tasks instead of scheduling new ones

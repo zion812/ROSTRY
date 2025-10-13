@@ -7,6 +7,7 @@ fun EnthusiastExploreScreen(
     onOpenProduct: (String) -> Unit,
     onOpenEvent: (String) -> Unit,
     onShare: (String) -> Unit,
+    onNavigateBack: () -> Unit = {}
 ) {
     // Delegate to the tabbed implementation
     EnthusiastExploreTabs(

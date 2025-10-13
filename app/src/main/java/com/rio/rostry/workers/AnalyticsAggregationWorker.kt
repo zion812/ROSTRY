@@ -156,13 +156,13 @@ class AnalyticsAggregationWorker @AssistedInject constructor(
                 createdAt = System.currentTimeMillis(),
                 dirty = true
             )
+            // Fetch previous snapshot BEFORE upsert for accurate WoW comparison
+            val prev = farmerDashboardSnapshotDao.getLatest(userId)
             farmerDashboardSnapshotDao.upsert(snapshot)
 
-            // Insights
-            // Mortality WoW change and compliance thresholds would require previous week; best-effort: compare against last snapshot if available
-            val last = farmerDashboardSnapshotDao.getLatest(userId)
-            if (last != null) {
-                if (last.mortalityRate > 0 && (weekMortalityRate - last.mortalityRate) / last.mortalityRate > 0.10) {
+            // Insights compared to previous snapshot
+            if (prev != null) {
+                if (prev.mortalityRate > 0 && (weekMortalityRate - prev.mortalityRate) / prev.mortalityRate > 0.10) {
                     analyticsNotifier.showInsight(
                         title = "Mortality increase",
                         message = "Weekly mortality rose above 10% week-over-week"
@@ -174,7 +174,7 @@ class AnalyticsAggregationWorker @AssistedInject constructor(
                         message = "Weekly vaccination compliance fell below 80%"
                     )
                 }
-                if (last.hatchSuccessRate > 0 && (weekHatchRate - last.hatchSuccessRate) / last.hatchSuccessRate > 0.05) {
+                if (prev.hatchSuccessRate > 0 && (weekHatchRate - prev.hatchSuccessRate) / prev.hatchSuccessRate > 0.05) {
                     analyticsNotifier.showInsight(
                         title = "Hatch rate improved",
                         message = "Weekly hatch success improved >5%"

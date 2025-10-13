@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.FilterList
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import com.rio.rostry.ui.components.AddToFarmDialog
@@ -152,6 +153,9 @@ fun EnthusiastHomeScreen(
             Text("• ${ui.pairsToMateCount} pairs need attention")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onOpenBreeding) { Text("View Pairs") }
+                if (ui.pairsToMateCount == 0) {
+                    OutlinedButton(onClick = onOpenBreeding) { Text("Create Pair") }
+                }
             }
         } }
 
@@ -211,6 +215,9 @@ fun EnthusiastHomeScreen(
             Text("Incubation Timers")
             if (ui.incubationTimers.isEmpty()) {
                 Text("No active batches")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onNavigateToAddBatch) { Text("Start Batch") }
+                }
             } else {
                 ui.incubationTimers.take(5).forEach { t ->
                     Row(Modifier.fillMaxWidth()) {
@@ -231,6 +238,9 @@ fun EnthusiastHomeScreen(
             Text("• ${ui.hatchingDueCount} batches due soon")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onOpenBreeding) { Text("View Schedule") }
+                if (ui.hatchingDueCount == 0) {
+                    OutlinedButton(onClick = onNavigateToAddBatch) { Text("Start Batch") }
+                }
             }
         } }
 
@@ -262,6 +272,7 @@ fun EnthusiastHomeScreen(
             Text("• Pending: ${ui.pendingTransfersCount} • Disputed: ${ui.disputedTransfersCount}")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onOpenTransfers) { Text("Verify") }
+                OutlinedButton(onClick = onOpenTransfers) { Text("New Transfer") }
             }
         } }
 
@@ -380,11 +391,13 @@ private fun formatCountdown(ms: Long): String {
 }
 
 // =============== EXPLORE TAB ===============
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EnthusiastExploreScreen(
+fun EnthusiastExploreScreenContent(
     onOpenProfile: (String) -> Unit,
     onOpenDiscussion: () -> Unit,
     onShare: (String) -> Unit,
+    onNavigateBack: () -> Unit = {}
 ) {
     val vm: EnthusiastExploreViewModel = hiltViewModel()
     val state by vm.ui.collectAsState()
@@ -397,7 +410,22 @@ fun EnthusiastExploreScreen(
         it.name.contains(searchText, ignoreCase = true) || it.category.contains(searchText, ignoreCase = true)
     }
 
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    androidx.compose.material3.Scaffold(
+        topBar = {
+            androidx.compose.material3.TopAppBar(
+                title = { Text("Explore") },
+                navigationIcon = {
+                    androidx.compose.material3.IconButton(onClick = onNavigateBack) {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+    Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Search bar with filter toggle
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
@@ -443,6 +471,15 @@ fun EnthusiastExploreScreen(
         state.error?.let { err ->
             ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
         }
+        if (state.loading && displayed.isEmpty()) {
+            ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Searching…") } }
+        }
+        if (!state.loading && displayed.isEmpty()) {
+            ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("No results found")
+                Text("Try adjusting breed, price range, region, or traits filters.")
+            } }
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(displayed) { item ->
                 ElevatedCard {
@@ -457,11 +494,12 @@ fun EnthusiastExploreScreen(
                     if (state.isLoadingMore) {
                         CircularProgressIndicator()
                     } else if (state.hasMore && !state.loading) {
-                        OutlinedButton(onClick = { vm.loadMore() }) { Text("Load more") }
+                        OutlinedButton(onClick = { vm.loadMore() }, enabled = state.hasMore && !state.loading) { Text("Load more") }
                     }
                 }
             }
         }
+    }
     }
 }
 

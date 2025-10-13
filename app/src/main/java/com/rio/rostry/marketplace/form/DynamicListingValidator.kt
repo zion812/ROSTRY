@@ -50,7 +50,12 @@ object DynamicListingValidator {
         } else {
             if (input.photosCount < 1) errors += "At least 1 photo is required"
         }
-        if (input.latitude == null || input.longitude == null) errors += "GPS location required"
+        // GPS requirement: mandatory only for traceable adoption; otherwise recommend but do not block
+        if (input.latitude == null || input.longitude == null) {
+            if (input.category is ProductCategory.AdoptionTraceable) {
+                errors += "GPS location required for traceable adoption"
+            }
+        }
 
         // Date validations
         val now = System.currentTimeMillis()

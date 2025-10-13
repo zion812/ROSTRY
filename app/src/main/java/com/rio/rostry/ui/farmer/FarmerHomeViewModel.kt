@@ -78,13 +78,6 @@ class FarmerHomeViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
-    // Reactive time ticker for live updates (updates every minute)
-    private val timeTickerFlow = flow {
-        while (true) {
-            emit(System.currentTimeMillis())
-            delay(60_000) // Update every minute
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), System.currentTimeMillis())
 
     // Reactive farmerId from Firebase Auth (nullable). Emits null when signed out so UI can stop loading.
     private val farmerId: Flow<String?> = callbackFlow {
@@ -110,73 +103,72 @@ class FarmerHomeViewModel @Inject constructor(
         if (id == null) {
             flow { emit(FarmerHomeUiState(isLoading = false)) }
         } else {
-            timeTickerFlow.flatMapLatest { now: Long ->
-                // Compute time windows reactively
-                val endOfDay = now + TimeUnit.DAYS.toMillis(1)
-                val weekStart = now - TimeUnit.DAYS.toMillis(7)
-                val weekEnd = now + TimeUnit.DAYS.toMillis(7)
-                val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
-                val startNs = System.nanoTime()
-                combine(
-                    vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay).orDefault(0),
-                    vaccinationRecordDao.observeOverdueForFarmer(id, now).orDefault(0),
-                    growthRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
-                    quarantineRecordDao.observeActiveForFarmer(id).orDefault(0),
-                    quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo).orDefault(0),
-                    hatchingBatchDao.observeActiveForFarmer(id, now).orDefault(0),
-                    hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd).orDefault(0),
-                    mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
-                    breedingRepository.observeActiveCount(id).orDefault(0),
-                    farmAlertRepository.observeUnread(id).orDefault(emptyList()),
-                    farmerDashboardRepository.observeLatest(id).orDefault(null),
-                    taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
-                    taskDao.observeOverdueForFarmer(id, now).orDefault(emptyList()),
-                    taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
-                    dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0)
-                ) { values: Array<Any?> ->
-                    val vacDue = values[0] as? Int ?: 0
-                    val vacOverdue = values[1] as? Int ?: 0
-                    val growth = values[2] as? Int ?: 0
-                    val quarActive = values[3] as? Int ?: 0
-                    val quarOverdue = values[4] as? Int ?: 0
-                    val hatchActive = values[5] as? Int ?: 0
-                    val hatchDue = values[6] as? Int ?: 0
-                    val mortality = values[7] as? Int ?: 0
-                    val breeding = values[8] as? Int ?: 0
-                    @Suppress("UNCHECKED_CAST")
-                    val alerts = values[9] as? List<FarmAlertEntity> ?: emptyList()
-                    val snapshot = values[10] as? FarmerDashboardSnapshotEntity
-                    val overdueCount = values[11] as? Int ?: 0
-                    @Suppress("UNCHECKED_CAST")
-                    val overdueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
-                    @Suppress("UNCHECKED_CAST")
-                    val dueTasks = values[13] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
-                    val dailyLogsCount = values[14] as? Int ?: 0
+            // Compute time windows once; rely on DAO flows for updates (no periodic ticker)
+            val now = System.currentTimeMillis()
+            val endOfDay = now + TimeUnit.DAYS.toMillis(1)
+            val weekStart = now - TimeUnit.DAYS.toMillis(7)
+            val weekEnd = now + TimeUnit.DAYS.toMillis(7)
+            val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
+            val startNs = System.nanoTime()
+            combine(
+                vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay).orDefault(0),
+                vaccinationRecordDao.observeOverdueForFarmer(id, now).orDefault(0),
+                growthRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+                quarantineRecordDao.observeActiveForFarmer(id).orDefault(0),
+                quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo).orDefault(0),
+                hatchingBatchDao.observeActiveForFarmer(id, now).orDefault(0),
+                hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd).orDefault(0),
+                mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+                breedingRepository.observeActiveCount(id).orDefault(0),
+                farmAlertRepository.observeUnread(id).orDefault(emptyList()),
+                farmerDashboardRepository.observeLatest(id).orDefault(null),
+                taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
+                taskDao.observeOverdueForFarmer(id, now).orDefault(emptyList()),
+                taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
+                dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0)
+            ) { values: Array<Any?> ->
+                val vacDue = values[0] as? Int ?: 0
+                val vacOverdue = values[1] as? Int ?: 0
+                val growth = values[2] as? Int ?: 0
+                val quarActive = values[3] as? Int ?: 0
+                val quarOverdue = values[4] as? Int ?: 0
+                val hatchActive = values[5] as? Int ?: 0
+                val hatchDue = values[6] as? Int ?: 0
+                val mortality = values[7] as? Int ?: 0
+                val breeding = values[8] as? Int ?: 0
+                @Suppress("UNCHECKED_CAST")
+                val alerts = values[9] as? List<FarmAlertEntity> ?: emptyList()
+                val snapshot = values[10] as? FarmerDashboardSnapshotEntity
+                val overdueCount = values[11] as? Int ?: 0
+                @Suppress("UNCHECKED_CAST")
+                val overdueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
+                @Suppress("UNCHECKED_CAST")
+                val dueTasks = values[13] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
+                val dailyLogsCount = values[14] as? Int ?: 0
 
-                    val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
-                    if (elapsedMs > 3000) {
-                        Timber.w("FarmerHome combine slow: %d ms", elapsedMs)
-                    }
-
-                    FarmerHomeUiState(
-                        vaccinationDueCount = vacDue,
-                        vaccinationOverdueCount = vacOverdue,
-                        growthRecordsThisWeek = growth,
-                        quarantineActiveCount = quarActive,
-                        quarantineUpdatesDue = quarOverdue,
-                        hatchingBatchesActive = hatchActive,
-                        hatchingDueThisWeek = hatchDue,
-                        mortalityLast7Days = mortality,
-                        breedingPairsActive = breeding,
-                        productsReadyToListCount = snapshot?.productsReadyToListCount ?: 0,
-                        tasksDueCount = dueTasks.size,
-                        tasksOverdueCount = overdueCount,
-                        dailyLogsThisWeek = dailyLogsCount,
-                        unreadAlerts = alerts,
-                        weeklySnapshot = snapshot,
-                        isLoading = false
-                    )
+                val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+                if (elapsedMs > 3000) {
+                    Timber.w("FarmerHome combine slow: %d ms", elapsedMs)
                 }
+
+                FarmerHomeUiState(
+                    vaccinationDueCount = vacDue,
+                    vaccinationOverdueCount = vacOverdue,
+                    growthRecordsThisWeek = growth,
+                    quarantineActiveCount = quarActive,
+                    quarantineUpdatesDue = quarOverdue,
+                    hatchingBatchesActive = hatchActive,
+                    hatchingDueThisWeek = hatchDue,
+                    mortalityLast7Days = mortality,
+                    breedingPairsActive = breeding,
+                    productsReadyToListCount = snapshot?.productsReadyToListCount ?: 0,
+                    tasksDueCount = dueTasks.size,
+                    tasksOverdueCount = overdueCount,
+                    dailyLogsThisWeek = dailyLogsCount,
+                    unreadAlerts = alerts,
+                    weeklySnapshot = snapshot,
+                    isLoading = false
+                )
             }
         }
     }.stateIn(

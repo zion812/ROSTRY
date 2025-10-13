@@ -122,6 +122,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import kotlin.math.roundToInt
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 @Composable
 fun AppNavHost() {
@@ -172,7 +174,8 @@ private fun AuthFlow(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Field test demo login", modifier = Modifier.fillMaxWidth())
@@ -231,8 +234,7 @@ private fun AuthFlow(
         if (showOtp) {
             NavHost(
                 navController = navController,
-                startDestination = Routes.AUTH_PHONE,
-                modifier = Modifier.weight(1f)
+                startDestination = Routes.AUTH_PHONE
             ) {
                 composable(Routes.AUTH_PHONE) {
                     PhoneInputScreen(onNavigateToOtp = { verificationId ->
@@ -444,7 +446,8 @@ private fun RoleNavGraph(
                 onOpenListing = { navController.navigate(Routes.FarmerNav.CREATE) },
                 onOpenAlerts = { navController.navigate(Routes.NOTIFICATIONS) },
                 onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
-                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
+                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) },
+                onNavigateRoute = { route -> navController.navigate(route) }
             )
         }
         composable(Routes.FarmerNav.MARKET) {

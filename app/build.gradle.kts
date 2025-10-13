@@ -50,6 +50,8 @@ android {
         testInstrumentationRunner = "com.rio.rostry.HiltTestRunner"
         // Expose Google Maps API key via BuildConfig for Places/Maps initialization
         buildConfigField("String", "MAPS_API_KEY", "\"${project.findProperty("MAPS_API_KEY") ?: "your_api_key_here"}\"")
+        // Feature flags
+        buildConfigField("boolean", "FEATURE_QR_CAMERA", "true")
         // Provide manifest placeholder used by AndroidManifest meta-data value
         manifestPlaceholders += mapOf(
             "MAPS_API_KEY" to (project.findProperty("MAPS_API_KEY") ?: "your_api_key_here")
@@ -264,6 +266,16 @@ dependencies {
     // Compose tooling (debug)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // CameraX
+    val cameraxVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
 }
 // Dokka: enrich module docs with external links for Kotlin and Android APIs
 tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {

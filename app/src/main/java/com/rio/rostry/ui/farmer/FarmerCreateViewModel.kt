@@ -498,6 +498,13 @@ class FarmerCreateViewModel @Inject constructor(
                 if (!result.valid) {
                     result.errors.forEachIndexed { index, err -> put("details.$index", err) }
                 }
+                // Non-blocking GPS hint when not required (non-traceable)
+                val gpsMissing = state.detailsInfo.latitude == null || state.detailsInfo.longitude == null
+                val isTraceableAdoption = category is com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable
+                if (gpsMissing && !isTraceableAdoption) {
+                    // Hint via transient error field; navigation is not blocked since not added to map
+                    _ui.value = _ui.value.copy(error = "Tip: Adding your GPS location can improve discovery for your listing.")
+                }
             }
             WizardStep.MEDIA -> emptyMap()
             WizardStep.REVIEW -> buildMap {
@@ -561,6 +568,12 @@ class FarmerCreateViewModel @Inject constructor(
                 val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
                 if (!result.valid) {
                     result.errors.forEachIndexed { index, err -> put("review.$index", err) }
+                }
+                // Non-blocking GPS hint at review step as well
+                val gpsMissing = state.detailsInfo.latitude == null || state.detailsInfo.longitude == null
+                val isTraceableAdoption = category is com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable
+                if (gpsMissing && !isTraceableAdoption) {
+                    _ui.value = _ui.value.copy(error = "Tip: Adding your GPS location can improve discovery for your listing.")
                 }
             }
         }

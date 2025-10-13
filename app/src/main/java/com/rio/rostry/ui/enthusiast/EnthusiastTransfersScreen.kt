@@ -31,22 +31,43 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
 import androidx.compose.material3.CircularProgressIndicator
 import kotlinx.coroutines.launch
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EnthusiastTransfersScreen(
     onOpenTransfer: (String) -> Unit,
     onVerifyTransfer: (String) -> Unit,
     onCreateTransfer: () -> Unit,
     onOpenTraceability: (String) -> Unit,
+    onNavigateBack: () -> Unit = {}
 ) {
     val vm: EnthusiastTransferViewModel = hiltViewModel()
     val state by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    androidx.compose.material3.Scaffold(
+        topBar = {
+androidx.compose.material3.TopAppBar(
+                title = { androidx.compose.material3.Text("Transfers") },
+                navigationIcon = {
+                    androidx.compose.material3.IconButton(onClick = onNavigateBack) {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+    Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Ownership Transfer Management")
         if (state.loading) {
             Text("Loading...")
         }
+    }
         state.error?.let { err ->
             ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
         }

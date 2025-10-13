@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.ui.monitoring.vm.TaskTab
 import com.rio.rostry.ui.monitoring.vm.TasksViewModel
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +74,15 @@ fun TasksScreen(
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(list) { task ->
-                    Row(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .let { base ->
+                                val pid = task.productId
+                                if (!pid.isNullOrBlank()) base.then(Modifier.clickable { onNavigateToProduct(pid) }) else base
+                            }
+                    ) {
                         Column(Modifier.weight(1f)) {
                             Text(task.title)
                             task.description?.let { Text(it) }
