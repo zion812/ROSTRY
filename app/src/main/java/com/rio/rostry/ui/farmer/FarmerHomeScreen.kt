@@ -21,6 +21,8 @@ import com.rio.rostry.ui.components.AddToFarmDialog
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.rio.rostry.ui.navigation.Routes
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 
 data class FetcherCard(
     val title: String,
@@ -114,14 +116,14 @@ fun FarmerHomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Warning, contentDescription = null)
+                            Icon(Icons.Filled.Warning, contentDescription = "Alert icon")
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "${uiState.unreadAlerts.size} Urgent Alerts",
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
-                        Icon(Icons.Filled.ChevronRight, contentDescription = null)
+                        Icon(Icons.Filled.ChevronRight, contentDescription = "View alerts")
                     }
                 }
             }
@@ -293,7 +295,8 @@ private fun FetcherCardItem(card: FetcherCard) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp),
+            .height(140.dp)
+            .semantics { contentDescription = "${card.title}: ${card.count}. ${card.action}" },
         onClick = card.onClick
     ) {
         Column(
@@ -309,7 +312,7 @@ private fun FetcherCardItem(card: FetcherCard) {
             ) {
                 Icon(
                     card.icon,
-                    contentDescription = null,
+                    contentDescription = "${card.title} icon",
                     tint = MaterialTheme.colorScheme.primary
                 )
                 if (card.badgeCount > 0) {

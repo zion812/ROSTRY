@@ -30,4 +30,12 @@ class FeatureToggles @Inject constructor(
     // Feature gates (backed by build config for now; can be remote-config driven later)
     fun isDemoEnabled(): Boolean = BuildConfig.DEBUG
     fun isLiveBroadcastEnabled(): Boolean = BuildConfig.DEBUG
+
+    // Routing-related feature toggles
+    fun isGroupsEnabled(): Boolean = BuildConfig.DEBUG
+    fun isEventsEnabled(): Boolean = true
+    fun isExpertBookingEnabled(): Boolean = true
+    fun isModerationEnabled(): Boolean = BuildConfig.DEBUG
+    fun isLeaderboardEnabled(): Boolean = BuildConfig.DEBUG
+    fun isLiveBroadcast(): Boolean = BuildConfig.DEBUG
 }

@@ -47,7 +47,8 @@ import com.rio.rostry.BuildConfig
 fun QrScannerScreen(
     onResult: (String) -> Unit,
     onValidate: ((String) -> Boolean)? = null,
-    hint: String = "Product ID or rostry://product/{id}"
+    hint: String = "Product ID or rostry://product/{id}",
+    onError: ((String) -> Unit)? = null
 ) {
     val vm: QrScannerViewModel = hiltViewModel()
     val context = LocalContext.current
@@ -159,6 +160,7 @@ fun QrScannerScreen(
                     )
                     if (error != null) {
                         Text(error!!, color = androidx.compose.ui.graphics.Color.Red)
+                        onError?.invoke(error!!)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { error = null }) { Text("Retry") }
                             TextButton(onClick = { value = "" }) { Text("Clear") }
@@ -170,12 +172,14 @@ fun QrScannerScreen(
                         val productId = parseProductId(input)
                         if (productId.isBlank()) {
                             error = "Invalid QR content"
+                            onError?.invoke(error!!)
                             return@Button
                         }
                         CoroutineScope(Dispatchers.Main).launch {
                             val exists = vm.productExists(productId)
                             if (!exists || (onValidate != null && !onValidate(productId))) {
                                 error = "Product not found. Scan a valid ROSTRY QR code."
+                                onError?.invoke(error!!)
                                 return@launch
                             }
                             error = null

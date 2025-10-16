@@ -1,6 +1,9 @@
+> **ARCHIVED**: This draft ADR has been superseded by `adrs/adr-002-offline-first-sync.md` (Accepted).
+> Kept for historical reference only.
+
 # ADR-002: Offline-First Strategy
 
-- Status: Draft
+- Status: Superseded
 - Date: 2025-10-10
 
 ## Context

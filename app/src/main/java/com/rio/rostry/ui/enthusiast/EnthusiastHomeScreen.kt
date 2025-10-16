@@ -49,6 +49,8 @@ import androidx.compose.material3.Scaffold
 import com.rio.rostry.ui.components.AddToFarmDialog
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 
 /**
  * Advanced Enthusiast interface with premium farm management features.
@@ -119,7 +121,7 @@ fun EnthusiastHomeScreen(
         )
 
         // KPI summary card
-        ElevatedCard {
+        ElevatedCard(modifier = Modifier.semantics { contentDescription = "KPI Summary: Breeding Success ${ui.dashboard.breedingSuccessRate * 100}%, Transfers ${ui.dashboard.transfers}" }) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("KPI Summary (Last 30 days)")
                 Text("• Breeding Success: ${"%.0f".format(ui.dashboard.breedingSuccessRate * 100)}% • Transfers: ${ui.dashboard.transfers}")
@@ -425,84 +427,86 @@ fun EnthusiastExploreScreenContent(
             )
         }
     ) { padding ->
-    Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Search bar with filter toggle
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                label = { Text("Search") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                trailingIcon = {
-                    IconButton(onClick = { filtersExpanded = !filtersExpanded }) {
-                        Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Search and filters toggle
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text("Search") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search icon") },
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { filtersExpanded = !filtersExpanded }) {
+                    Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+                }
+            }
+
+            if (filtersExpanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = state.priceRange, onValueChange = { vm.update("priceRange", it) }, label = { Text("Price Range (e.g. 100-500)") })
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(value = state.region, onValueChange = { vm.update("region", it) }, label = { Text("Region") })
+                        OutlinedTextField(value = state.traits, onValueChange = { vm.update("traits", it) }, label = { Text("Traits") })
                     }
-                },
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        if (filtersExpanded) {
-            Text("Advanced Search")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = state.breed, onValueChange = { vm.update("breed", it) }, label = { Text("Breed") })
-                OutlinedTextField(value = state.priceRange, onValueChange = { vm.update("priceRange", it) }, label = { Text("Price Range (e.g. 100-500)") })
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = state.region, onValueChange = { vm.update("region", it) }, label = { Text("Region") })
-                OutlinedTextField(value = state.traits, onValueChange = { vm.update("traits", it) }, label = { Text("Traits") })
-            }
-            // Sort controls
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.RECENCY.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.RECENCY) { Text("Recency") }
-                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST) { Text("Verified") }
-                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.ENGAGEMENT.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.ENGAGEMENT) { Text("Engagement") }
-                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_ASC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_ASC) { Text("Price ↑") }
-                OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_DESC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_DESC) { Text("Price ↓") }
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.refresh() }, enabled = !state.loading) { Text(if (state.loading) "Searching..." else "Search") }
-            OutlinedButton(onClick = onOpenDiscussion) { Text("Open Breeding Community") }
-        }
-        Divider()
-        Text("Results")
-        state.error?.let { err ->
-            ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
-        }
-        if (state.loading && displayed.isEmpty()) {
-            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
-                com.rio.rostry.ui.components.LoadingOverlay()
-            }
-        }
-        if (!state.loading && displayed.isEmpty()) {
-            com.rio.rostry.ui.components.EmptyState(
-                title = "No results",
-                subtitle = "Try adjusting breed, price, region, or traits",
-                modifier = Modifier.fillMaxSize().padding(24.dp)
-            )
-        }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(displayed) { item ->
-                ElevatedCard {
-                    Row(Modifier.padding(12.dp)) {
-                        Text(item.name.ifBlank { item.category }, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { onShare(item.productId) }) { Text("Share") }
+                    // Sort controls
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.RECENCY.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.RECENCY) { Text("Recency") }
+                        OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.VERIFIED_FIRST) { Text("Verified") }
+                        OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.ENGAGEMENT.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.ENGAGEMENT) { Text("Engagement") }
+                        OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_ASC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_ASC) { Text("Price ↑") }
+                        OutlinedButton(onClick = { vm.update("sort", EnthusiastExploreViewModel.SortOption.PRICE_DESC.name) }, enabled = state.sort != EnthusiastExploreViewModel.SortOption.PRICE_DESC) { Text("Price ↓") }
                     }
                 }
             }
-            item {
-                Row(Modifier.fillMaxWidth().padding(8.dp)) {
-                    if (state.isLoadingMore) {
-                        CircularProgressIndicator()
-                    } else if (state.hasMore && !state.loading) {
-                        OutlinedButton(onClick = { vm.loadMore() }, enabled = state.hasMore && !state.loading) { Text("Load more") }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { vm.refresh() }, enabled = !state.loading) { Text(if (state.loading) "Searching..." else "Search") }
+                OutlinedButton(onClick = onOpenDiscussion) { Text("Open Breeding Community") }
+            }
+            Divider()
+            Text("Results")
+            state.error?.let { err ->
+                ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
+            }
+            if (state.loading && displayed.isEmpty()) {
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                    com.rio.rostry.ui.components.LoadingOverlay()
+                }
+            }
+            if (!state.loading && displayed.isEmpty()) {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "No results",
+                    subtitle = "Try adjusting breed, price, region, or traits",
+                    modifier = Modifier.fillMaxSize().padding(24.dp)
+                )
+            }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(displayed) { item ->
+                    ElevatedCard {
+                        Row(Modifier.padding(12.dp)) {
+                            Text(item.name.ifBlank { item.category }, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { onShare(item.productId) }) { Text("Share") }
+                        }
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth().padding(8.dp)) {
+                        if (state.isLoadingMore) {
+                            CircularProgressIndicator()
+                        } else if (state.hasMore && !state.loading) {
+                            OutlinedButton(onClick = { vm.loadMore() }, enabled = state.hasMore && !state.loading) { Text("Load more") }
+                        }
                     }
                 }
             }
         }
-    }
     }
 }
 

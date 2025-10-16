@@ -1,10 +1,12 @@
 # Database Migrations Guide
 
 **Version:** 1.0  
-**Last Updated:** 2025-01-15  
+**Last Updated:** 2025-10-16  
 **Audience:** Developers
 
 ---
+
+**Note**: This is the canonical migration guide. All migration examples and testing patterns are documented here.
 
 ## Table of Contents
 
@@ -351,7 +353,7 @@ class MigrationTest {
         helper.createDatabase(TEST_DB, 15).apply {
             // Insert test data with old schema
             execSQL("""
-                INSERT INTO users (userId, phoneNumber, displayName) 
+                INSERT INTO users (userId, phoneNumber, displayName)
                 VALUES ('user1', '+1234567890', 'Test User')
             """)
             close()
@@ -364,14 +366,31 @@ class MigrationTest {
         getMigratedRoomDatabase().apply {
             val cursor = query("SELECT * FROM users WHERE userId = 'user1'")
             assertTrue(cursor.moveToFirst())
-            
+
             // Check new column exists and is null
             val emailIndex = cursor.getColumnIndex("email")
             assertTrue(emailIndex >= 0)
             assertTrue(cursor.isNull(emailIndex))
-            
+
             cursor.close()
             close()
+        }
+    }
+
+    @Test
+    fun migrate16To17_addsCategory() {
+        helper.createDatabase("test", 16).apply {
+            execSQL("INSERT INTO products VALUES ('1', 'Chicken', 100.0, 'user1', 1234567890)")
+            close()
+        }
+
+        helper.runMigrationsAndValidate("test", 17, true, MIGRATION_16_17)
+
+        helper.openDatabase("test", 17).apply {
+            query("SELECT category FROM products WHERE id = '1'").use { cursor ->
+                assertThat(cursor.moveToFirst()).isTrue()
+                assertThat(cursor.getString(0)).isEqualTo("General")
+            }
         }
     }
 
@@ -402,7 +421,7 @@ class MigrationTest {
         )
             .addMigrations(/* all migrations */)
             .build()
-        
+
         // Trigger database creation
         helper.closeWhenFinished(database)
         return helper.openDatabase(TEST_DB, false)

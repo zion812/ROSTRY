@@ -1,7 +1,9 @@
 # Code Style Quick Reference
 
+⚡ **Quick Reference** - This is a condensed version of the full code style guide. For complete details, see `../CODE_STYLE.md`. Last synced: 2025-10-16.
+
 Version: 1.0
-Last Updated: 2025-10-10
+Last Updated: 2025-10-16
 Audience: Contributors
 
 ---
@@ -58,3 +60,6 @@ Links:
 - Full code style: `../CODE_STYLE.md`
 - Documentation standards: `DOCUMENTATION_STANDARDS.md`
 - Testing strategy: `testing-strategy.md`
+- Sync Process: Reviewed quarterly for alignment with full guide; consider automated extraction in future.
+
+<!-- TODO: Consider automating generation from CODE_STYLE.md to ensure sync -->

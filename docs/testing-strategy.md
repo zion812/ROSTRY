@@ -180,35 +180,7 @@ class ProductRepositoryTest {
 
 ## Integration Testing
 
-### Database Migration Testing
-
-```kotlin
-@RunWith(AndroidJUnit4::class)
-class MigrationTest {
-    @get:Rule
-    val helper: MigrationTestHelper = MigrationTestHelper(
-        InstrumentationRegistry.getInstrumentation(),
-        RostryDatabase::class.java
-    )
-    
-    @Test
-    fun migrate16To17_addsCategory() {
-        helper.createDatabase("test", 16).apply {
-            execSQL("INSERT INTO products VALUES ('1', 'Chicken', 100.0, 'user1', 1234567890)")
-            close()
-        }
-        
-        helper.runMigrationsAndValidate("test", 17, true, MIGRATION_16_17)
-        
-        helper.openDatabase("test", 17).apply {
-            query("SELECT category FROM products WHERE id = '1'").use { cursor ->
-                assertThat(cursor.moveToFirst()).isTrue()
-                assertThat(cursor.getString(0)).isEqualTo("General")
-            }
-        }
-    }
-}
-```
+For database migration testing patterns and examples, see the comprehensive guide in `database-migrations.md` (Testing Migrations section).
 
 ---
 

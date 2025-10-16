@@ -40,5 +40,16 @@
 - [ ] No merge conflicts
 - [ ] CHANGELOG.md updated (if applicable)
 
+## Documentation Updates
+- [ ] Updated relevant documentation in `docs/`
+- [ ] Updated README.md if feature is user-facing
+- [ ] Updated CHANGELOG.md with changes
+- [ ] Added/updated code comments and KDoc
+- [ ] Verified all links in updated docs are valid
+- [ ] Updated `docs/README-docs.md` if new doc added
+
 ## Additional Notes
+**Documentation Guidelines**: See `docs/DOCUMENTATION_STANDARDS.md` for standards.
+Major features should have corresponding documentation in `docs/`.
+
 <!-- Any additional information for reviewers -->

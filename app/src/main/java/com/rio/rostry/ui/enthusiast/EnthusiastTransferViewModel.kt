@@ -12,8 +12,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.flatMapLatest
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -38,58 +46,106 @@ class EnthusiastTransferViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    init {
-        refresh()
-    }
+    private val statusFilter = MutableStateFlow("ALL")
+    private val typeFilter = MutableStateFlow("ALL")
+    private val dateRange = MutableStateFlow<Pair<Long?, Long?>>(null to null)
+    private val refreshTick = MutableStateFlow(0)
 
-    fun refresh() {
+    init {
         viewModelScope.launch {
             try {
-                _state.value = _state.value.copy(loading = true, error = null)
+                _state.update { it.copy(loading = true, error = null) }
                 val uid = currentUserProvider.userIdOrNull()
                 if (uid.isNullOrBlank()) {
                     _state.value = UiState(loading = false, pending = emptyList(), history = emptyList(), error = null)
                     return@launch
                 }
-                val from = transferDao.getTransfersFromUser(uid)
-                val to = transferDao.getTransfersToUser(uid)
-                combine(from, to) { a, b -> (a + b).distinctBy { it.transferId } }.
-                    collect { all ->
-                        val f = _state.value
-                        val typed = when (f.typeFilter) {
-                            "INCOMING" -> all.filter { it.toUserId == uid }
-                            "OUTGOING" -> all.filter { it.fromUserId == uid }
-                            else -> all
-                        }
-                        val dated = typed.filter { t ->
-                            (f.startDate == null || (t.initiatedAt ?: 0L) >= f.startDate) &&
-                            (f.endDate == null || (t.initiatedAt ?: 0L) <= f.endDate)
-                        }
-                        val pending = dated.filter { it.status.equals("PENDING", ignoreCase = true) }
+                combine(
+                    statusFilter,
+                    typeFilter,
+                    dateRange,
+                    refreshTick
+                ) { s, t, range, _ ->
+                    Triple(s, t, range)
+                }
+                    .debounce(200)
+                    .flatMapLatest { (s, t, range) ->
+                        val (startDate, endDate) = range
+                        // Choose DAO flow to push filters to DB where possible
+                        when {
+                            t != "ALL" -> transferDao.getUserTransfersByTypeBetween(uid, t, startDate, endDate)
+                            // For status, we only constrain history list; pending is split anyway. Keep base flow broad.
+                            else -> transferDao.getUserTransfersBetween(uid, startDate, endDate)
+                        }.distinctUntilChanged()
+                            .map { all -> Pair(all, Triple(s, t, range)) }
+                    }
+                    .collect { pair ->
+                        val all = pair.first
+                        val (s, t, range) = pair.second
+                        val (startDate, endDate) = range
+                        val dated = all // already date-filtered by DAO
+                        val pending = dated.filter { it.status.equals("PENDING", true) }
                             .sortedByDescending { it.initiatedAt }
-                        val history = dated.filter { !it.status.equals("PENDING", ignoreCase = true) }
-                            .sortedByDescending { it.initiatedAt }
-                        val statusFilteredPending = when (f.statusFilter) {
-                            "PENDING" -> pending
-                            else -> pending
+                        val historyBase = dated.filter { !it.status.equals("PENDING", true) }
+                        val statusFilteredHistory = when (s) {
+                            "VERIFIED" -> historyBase.filter { it.status.equals("VERIFIED", true) }
+                            "COMPLETED" -> historyBase.filter { it.status.equals("COMPLETED", true) }
+                            "DISPUTED" -> historyBase.filter { it.status.equals("DISPUTED", true) }
+                            else -> historyBase
+                        }.sortedByDescending { it.initiatedAt }
+                        _state.update {
+                            it.copy(
+                                loading = false,
+                                pending = pending,
+                                history = statusFilteredHistory,
+                                statusFilter = s,
+                                typeFilter = t,
+                                startDate = startDate,
+                                endDate = endDate
+                            )
                         }
-                        val statusFilteredHistory = when (f.statusFilter) {
-                            "VERIFIED" -> history.filter { it.status.equals("VERIFIED", true) }
-                            "COMPLETED" -> history.filter { it.status.equals("COMPLETED", true) }
-                            "DISPUTED" -> history.filter { it.status.equals("DISPUTED", true) }
-                            else -> history
-                        }
-                        _state.value = f.copy(loading = false, pending = statusFilteredPending, history = statusFilteredHistory)
                     }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(loading = false, error = e.message)
+                _state.update { it.copy(loading = false, error = e.message) }
             }
         }
     }
 
-    fun setStatusFilter(value: String) { _state.value = _state.value.copy(statusFilter = value); refresh() }
-    fun setTypeFilter(value: String) { _state.value = _state.value.copy(typeFilter = value); refresh() }
-    fun setDateRange(start: Long?, end: Long?) { _state.value = _state.value.copy(startDate = start, endDate = end); refresh() }
+    // Paging 3 for history (excludes PENDING in DAO). Recomputes on filter changes.
+    val pagingHistoryFlow: Flow<PagingData<TransferEntity>> = combine(
+        typeFilter,
+        statusFilter,
+        dateRange,
+        refreshTick
+    ) { t, s, r, _ ->
+        Triple(t, s, r)
+    }
+        .debounce(200)
+        .flatMapLatest { triple ->
+            val (t, s, range) = triple
+            val (start, end) = range
+            val uid = currentUserProvider.userIdOrNull() ?: ""
+            val typeOrNull = t.takeIf { it != "ALL" }
+            val statusOrNull = s.takeIf { it !in setOf("ALL", "PENDING") }
+            Pager(
+                config = PagingConfig(pageSize = 20, prefetchDistance = 10, enablePlaceholders = false)
+            ) {
+                transferDao.pagingHistory(
+                    userId = uid,
+                    type = typeOrNull,
+                    status = statusOrNull,
+                    start = start,
+                    end = end
+                )
+            }.flow
+        }
+        .cachedIn(viewModelScope)
+
+    fun setStatusFilter(value: String) { statusFilter.value = value; _state.update { it.copy(statusFilter = value) } }
+    fun setTypeFilter(value: String) { typeFilter.value = value; _state.update { it.copy(typeFilter = value) } }
+    fun setDateRange(start: Long?, end: Long?) { dateRange.value = (start to end); _state.update { it.copy(startDate = start, endDate = end) } }
+
+    fun refresh() { refreshTick.value = refreshTick.value + 1 }
 
     fun toggleSelection(id: String) {
         val cur = _state.value.selection.toMutableSet()
@@ -104,7 +160,6 @@ class EnthusiastTransferViewModel @Inject constructor(
         viewModelScope.launch {
             ids.forEach { workflow.cancel(it, reason = "User bulk cancel") }
             clearSelection()
-            refresh()
         }
     }
 
@@ -114,7 +169,6 @@ class EnthusiastTransferViewModel @Inject constructor(
         viewModelScope.launch {
             ids.forEach { workflow.platformApproveIfNeeded(it) }
             clearSelection()
-            refresh()
         }
     }
 

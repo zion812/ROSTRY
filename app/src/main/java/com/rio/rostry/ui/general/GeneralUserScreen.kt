@@ -43,7 +43,8 @@ fun GeneralUserScreen(
     onOpenProductDetails: (String) -> Unit,
     onOpenTraceability: (String) -> Unit,
     onOpenSocialFeed: () -> Unit,
-    onOpenMessages: (String) -> Unit
+    onOpenMessages: (String) -> Unit,
+    initialTabRoute: String? = null
 ) {
     val navController = rememberNavController()
     val analyticsViewModel: GeneralAnalyticsViewModel = hiltViewModel()
@@ -54,6 +55,18 @@ fun GeneralUserScreen(
         GeneralNavItem(Routes.GeneralNav.CART, "Cart", Icons.Filled.ShoppingCart),
         GeneralNavItem(Routes.GeneralNav.PROFILE, "Profile", Icons.Filled.Person)
     )
+
+    // If an initial tab route is provided (e.g., Routes.GeneralNav.MARKET), navigate to it once
+    androidx.compose.runtime.LaunchedEffect(initialTabRoute) {
+        val route = initialTabRoute
+        if (!route.isNullOrBlank()) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier,

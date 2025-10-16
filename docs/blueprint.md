@@ -1,20 +1,16 @@
-# ROSTRY Blueprint (All-in-One Overview)
+# ROSTRY Blueprint (High-Level System Overview)
 
 Version: 1.0
-Last Updated: 2025-10-10
-Audience: Maintainers, Contributors, Stakeholders
+Last Updated: 2025-10-16
+Audience: Stakeholders, Product Managers, Architects
+
+This document provides a high-level system overview and architecture summary for stakeholders and new team members. For detailed documentation navigation, see `docs/README-docs.md`.
 
 ---
 
 ## Quick Links
-- Project homepage: `README.md`
-- Docs index: `docs/README-docs.md`
-- Architecture: `docs/architecture.md`
-- Roadmap: `ROADMAP.md`
-- ADRs: `docs/adrs/`
-- Code style: `CODE_STYLE.md` and `docs/code-style-quick-reference.md`
-- Testing: `docs/testing-strategy.md`
-- Troubleshooting: `docs/troubleshooting.md`
+- Documentation Index (primary): `docs/README-docs.md`
+- Architecture details: `docs/architecture.md`
 
 ---
 
@@ -29,14 +25,15 @@ Outcomes:
 ---
 
 ## 2) System Architecture (High Level)
-- UI: Jetpack Compose (Material 3)
-- Presentation: MVVM with ViewModels (StateFlow) and Navigation
-- Domain: Use cases and repositories
-- Data: Room (SQLCipher), Retrofit/REST, Firebase (Auth, Firestore, Storage, Functions, FCM), DataStore
-- DI: Hilt
-- Background: WorkManager (scheduled sync, reminders, analytics jobs)
+ROSTRY follows a clean architecture pattern with MVVM presentation layer, emphasizing offline-first design for reliability in rural areas. The system layers data persistence, business logic, and UI components to ensure scalability and maintainability.
 
-See `docs/architecture.md` for diagrams and deeper details.
+- **UI Layer**: Jetpack Compose (Material 3) for declarative, responsive interfaces
+- **Presentation Layer**: MVVM with ViewModels using StateFlow for reactive state management and Navigation for seamless user flows
+- **Domain Layer**: Use cases and repositories encapsulating business logic and data orchestration
+- **Data Layer**: Encrypted Room database for local persistence, Firebase for cloud sync, and Retrofit for external APIs
+- **Infrastructure**: Hilt for dependency injection, WorkManager for background jobs, and DataStore for lightweight preferences
+
+This layered approach enables independent evolution of components while maintaining strong separation of concerns. For implementation details, see `docs/architecture.md`.
 
 ```mermaid
 flowchart LR
@@ -53,33 +50,63 @@ flowchart LR
   REPO --> WM
 ```
 
+**Data Flow Diagram**:
+```mermaid
+flowchart TD
+  A[User Action] --> B[Compose UI]
+  B --> C[ViewModel]
+  C --> D[Repository]
+  D --> E{Data Source}
+  E -->|Local| F[Room DB]
+  E -->|Remote| G[Firebase/Firestore]
+  F --> H[UI Update via StateFlow]
+  G --> H
+  I[Background Sync] --> J[WorkManager]
+  J --> D
+```
+
+**Security Layers Diagram**:
+```mermaid
+flowchart TD
+  A[User] --> B[Firebase Auth]
+  B --> C[RBAC Check]
+  C --> D[Firestore Rules]
+  D --> E[Encrypted Room DB]
+  E --> F[SQLCipher Encryption]
+  F --> G[Device Keystore]
+```
+
 ---
 
 ## 3) Feature Overview (What’s Implemented)
-- Social Network: posts, comments, likes, follows, groups, events, messaging
-- Marketplace: listings, auctions, bidding, wishlist, cart, payment framework
-- Secure Transfers: verified ownership transfer, dispute handling, audit trail
-- Traceability: lineage trees, breeding records, lifecycle events
-- Farm Monitoring: growth, vaccination, quarantine, mortality, hatching, alerts
-- Analytics: dashboards, AI-powered insights, exports
+ROSTRY's feature set is designed to support the full poultry lifecycle, from breeding to marketplace transactions, with community and analytics capabilities.
 
-Details per domain: `docs/README-docs.md`.
+- **Social Network**: Comprehensive platform for posts, comments, likes, follows, groups, events, and messaging to foster community engagement
+- **Marketplace**: Robust system for listings, auctions, bidding, wishlist, cart, and payment framework enabling secure transactions
+- **Secure Transfers**: Verified ownership transfer process with dispute handling and complete audit trail for trust and compliance
+- **Traceability**: Advanced lineage trees, breeding records, and lifecycle events for genetic tracking and certification
+- **Farm Monitoring**: Real-time monitoring of growth, vaccination, quarantine, mortality, hatching, and automated alerts for operational efficiency
+- **Analytics**: Comprehensive dashboards with AI-powered insights, performance analytics, financial reporting, and export capabilities for data-driven decisions
+
+These features integrate seamlessly to provide end-to-end poultry management, with offline-first architecture ensuring functionality in low-connectivity environments.
 
 ---
 
 ## 4) Data & Persistence
-- Room with SQLCipher encryption
-- 60+ entities, 15+ migrations (see `docs/database-migrations.md`)
-- DataStore for sessions and lightweight preferences
-- Conflict strategy: offline-first with background sync and conflict resolution UI
+Data management in ROSTRY prioritizes security, performance, and offline reliability through a hybrid local-cloud strategy.
 
-Key patterns:
-- Entities ↔ DTOs via mappers (`toEntity()`, `toDomain()`)
-- DAOs are interface-based with Flow-returning queries
+- **Local Persistence**: Room database with SQLCipher encryption for 60+ entities across 15+ migrations, ensuring data integrity and privacy
+- **Cloud Sync**: Firebase Firestore for real-time synchronization with conflict resolution UI for seamless offline-online transitions
+- **Preferences**: DataStore for session management and lightweight user preferences
+- **Conflict Resolution**: Offline-first approach where local data is the source of truth, with background sync handling updates and user-mediated conflict resolution
+
+Key architectural patterns include entity-DTO mapping for clean data transformation and Flow-based reactive queries for efficient UI updates. This design supports complex relationships like family trees and audit trails while maintaining performance.
 
 ---
 
 ## 5) Security & Privacy
+Security is foundational to ROSTRY, protecting sensitive poultry data and user privacy through multi-layered defenses.
+
 - Encrypted local DB (SQLCipher)
 - Firebase Auth with role-based access control (General, Farmer, Enthusiast)
 - Firestore security rules (least privilege)
@@ -163,7 +190,7 @@ Visual plan: see Gantt in `ROADMAP.md`.
 
 ## 12) ADRs (Architectural Decision Records)
 - ADR‑001: Database Encryption Strategy (Draft)
-- ADR‑002: Offline‑First Strategy (Draft)
+- ADR‑002: Offline‑First Strategy (Accepted) — see `docs/adrs/adr-002-offline-first-sync.md`
 - ADR‑003: Background Worker Scheduling (Draft)
 
 Folder: `docs/adrs/`
@@ -205,5 +232,7 @@ Guidelines: `docs/images/README.md`
 - Keys and Firebase setup
 - Pass `ktlint`, `detekt`, and tests
 - Explore each domain via navigation
+
+For step-by-step guides and detailed documentation, see `docs/README-docs.md` (primary index).
 
 End of document.

@@ -66,10 +66,13 @@ Temporarily hidden until assets are added. Target path: `docs/images/screenshots
 
 ## Documentation
 
+📚 **Documentation recently reorganized for better navigation.** See `docs/README-docs.md` for the complete index.
+
 - Central index: `docs/README-docs.md`
 - Architecture: `docs/architecture.md`
 - Testing: `docs/testing-strategy.md`
 - Security: `docs/security-encryption.md`
+- Feature guides: `docs/ai-personalization.md`, `docs/gamification.md`, `docs/traceability.md`, `docs/worker-catalog.md`, `docs/export-utilities.md`
 
 ## Architecture (highlights)
 
@@ -132,6 +135,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 - **Database Migration 15→16**: Added community features with 4 new entities
 - **Enhanced Farm Monitoring**: Quick actions, alert system, real-time metrics
 - **Improved Testing**: Comprehensive test coverage with Mockito and MockK
+- **New Feature Documentation**: Comprehensive guides for AI/personalization, gamification, traceability, worker catalog, and export utilities
 
 ---
 

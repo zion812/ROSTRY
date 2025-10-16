@@ -41,7 +41,8 @@ class SessionViewModel @Inject constructor(
         val availableUpgrade: UserType? = null,
         val demoProfiles: List<DemoUserProfile> = emptyList(),
         val currentDemoProfile: DemoUserProfile? = null,
-        val authMode: SessionManager.AuthMode = SessionManager.AuthMode.FIREBASE
+        val authMode: SessionManager.AuthMode = SessionManager.AuthMode.FIREBASE,
+        val pendingDeepLink: String? = null
     )
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -251,5 +252,21 @@ class SessionViewModel @Inject constructor(
                 authMode = SessionManager.AuthMode.DEMO
             )
         }
+    }
+
+    fun setPendingDeepLink(route: String) {
+        _uiState.value = _uiState.value.copy(pendingDeepLink = route)
+    }
+
+    fun clearPendingDeepLink() {
+        _uiState.value = _uiState.value.copy(pendingDeepLink = null)
+    }
+
+    fun consumePendingDeepLink(): String? {
+        val link = _uiState.value.pendingDeepLink
+        if (link != null) {
+            clearPendingDeepLink()
+        }
+        return link
     }
 }

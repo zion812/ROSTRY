@@ -334,8 +334,7 @@ fun FarmerLocationVerificationScreen(
                 val lat = latState.value.toDoubleOrNull()
                 val lng = lngState.value.toDoubleOrNull()
                 if (lat != null && lng != null && ui.uploadedImages.isNotEmpty()) {
-                    viewModel.updateFarmLocation(lat, lng)
-                    viewModel.submitKycWithDocuments()
+                    viewModel.submitKycWithDocuments(passedLat = lat, passedLng = lng)
                 }
             },
             enabled = !ui.isSubmitting && latState.value.toDoubleOrNull() != null && lngState.value.toDoubleOrNull() != null && ui.uploadedImages.isNotEmpty(),

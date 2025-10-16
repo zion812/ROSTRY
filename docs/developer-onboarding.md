@@ -162,36 +162,9 @@ Walkthroughs have moved to focused tutorials to reduce onboarding length.
 
 ### Database Migration
 
-**Scenario**: Add column to existing table
+Database migrations are essential for evolving the Room database schema while preserving user data across app updates. They handle changes like adding tables, columns, or modifying data types without losing existing information.
 
-**1. Update Entity**:
-```kotlin
-@Entity(tableName = "products")
-data class ProductEntity(
-    @PrimaryKey val id: String,
-    val name: String,
-    val category: String = "General" // New column
-)
-```
-
-**2. Increment Version**:
-```kotlin
-@Database(entities = [ProductEntity::class], version = 17)
-abstract class RostryDatabase : RoomDatabase()
-```
-
-**3. Define Migration**:
-```kotlin
-val MIGRATION_16_17 = object : Migration(16, 17) {
-    override fun migrate(database: SupportSQLiteDatabase) {
-        database.execSQL(
-            "ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT 'General'"
-        )
-    }
-}
-```
-
-**Full Guide**: [docs/database-migrations.md](database-migrations.md)
+For complete migration guide including examples, testing, and troubleshooting, see `database-migrations.md`.
 
 ---
 

@@ -1,5 +1,7 @@
 # ROSTRY Documentation Index
 
+📍 **This is the primary documentation index.** For high-level system overview, see `blueprint.md`. For quick setup, see `../QUICK_START.md`.
+
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
 **Last Updated**: 2025-01-15  
@@ -23,17 +25,25 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 - `developer-onboarding.md` — First week guide
 - `demo_quick_start.md` — Explore the app via demo mode
 - `architecture.md` — High-level overview
+- `code-style-quick-reference.md` — Essential coding standards
 
 ### For Contributors
 - `architecture.md` — Patterns, layers, data flow
 - `../CODE_STYLE.md` — Style guide
 - `../CHEAT_SHEET.md` — Commands and patterns
 - `testing-strategy.md` — Testing approach
+- `database-migrations.md` — Migration best practices
 
 ### For R&D / Architecture
 - `architecture.md` — Big picture
 - `state-management.md`, `dependency-injection.md`, `error-handling.md` — Focused guides
 - `adrs/` — Architecture decisions
+- `blueprint.md` — System overview for stakeholders
+
+### For Product Managers / Stakeholders
+- `blueprint.md` — High-level system overview
+- `roadmap.md` — Feature roadmap and priorities
+- `analytics-dashboard.md` — Key metrics and insights
 
 ## Core Architecture
 
@@ -45,7 +55,7 @@ Understanding the ROSTRY system:
 | `state-management.md` | StateFlow, hoisting, SavedStateHandle, DataStore | ✅ Up-to-date |
 | `dependency-injection.md` | Hilt modules, scopes, testing, qualifiers | ✅ Up-to-date |
 | `error-handling.md` | Result pattern, repository/UI mapping, logging, Crashlytics | ✅ Up-to-date |
-| `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation | ⚠️ Needs update |
+| `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation | ✅ Up-to-date |
 
 ---
 
@@ -98,6 +108,11 @@ Essential guides for developers working on ROSTRY:
 | `background-jobs.md` | WorkManager workers, constraints, monitoring |
 | `performance-optimization.md` | Performance best practices and profiling |
 | `maps-places-integration.md` | Maps and location services integration |
+| `ai-personalization.md` | AI-powered recommendations and personalization (NEW - Coming soon) |
+| `gamification.md` | Achievement system, rewards, and progression (NEW - Coming soon) |
+| `traceability.md` | Lineage tracking and family trees (NEW - Coming soon) |
+| `worker-catalog.md` | Comprehensive catalog of WorkManager workers (NEW - Coming soon) |
+| `export-utilities.md` | CSV and PDF export utilities (NEW - Coming soon) |
 
 ## Operations & Testing
 
@@ -156,6 +171,20 @@ Decision records documenting key architectural choices:
 4. **Checklist**: `release-checklist.md`
 5. **Deploy**: `deployment.md`
 
+## Documentation Hierarchy Map
+
+```mermaid
+flowchart TD
+    A[README-docs.md<br/>Primary Index] --> B[Core Architecture<br/>architecture.md, etc.]
+    A --> C[Feature Guides<br/>Social, Marketplace, etc.]
+    A --> D[Operations<br/>Testing, Deployment]
+    A --> E[ADRs<br/>Decision Records]
+    B --> F[blueprint.md<br/>High-Level Overview]
+    C --> G[New Features<br/>AI, Gamification, etc.<br/>Coming Soon]
+    D --> H[QUICK_START.md<br/>Setup Guide]
+    E --> I[adr-001, adr-002, etc.]
+```
+
 ## Common Tasks Quick Reference
 
 | Task | Relevant Documentation |
@@ -170,6 +199,9 @@ Decision records documenting key architectural choices:
 | API documentation | `api-documentation.md`, `CODE_STYLE.md` |
 | CI/CD pipeline | `ci-cd.md`, `deployment.md` |
 | API key management | `api-keys-setup.md`, `firebase-setup.md` |
+| AI recommendations | `ai-personalization.md`, `analytics-dashboard.md` |
+| Gamification features | `gamification.md`, `user-experience-guidelines.md` |
+| Traceability tracking | `traceability.md`, `farm-monitoring.md` |
 
 ## Documentation Standards
 

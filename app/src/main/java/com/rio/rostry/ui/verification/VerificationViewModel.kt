@@ -224,7 +224,7 @@ class VerificationViewModel @Inject constructor(
         )
     }
 
-    fun submitKycWithDocuments() {
+    fun submitKycWithDocuments(passedLat: Double? = null, passedLng: Double? = null) {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = false, isSubmitting = true, submissionSuccess = false, error = null, message = null)
             
@@ -253,8 +253,10 @@ class VerificationViewModel @Inject constructor(
             }
             
             // Validate submission
+            val effectiveLat = passedLat ?: current.farmLocationLat
+            val effectiveLng = passedLng ?: current.farmLocationLng
             val validation = if (current.userType?.name == "FARMER") {
-                verificationValidationService.validateFarmerSubmission(current.farmLocationLat, current.farmLocationLng, _ui.value.uploadedImages, _ui.value.uploadedDocuments)
+                verificationValidationService.validateFarmerSubmission(effectiveLat, effectiveLng, _ui.value.uploadedImages, _ui.value.uploadedDocuments)
             } else {
                 verificationValidationService.validateEnthusiastSubmission(_ui.value.uploadedImages, _ui.value.uploadedDocuments, _ui.value.uploadedDocTypes)
             }
@@ -276,6 +278,9 @@ class VerificationViewModel @Inject constructor(
                 kycDocumentTypes = docTypesMap.toString(),
                 kycUploadStatus = "UPLOADED",
                 kycUploadedAt = System.currentTimeMillis(),
+                // For farmers, persist location atomically with KYC submission if provided
+                farmLocationLat = effectiveLat,
+                farmLocationLng = effectiveLng,
                 updatedAt = System.currentTimeMillis()
             )
             

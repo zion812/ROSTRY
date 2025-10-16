@@ -52,7 +52,9 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun DailyLogScreen(
     onNavigateBack: () -> Unit,
-    productId: String?
+    productId: String?,
+    onNavigateToAddBird: () -> Unit,
+    onNavigateToAddBatch: () -> Unit
 ) {
     val vm: DailyLogViewModel = hiltViewModel()
     LaunchedEffect(productId) { productId?.let { vm.loadForProduct(it) } }
@@ -88,12 +90,21 @@ fun DailyLogScreen(
         ) {
             if (productId == null) {
                 Text("Select a bird/batch to log")
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(state.products) { p ->
-                        Row(Modifier.fillMaxWidth()) {
-                            Text(p.name)
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { vm.loadForProduct(p.productId) }) { Text("Log") }
+                if (state.products.isEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("No birds or batches found.")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onNavigateToAddBird, modifier = Modifier.weight(1f)) { Text("Add Individual Bird") }
+                        OutlinedButton(onClick = onNavigateToAddBatch, modifier = Modifier.weight(1f)) { Text("Start Batch") }
+                    }
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(state.products) { p ->
+                            Row(Modifier.fillMaxWidth()) {
+                                Text(p.name)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { vm.loadForProduct(p.productId) }) { Text("Log") }
+                            }
                         }
                     }
                 }

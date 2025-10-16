@@ -114,9 +114,11 @@ fun EnthusiastKycScreen(
         // Progress summary
         item {
             val required = 3
-            val done = (if (ui.uploadedDocuments.any { it.contains("AADHAAR") || it.contains("PAN") || it.contains("DL") || it.contains("PASSPORT") }) 1 else 0) +
-                (if (ui.uploadedImages.isNotEmpty()) 1 else 0) +
-                (if (ui.uploadedDocuments.any { it.contains("ADDRESS_PROOF") }) 1 else 0)
+            val docTypes = ui.uploadedDocTypes.values.map { it.uppercase() }
+            val hasIdDoc = docTypes.any { it in setOf("AADHAAR", "PAN", "DL", "PASSPORT") }
+            val hasAddress = docTypes.any { it == "ADDRESS_PROOF" }
+            val hasSelfie = ui.uploadedImages.isNotEmpty()
+            val done = (if (hasIdDoc) 1 else 0) + (if (hasSelfie) 1 else 0) + (if (hasAddress) 1 else 0)
             Text("Progress: $done of $required required documents")
             LinearProgressIndicator(progress = done / required.toFloat(), modifier = Modifier.fillMaxWidth())
         }
@@ -215,13 +217,23 @@ fun EnthusiastKycScreen(
         item {
             Button(
                 onClick = {
-                    if (ui.uploadedDocuments.isNotEmpty() && ui.uploadedImages.isNotEmpty()) {
+                    val docTypes = ui.uploadedDocTypes.values.map { it.uppercase() }
+                    val hasIdDoc = docTypes.any { it in setOf("AADHAAR", "PAN", "DL", "PASSPORT") }
+                    val hasAddress = docTypes.any { it == "ADDRESS_PROOF" }
+                    val hasSelfie = ui.uploadedImages.isNotEmpty()
+                    if (hasIdDoc && hasAddress && hasSelfie) {
                         val level = levelState.value.toIntOrNull()
                         viewModel.submitEnthusiastKyc(level)
                         viewModel.submitKycWithDocuments()
                     }
                 },
-                enabled = !ui.isSubmitting && ui.uploadedDocuments.isNotEmpty() && ui.uploadedImages.isNotEmpty(),
+                enabled = !ui.isSubmitting && run {
+                    val types = ui.uploadedDocTypes.values.map { it.uppercase() }
+                    val id = types.any { it in setOf("AADHAAR", "PAN", "DL", "PASSPORT") }
+                    val addr = types.any { it == "ADDRESS_PROOF" }
+                    val selfie = ui.uploadedImages.isNotEmpty()
+                    id && addr && selfie
+                },
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) {
                 if (ui.isSubmitting) {

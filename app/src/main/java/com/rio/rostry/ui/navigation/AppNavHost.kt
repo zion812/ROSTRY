@@ -114,7 +114,8 @@ import com.rio.rostry.ui.showcase.ComponentGalleryScreen
 import com.rio.rostry.BuildConfig
 import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
-import com.rio.rostry.utils.export.PdfExporter
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -132,6 +133,17 @@ fun AppNavHost() {
     val sessionVm: SessionViewModel = hiltViewModel()
     val state by sessionVm.uiState.collectAsState()
     val navConfig = state.navConfig
+    val context = LocalContext.current
+
+    // Capture incoming deep link and store while unauthenticated
+    LaunchedEffect(state.isAuthenticated) {
+        val data = (context as? android.app.Activity)?.intent?.data?.toString()
+        if (!state.isAuthenticated && !data.isNullOrBlank()) {
+            // Store the path portion for internal navigation e.g., rostry://traceability/ID -> traceability/ID
+            val route = data.substringAfter("rostry://")
+            sessionVm.setPendingDeepLink(route)
+        }
+    }
 
     when {
         state.isAuthenticated && navConfig != null -> RoleNavScaffold(navConfig, sessionVm, state)
@@ -152,33 +164,63 @@ fun AppNavHost() {
 
 @VisibleForTesting
 internal fun roleGraphRegisteredRoutesBasic(): Set<String> = setOf(
-    // General
+    // General root-level
     Routes.HOME_GENERAL,
-    Routes.GeneralNav.MARKET,
     Routes.SOCIAL_FEED,
     Routes.MESSAGES_THREAD,
+    Routes.MESSAGES_GROUP,
+    Routes.MESSAGES_OUTBOX,
+    Routes.NOTIFICATIONS,
     Routes.PRODUCT_DETAILS,
     Routes.TRACEABILITY,
-    // Farmer
+    Routes.PRODUCT_FAMILY_TREE,
+    // Farmer root-level
     Routes.HOME_FARMER,
     Routes.FarmerNav.MARKET,
-    Routes.FarmerNav.CREATE + "?prefillProductId={prefillProductId}&pairId={pairId}",
+    Routes.FarmerNav.CREATE,
     Routes.FarmerNav.COMMUNITY,
     Routes.FarmerNav.PROFILE,
-    // Enthusiast
+    // Enthusiast root-level
     Routes.HOME_ENTHUSIAST,
     Routes.EnthusiastNav.EXPLORE,
     Routes.EnthusiastNav.CREATE,
     Routes.EnthusiastNav.DASHBOARD,
     Routes.EnthusiastNav.TRANSFERS,
-    // Shared/Other commonly accessed
-    Routes.PRODUCT_FAMILY_TREE,
+    // Social/Community
+    Routes.GROUPS,
+    Routes.EVENTS,
+    Routes.EXPERT_BOOKING,
+    Routes.MODERATION,
+    Routes.LEADERBOARD,
+    Routes.LIVE_BROADCAST,
+    Routes.COMMUNITY_HUB,
+    Routes.GROUP_DETAILS,
+    Routes.EVENT_DETAILS,
+    Routes.EXPERT_PROFILE,
+    // Transfers
     Routes.TRANSFER_DETAILS,
     Routes.TRANSFER_LIST,
     Routes.TRANSFER_VERIFY,
+    Routes.TRANSFER_CREATE,
+    // Monitoring
+    Routes.MONITORING_DASHBOARD,
+    Routes.MONITORING_VACCINATION,
+    Routes.MONITORING_MORTALITY,
+    Routes.MONITORING_QUARANTINE,
+    Routes.MONITORING_BREEDING,
+    Routes.MONITORING_GROWTH,
+    Routes.MONITORING_HATCHING,
+    Routes.MONITORING_HATCHING_BATCH,
+    Routes.MONITORING_PERFORMANCE,
     Routes.MONITORING_DAILY_LOG,
     Routes.MONITORING_DAILY_LOG_PRODUCT,
     Routes.MONITORING_TASKS,
+    // Analytics and Sandbox
+    Routes.ANALYTICS_GENERAL,
+    Routes.ANALYTICS_FARMER,
+    Routes.ANALYTICS_ENTHUSIAST,
+    Routes.REPORTS,
+    Routes.PRODUCT_SANDBOX,
 )
 
 @Composable
@@ -323,16 +365,34 @@ private fun RoleNavScaffold(
     val currentRoute = backStackEntry?.destination?.route
     var showSwitcher by remember { mutableStateOf(false) }
 
-    // Removed premature manual navigate. NavHost below already uses startDestination = navConfig.startDestination.
+    // Consume and replay pending deep link once role is available
+    LaunchedEffect(navConfig.role) {
+        val pending = sessionVm.consumePendingDeepLink()
+        if (!pending.isNullOrBlank()) {
+            val allowed = navConfig.accessibleRoutes
+            if (Routes.isRouteAccessible(allowed, pending)) {
+                navController.navigate(pending)
+            }
+        }
+    }
 
-    // Role-based route guard: if a destination is not in the accessible set, redirect to start destination.
+    // Role-based route guard: validate base route and declared query keys (exclude path params)
     DisposableEffect(navController, navConfig.role) {
         val allowed = navConfig.accessibleRoutes
         val listener: (androidx.navigation.NavController, androidx.navigation.NavDestination, android.os.Bundle?) -> Unit =
             { controller, destination, _ ->
-                val route = destination.route
-                val normalized = route?.substringBefore("?")
-                if (normalized != null && !Routes.isRouteAccessible(allowed, normalized)) {
+                val pattern = destination.route ?: ""
+                val base = pattern.substringBefore("?")
+                // Parse declared query keys from the destination pattern, not from runtime arguments
+                val declaredQueryKeys = pattern.substringAfter("?", "")
+                    .takeIf { it.isNotBlank() }
+                    ?.split("&")
+                    ?.mapNotNull { part -> part.substringBefore("=", missingDelimiterValue = "").takeIf { it.isNotBlank() } }
+                    ?.sorted()
+                    .orEmpty()
+                val querySuffix = if (declaredQueryKeys.isNotEmpty()) "?" + declaredQueryKeys.joinToString("&") else ""
+                val concreteLike = base + querySuffix
+                if (concreteLike.isNotBlank() && !Routes.isRouteAccessible(allowed, concreteLike)) {
                     controller.navigate(navConfig.startDestination) {
                         launchSingleTop = true
                         popUpTo(controller.graph.startDestinationId) { inclusive = false }
@@ -417,6 +477,7 @@ private fun DraggableDemoFab(onClick: () -> Unit) {
                         offsetY = clampY(offsetY + drag.y)
                     })
                 }
+                .semantics { contentDescription = "Switch demo profile" }
         ) {
             Text("Demo")
         }
@@ -472,15 +533,11 @@ private fun RoleNavGraph(
         // General navigation destinations
         composable(Routes.HOME_GENERAL) {
             com.rio.rostry.ui.general.GeneralUserScreen(
-                onOpenProductDetails = { productId -> navController.navigate("product/$productId") },
-                onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
+                onOpenProductDetails = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onOpenTraceability = { productId -> navController.navigate(Routes.Builders.traceability(productId)) },
                 onOpenSocialFeed = { navController.navigate(Routes.SOCIAL_FEED) },
-                onOpenMessages = { threadId -> navController.navigate("messages/$threadId") }
+                onOpenMessages = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) }
             )
-        }
-        // General market destination to avoid 'not a direct child' errors when navigating to general/market
-        composable(Routes.GeneralNav.MARKET) {
-            PlaceholderScreen(title = "General Market")
         }
         composable(Routes.HOME_FARMER) {
             val viewModel: com.rio.rostry.ui.farmer.FarmerHomeViewModel = hiltViewModel()
@@ -518,8 +575,8 @@ private fun RoleNavGraph(
                 onEditListing = { id -> navController.navigate(Routes.FarmerNav.CREATE) },
                 onBoostListing = { _ -> /* Could open promo screen */ Unit },
                 onPauseListing = { _ -> /* Pause listing action */ Unit },
-                onOpenOrder = { threadId -> navController.navigate("messages/$threadId") },
-                onOpenProduct = { productId -> navController.navigate("product/$productId") },
+                onOpenOrder = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
+                onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
                 selectedTabIndex = state.selectedTabIndex,
                 onSelectTab = { vm.setTab(it) },
                 metricsRevenue = state.metricsRevenue,
@@ -595,8 +652,11 @@ private fun RoleNavGraph(
         }
         composable(Routes.FarmerNav.COMMUNITY) {
             FarmerCommunityScreen(
-                onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
-                onOpenGroupDirectory = { navController.navigate(Routes.GROUPS) },
+                onOpenThread = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
+                onOpenGroupDirectory = {
+                    if (BuildConfig.DEBUG) navController.navigate(Routes.GROUPS)
+                    else navController.navigate(Routes.LEADERBOARD)
+                },
                 onOpenExpertBooking = { navController.navigate(Routes.EXPERT_BOOKING) },
                 onOpenRegionalNews = { navController.navigate(Routes.LEADERBOARD) }
             )
@@ -619,7 +679,8 @@ private fun RoleNavGraph(
                 onOpenBatchDetail = { batchId -> navController.navigate("hatching/batch/$batchId") }
             )
         }
-        // Hatching management route with deep link to support notifications
+
+    // Hatching management route with deep link to support notifications
         composable(
             route = Routes.MONITORING_HATCHING,
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://hatching" })
@@ -642,7 +703,9 @@ private fun RoleNavGraph(
         ) {
             com.rio.rostry.ui.monitoring.DailyLogScreen(
                 onNavigateBack = { navController.popBackStack() },
-                productId = null
+                productId = null,
+                onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird("farmer")) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("farmer")) }
             )
         }
         composable(
@@ -651,10 +714,17 @@ private fun RoleNavGraph(
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/daily_log/{productId}" })
         ) { backStackEntry ->
             val pid = backStackEntry.arguments?.getString("productId")
-            com.rio.rostry.ui.monitoring.DailyLogScreen(
-                onNavigateBack = { navController.popBackStack() },
-                productId = pid
-            )
+            if (pid.isNullOrBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.MONITORING_DAILY_LOG_PRODUCT}")
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.DailyLogScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    productId = pid,
+                    onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird("farmer")) },
+                    onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("farmer")) }
+                )
+            }
         }
 
         // Tasks
@@ -664,7 +734,7 @@ private fun RoleNavGraph(
         ) {
             com.rio.rostry.ui.monitoring.TasksScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToProduct = { productId -> navController.navigate("product/$productId") }
+                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
             )
         }
         composable(Routes.HOME_ENTHUSIAST) {
@@ -674,7 +744,7 @@ private fun RoleNavGraph(
                 onOpenPerformanceAnalytics = { navController.navigate(Routes.ANALYTICS_DASHBOARD) },
                 onOpenFinancialAnalytics = { navController.navigate(Routes.ANALYTICS_FARMER) },
                 onOpenTransfers = { navController.navigate(Routes.TRANSFER_LIST) },
-                onOpenTraceability = { id -> navController.navigate("traceability/$id") },
+                onOpenTraceability = { id -> navController.navigate(Routes.Builders.traceability(id)) },
                 onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onVerifyKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
                 onOpenReports = { navController.navigate(Routes.REPORTS) },
@@ -683,14 +753,14 @@ private fun RoleNavGraph(
                 onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
                 onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
-                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD + "?role=enthusiast") },
-                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH + "?role=enthusiast") }
+                onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird("enthusiast")) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("enthusiast")) }
             )
         }
 
         composable(Routes.EnthusiastNav.EXPLORE) {
             EnthusiastExploreScreen(
-                onOpenProduct = { productId -> navController.navigate("product/$productId") },
+                onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
                 onOpenEvent = { eventId -> navController.navigate(Routes.EVENT_DETAILS.replace("{eventId}", eventId)) },
                 onShare = { _ -> /* share sheet */ Unit }
             )
@@ -711,17 +781,17 @@ private fun RoleNavGraph(
             EnthusiastDashboardTabs(
                 onOpenReports = { navController.navigate(Routes.REPORTS) },
                 onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) },
-                onOpenTraceability = { id -> navController.navigate("traceability/$id") },
+                onOpenTraceability = { id -> navController.navigate(Routes.Builders.traceability(id)) },
                 navController = navController
             )
         }
 
         composable(Routes.EnthusiastNav.TRANSFERS) {
             EnthusiastTransfersScreen(
-                onOpenTransfer = { id -> navController.navigate("transfer/$id") },
-                onVerifyTransfer = { id -> navController.navigate("transfer/$id/verify") },
+                onOpenTransfer = { id -> navController.navigate(Routes.Builders.transferDetails(id)) },
+                onVerifyTransfer = { id -> navController.navigate(Routes.Builders.transferVerify(id)) },
                 onCreateTransfer = { navController.navigate(Routes.TRANSFER_CREATE) },
-                onOpenTraceability = { id -> navController.navigate("traceability/$id") }
+                onOpenTraceability = { id -> navController.navigate(Routes.Builders.traceability(id)) }
             )
         }
 
@@ -743,7 +813,12 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val uid = backStackEntry.arguments?.getString("userId") ?: ""
-            com.rio.rostry.ui.profile.UserProfileScreen(userId = uid, onBack = { navController.popBackStack() })
+            if (uid.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.USER_PROFILE}")
+                ErrorScreen(message = "Invalid user ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.profile.UserProfileScreen(userId = uid, onBack = { navController.popBackStack() })
+            }
         }
         composable(Routes.SETTINGS) {
             com.rio.rostry.ui.settings.SettingsScreen(onBack = { navController.popBackStack() })
@@ -755,9 +830,7 @@ private fun RoleNavGraph(
             EnthusiastKycScreen(onDone = { navController.popBackStack() })
         }
 
-        composable(Routes.ONBOARD_GENERAL) { PlaceholderScreen(title = "Onboarding - General") }
-        composable(Routes.ONBOARD_FARMER) { PlaceholderScreen(title = "Onboarding - Farmer") }
-        composable(Routes.ONBOARD_ENTHUSIAST) { PlaceholderScreen(title = "Onboarding - Enthusiast") }
+        
         composable(
             route = Routes.Onboarding.FARM_BIRD + "?role={role}",
             arguments = listOf(navArgument("role") { type = NavType.StringType; nullable = true; defaultValue = null })
@@ -795,11 +868,16 @@ private fun RoleNavGraph(
             )
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            ProductDetailsScreen(
-                productId = productId,
-                onOpenTraceability = { navController.navigate("traceability/$productId") },
-                onOpenSellerProfile = { userId -> navController.navigate(Routes.USER_PROFILE.replace("{userId}", userId)) }
-            )
+            if (productId.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.PRODUCT_DETAILS}")
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                ProductDetailsScreen(
+                    productId = productId,
+                    onOpenTraceability = { navController.navigate(Routes.Builders.traceability(productId)) },
+                    onOpenSellerProfile = { userId -> navController.navigate(Routes.USER_PROFILE.replace("{userId}", userId)) }
+                )
+            }
         }
 
         composable(
@@ -807,24 +885,22 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("productId") { type = NavType.StringType }),
             deepLinks = listOf(
                 navDeepLink { uriPattern = "rostry://traceability/{productId}" },
-                // Alias for family tree deep link used by notifications
-                navDeepLink { uriPattern = "rostry://family-tree/{productId}" }
+                navDeepLink { uriPattern = "https://rostry.app/traceability/{productId}" }
             )
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             val vm: TraceabilityViewModel = hiltViewModel()
-            // If we just returned from scanner with a result, navigate to that product's tree
-            val scanned = navController.currentBackStackEntry?.savedStateHandle?.get<String>("scannedProductId")
-            if (!scanned.isNullOrBlank() && scanned != productId) {
-                navController.currentBackStackEntry?.savedStateHandle?.remove<String>("scannedProductId")
-                LaunchedEffect(scanned) { navController.navigate("traceability/$scanned") }
+            if (productId.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.TRACEABILITY}")
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                TraceabilityScreen(
+                    vm = vm,
+                    productId = productId,
+                    onBack = { navController.popBackStack() },
+                    onScanQr = { navController.navigate(Routes.Builders.scanQr("family_tree")) }
+                )
             }
-            TraceabilityScreen(
-                vm = vm,
-                productId = productId,
-                onBack = { navController.popBackStack() },
-                onScanQr = { navController.navigate(Routes.SCAN_QR + "?context=family_tree") }
-            )
         }
 
         // Lightweight lineage preview (deep link target for https links)
@@ -838,24 +914,23 @@ private fun RoleNavGraph(
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             com.rio.rostry.ui.traceability.LineagePreviewScreen(
                 productId = productId,
-                onOpenFullTree = { pid -> navController.navigate("traceability/$pid") },
+                onOpenFullTree = { pid -> navController.navigate(Routes.Builders.traceability(pid)) },
                 onBack = { navController.popBackStack() }
             )
         }
 
-        // Family Tree explicit route (aliases to TraceabilityScreen full view)
+        // Family Tree explicit route (redirect/alias to Traceability full view)
         composable(
             route = Routes.PRODUCT_FAMILY_TREE,
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            val vm: TraceabilityViewModel = hiltViewModel()
-            TraceabilityScreen(
-                vm = vm,
-                productId = productId,
-                onBack = { navController.popBackStack() },
-                onScanQr = { navController.navigate(Routes.SCAN_QR + "?context=family_tree") }
-            )
+            LaunchedEffect(productId) {
+                if (productId.isNotBlank()) {
+                    navController.navigate(Routes.Builders.traceability(productId))
+                }
+                navController.popBackStack()
+            }
         }
 
         // Scanner route with typed arguments and default context
@@ -871,26 +946,39 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val ctx = backStackEntry.arguments?.getString("context")
             val tid = backStackEntry.arguments?.getString("transferId")
-            QrScannerScreen(
-                onResult = { productId ->
-                when (ctx) {
-                    "family_tree" -> {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
-                        navController.popBackStack()
-                    }
-                    "transfer_verify" -> {
-                        // For transfer flows, open traceability for quick identity check
-                        navController.navigate("traceability/$productId")
-                    }
-                    else -> {
-                        // Default: open product details
-                        navController.navigate("product/$productId")
-                    }
-                }
-            },
-                onValidate = { candidate -> candidate.isNotBlank() && candidate.length in 3..64 && candidate.none { it.isWhitespace() } },
-                hint = "Scan or enter ROSTRY product ID"
-            )
+            val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+            val scope = rememberCoroutineScope()
+            androidx.compose.material3.Scaffold(
+                snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+            ) { padding ->
+                QrScannerScreen(
+                    onResult = { productId ->
+                        when (ctx) {
+                            "family_tree" -> {
+                                navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
+                                navController.popBackStack()
+                            }
+                            "transfer_verify" -> {
+                                if (!tid.isNullOrBlank()) {
+                                    navController.navigate(Routes.Builders.transferVerify(tid))
+                                } else {
+                                    android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.SCAN_QR} missing transferId")
+                                    scope.launch { snackbarHostState.showSnackbar("Invalid scan context") }
+                                }
+                            }
+                            "traceability" -> {
+                                navController.navigate(Routes.Builders.traceability(productId))
+                            }
+                            else -> {
+                                scope.launch { snackbarHostState.showSnackbar("Invalid scan context") }
+                            }
+                        }
+                    },
+                    onValidate = { candidate -> candidate.isNotBlank() && candidate.length in 3..64 && candidate.none { it.isWhitespace() } },
+                    hint = "Scan or enter ROSTRY product ID",
+                    onError = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+                )
+            }
         }
 
         // Marketplace sandbox for QA/demo to exercise product validation and payments
@@ -903,7 +991,12 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("transferId") { type = NavType.StringType })
         ) { backStackEntry ->
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
-            TransferDetailsScreen(transferId = transferId, onOpenVerify = { id -> navController.navigate("transfer/$id/verify") })
+            if (transferId.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.TRANSFER_DETAILS}")
+                ErrorScreen(message = "Invalid transfer ID", onBack = { navController.popBackStack() })
+            } else {
+                TransferDetailsScreen(transferId = transferId, onOpenVerify = { id -> navController.navigate(Routes.Builders.transferVerify(id)) })
+            }
         }
 
         composable(
@@ -912,19 +1005,24 @@ private fun RoleNavGraph(
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/{transferId}/verify" })
         ) { backStackEntry ->
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
-            TransferVerificationScreen(
-                transferId = transferId,
-                onScanProduct = { navController.navigate(Routes.SCAN_QR + "?context=transfer_verify&transferId=$transferId") }
-            )
+            if (transferId.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.TRANSFER_VERIFY}")
+                ErrorScreen(message = "Invalid transfer ID", onBack = { navController.popBackStack() })
+            } else {
+                TransferVerificationScreen(
+                    transferId = transferId,
+                    onScanProduct = { navController.navigate(Routes.Builders.scanQr("transfer_verify", transferId)) }
+                )
+            }
         }
 
         // Generic transfer list route used across notifications etc.
         composable(Routes.TRANSFER_LIST) {
             EnthusiastTransfersScreen(
-                onOpenTransfer = { id -> navController.navigate("transfer/$id") },
-                onVerifyTransfer = { id -> navController.navigate("transfer/$id/verify") },
+                onOpenTransfer = { id -> navController.navigate(Routes.Builders.transferDetails(id)) },
+                onVerifyTransfer = { id -> navController.navigate(Routes.Builders.transferVerify(id)) },
                 onCreateTransfer = { navController.navigate(Routes.TRANSFER_CREATE) },
-                onOpenTraceability = { id -> navController.navigate("traceability/$id") }
+                onOpenTraceability = { id -> navController.navigate(Routes.Builders.traceability(id)) }
             )
         }
 
@@ -935,7 +1033,7 @@ private fun RoleNavGraph(
             // Navigate to details when created
             LaunchedEffect(state.successTransferId) {
                 if (!state.successTransferId.isNullOrBlank()) {
-                    navController.navigate("transfer/${state.successTransferId}") {
+                    navController.navigate(Routes.Builders.transferDetails(state.successTransferId!!)) {
                         launchSingleTop = true
                     }
                 }
@@ -947,8 +1045,11 @@ private fun RoleNavGraph(
 
         composable(Routes.SOCIAL_FEED) {
             com.rio.rostry.ui.social.SocialFeedScreen(
-                onOpenThread = { threadId -> navController.navigate("messages/$threadId") },
-                onOpenGroups = { navController.navigate(Routes.GROUPS) },
+                onOpenThread = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
+                onOpenGroups = {
+                    if (BuildConfig.DEBUG) navController.navigate(Routes.GROUPS)
+                    else navController.navigate(Routes.LEADERBOARD)
+                },
                 onOpenEvents = { navController.navigate(Routes.EVENTS) },
                 onOpenExpert = { navController.navigate(Routes.EXPERT_BOOKING) }
             )
@@ -967,7 +1068,12 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("threadId") { type = NavType.StringType })
         ) { backStackEntry ->
             val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
-            com.rio.rostry.ui.messaging.ThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
+            if (threadId.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.MESSAGES_THREAD}")
+                ErrorScreen(message = "Invalid thread ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.messaging.ThreadScreen(threadId = threadId, onBack = { navController.popBackStack() })
+            }
         }
 
         // Monitoring performance summary screen
@@ -983,7 +1089,9 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.messaging.GroupChatScreen(groupId = groupId, onBack = { navController.popBackStack() })
         }
 
-        composable(Routes.GROUPS) { PlaceholderScreen(title = "Groups") }
+        if (BuildConfig.DEBUG) {
+            composable(Routes.GROUPS) { PlaceholderScreen(title = "Groups") }
+        }
         composable(Routes.EVENTS) { com.rio.rostry.ui.events.EventsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
@@ -1003,20 +1111,22 @@ private fun RoleNavGraph(
             val userType = sessionState.role ?: com.rio.rostry.domain.model.UserType.GENERAL
             com.rio.rostry.ui.community.CommunityHubScreen(
                 userType = userType,
-                onNavigateToThread = { threadId -> navController.navigate("messages/$threadId") },
+                onNavigateToThread = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
                 onNavigateToGroup = { groupId -> navController.navigate(Routes.CommunityHub.createGroupRoute(groupId)) },
                 onNavigateToEvent = { eventId -> navController.navigate(Routes.CommunityHub.createEventRoute(eventId)) },
                 onNavigateToExpert = { expertId -> navController.navigate(Routes.CommunityHub.createExpertRoute(expertId)) },
-                onNavigateToPost = { postId -> navController.navigate("product/$postId") }
+                onNavigateToPost = { postId -> navController.navigate(Routes.Builders.productDetails(postId)) }
             )
         }
 
-        composable(
-            route = Routes.GROUP_DETAILS,
-            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-            PlaceholderScreen(title = "Group: $groupId")
+        if (BuildConfig.DEBUG) {
+            composable(
+                route = Routes.GROUP_DETAILS,
+                arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+                PlaceholderScreen(title = "Group: $groupId")
+            }
         }
 
         composable(
@@ -1073,7 +1183,7 @@ private fun RoleNavGraph(
         ) {
             com.rio.rostry.ui.monitoring.VaccinationScheduleScreen(
                 onListProduct = { productId ->
-                    navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$productId")
+                    navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId))
                 }
             )
         }
@@ -1095,7 +1205,7 @@ private fun RoleNavGraph(
         ) {
             com.rio.rostry.ui.monitoring.GrowthTrackingScreen(
                 onListProduct = { productId ->
-                    navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$productId")
+                    navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId))
                 }
             )
         }
@@ -1187,6 +1297,15 @@ private fun RoleNavGraph(
         }
     }
 }
+
+@Composable
+private fun ErrorScreen(message: String, onBack: () -> Unit) {
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(text = message)
+        Button(onClick = onBack) { Text("Back") }
+    }
+}
+
 @Composable
 private fun RoleBottomBar(
     navController: NavHostController,
@@ -1216,17 +1335,11 @@ private fun RoleBottomBar(
                     selected = selected,
                     onClick = {
                         val isCreate = destination.route.endsWith("/create")
-                        if (isCreate) {
-                            navController.navigate(destination.route) {
-                                launchSingleTop = true
-                            }
-                        } else {
-                            navController.navigate(destination.route) {
-                                launchSingleTop = true
-                                restoreState = true
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                }
+                        navController.navigate(destination.route) {
+                            launchSingleTop = true
+                            restoreState = true
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
                             }
                         }
                     },

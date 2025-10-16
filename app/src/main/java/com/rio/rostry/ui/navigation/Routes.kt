@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.navigation
 
 import com.rio.rostry.domain.model.UserType
+import java.net.URLEncoder
 
 data class BottomNavDestination(
     val route: String,
@@ -159,11 +160,6 @@ object Routes {
         bottomNav = emptyList(),
         accessibleRoutes = setOf(
             GeneralNav.HOME,
-            GeneralNav.MARKET,
-            GeneralNav.EXPLORE,
-            GeneralNav.CREATE,
-            GeneralNav.CART,
-            GeneralNav.PROFILE,
             Settings.ROOT,
             User.PROFILE,
             Product.DETAILS,
@@ -190,12 +186,14 @@ object Routes {
             FarmerNav.COMMUNITY,
             FarmerNav.PROFILE,
             Common.PROFILE,
+            Common.VERIFY_FARMER_LOCATION,
             Settings.ROOT,
             User.PROFILE,
             Product.CREATE,
             Social.FEED,
             Social.GROUPS,
             Social.EVENTS,
+            Scan.QR,
             Transfers.DETAILS,
             Analytics.FARMER,
             Monitoring.DAILY_LOG,
@@ -233,6 +231,7 @@ object Routes {
             EnthusiastNav.DASHBOARD,
             EnthusiastNav.TRANSFERS,
             Common.PROFILE,
+            Common.VERIFY_ENTHUSIAST_KYC,
             Settings.ROOT,
             User.PROFILE,
             Analytics.ENTHUSIAST,
@@ -240,6 +239,7 @@ object Routes {
             Transfers.DETAILS,
             Transfers.LIST,
             Product.TRACEABILITY,
+            Scan.QR,
             Messaging.THREAD,
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
@@ -255,7 +255,10 @@ object Routes {
             Monitoring.HATCHING_BATCH,
             Monitoring.PERFORMANCE,
             Product.FAMILY_TREE,
-            EnthusiastNav.EGG_COLLECTION
+            EnthusiastNav.EGG_COLLECTION,
+            // Allow Add-to-Farm onboarding flows for Enthusiast
+            Onboarding.FARM_BIRD,
+            Onboarding.FARM_BATCH
         )
     )
 
@@ -346,21 +349,92 @@ object Routes {
     const val EVENT_DETAILS = CommunityHub.EVENT_DETAILS
     const val EXPERT_PROFILE = CommunityHub.EXPERT_PROFILE
 
+    // Consolidated base for traceability-related routes
+    const val TRACEABILITY_BASE = "traceability"
+
+    // Whitelist of allowed query parameters per base route
+    private val routeQueryWhitelist: Map<String, Set<String>> = mapOf(
+        FarmerNav.CREATE to setOf("prefillProductId", "pairId"),
+        Onboarding.FARM_BIRD to setOf("role"),
+        Onboarding.FARM_BATCH to setOf("role"),
+        SCAN_QR to setOf("context", "transferId")
+    )
+
+    // Helper to extract the base route (before '?')
+    private fun baseOf(route: String): String = route.substringBefore("?")
+
+    // Helper to extract query keys from a route
+    fun extractQueryKeys(route: String): Set<String> {
+        val query = route.substringAfter("?", "")
+        if (query.isBlank()) return emptySet()
+        return query.split("&")
+            .mapNotNull { part -> part.substringBefore("=", missingDelimiterValue = "").takeIf { it.isNotBlank() } }
+            .toSet()
+    }
+
     /**
      * Check if a concrete route string (e.g., "product/123") matches any of the route patterns
      * in [allowed], where patterns may contain path parameters in braces (e.g., "product/{productId}").
      */
     fun isRouteAccessible(allowed: Set<String>, concreteRoute: String): Boolean {
-        // Fast path: exact match
-        if (allowed.contains(concreteRoute)) return true
+        val full = concreteRoute
+        val base = baseOf(full)
+        val queryKeys = extractQueryKeys(full)
 
-        // Convert patterns with {arg} into a regex that matches a single non-separator segment
-        return allowed.any { pattern ->
-            val regex = pattern
-                .replace("/", "\\/")
-                .replace(Regex("\\{[^/}]+\\}"), "[^/]+")
-                .let { "^$it$".toRegex() }
-            regex.matches(concreteRoute)
+        // Step 1: Base route must match one of the allowed patterns
+        val baseMatches = run {
+            if (allowed.contains(base)) true else allowed.any { pattern ->
+                val regex = pattern
+                    .replace("/", "\\/")
+                    .replace(Regex("\\{[^/}]+\\}"), "[^/]+")
+                    .let { "^$it$".toRegex() }
+                regex.matches(base)
+            }
+        }
+        if (!baseMatches) return false
+
+        // Step 2: If there are query params, validate against whitelist for the base route
+        if (queryKeys.isNotEmpty()) {
+            val allowedKeys = routeQueryWhitelist[base] ?: emptySet()
+            if (!queryKeys.all { it in allowedKeys }) return false
+        }
+        return true
+    }
+
+    object Builders {
+        fun productDetails(id: String): String = "product/${URLEncoder.encode(id, "UTF-8")}"
+        fun traceability(id: String): String = "$TRACEABILITY_BASE/${URLEncoder.encode(id, "UTF-8")}" 
+        fun transferDetails(id: String): String = "transfer/${URLEncoder.encode(id, "UTF-8") }"
+        fun transferVerify(id: String): String = "transfer/${URLEncoder.encode(id, "UTF-8")}/verify"
+        fun messagesThread(id: String): String = "messages/${URLEncoder.encode(id, "UTF-8")}"
+        fun userProfile(id: String): String = "user/${URLEncoder.encode(id, "UTF-8")}"
+
+        fun farmerCreateWithPrefill(productId: String, pairId: String? = null): String {
+            val pid = URLEncoder.encode(productId, "UTF-8")
+            val q = buildList {
+                add("prefillProductId=$pid")
+                if (!pairId.isNullOrBlank()) add("pairId=${URLEncoder.encode(pairId, "UTF-8")}")
+            }.joinToString("&")
+            return "${FarmerNav.CREATE}?$q"
+        }
+
+        fun scanQr(context: String = "traceability", transferId: String? = null): String {
+            val parts = buildList {
+                add("context=${URLEncoder.encode(context, "UTF-8")}")
+                if (!transferId.isNullOrBlank()) add("transferId=${URLEncoder.encode(transferId, "UTF-8")}")
+            }
+            val q = parts.joinToString("&")
+            return "$SCAN_QR?$q"
+        }
+
+        fun onboardingFarmBird(role: String? = null): String {
+            val q = role?.takeIf { it.isNotBlank() }?.let { "?role=${URLEncoder.encode(it, "UTF-8")}" } ?: ""
+            return Onboarding.FARM_BIRD + q
+        }
+
+        fun onboardingFarmBatch(role: String? = null): String {
+            val q = role?.takeIf { it.isNotBlank() }?.let { "?role=${URLEncoder.encode(it, "UTF-8")}" } ?: ""
+            return Onboarding.FARM_BATCH + q
         }
     }
 

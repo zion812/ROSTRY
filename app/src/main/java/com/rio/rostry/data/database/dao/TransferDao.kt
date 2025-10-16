@@ -72,4 +72,53 @@ interface TransferDao {
 
     @Query("UPDATE transfers SET status = 'TIMEOUT', updatedAt = :updatedAt WHERE transferId IN (:ids)")
     suspend fun markTimedOut(ids: List<String>, updatedAt: Long)
+
+    // Optimized filter helpers (optional params via CASE conditions)
+    @Query(
+        "SELECT * FROM transfers " +
+        "WHERE (fromUserId = :userId OR toUserId = :userId) " +
+        "AND (:start IS NULL OR initiatedAt >= :start) " +
+        "AND (:end IS NULL OR initiatedAt <= :end) " +
+        "ORDER BY initiatedAt DESC"
+    )
+    fun getUserTransfersBetween(userId: String, start: Long?, end: Long?): Flow<List<TransferEntity>>
+
+    @Query(
+        "SELECT * FROM transfers " +
+        "WHERE (fromUserId = :userId OR toUserId = :userId) " +
+        "AND type = :type " +
+        "AND (:start IS NULL OR initiatedAt >= :start) " +
+        "AND (:end IS NULL OR initiatedAt <= :end) " +
+        "ORDER BY initiatedAt DESC"
+    )
+    fun getUserTransfersByTypeBetween(userId: String, type: String, start: Long?, end: Long?): Flow<List<TransferEntity>>
+
+    @Query(
+        "SELECT * FROM transfers " +
+        "WHERE (fromUserId = :userId OR toUserId = :userId) " +
+        "AND status = :status " +
+        "AND (:start IS NULL OR initiatedAt >= :start) " +
+        "AND (:end IS NULL OR initiatedAt <= :end) " +
+        "ORDER BY initiatedAt DESC"
+    )
+    fun getUserTransfersByStatusBetween(userId: String, status: String, start: Long?, end: Long?): Flow<List<TransferEntity>>
+
+    // Paging: history excludes PENDING
+    @androidx.room.Query(
+        "SELECT * FROM transfers " +
+        "WHERE (fromUserId = :userId OR toUserId = :userId) " +
+        "AND status != 'PENDING' " +
+        "AND (:type IS NULL OR type = :type) " +
+        "AND (:status IS NULL OR status = :status) " +
+        "AND (:start IS NULL OR initiatedAt >= :start) " +
+        "AND (:end IS NULL OR initiatedAt <= :end) " +
+        "ORDER BY initiatedAt DESC"
+    )
+    fun pagingHistory(
+        userId: String,
+        type: String?,
+        status: String?,
+        start: Long?,
+        end: Long?
+    ): androidx.paging.PagingSource<Int, TransferEntity>
 }

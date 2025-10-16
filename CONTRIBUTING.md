@@ -26,7 +26,7 @@ Thank you for your interest in contributing! This guide explains how to set up y
 - [ ] Read the **[Quick Start](../QUICK_START.md)** and run the app
 - [ ] Create a feature branch: `feat/<short-description>`
 - [ ] Follow **[CODE_STYLE.md](CODE_STYLE.md)** conventions
-- [ ] Write or update **tests** and **docs**
+- [ ] Write or update **tests** and **docs** (see `docs/README-docs.md` for index)
 - [ ] Run `./gradlew ktlintCheck detekt test` locally
 - [ ] Submit a PR using the provided template
 
@@ -43,7 +43,7 @@ Thank you for your interest in contributing! This guide explains how to set up y
 4. **Sync Gradle**: Allow Android Studio to sync dependencies automatically.
 5. **Run the app**: Build and run in debug mode to ensure everything works.
 
-See [developer-onboarding.md](docs/developer-onboarding.md) for comprehensive onboarding. For a fast start see [QUICK_START.md](QUICK_START.md) and handy commands in [CHEAT_SHEET.md](CHEAT_SHEET.md).
+See [developer-onboarding.md](docs/developer-onboarding.md) for comprehensive onboarding, and [demo_quick_start.md](docs/demo_quick_start.md) for demo mode exploration. For a fast start see [QUICK_START.md](QUICK_START.md) and handy commands in [CHEAT_SHEET.md](CHEAT_SHEET.md).
 
 ---
 
@@ -220,7 +220,7 @@ suspend fun createProduct(product: Product): Result<String>
 open app/build/dokka/html/index.html
 ```
 
-**Complete KDoc Guide**: See [docs/api-documentation.md](docs/api-documentation.md). Also follow our [Documentation Standards](docs/DOCUMENTATION_STANDARDS.md).
+**Complete KDoc Guide**: See [docs/api-documentation.md](docs/api-documentation.md). Also follow our [Documentation Standards](docs/DOCUMENTATION_STANDARDS.md). For migration documentation, see [docs/database-migrations.md](docs/database-migrations.md). For new features, update relevant docs in `docs/` as listed in [docs/README-docs.md](docs/README-docs.md).
 
 ---
 
@@ -336,6 +336,8 @@ Run checks locally before pushing:
 
 ## Documentation
 
+📚 **Note**: Documentation was recently reorganized for better navigation. See `docs/README-docs.md` for the complete index.
+
 ### When to Update Docs
 
 Update documentation when:
@@ -346,8 +348,9 @@ Update documentation when:
 
 ### Documentation Files
 
+- `docs/README-docs.md`: Primary documentation index
 - `README.md`: High-level project overview
-- `docs/`: Feature-specific documentation
+- `docs/`: Feature-specific documentation (e.g., `ai-personalization.md`, `gamification.md`, `traceability.md`)
 - Code comments: Complex logic and non-obvious decisions
 - KDoc: Public APIs and interfaces
 

@@ -129,6 +129,7 @@ fun GeneralMarketRoute(
             viewModel.updateFilters { it.copy(verifiedOnly = !it.verifiedOnly) }
         },
         onApplyPreset = viewModel::applyQuickPreset,
+        onClearFilters = viewModel::clearAllFilters,
         onSelectBreed = { breed ->
             viewModel.updateFilters {
                 val same = it.selectedBreed.equals(breed, ignoreCase = true)
@@ -160,6 +161,7 @@ private fun GeneralMarketScreen(
     onSetLocation: (Double, Double) -> Unit,
     onToggleVerified: () -> Unit,
     onApplyPreset: (GeneralMarketViewModel.QuickPreset) -> Unit,
+    onClearFilters: () -> Unit,
     onSelectBreed: (String) -> Unit,
     onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit,
     onOpenProductDetails: (String) -> Unit,
@@ -217,6 +219,7 @@ private fun GeneralMarketScreen(
                 onApplyPreset = onApplyPreset,
                 onRequestLocation = { showLocationDialog = true },
                 onToggleVerified = onToggleVerified,
+                onClearFilters = onClearFilters,
                 onSelectBreed = onSelectBreed,
                 onSelectAgeGroup = onSelectAgeGroup
             )
@@ -364,6 +367,7 @@ private fun CompactFilterBar(
     onApplyPreset: (GeneralMarketViewModel.QuickPreset) -> Unit,
     onRequestLocation: () -> Unit,
     onToggleVerified: () -> Unit,
+    onClearFilters: () -> Unit,
     onSelectBreed: (String) -> Unit,
     onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit
 ) {
@@ -395,6 +399,12 @@ private fun CompactFilterBar(
                     Icon(Icons.Filled.FilterList, contentDescription = "Filter icon")
                     Spacer(Modifier.width(4.dp))
                     Text("Filters")
+                }
+                if (activeCount > 0) {
+                    TextButton(
+                        onClick = onClearFilters,
+                        modifier = Modifier.testTag("market_clear_filters_button")
+                    ) { Text("Clear") }
                 }
             }
             

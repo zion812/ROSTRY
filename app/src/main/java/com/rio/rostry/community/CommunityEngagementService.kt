@@ -96,7 +96,7 @@ class CommunityEngagementService @Inject constructor(
 
     fun getSuggestedGroups(userId: String, limit: Int): Flow<List<GroupEntity>> {
         return groupsDao.streamAll().map { groups ->
-            // Filter and rank groups based on user interests
+        // Filter and rank groups based on user interests
             groups.take(limit)
         }
     }
