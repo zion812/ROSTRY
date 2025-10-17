@@ -13,6 +13,7 @@ import com.rio.rostry.data.database.dao.ProductTraitDao
 import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.entity.LifecycleEventEntity
 import com.rio.rostry.data.database.entity.FarmAlertEntity
+import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.monitoring.TaskRepository
 import com.rio.rostry.data.database.dao.TaskDao
@@ -21,7 +22,9 @@ import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.MilestoneNotifier
 import com.rio.rostry.utils.notif.EnthusiastNotifier
 import com.rio.rostry.utils.notif.FarmNotifier
+import com.google.gson.Gson
 import com.rio.rostry.domain.model.LifecycleStage
+import com.rio.rostry.ui.navigation.Routes
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -63,12 +66,33 @@ class LifecycleWorker @AssistedInject constructor(
                                 alertType = "BATCH_SPLIT_DUE",
                                 severity = "INFO",
                                 message = "Batch ${p.name} is ready for individual tracking. Consider splitting for sex/color separation.",
-                                actionRoute = "monitoring/growth?productId=${p.productId}",
+                                actionRoute = Routes.Builders.monitoringGrowth(p.productId),
                                 createdAt = now
                             )
                         )
                         // Notify farmer about batch split due
                         FarmNotifier.batchSplitDue(applicationContext, p.productId, p.name ?: "Batch")
+                        val existing = taskDao.findPendingByTypeProduct(p.sellerId, p.productId, "BATCH_SPLIT")
+                        if (existing.isEmpty()) {
+                            val meta = mapOf("count" to p.quantity.toInt(), "breed" to (p.breed ?: ""), "ageWeeks" to week)
+                            val task = TaskEntity(
+                                taskId = "task_batch_split_${UUID.randomUUID()}",
+                                farmerId = p.sellerId,
+                                productId = null,
+                                batchId = p.productId,
+                                taskType = "BATCH_SPLIT",
+                                title = "Split batch into individuals",
+                                dueAt = now,
+                                priority = "URGENT",
+                                metadata = Gson().toJson(meta)
+                            )
+                            taskRepository.upsert(task)
+                        } else {
+                            val earliest = existing.minBy { it.dueAt ?: Long.MAX_VALUE }
+                            if ((earliest.dueAt ?: Long.MAX_VALUE) > now) {
+                                taskDao.updateDueAt(earliest.taskId, now, now)
+                            }
+                        }
                     }
                 }
 
@@ -89,6 +113,28 @@ class LifecycleWorker @AssistedInject constructor(
                         lifecycleDao.insert(transition)
                         // Notify on stage transition with deep link handled by MilestoneNotifier
                         MilestoneNotifier.notify(applicationContext, p.productId, transition)
+                        val oldStage = p.stage ?: LifecycleStage.CHICK.name
+                        val newStage = stage.name
+                        val dueAt = now + 24 * 60 * 60 * 1000L
+                        val existing = taskDao.findPendingByTypeProduct(p.sellerId, p.productId, "STAGE_TRANSITION")
+                        if (existing.isEmpty()) {
+                            val meta = mapOf("oldStage" to oldStage, "newStage" to newStage)
+                            val task = TaskEntity(
+                                taskId = "task_stage_${UUID.randomUUID()}",
+                                farmerId = p.sellerId,
+                                productId = p.productId,
+                                taskType = "STAGE_TRANSITION",
+                                title = "Transition to $newStage",
+                                dueAt = dueAt,
+                                priority = "MEDIUM",
+                                metadata = Gson().toJson(meta)
+                            )
+                            taskRepository.upsert(task)
+                        } else {
+                            val earliest = existing.minBy { it.dueAt ?: Long.MAX_VALUE }
+                            val newDue = minOf(earliest.dueAt ?: dueAt, dueAt)
+                            taskDao.updateDueAt(earliest.taskId, newDue, now)
+                        }
                     }
                 }
 

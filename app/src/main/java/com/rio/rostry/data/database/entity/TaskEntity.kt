@@ -20,9 +20,14 @@ import androidx.room.PrimaryKey
         Index(value = ["productId"]),
         Index(value = ["taskType"]),
         Index(value = ["dueAt"]),
-        Index(value = ["completedAt"]) 
+        Index(value = ["completedAt"]),
+        Index(value = ["mergedAt"])
     ]
 )
+/**
+ * Represents a task entity in the database.
+ * Task conflicts are resolved by preferring the most recent `updatedAt` timestamp.
+ */
 data class TaskEntity(
     @PrimaryKey val taskId: String,
     val farmerId: String,
@@ -42,5 +47,9 @@ data class TaskEntity(
     val dirty: Boolean = true,
     val syncedAt: Long? = null,
     val snoozeUntil: Long? = null,
-    val metadata: String? = null // JSON blob for task-specific metadata
+    val metadata: String? = null, // JSON blob for task-specific metadata
+    /** Timestamp of the last merge operation, null if never merged. */
+    val mergedAt: Long? = null,
+    /** Number of times this task has been merged, defaults to 0. */
+    val mergeCount: Int = 0
 )

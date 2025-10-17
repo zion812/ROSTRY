@@ -17,6 +17,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.rio.rostry.data.database.dao.AuditLogDao
+import com.rio.rostry.data.repository.monitoring.DailyLogRepository
+import java.util.UUID
 
 @HiltViewModel
 class FarmerCreateViewModel @Inject constructor(
@@ -32,7 +35,9 @@ class FarmerCreateViewModel @Inject constructor(
     private val quarantineRepository: com.rio.rostry.data.repository.monitoring.QuarantineRepository,
     private val breedingRepository: com.rio.rostry.data.repository.monitoring.BreedingRepository,
     private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository,
-    private val productValidator: com.rio.rostry.marketplace.validation.ProductValidator
+    private val productValidator: com.rio.rostry.marketplace.validation.ProductValidator,
+    private val dailyLogRepository: com.rio.rostry.data.repository.monitoring.DailyLogRepository,
+    private val auditLogDao: AuditLogDao
 ) : ViewModel() {
 
     private var prefillProductId: String? = null
@@ -126,7 +131,8 @@ class FarmerCreateViewModel @Inject constructor(
         val wizardState: ProductCreationState = ProductCreationState(),
         val isSubmitting: Boolean = false,
         val successProductId: String? = null,
-        val error: String? = null
+        val error: String? = null,
+        val validationStatus: Map<String, Boolean> = emptyMap()
     )
 
     private val _ui = MutableStateFlow(UiState())
@@ -362,6 +368,27 @@ class FarmerCreateViewModel @Inject constructor(
             WizardStep.MEDIA -> WizardStep.REVIEW
             WizardStep.REVIEW -> WizardStep.REVIEW
         }
+        if (current.currentStep == WizardStep.MEDIA && next == WizardStep.REVIEW) {
+            // Pre-compute farm data freshness for REVIEW to avoid suspend calls in validation
+            val sourceProductId = prefillProductId
+            if (!sourceProductId.isNullOrBlank()) {
+                viewModelScope.launch {
+                    val fresh = checkFarmDataFreshness(sourceProductId)
+                    val statusMap = buildMap {
+                        put("notInQuarantine", quarantineCheckPassed)
+                        put("recentVaccination", fresh["vaccination"] == true)
+                        put("recentHealthLog", fresh["healthLog"] == true)
+                        put("recentGrowthRecord", fresh["growth"] == true)
+                    }
+                    _ui.value = _ui.value.copy(
+                        wizardState = current.copy(currentStep = next, validationErrors = emptyMap()),
+                        validationStatus = statusMap
+                    )
+                    saveDraft()
+                }
+                return
+            }
+        }
         _ui.value = _ui.value.copy(
             wizardState = current.copy(currentStep = next, validationErrors = emptyMap())
         )
@@ -492,7 +519,10 @@ class FarmerCreateViewModel @Inject constructor(
                     price = state.basicInfo.price.toDoubleOrNull(),
                     startPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
                     latitude = state.detailsInfo.latitude,
-                    longitude = state.detailsInfo.longitude
+                    longitude = state.detailsInfo.longitude,
+                    hasRecentVaccination = _ui.value.validationStatus["recentVaccination"] as? Boolean,
+                    hasRecentHealthLog = _ui.value.validationStatus["recentHealthLog"] as? Boolean,
+                    hasRecentGrowthRecord = _ui.value.validationStatus["recentGrowthRecord"] as? Boolean
                 )
                 val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
                 if (!result.valid) {
@@ -500,8 +530,8 @@ class FarmerCreateViewModel @Inject constructor(
                 }
                 // Non-blocking GPS hint when not required (non-traceable)
                 val gpsMissing = state.detailsInfo.latitude == null || state.detailsInfo.longitude == null
-                val isTraceableAdoption = category is com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable
-                if (gpsMissing && !isTraceableAdoption) {
+                val isTraceableAdoptionDetails = category is com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable
+                if (gpsMissing && !isTraceableAdoptionDetails) {
                     // Hint via transient error field; navigation is not blocked since not added to map
                     _ui.value = _ui.value.copy(error = "Tip: Adding your GPS location can improve discovery for your listing.")
                 }
@@ -521,6 +551,23 @@ class FarmerCreateViewModel @Inject constructor(
                 if (state.basicInfo.traceability == Traceability.Traceable) {
                     if (state.detailsInfo.parentInfo.isBlank() && state.detailsInfo.lineageDoc.isBlank()) {
                         put("traceability", "Parent info or lineage document required for traceable products")
+                    }
+                }
+
+                // Add farm data freshness checks using precomputed state
+                val isTraceableAdoptionReview = state.basicInfo.category == Category.Adoption && state.basicInfo.traceability == Traceability.Traceable
+                if (isTraceableAdoptionReview) {
+                    val vs = _ui.value.validationStatus
+                    if (prefillProductId != null) {
+                        if (vs["recentVaccination"] == false) {
+                            put("vaccination", "No vaccination in last 30 days. Add vaccination record before listing.")
+                        }
+                        if (vs["recentHealthLog"] == false) {
+                            put("healthLog", "No health log in last 7 days. Add daily health log before listing.")
+                        }
+                        if (vs["recentGrowthRecord"] == false) {
+                            put("growth", "No growth record in last 14 days. Add growth monitoring before listing.")
+                        }
                     }
                 }
 
@@ -563,7 +610,10 @@ class FarmerCreateViewModel @Inject constructor(
                     price = state.basicInfo.price.toDoubleOrNull(),
                     startPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
                     latitude = state.detailsInfo.latitude,
-                    longitude = state.detailsInfo.longitude
+                    longitude = state.detailsInfo.longitude,
+                    hasRecentVaccination = _ui.value.validationStatus["recentVaccination"] as? Boolean,
+                    hasRecentHealthLog = _ui.value.validationStatus["recentHealthLog"] as? Boolean,
+                    hasRecentGrowthRecord = _ui.value.validationStatus["recentGrowthRecord"] as? Boolean
                 )
                 val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
                 if (!result.valid) {
@@ -571,8 +621,8 @@ class FarmerCreateViewModel @Inject constructor(
                 }
                 // Non-blocking GPS hint at review step as well
                 val gpsMissing = state.detailsInfo.latitude == null || state.detailsInfo.longitude == null
-                val isTraceableAdoption = category is com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable
-                if (gpsMissing && !isTraceableAdoption) {
+                val isTraceableAdoptionReview2 = category is com.rio.rostry.marketplace.model.ProductCategory.AdoptionTraceable
+                if (gpsMissing && !isTraceableAdoptionReview2) {
                     _ui.value = _ui.value.copy(error = "Tip: Adding your GPS location can improve discovery for your listing.")
                 }
             }
@@ -623,7 +673,7 @@ class FarmerCreateViewModel @Inject constructor(
                 if (inQuarantine) {
                     _ui.value = UiState(
                         isSubmitting = false,
-                        error = "Cannot list products in quarantine. Complete quarantine protocol first."
+                        error = "Complete quarantine protocol and mark as RECOVERED before listing"
                     )
                     return@launch
                 }
@@ -636,7 +686,7 @@ class FarmerCreateViewModel @Inject constructor(
                     if (status == "DECEASED" || status == "TRANSFERRED") {
                         _ui.value = UiState(
                             isSubmitting = false,
-                            error = "Cannot list products that are ${status?.lowercase()}."
+                            error = if (status == "DECEASED") "Cannot list deceased birds. Remove from active inventory." else "This bird has been transferred. Update ownership records."
                         )
                         return@launch
                     }
@@ -646,12 +696,20 @@ class FarmerCreateViewModel @Inject constructor(
             try {
                 val candidate = mapToEntity(currentUser, form)
                 // Validate with traceability before any heavy work
-                val validation = productValidator.validateWithTraceability(candidate)
+                val validation = productValidator.validateWithTraceability(candidate, sourceProductId = prefillProductId)
                 if (!validation.valid) {
                     _ui.value = UiState(
                         isSubmitting = false,
                         error = validation.reasons.joinToString(separator = "; ")
                     )
+                    // Add audit log for validation failure
+                    val auditLog = com.rio.rostry.data.database.entity.AuditLogEntity.createValidationFailureLog(
+                        refId = prefillProductId ?: "NEW_LISTING",
+                        action = "LISTING_BLOCKED",
+                        actorUserId = currentUser.userId,
+                        reasons = validation.reasons
+                    )
+                    auditLogDao.insert(auditLog)
                     return@launch
                 }
 
@@ -709,7 +767,7 @@ class FarmerCreateViewModel @Inject constructor(
         }
         val status = "available"
         return ProductEntity(
-            productId = "",
+            productId = prefillProductId ?: "",
             sellerId = user.userId,
             name = name,
             description = "",
@@ -733,8 +791,8 @@ class FarmerCreateViewModel @Inject constructor(
             gender = null,
             color = null,
             breed = null,
-            familyTreeId = null,
-            parentIdsJson = null,
+            familyTreeId = if (traceable) _ui.value.wizardState.detailsInfo.lineageDoc.ifBlank { null } else null,
+            parentIdsJson = _ui.value.wizardState.detailsInfo.parentInfo.ifBlank { null },
             breedingStatus = null,
             transferHistoryJson = null,
             createdAt = now,
@@ -770,5 +828,20 @@ class FarmerCreateViewModel @Inject constructor(
             is com.rio.rostry.utils.Resource.Success -> res.data
             else -> null
         }
+    }
+
+    private suspend fun checkFarmDataFreshness(productId: String): Map<String, Boolean> {
+        val now = System.currentTimeMillis()
+        val vaccinationFresh = vaccinationRepository.observe(productId).first()
+            .any { it.administeredAt != null && (now - it.administeredAt!!) <= 30L * 24 * 60 * 60 * 1000 }
+        val healthLogFresh = dailyLogRepository.observe(productId).first()
+            .any { (now - it.createdAt) <= 7L * 24 * 60 * 60 * 1000 }
+        val growthFresh = growthRepository.observe(productId).first()
+            .any { (now - it.createdAt) <= 14L * 24 * 60 * 60 * 1000 }
+        return mapOf(
+            "vaccination" to vaccinationFresh,
+            "healthLog" to healthLogFresh,
+            "growth" to growthFresh
+        )
     }
 }

@@ -1,9 +1,16 @@
 package com.rio.rostry.marketplace.validation
 
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.GrowthRecordDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.marketplace.model.ProductCategory
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.utils.Resource
+import io.mockk.coEvery
+import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -35,10 +42,51 @@ class ProductValidatorTest {
         override suspend fun getTransferChain(productId: String): Resource<List<Any>> =
             Resource.Success(emptyList())
 
+        override suspend fun validateProductLineage(productId: String, expectedParentMaleId: String?, expectedParentFemaleId: String?) =
+            Resource.Success(true)
+
+        override suspend fun getProductHealthScore(productId: String) = Resource.Success(100)
+
+        override suspend fun getTransferEligibilityReport(productId: String): Resource<Map<String, Any>> =
+            Resource.Success(mapOf("eligible" to true, "reasons" to emptyList<String>()))
+
+        override suspend fun getNodeMetadata(productId: String): Resource<com.rio.rostry.data.repository.NodeMetadata> =
+            Resource.Success(
+                com.rio.rostry.data.repository.NodeMetadata(
+                    productId = productId,
+                    name = "Test",
+                    breed = null,
+                    stage = null,
+                    ageWeeks = null,
+                    healthScore = 100,
+                    lifecycleStatus = null
+                )
+            )
+
+        override suspend fun getNodeMetadataBatch(productIds: List<String>): Resource<Map<String, com.rio.rostry.data.repository.NodeMetadata>> =
+            Resource.Success(
+                productIds.associateWith { id ->
+                    com.rio.rostry.data.repository.NodeMetadata(
+                        productId = id,
+                        name = "Test",
+                        breed = null,
+                        stage = null,
+                        ageWeeks = null,
+                        healthScore = 100,
+                        lifecycleStatus = null
+                    )
+                }
+            )
+
         override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? = null
     }
 
-    private val pv = ProductValidator(fakeTraceability)
+    private val vaccinationDao: VaccinationRecordDao = mockk()
+    private val growthDao: GrowthRecordDao = mockk()
+    private val dailyLogDao: DailyLogDao = mockk()
+    private val quarantineDao: QuarantineRecordDao = mockk()
+
+    private val pv = ProductValidator(fakeTraceability, vaccinationDao, growthDao, dailyLogDao, quarantineDao)
 
     private fun baseProduct(now: Long = System.currentTimeMillis()): ProductEntity = ProductEntity(
         productId = "p1",
@@ -72,6 +120,11 @@ class ProductValidatorTest {
 
     @Test
     fun `young group requires growth monitoring`() {
+        // default empty flows
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct()
         val r = pv.validate(p)
         assertFalse(r.valid)
@@ -80,6 +133,10 @@ class ProductValidatorTest {
 
     @Test
     fun `adding weight passes growth requirement`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct().copy(weightGrams = 900.0)
         val r = pv.validate(p)
         // Other rules should pass for MEAT category
@@ -88,6 +145,10 @@ class ProductValidatorTest {
 
     @Test
     fun `traceable adoption requires family tree`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct().copy(
             category = ProductCategory.toString(ProductCategory.AdoptionTraceable)!!,
             weightGrams = 900.0
@@ -99,6 +160,10 @@ class ProductValidatorTest {
 
     @Test
     fun `traceable adoption with tree passes`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct().copy(
             category = ProductCategory.toString(ProductCategory.AdoptionTraceable)!!,
             familyTreeId = "tree-123",
@@ -110,6 +175,10 @@ class ProductValidatorTest {
 
     @Test
     fun `chick requires vaccination`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val now = System.currentTimeMillis()
         val p = baseProduct(now).copy(
             birthDate = now - 5L * 24 * 60 * 60 * 1000, // 5 days -> CHICK_0_5_WEEKS
@@ -122,6 +191,10 @@ class ProductValidatorTest {
 
     @Test
     fun `adult requires gender`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val now = System.currentTimeMillis()
         val p = baseProduct(now).copy(
             birthDate = now - 30L * 7 * 24 * 60 * 60 * 1000, // ~210 days -> ADULT_20_52_WEEKS
@@ -135,6 +208,10 @@ class ProductValidatorTest {
     // validateWithTraceability variants used by publish flow
     @Test
     fun `traceable adoption requires tree - with traceability validator`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct().copy(
             category = ProductCategory.toString(ProductCategory.AdoptionTraceable)!!,
             weightGrams = 900.0
@@ -146,6 +223,10 @@ class ProductValidatorTest {
 
     @Test
     fun `traceable adoption with tree passes - with traceability validator`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct().copy(
             category = ProductCategory.toString(ProductCategory.AdoptionTraceable)!!,
             familyTreeId = "tree-123",
@@ -157,6 +238,10 @@ class ProductValidatorTest {
 
     @Test
     fun `meat category minimal valid passes - with traceability validator`() {
+        coEvery { vaccinationDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { dailyLogDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { growthDao.observeForProduct(any()) } returns flowOf(emptyList())
+        coEvery { quarantineDao.observeForProduct(any()) } returns flowOf(emptyList())
         val p = baseProduct().copy(
             birthDate = System.currentTimeMillis() - 60L * 24 * 60 * 60 * 1000, // ~60 days
             weightGrams = 1200.0

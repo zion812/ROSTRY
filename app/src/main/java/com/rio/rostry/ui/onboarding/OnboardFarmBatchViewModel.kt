@@ -20,6 +20,13 @@ import java.util.UUID
 import javax.inject.Inject
 import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.utils.validation.OnboardingValidator
+import android.content.Context
+import com.rio.rostry.utils.notif.FarmNotifier
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.data.sync.SyncManager
 
 @HiltViewModel
 class OnboardFarmBatchViewModel @Inject constructor(
@@ -27,8 +34,16 @@ class OnboardFarmBatchViewModel @Inject constructor(
     private val farmOnboardingRepository: FarmOnboardingRepository,
     private val mediaUploadManager: MediaUploadManager,
     private val familyTreeRepository: FamilyTreeRepository,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    @ApplicationContext private val context: Context,
+    private val syncManager: SyncManager
 ) : ViewModel() {
+
+    private val _navigationEvent = MutableSharedFlow<String>()
+    val navigationEvent = _navigationEvent.asSharedFlow()
+
+    private val _refreshEvent = MutableSharedFlow<Unit>()
+    val refreshEvent = _refreshEvent.asSharedFlow()
 
     enum class WizardStep { PATH_SELECTION, AGE_GROUP, BATCH_DETAILS, LINEAGE, PROOFS, REVIEW }
 
@@ -272,6 +287,11 @@ class OnboardFarmBatchViewModel @Inject constructor(
                         } catch (_: kotlinx.coroutines.TimeoutCancellationException) { /* best-effort */ }
                     }
                     _state.value = _state.value.copy(saving = false, savedId = newId)
+                    FarmNotifier.notifyBirdOnboarded(context, s.batchDetails.batchName, newId)
+                    // Trigger a background sync so dashboards refresh promptly
+                    runCatching { syncManager.syncAll() }
+                    _navigationEvent.emit(Routes.Builders.dailyLog(newId))
+                    _refreshEvent.emit(Unit)
                 }
                 is Resource.Error -> _state.value = _state.value.copy(saving = false, error = res.message)
                 is Resource.Loading -> {}

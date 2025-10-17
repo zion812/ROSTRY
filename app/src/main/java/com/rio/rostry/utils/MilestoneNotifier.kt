@@ -36,9 +36,13 @@ object MilestoneNotifier {
         }
         val text = "${event.stage} | Week ${event.week} • ${event.notes ?: ""}"
 
-        // Deep link to traceability/{productId}
-        val traceUri = Uri.parse("rostry://traceability/$productId")
-        val intent = Intent(Intent.ACTION_VIEW, traceUri).apply {
+        // Deep link: vaccination -> monitoring/vaccination, growth update -> monitoring/growth, otherwise traceability
+        val targetUri = when (event.type) {
+            "VACCINATION" -> Uri.parse("rostry://monitoring/vaccination?productId=$productId")
+            "GROWTH_UPDATE" -> Uri.parse("rostry://monitoring/growth?productId=$productId")
+            else -> Uri.parse("rostry://traceability/$productId")
+        }
+        val intent = Intent(Intent.ACTION_VIEW, targetUri).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pending = PendingIntent.getActivity(

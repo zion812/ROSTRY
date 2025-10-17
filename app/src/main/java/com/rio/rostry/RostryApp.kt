@@ -151,6 +151,10 @@ fun   hiltWorkerFactory(): HiltWorkerFactory
         // Schedule loveable-product background workers
         com.rio.rostry.workers.PersonalizationWorker.schedule(this)
         com.rio.rostry.workers.CommunityEngagementWorker.schedule(this)
+
+        // Schedule notification batching flush worker (every 15 minutes when online)
+        // This ensures batched notifications are flushed periodically when connectivity is available
+        com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
         
         // Register connectivity listener for expedited sync on network reconnection
         setupConnectivityListener()
@@ -179,6 +183,9 @@ fun   hiltWorkerFactory(): HiltWorkerFactory
                     .build()
                 
                 WorkManager.getInstance(this@RostryApp).enqueue(request)
+
+                // Trigger immediate flush of batched notifications when connectivity is restored
+                com.rio.rostry.workers.NotificationFlushWorker.scheduleImmediateFlush(this@RostryApp)
             }
             
             override fun onLost(network: Network) {

@@ -3,7 +3,6 @@ package com.rio.rostry.ui.traceability
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.Canvas
@@ -43,6 +41,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.size
+import com.rio.rostry.domain.model.LifecycleStage
+import com.rio.rostry.ui.traceability.TraceabilityViewModel.NodeMetadata
 
 /**
  * Simple visualizer for family tree layers.
@@ -61,9 +62,8 @@ fun FamilyTreeView(
     onScan: (() -> Unit)? = null,
     onLoadMoreUp: (() -> Unit)? = null,
     onLoadMoreDown: (() -> Unit)? = null,
+    nodeMetadata: Map<String, NodeMetadata> = emptyMap(),
 ) {
-    val scroll = rememberScrollState()
-
     // Pan/zoom state
     var scale by remember(resetKey) { mutableFloatStateOf(1f) }
     var offsetX by remember(resetKey) { mutableFloatStateOf(0f) }
@@ -77,7 +77,6 @@ fun FamilyTreeView(
     Box(modifier = modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
-            .horizontalScroll(scroll)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -135,9 +134,27 @@ fun FamilyTreeView(
                                 Text("Gen -$depth:", fontWeight = FontWeight.SemiBold)
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     items(visibleIds, key = { it }) { id ->
+                                        val meta = nodeMetadata[id]
+                                        val bgColor = when (meta?.stage) {
+                                            LifecycleStage.CHICK -> Color(0xFFE3F2FD)
+                                            LifecycleStage.JUVENILE -> Color(0xFFE8F5E9)
+                                            LifecycleStage.ADULT -> Color(0xFFFFF9C4)
+                                            LifecycleStage.BREEDER -> Color(0xFFF3E5F5)
+                                            else -> Color(0xFFE3F2FD)
+                                        }
+                                        val healthColor = when {
+                                            (meta?.healthScore ?: 0) > 70 -> Color.Green
+                                            (meta?.healthScore ?: 0) > 50 -> Color.Yellow
+                                            else -> Color.Red
+                                        }
+                                        val statusIcon = when (meta?.lifecycleStatus) {
+                                            "QUARANTINE" -> "⚠️"
+                                            "ACTIVE" -> "✓"
+                                            else -> ""
+                                        }
                                         Box(
                                             modifier = Modifier
-                                                .background(Color(0xFFE3F2FD))
+                                                .background(bgColor)
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                                 .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
                                                 .onGloballyPositioned { c ->
@@ -146,7 +163,15 @@ fun FamilyTreeView(
                                                     nodeCenters[id] = centerInRoot - containerOrigin
                                                 }
                                         ) {
-                                            Text(id, color = Color(0xFF0D47A1))
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(meta?.name ?: id, color = Color(0xFF0D47A1))
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(meta?.stage?.name ?: "", style = MaterialTheme.typography.bodySmall)
+                                                    Box(modifier = Modifier.size(8.dp).background(healthColor))
+                                                    meta?.ageWeeks?.let { Text("${it}w", style = MaterialTheme.typography.bodySmall) }
+                                                    Text(statusIcon, style = MaterialTheme.typography.bodySmall)
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -157,16 +182,42 @@ fun FamilyTreeView(
 
                 // Root node
                 Text("Root", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+                val rootMeta = nodeMetadata[rootId]
+                val rootBgColor = when (rootMeta?.stage) {
+                    LifecycleStage.CHICK -> Color(0xFFE3F2FD)
+                    LifecycleStage.JUVENILE -> Color(0xFFE8F5E9)
+                    LifecycleStage.ADULT -> Color(0xFFFFF9C4)
+                    LifecycleStage.BREEDER -> Color(0xFFF3E5F5)
+                    else -> Color(0xFFF1F8E9)
+                }
+                val rootHealthColor = when {
+                    (rootMeta?.healthScore ?: 0) > 70 -> Color.Green
+                    (rootMeta?.healthScore ?: 0) > 50 -> Color.Yellow
+                    else -> Color.Red
+                }
+                val rootStatusIcon = when (rootMeta?.lifecycleStatus) {
+                    "QUARANTINE" -> "⚠️"
+                    "ACTIVE" -> "✓"
+                    else -> ""
+                }
                 Box(
                     modifier = Modifier
-                        .background(Color(0xFFF1F8E9))
+                        .background(rootBgColor)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                         .onGloballyPositioned { c ->
                             val centerInRoot = c.positionInRoot() + Offset(c.size.width / 2f, c.size.height / 2f)
                             nodeCenters[rootId] = centerInRoot - containerOrigin
                         }
                 ) {
-                    Text(rootId, color = Color(0xFF1B5E20))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(rootMeta?.name ?: rootId, color = Color(0xFF1B5E20), fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(rootMeta?.stage?.name ?: "", style = MaterialTheme.typography.bodySmall)
+                            Box(modifier = Modifier.size(8.dp).background(rootHealthColor))
+                            rootMeta?.ageWeeks?.let { Text("${it}w", style = MaterialTheme.typography.bodySmall) }
+                            Text(rootStatusIcon, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
 
                 // Descendants
@@ -199,9 +250,27 @@ fun FamilyTreeView(
                                 Text("Gen +$depth:", fontWeight = FontWeight.SemiBold)
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     items(visibleIds, key = { it }) { id ->
+                                        val meta = nodeMetadata[id]
+                                        val bgColor = when (meta?.stage) {
+                                            LifecycleStage.CHICK -> Color(0xFFE3F2FD)
+                                            LifecycleStage.JUVENILE -> Color(0xFFE8F5E9)
+                                            LifecycleStage.ADULT -> Color(0xFFFFF9C4)
+                                            LifecycleStage.BREEDER -> Color(0xFFF3E5F5)
+                                            else -> Color(0xFFFFF3E0)
+                                        }
+                                        val healthColor = when {
+                                            (meta?.healthScore ?: 0) > 70 -> Color.Green
+                                            (meta?.healthScore ?: 0) > 50 -> Color.Yellow
+                                            else -> Color.Red
+                                        }
+                                        val statusIcon = when (meta?.lifecycleStatus) {
+                                            "QUARANTINE" -> "⚠️"
+                                            "ACTIVE" -> "✓"
+                                            else -> ""
+                                        }
                                         Box(
                                             modifier = Modifier
-                                                .background(Color(0xFFFFF3E0))
+                                                .background(bgColor)
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                                 .let { base -> if (onNodeClick != null) base.clickable { onNodeClick(id) } else base }
                                                 .onGloballyPositioned { c ->
@@ -209,7 +278,15 @@ fun FamilyTreeView(
                                                     nodeCenters[id] = centerInRoot - containerOrigin
                                                 }
                                         ) {
-                                            Text(id, color = Color(0xFFE65100))
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(meta?.name ?: id, color = Color(0xFFE65100))
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(meta?.stage?.name ?: "", style = MaterialTheme.typography.bodySmall)
+                                                    Box(modifier = Modifier.size(8.dp).background(healthColor))
+                                                    meta?.ageWeeks?.let { Text("${it}w", style = MaterialTheme.typography.bodySmall) }
+                                                    Text(statusIcon, style = MaterialTheme.typography.bodySmall)
+                                                }
+                                            }
                                         }
                                     }
                                 }

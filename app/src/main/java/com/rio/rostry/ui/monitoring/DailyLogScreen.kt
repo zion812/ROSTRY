@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,9 +28,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.ui.components.SyncStatusBadge
+import com.rio.rostry.ui.components.getSyncState
 import com.rio.rostry.ui.monitoring.vm.DailyLogViewModel
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Button
@@ -44,9 +50,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.core.content.FileProvider
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +65,7 @@ fun DailyLogScreen(
     val vm: DailyLogViewModel = hiltViewModel()
     LaunchedEffect(productId) { productId?.let { vm.loadForProduct(it) } }
     val state by vm.uiState.collectAsState()
+    val isSaving by vm.saving.collectAsState()
     val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) vm.addCapturedPhoto(uri)
     }
@@ -244,15 +251,17 @@ fun DailyLogScreen(
                         val formatted = ts?.let { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(java.util.Date(it)) } ?: "-"
                         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Logged Today • $formatted • by ${tLog?.author ?: "unknown"}")
-                            if ((tLog?.dirty == true)) {
-                                Text("Offline", color = Color.Red)
-                            } else {
-                                Text("Synced ✓", color = Color(0xFF2E7D32))
-                            }
+                            tLog?.let { SyncStatusBadge(syncState = getSyncState(it)) }
                         }
                     } else {
-                        Button(onClick = { vm.save() }, enabled = true, modifier = Modifier.weight(1f)) {
-                            Text("Log Today")
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Button(onClick = { vm.save() }, enabled = !isSaving, modifier = Modifier.weight(1f)) {
+                                Text("Log Today")
+                            }
+                            if (isSaving) {
+                                Spacer(Modifier.width(8.dp))
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                            }
                         }
                     }
                 }
@@ -260,7 +269,10 @@ fun DailyLogScreen(
                 Text("Recent logs")
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(state.recentLogs) { l ->
-                        Text("• ${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(l.logDate))}  W=${l.weightGrams ?: "-"}g  F=${l.feedKg ?: "-"}kg  ${l.activityLevel ?: ""}  by ${l.author ?: "unknown"}")
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("• ${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(l.logDate))}  W=${l.weightGrams ?: "-"}g  F=${l.feedKg ?: "-"}kg  ${l.activityLevel ?: ""}  by ${l.author ?: "unknown"}")
+                            SyncStatusBadge(syncState = getSyncState(l))
+                        }
                     }
                 }
             }

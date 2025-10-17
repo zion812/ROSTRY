@@ -3,9 +3,17 @@ package com.rio.rostry.ui.traceability
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.BreedingRecordDao
+import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.GrowthRecordDao
+import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
+import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.data.database.entity.GrowthRecordEntity
+import com.rio.rostry.data.database.entity.TransferEntity
+import com.rio.rostry.data.database.entity.VaccinationRecordEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
+import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -26,8 +34,29 @@ class TraceabilityViewModel @Inject constructor(
     private val breedingDao: BreedingRecordDao,
     private val growthDao: GrowthRecordDao,
     private val vaccinationDao: VaccinationRecordDao,
+    private val dailyLogDao: DailyLogDao,
+    private val productDao: ProductDao,
+    private val transferDao: TransferDao,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
+
+    data class NodeEventData(
+        val vaccinations: List<VaccinationRecordEntity>,
+        val growthRecords: List<GrowthRecordEntity>,
+        val dailyLogs: List<DailyLogEntity>,
+        val transfers: List<TransferEntity>,
+        val healthScore: Int
+    )
+
+    data class NodeMetadata(
+        val productId: String,
+        val name: String,
+        val breed: String?,
+        val stage: LifecycleStage?,
+        val ageWeeks: Int?,
+        val healthScore: Int,
+        val lifecycleStatus: String?
+    )
 
     data class UiState(
         val loading: Boolean = false,
@@ -37,13 +66,18 @@ class TraceabilityViewModel @Inject constructor(
         val edges: List<Pair<String, String>> = emptyList(),
         val transferChain: List<Any> = emptyList(),
         val error: String? = null,
+        val currentDepth: Int = 5,
+        val selectedNodeId: String? = null,
+        val selectedNodeEvents: NodeEventData? = null,
+        val nodeMetadata: Map<String, NodeMetadata> = emptyMap(),
+        val loadingMore: Boolean = false,
     )
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     fun load(productId: String, maxDepth: Int = 5) {
-        _state.value = _state.value.copy(loading = true, rootId = productId, error = null)
+        _state.value = _state.value.copy(loading = true, rootId = productId, error = null, currentDepth = maxDepth)
         viewModelScope.launch {
             val ancRes = traceRepo.ancestors(productId, maxDepth)
             val descRes = traceRepo.descendants(productId, maxDepth)
@@ -63,10 +97,94 @@ class TraceabilityViewModel @Inject constructor(
                 val recs = breedingDao.recordsByParent(n)
                 recs.forEach { r -> edges += (r.parentId to r.childId); edges += (r.partnerId to r.childId) }
             }
-            _state.value = _state.value.copy(loading = false, layersUp = anc, layersDown = desc, edges = edges, transferChain = chain)
+
+            // Fetch metadata in batch
+            val existing = _state.value.nodeMetadata
+            val missing = nodes.filter { it !in existing.keys }
+            val batchRes = if (missing.isNotEmpty()) traceRepo.getNodeMetadataBatch(missing.toList()) else Resource.Success(emptyMap())
+            val mergedMetadata = existing.toMutableMap()
+            when (batchRes) {
+                is Resource.Success -> {
+                    val fromRepo = batchRes.data.orEmpty()
+                    fromRepo.forEach { (id, m) ->
+                        mergedMetadata[id] = NodeMetadata(
+                            productId = m.productId,
+                            name = m.name,
+                            breed = m.breed,
+                            stage = m.stage,
+                            ageWeeks = m.ageWeeks,
+                            healthScore = m.healthScore,
+                            lifecycleStatus = m.lifecycleStatus
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _state.value = _state.value.copy(error = batchRes.message)
+                }
+                else -> { /* Loading/no-op */ }
+            }
+
+            _state.value = _state.value.copy(
+                loading = false,
+                layersUp = anc,
+                layersDown = desc,
+                edges = edges,
+                transferChain = chain,
+                nodeMetadata = mergedMetadata
+            )
         }
     }
 
+    fun loadMoreAncestors() {
+        val newDepth = _state.value.currentDepth + 2
+        _state.value = _state.value.copy(loadingMore = true)
+        viewModelScope.launch {
+            load(_state.value.rootId, newDepth)
+            _state.value = _state.value.copy(loadingMore = false)
+        }
+    }
+
+    fun loadMoreDescendants() {
+        val newDepth = _state.value.currentDepth + 2
+        _state.value = _state.value.copy(loadingMore = true)
+        viewModelScope.launch {
+            load(_state.value.rootId, newDepth)
+            _state.value = _state.value.copy(loadingMore = false)
+        }
+    }
+
+    fun selectNode(nodeId: String) {
+        _state.value = _state.value.copy(selectedNodeId = nodeId, selectedNodeEvents = null)
+        viewModelScope.launch {
+            fetchNodeEvents(nodeId)
+        }
+    }
+
+    fun clearSelection() {
+        _state.value = _state.value.copy(selectedNodeId = null, selectedNodeEvents = null)
+    }
+
+    private suspend fun fetchNodeEvents(nodeId: String) {
+        val vaccinations = vaccinationDao.observeForProduct(nodeId).first()
+        val growthRecords = growthDao.observeForProduct(nodeId).first()
+        val dailyLogs = dailyLogDao.observeForProduct(nodeId).first()
+        val transfers = transferDao.getTransfersByProduct(nodeId)
+        val healthScore = traceRepo.getProductHealthScore(nodeId).let { if (it is Resource.Success) it.data ?: 0 else 0 }
+        val events = NodeEventData(
+            vaccinations = vaccinations,
+            growthRecords = growthRecords,
+            dailyLogs = dailyLogs,
+            transfers = transfers,
+            healthScore = healthScore
+        )
+        _state.value = _state.value.copy(selectedNodeEvents = events)
+    }
+
+    /**
+     * Generates a PDF lineage proof for the given productId.
+     * The PDF includes lineage overview, direct relatives, vaccination history, growth history, transfer history, and product information.
+     * The cover page includes a lineage-specific QR code that deep-links to `rostry://product/{id}/lineage`, navigating directly to the family tree view.
+     */
     suspend fun generateLineageProof(productId: String): android.net.Uri {
         // Ensure state is up-to-date for given productId
         if (_state.value.rootId != productId) {
@@ -84,6 +202,27 @@ class TraceabilityViewModel @Inject constructor(
 
         val vaccinations = vaccinationDao.observeForProduct(productId).first()
         val growth = growthDao.observeForProduct(productId).first()
+
+        // Product metadata
+        val product = productDao.findById(productId)
+        val productRows = if (product != null) {
+            val healthScore = traceRepo.getProductHealthScore(productId).let { if (it is Resource.Success) it.data?.toString() ?: "0" else "0" }
+            listOf(
+                listOf("Name", product.name),
+                listOf("Breed", product.breed ?: "-"),
+                listOf("Stage", product.stage?.toString() ?: "-"),
+                listOf("Age (weeks)", product.ageWeeks?.toString() ?: "-"),
+                listOf("Health Score", healthScore),
+                listOf("Lifecycle Status", product.lifecycleStatus ?: "-")
+            )
+        } else {
+            listOf(listOf("Product Info", "Not found"))
+        }
+        val productSection = TableSection(
+            title = "Product Information",
+            headers = listOf("Field", "Value"),
+            rows = productRows
+        )
 
         // Sections
         val lineageRows = mutableListOf<List<String>>()
@@ -154,9 +293,9 @@ class TraceabilityViewModel @Inject constructor(
         )
 
         // Cover QR (deep link)
-        val qr = QrUtils.generateQr("rostry://product/${productId}")
+        val qr = QrUtils.productLineageQrBitmap(productId)
 
-        val sections = listOf(lineageSection, relativesSection, vaccSection, growthSection, transferSection)
+        val sections = listOf(productSection, lineageSection, relativesSection, vaccSection, growthSection, transferSection)
         return PdfExporter.writeReport(
             context = appContext,
             fileName = "lineage_${productId}.pdf",

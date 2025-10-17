@@ -1,15 +1,23 @@
 package com.rio.rostry.data.repository
 
 import com.rio.rostry.data.database.dao.BreedingRecordDao
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.GrowthRecordDao
 import com.rio.rostry.data.database.dao.LifecycleEventDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.ProductTraitDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.dao.TransferDao
+import com.rio.rostry.data.database.dao.TransferVerificationDao
+import com.rio.rostry.data.database.dao.DisputeDao
 import com.rio.rostry.data.database.dao.ProductTrackingDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.BreedingRecordEntity
 import com.rio.rostry.data.database.entity.LifecycleEventEntity
+import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.ArrayDeque
@@ -25,8 +33,25 @@ interface TraceabilityRepository {
     suspend fun verifyPath(productId: String, ancestorId: String, maxDepth: Int = 10): Resource<Boolean>
     suspend fun verifyParentage(childId: String, parentId: String, partnerId: String): Resource<Boolean>
     suspend fun getTransferChain(productId: String): Resource<List<Any>>
+    suspend fun validateProductLineage(productId: String, expectedParentMaleId: String?, expectedParentFemaleId: String?): Resource<Boolean>
+    suspend fun getProductHealthScore(productId: String): Resource<Int>
+    suspend fun getTransferEligibilityReport(productId: String): Resource<Map<String, Any>>
+    /** Fetches metadata for a single node, optimized for individual queries. */
+    suspend fun getNodeMetadata(productId: String): Resource<NodeMetadata>
+    /** Fetches metadata for multiple nodes in parallel for efficiency. */
+    suspend fun getNodeMetadataBatch(productIds: List<String>): Resource<Map<String, NodeMetadata>>
     fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String?
 }
+
+data class NodeMetadata(
+    val productId: String,
+    val name: String,
+    val breed: String?,
+    val stage: LifecycleStage?,
+    val ageWeeks: Int?,
+    val healthScore: Int,
+    val lifecycleStatus: String?
+)
 
 @Singleton
 class TraceabilityRepositoryImpl @Inject constructor(
@@ -35,7 +60,13 @@ class TraceabilityRepositoryImpl @Inject constructor(
     private val lifecycleDao: LifecycleEventDao,
     private val productTraitDao: ProductTraitDao,
     private val transferDao: TransferDao,
+    private val transferVerificationDao: TransferVerificationDao,
+    private val disputeDao: DisputeDao,
     private val productTrackingDao: ProductTrackingDao,
+    private val vaccinationDao: VaccinationRecordDao,
+    private val dailyLogDao: DailyLogDao,
+    private val growthDao: GrowthRecordDao,
+    private val quarantineDao: QuarantineRecordDao,
 ) : TraceabilityRepository {
 
     // Simple in-memory LRU cache for traversals
@@ -47,6 +78,9 @@ class TraceabilityRepositoryImpl @Inject constructor(
         fun get(key: String): Map<Int, List<String>>? = map[key]
         fun put(key: String, value: Map<Int, List<String>>) { map[key] = value }
     }
+
+    // Cache for health scores to reduce redundant queries
+    private val healthScoreCache = mutableMapOf<String, Pair<Int, Long>>()
 
     override suspend fun addBreedingRecord(record: BreedingRecordEntity): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -136,16 +170,183 @@ class TraceabilityRepositoryImpl @Inject constructor(
             val chain = mutableListOf<Any>()
             chain.addAll(transfers)
             chain.addAll(track)
-            chain.sortBy { 
+            chain.sortBy {
                 when (it) {
                     is com.rio.rostry.data.database.entity.TransferEntity -> it.initiatedAt
                     is com.rio.rostry.data.database.entity.ProductTrackingEntity -> it.timestamp
                     else -> Long.MAX_VALUE
                 }
             }
+            // Validation checks: verify each transfer has proper verification records and flag disputes
+            val transfersWithIssues = transfers.filter { transfer ->
+                val ver = transferVerificationDao.getByTransfer(transfer.transferId)
+                val hasApproved = ver.any { it.status == "APPROVED" }
+                val disputes = disputeDao.getByTransfer(transfer.transferId)
+                val hasOpenDispute = disputes.any { it.status == "OPEN" || it.status == "UNDER_REVIEW" }
+                !hasApproved || hasOpenDispute
+            }
+            if (transfersWithIssues.isNotEmpty()) {
+                chain.add("Validation Note: ${transfersWithIssues.size} transfer(s) lack approval or have open disputes")
+            }
             Resource.Success(chain)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to compose transfer chain")
+        }
+    }
+
+    override suspend fun validateProductLineage(productId: String, expectedParentMaleId: String?, expectedParentFemaleId: String?): Resource<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val recs = breedingDao.recordsByChild(productId)
+            val actualParents = recs.flatMap { listOf(it.parentId, it.partnerId) }.distinct()
+            val expectedParents = listOfNotNull(expectedParentMaleId, expectedParentFemaleId)
+            if (actualParents.size != expectedParents.size || !actualParents.containsAll(expectedParents)) {
+                return@withContext Resource.Error("Lineage mismatch detected")
+            }
+            Resource.Success(true)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to validate lineage")
+        }
+    }
+
+    override suspend fun getProductHealthScore(productId: String): Resource<Int> = withContext(Dispatchers.IO) {
+        try {
+            val now = System.currentTimeMillis()
+            val cached = healthScoreCache[productId]
+            if (cached != null && now - cached.second < 5 * 60 * 1000L) { // 5 minutes cache
+                return@withContext Resource.Success(cached.first)
+            }
+            var score = 0
+            val thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000L
+            val sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000L
+            val fourteenDaysAgo = now - 14 * 24 * 60 * 60 * 1000L
+            // Recent vaccination: +30 points
+            val vaccinations = vaccinationDao.observeForProduct(productId).first()
+            if (vaccinations.any { it.administeredAt != null && it.administeredAt!! >= thirtyDaysAgo }) {
+                score += 30
+            }
+            // Recent health logs: +30 points
+            val logs = dailyLogDao.observeForProduct(productId).first()
+            if (logs.any { it.createdAt >= sevenDaysAgo }) {
+                score += 30
+            }
+            // Recent growth records: +20 points
+            val growths = growthDao.observeForProduct(productId).first()
+            if (growths.any { it.createdAt >= fourteenDaysAgo }) {
+                score += 20
+            }
+            // No active quarantine: +20 points
+            val quarantines = quarantineDao.observeForProduct(productId).first()
+            if (quarantines.none { it.status == "ACTIVE" }) {
+                score += 20
+            }
+            healthScoreCache[productId] = score to now
+            Resource.Success(score)
+        } catch (e: Exception) {
+            Resource.Error<Int>(e.message ?: "Failed to calculate health score")
+        }
+    }
+
+    override suspend fun getTransferEligibilityReport(productId: String): Resource<Map<String, Any>> = withContext(Dispatchers.IO) {
+        try {
+            val reasons = mutableListOf<String>()
+            val now = System.currentTimeMillis()
+            val thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000L
+            val sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000L
+            val fourteenDaysAgo = now - 14 * 24 * 60 * 60 * 1000L
+            // Check product lifecycle
+            val product = productDao.findById(productId)
+            if (product == null) {
+                reasons.add("Product not found")
+            } else {
+                if (product.lifecycleStatus == "QUARANTINE") reasons.add("Product in quarantine")
+                if (product.lifecycleStatus == "DECEASED") reasons.add("Product deceased")
+                if (product.lifecycleStatus == "TRANSFERRED") reasons.add("Product already transferred")
+            }
+            // Check farm data freshness
+            val vaccinations = vaccinationDao.observeForProduct(productId).first()
+            val lastVacc = vaccinations.filter { it.administeredAt != null }.maxByOrNull { it.administeredAt!! }?.administeredAt
+            if (lastVacc == null || lastVacc < thirtyDaysAgo) {
+                reasons.add("No recent vaccination")
+            }
+            val logs = dailyLogDao.observeForProduct(productId).first()
+            val lastLog = logs.maxByOrNull { it.createdAt }?.createdAt
+            if (lastLog == null || lastLog < sevenDaysAgo) {
+                reasons.add("No recent health log")
+            }
+            val growths = growthDao.observeForProduct(productId).first()
+            val lastGrowth = growths.maxByOrNull { it.createdAt }?.createdAt
+            if (lastGrowth == null || lastGrowth < fourteenDaysAgo) {
+                reasons.add("No recent growth record")
+            }
+            val quarantines = quarantineDao.observeForProduct(productId).first()
+            val quarantineStatus = quarantines.firstOrNull { it.status == "ACTIVE" }?.status ?: "NONE"
+            if (quarantineStatus == "ACTIVE") {
+                reasons.add("Active quarantine")
+            }
+            val healthScore = getProductHealthScore(productId).data ?: 0
+            val eligible = reasons.isEmpty()
+            val report: Map<String, Any> = mapOf(
+                "eligible" to eligible,
+                "reasons" to reasons,
+                "healthScore" to healthScore,
+                "lastVaccination" to (lastVacc ?: -1L),
+                "lastHealthLog" to (lastLog ?: -1L),
+                "quarantineStatus" to quarantineStatus
+            )
+            Resource.Success<Map<String, Any>>(report)
+        } catch (e: Exception) {
+            Resource.Error<Map<String, Any>>(e.message ?: "Failed to get eligibility report")
+        }
+    }
+
+    override suspend fun getNodeMetadata(productId: String): Resource<NodeMetadata> = withContext(Dispatchers.IO) {
+        try {
+            val product = productDao.findById(productId) ?: return@withContext Resource.Error("Product not found")
+            val healthScore = getProductHealthScore(productId).data ?: 0
+            val metadata = NodeMetadata(
+                productId = product.productId,
+                name = product.name,
+                breed = product.breed,
+                stage = product.stage,
+                ageWeeks = product.ageWeeks,
+                healthScore = healthScore,
+                lifecycleStatus = product.lifecycleStatus
+            )
+            Resource.Success(metadata)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get node metadata")
+        }
+    }
+
+    override suspend fun getNodeMetadataBatch(productIds: List<String>): Resource<Map<String, NodeMetadata>> = withContext(Dispatchers.IO) {
+        try {
+            val metadataMap = mutableMapOf<String, NodeMetadata>()
+            val deferreds = productIds.map { id ->
+                async {
+                    val product = productDao.findById(id)
+                    if (product != null) {
+                        val healthScore = getProductHealthScore(id).data ?: 0
+                        id to NodeMetadata(
+                            productId = product.productId,
+                            name = product.name,
+                            breed = product.breed,
+                            stage = product.stage,
+                            ageWeeks = product.ageWeeks,
+                            healthScore = healthScore,
+                            lifecycleStatus = product.lifecycleStatus
+                        )
+                    } else null
+                }
+            }
+            deferreds.forEach { deferred ->
+                val result = deferred.await()
+                if (result != null) {
+                    metadataMap[result.first] = result.second
+                }
+            }
+            Resource.Success(metadataMap)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get batch node metadata")
         }
     }
 

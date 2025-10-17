@@ -5,6 +5,13 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * DailyLogEntity represents a daily log entry for a product.
+ *
+ * Merge strategy: Last-write-wins based on updatedAt. Conflicts are resolved by preferring the most recent update
+ * (highest updatedAt timestamp). For critical fields like weightGrams and feedKg, the most recent deviceTimestamp
+ * is used if available. Arrays (e.g., medication, symptoms) are deduplicated, and notes are merged with timestamps.
+ */
 @Entity(
     tableName = "daily_logs",
     foreignKeys = [
@@ -19,7 +26,8 @@ import androidx.room.PrimaryKey
         Index(value = ["productId"]),
         Index(value = ["farmerId"]),
         Index(value = ["logDate"]),
-        Index(value = ["createdAt"]) 
+        Index(value = ["createdAt"]),
+        Index(value = ["mergedAt"])
     ]
 )
 data class DailyLogEntity(
@@ -43,5 +51,12 @@ data class DailyLogEntity(
     val syncedAt: Long? = null,
     // offline audit
     val deviceTimestamp: Long = System.currentTimeMillis(),
-    val author: String? = null
+    val author: String? = null,
+    // merge tracking
+    /** Timestamp of the last merge operation, null if never merged. */
+    val mergedAt: Long? = null,
+    /** Number of times this log has been merged during conflict resolution. */
+    val mergeCount: Int = 0,
+    /** Flag indicating if a conflict was resolved during the last merge. */
+    val conflictResolved: Boolean = false
 )

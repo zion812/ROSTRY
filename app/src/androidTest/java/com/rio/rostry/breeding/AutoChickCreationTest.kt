@@ -57,6 +57,15 @@ class AutoChickCreationTest {
         override suspend fun delete(taskId: String) {}
         override suspend fun generateStageTransitionTask(productId: String, farmerId: String, stage: String, dueAt: Long) {}
         override suspend fun generateBatchSplitTask(batchId: String, farmerId: String, dueAt: Long) {}
+        override suspend fun generateTransferTimeoutTask(transferId: String, farmerId: String, orderId: String?, dueAt: Long) {}
+        override suspend fun generateOrderUpdateTask(orderId: String, userId: String, status: String, dueAt: Long) {}
+        override suspend fun generateSocialActivityTask(userId: String, activityType: String, refId: String, dueAt: Long) {}
+        override suspend fun findOrCreateTask(
+            farmerId: String,
+            taskType: String,
+            refId: String,
+            taskFactory: () -> com.rio.rostry.data.database.entity.TaskEntity
+        ): com.rio.rostry.data.database.entity.TaskEntity = taskFactory()
     }
 
     private class FakeVaccinationRepository : com.rio.rostry.data.repository.monitoring.VaccinationRepository {
@@ -75,6 +84,36 @@ class AutoChickCreationTest {
         override suspend fun verifyPath(productId: String, ancestorId: String, maxDepth: Int) = Resource.Success(true)
         override suspend fun verifyParentage(childId: String, parentId: String, partnerId: String) = Resource.Success(true)
         override suspend fun getTransferChain(productId: String) = Resource.Success<List<Any>>(emptyList())
+        override suspend fun validateProductLineage(productId: String, expectedParentMaleId: String?, expectedParentFemaleId: String?) = Resource.Success(true)
+        override suspend fun getProductHealthScore(productId: String) = Resource.Success(100)
+        override suspend fun getTransferEligibilityReport(productId: String): Resource<Map<String, Any>> =
+            Resource.Success(mapOf("eligible" to true, "reasons" to emptyList<String>()))
+        override suspend fun getNodeMetadata(productId: String): Resource<com.rio.rostry.data.repository.NodeMetadata> =
+            Resource.Success(
+                com.rio.rostry.data.repository.NodeMetadata(
+                    productId = productId,
+                    name = "Test",
+                    breed = null,
+                    stage = null,
+                    ageWeeks = null,
+                    healthScore = 100,
+                    lifecycleStatus = null
+                )
+            )
+        override suspend fun getNodeMetadataBatch(productIds: List<String>): Resource<Map<String, com.rio.rostry.data.repository.NodeMetadata>> =
+            Resource.Success(
+                productIds.associateWith { id ->
+                    com.rio.rostry.data.repository.NodeMetadata(
+                        productId = id,
+                        name = "Test",
+                        breed = null,
+                        stage = null,
+                        ageWeeks = null,
+                        healthScore = 100,
+                        lifecycleStatus = null
+                    )
+                }
+            )
         override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? =
             when {
                 !maleId.isNullOrBlank() && !femaleId.isNullOrBlank() -> "FT_${'$'}maleId_${'$'}femaleId"

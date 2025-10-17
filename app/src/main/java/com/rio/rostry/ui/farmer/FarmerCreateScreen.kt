@@ -17,6 +17,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rio.rostry.ui.navigation.Routes
 
 // Legacy data classes for compatibility
 data class ListingForm(
@@ -103,8 +104,19 @@ fun FarmerCreateScreen(
     
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
     Column(Modifier.fillMaxSize().padding(padding)) {
-        // Comment 6: Add error banner when uiState.error is non-null
+        // Enhanced error banner with icon variations
         if (uiState.error != null) {
+            val errorMessage = uiState.error!!
+            val icon = when {
+                errorMessage.contains("quarantine", ignoreCase = true) ||
+                errorMessage.contains("deceased", ignoreCase = true) ||
+                errorMessage.contains("transferred", ignoreCase = true) -> Icons.Filled.Block
+                errorMessage.contains("vaccination", ignoreCase = true) ||
+                errorMessage.contains("health log", ignoreCase = true) ||
+                errorMessage.contains("daily log", ignoreCase = true) ||
+                errorMessage.contains("growth", ignoreCase = true) -> Icons.Filled.Warning
+                else -> Icons.Filled.Error
+            }
             Card(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
@@ -114,10 +126,10 @@ fun FarmerCreateScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                     Column(Modifier.weight(1f)) {
                         Text(
-                            uiState.error!!,
+                            errorMessage,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -126,6 +138,20 @@ fun FarmerCreateScreen(
                         }
                     }
                 }
+            }
+            
+            // Actionable error cards
+            if (errorMessage.contains("quarantine", ignoreCase = true)) {
+                ActionCard("Go to Quarantine Management", Routes.MONITORING_QUARANTINE)
+            }
+            if (errorMessage.contains("vaccination", ignoreCase = true)) {
+                ActionCard("Add Vaccination Record", Routes.MONITORING_VACCINATION)
+            }
+            if (errorMessage.contains("health log", ignoreCase = true) || errorMessage.contains("daily log", ignoreCase = true)) {
+                ActionCard("Add Daily Log", Routes.MONITORING_DAILY_LOG)
+            }
+            if (errorMessage.contains("growth", ignoreCase = true)) {
+                ActionCard("Add Growth Record", Routes.MONITORING_GROWTH)
             }
         }
         
@@ -158,6 +184,8 @@ fun FarmerCreateScreen(
                     onUpdate = viewModel::updateBasicInfo
                 )
                 FarmerCreateViewModel.WizardStep.DETAILS -> DetailsStep(
+                    category = wizardState.basicInfo.category,
+                    traceability = wizardState.basicInfo.traceability,
                     ageGroup = wizardState.basicInfo.ageGroup,
                     state = wizardState.detailsInfo,
                     onUpdate = viewModel::updateDetails,
@@ -176,7 +204,8 @@ fun FarmerCreateScreen(
                 FarmerCreateViewModel.WizardStep.REVIEW -> ReviewStep(
                     basicInfo = wizardState.basicInfo,
                     detailsInfo = wizardState.detailsInfo,
-                    mediaInfo = wizardState.mediaInfo
+                    mediaInfo = wizardState.mediaInfo,
+                    validationStatus = uiState.validationStatus // Assuming added to uiState
                 )
             }
         }
@@ -219,6 +248,25 @@ fun FarmerCreateScreen(
             onPublishRequest = { showConfirm = true }
         )
     }
+    }
+}
+
+@Composable
+private fun ActionCard(label: String, route: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            IconButton(onClick = { /* Navigate to route */ }) {
+                Icon(Icons.Filled.ArrowForward, contentDescription = null)
+            }
+        }
     }
 }
 
@@ -434,6 +482,8 @@ private fun BasicInfoStep(
 
 @Composable
 private fun DetailsStep(
+    category: Category,
+    traceability: Traceability,
     ageGroup: AgeGroup,
     state: FarmerCreateViewModel.DetailsInfoState,
     onUpdate: ((FarmerCreateViewModel.DetailsInfoState) -> FarmerCreateViewModel.DetailsInfoState) -> Unit,
@@ -521,6 +571,25 @@ private fun DetailsStep(
             }
         }
         
+        // Inline validation hints for traceable adoptions
+        if (category == Category.Adoption && traceability == Traceability.Traceable) {
+            Text(
+                "Vaccination records must be within last 30 days",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            Text(
+                "Health logs must be within last 7 days",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            Text(
+                "Growth monitoring must be within last 2 weeks",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        
         Divider()
         Text("Location", style = MaterialTheme.typography.titleSmall)
         
@@ -599,7 +668,8 @@ private fun MediaSection(
 private fun ReviewStep(
     basicInfo: FarmerCreateViewModel.BasicInfoState,
     detailsInfo: FarmerCreateViewModel.DetailsInfoState,
-    mediaInfo: FarmerCreateViewModel.MediaInfoState
+    mediaInfo: FarmerCreateViewModel.MediaInfoState,
+    validationStatus: Map<String, Boolean> // Added parameter for validation status
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Review Your Listing", style = MaterialTheme.typography.titleLarge)
@@ -617,12 +687,36 @@ private fun ReviewStep(
             Text("Videos: ${mediaInfo.videoUris.size}")
         }
         
+        // Validation status card
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Validation Status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ValidationItem("Product not in quarantine", validationStatus["notInQuarantine"] ?: false)
+                ValidationItem("Recent vaccination (within 30 days)", validationStatus["recentVaccination"] ?: false)
+                ValidationItem("Recent health log (within 7 days)", validationStatus["recentHealthLog"] ?: false)
+                ValidationItem("Recent growth record (within 2 weeks)", validationStatus["recentGrowthRecord"] ?: false)
+            }
+        }
+        
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(16.dp)) {
                 Text("Ready to publish?", style = MaterialTheme.typography.titleMedium)
                 Text("Review all information before submitting.")
             }
         }
+    }
+}
+
+@Composable
+private fun ValidationItem(label: String, isValid: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            if (isValid) Icons.Filled.Check else Icons.Filled.Close,
+            contentDescription = null,
+            tint = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -664,8 +758,10 @@ private fun WizardNavigationButtons(
                 if (isSubmitting) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
+                    Text("Validating farm data...")
+                } else {
+                    Text("Publish Listing")
                 }
-                Text("Publish Listing")
             }
         } else {
             Button(onClick = onNext) {

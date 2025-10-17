@@ -40,6 +40,7 @@ import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 import com.rio.rostry.BuildConfig
 
@@ -58,6 +59,8 @@ fun QrScannerScreen(
     var lastEmittedAt by rememberSaveable { mutableStateOf(0L) }
     var torchOn by rememberSaveable { mutableStateOf(false) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
+    var scanning by rememberSaveable { mutableStateOf(true) }
+    var isChecking by remember { mutableStateOf(false) }
 
     // Feature flag guard
     if (BuildConfig.FEATURE_QR_CAMERA) {
@@ -95,17 +98,25 @@ fun QrScannerScreen(
                                         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                                         scanner.process(image)
                                             .addOnSuccessListener { barcodes ->
-                                                val now = System.currentTimeMillis()
-                                                if (now - lastEmittedAt < 1200) { imageProxy.close(); return@addOnSuccessListener }
-                                                val text = barcodes.firstOrNull()?.rawValue
-                                                if (!text.isNullOrBlank()) {
-                                                    val productId = parseProductId(text)
-                                                    if (productId.isNotBlank()) {
-                                                        CoroutineScope(Dispatchers.Main).launch {
-                                                            val exists = vm.productExists(productId)
-                                                            if (exists && (onValidate == null || onValidate(productId))) {
-                                                                lastEmittedAt = now
-                                                                onResult(productId)
+                                                if (scanning) {
+                                                    val text = barcodes.firstOrNull()?.rawValue
+                                                    if (!text.isNullOrBlank()) {
+                                                        val productId = parseProductId(text)
+                                                        if (productId.isNotBlank()) {
+                                                            CoroutineScope(Dispatchers.Main).launch {
+                                                                val now = System.currentTimeMillis()
+                                                                if (now - lastEmittedAt < 1200 || isChecking) return@launch
+                                                                isChecking = true
+                                                                val exists = withContext(Dispatchers.IO) { vm.productExists(productId) }
+                                                                if (exists && (onValidate == null || onValidate(productId))) {
+                                                                    lastEmittedAt = now
+                                                                    scanning = false
+                                                                    onResult(productId)
+                                                                } else {
+                                                                    // minor backoff to avoid tight loops on invalid scans
+                                                                    lastEmittedAt = now
+                                                                }
+                                                                isChecking = false
                                                             }
                                                         }
                                                     }
@@ -193,10 +204,17 @@ fun QrScannerScreen(
     }
 }
 
+/**
+ * Parses product ID from QR code text.
+ * Handles formats: rostry://product/{id} and rostry://product/{id}/lineage
+ * Returns the product ID.
+ */
 internal fun parseProductId(text: String): String {
     val trimmed = text.trim()
     val prefix = "rostry://product/"
     return if (trimmed.startsWith(prefix, ignoreCase = true)) {
-        trimmed.removePrefix(prefix).takeWhile { !it.isWhitespace() && it != '?' && it != '#' }
+        val path = trimmed.removePrefix(prefix).takeWhile { !it.isWhitespace() && it != '?' && it != '#' }
+        // Handle both rostry://product/{id} and rostry://product/{id}/lineage by extracting the ID before any '/'
+        path.split('/').first()
     } else trimmed
 }

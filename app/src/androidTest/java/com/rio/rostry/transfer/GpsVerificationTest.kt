@@ -47,6 +47,36 @@ class GpsVerificationTest {
         override suspend fun verifyPath(productId: String, ancestorId: String, maxDepth: Int) = Resource.Success(true)
         override suspend fun verifyParentage(childId: String, parentId: String, partnerId: String) = Resource.Success(true)
         override suspend fun getTransferChain(productId: String) = Resource.Success<List<Any>>(emptyList())
+        override suspend fun validateProductLineage(productId: String, expectedParentMaleId: String?, expectedParentFemaleId: String?) = Resource.Success(true)
+        override suspend fun getProductHealthScore(productId: String) = Resource.Success(100)
+        override suspend fun getTransferEligibilityReport(productId: String): Resource<Map<String, Any>> =
+            Resource.Success(mapOf("eligible" to true, "reasons" to emptyList<String>()))
+        override suspend fun getNodeMetadata(productId: String): Resource<com.rio.rostry.data.repository.NodeMetadata> =
+            Resource.Success(
+                com.rio.rostry.data.repository.NodeMetadata(
+                    productId = productId,
+                    name = "Test",
+                    breed = null,
+                    stage = null,
+                    ageWeeks = null,
+                    healthScore = 100,
+                    lifecycleStatus = null
+                )
+            )
+        override suspend fun getNodeMetadataBatch(productIds: List<String>): Resource<Map<String, com.rio.rostry.data.repository.NodeMetadata>> =
+            Resource.Success(
+                productIds.associateWith { id ->
+                    com.rio.rostry.data.repository.NodeMetadata(
+                        productId = id,
+                        name = "Test",
+                        breed = null,
+                        stage = null,
+                        ageWeeks = null,
+                        healthScore = 100,
+                        lifecycleStatus = null
+                    )
+                }
+            )
         override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? =
             when {
                 !maleId.isNullOrBlank() && !femaleId.isNullOrBlank() -> "FT_${'$'}maleId_${'$'}femaleId"
@@ -66,13 +96,23 @@ class GpsVerificationTest {
 
     @Test
     fun gps_over_100m_requires_explanation_and_persists_notes() = runBlocking {
+        val productValidator = com.rio.rostry.marketplace.validation.ProductValidator(
+            traceabilityRepository = FakeTraceabilityRepo(),
+            vaccinationDao = db.vaccinationRecordDao(),
+            growthDao = db.growthRecordDao(),
+            dailyLogDao = db.dailyLogDao(),
+            quarantineDao = db.quarantineRecordDao()
+        )
         val transferRepo = TransferWorkflowRepositoryImpl(
             transferDao = db.transferDao(),
             verificationDao = db.transferVerificationDao(),
             disputeDao = db.disputeDao(),
             auditLogDao = db.auditLogDao(),
             notifier = FakeNotifier(),
-            traceabilityRepository = FakeTraceabilityRepo()
+            traceabilityRepository = FakeTraceabilityRepo(),
+            productValidator = productValidator,
+            productDao = db.productDao(),
+            quarantineDao = db.quarantineRecordDao()
         )
 
         val productId = "p1"

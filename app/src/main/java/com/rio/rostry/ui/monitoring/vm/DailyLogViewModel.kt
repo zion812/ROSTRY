@@ -6,6 +6,8 @@ import com.rio.rostry.data.database.entity.DailyLogEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.monitoring.DailyLogRepository
+import com.rio.rostry.ui.components.SyncState
+import com.rio.rostry.ui.components.getSyncState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,13 +50,16 @@ class DailyLogViewModel @Inject constructor(
         val recentLogs: List<DailyLogEntity> = emptyList(),
         val hasToday: Boolean = false,
         val isLoading: Boolean = true,
-        val error: String? = null
+        val error: String? = null,
+        val currentLogSyncState: SyncState? = null
     )
 
     private val selectedProductId = MutableStateFlow<String?>(null)
     private val _currentLog = MutableStateFlow<DailyLogEntity?>(null)
     private val _synced = MutableStateFlow(false)
     val isSynced: StateFlow<Boolean> = _synced.asStateFlow()
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
 
     // Chart data: last 30 days logs for selected product
     val chartData: StateFlow<List<DailyLogEntity>> = selectedProductId.flatMapLatest { pid ->
@@ -81,12 +86,14 @@ class DailyLogViewModel @Inject constructor(
             val logsFlow: kotlinx.coroutines.flow.Flow<List<DailyLogEntity>> =
                 pid?.let { dailyLogRepository.observe(it) } ?: MutableStateFlow(emptyList<DailyLogEntity>())
             combine(productsFlow, logsFlow, _currentLog) { products, logs, cur ->
+                val syncState = cur?.let { getSyncState(it) }
                 DailyLogUiState(
                     products = products,
                     currentLog = cur,
                     recentLogs = logs,
                     hasToday = logs.any { it.logDate == todayMidnight() },
-                    isLoading = false
+                    isLoading = false,
+                    currentLogSyncState = syncState
                 )
             }
         }
@@ -181,8 +188,10 @@ class DailyLogViewModel @Inject constructor(
         }
         val uid = firebaseAuth.currentUser?.uid
         viewModelScope.launch {
+            _saving.value = true
             dailyLogRepository.upsert(current.copy(author = current.author ?: uid, dirty = true, updatedAt = System.currentTimeMillis()))
             _synced.value = false
+            _saving.value = false
         }
     }
 
@@ -293,8 +302,10 @@ class DailyLogViewModel @Inject constructor(
     private fun debounceAutoSave() {
         debounceJob?.cancel()
         debounceJob = viewModelScope.launch {
+            _saving.value = true
             delay(2000)
             save()
+            _saving.value = false
         }
     }
 }

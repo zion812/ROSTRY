@@ -1,6 +1,8 @@
 package com.rio.rostry.data.repository.monitoring
 
+import com.google.gson.Gson
 import com.rio.rostry.data.database.entity.GrowthRecordEntity
+import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.utils.Resource
@@ -15,7 +17,7 @@ import javax.inject.Singleton
  * Initializes growth tracking and vaccination schedules for newly acquired birds.
  */
 interface FarmOnboardingRepository {
-    suspend fun addProductToFarmMonitoring(productId: String, farmerId: String): Resource<Unit>
+    suspend fun addProductToFarmMonitoring(productId: String, farmerId: String): Resource<List<String>>
 }
 
 @Singleton
@@ -31,12 +33,12 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
     override suspend fun addProductToFarmMonitoring(
         productId: String,
         farmerId: String
-    ): Resource<Unit> {
+    ): Resource<List<String>> {
         return try {
             // Check if monitoring records already exist (idempotent)
             val existingGrowth = growthRepository.observe(productId).first()
             if (existingGrowth.any { it.farmerId == farmerId }) {
-                return Resource.Success(Unit) // Already exists
+                return Resource.Success(emptyList()) // Already exists
             }
 
             // Fetch product entity for baseline data - unwrap Resource
@@ -48,6 +50,7 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
             }
 
             val now = System.currentTimeMillis()
+            val taskIds = mutableListOf<String>()
 
             // Create initial growth record with week 0
             val initialGrowthRecord = GrowthRecordEntity(
@@ -89,24 +92,102 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
                 val ageDays = ((now - product.birthDate) / TimeUnit.DAYS.toMillis(1)).toInt()
                 if (ageDays < 35) {
                     val dueVax = product.birthDate + TimeUnit.DAYS.toMillis(7)
-                    taskRepository.generateVaccinationTask(productId, farmerId, "First vaccination", dueVax)
+                    val vaxTask = TaskEntity(
+                        taskId = generateId("task_vax_"),
+                        farmerId = farmerId,
+                        productId = productId,
+                        taskType = "VACCINATION",
+                        title = "Vaccination: First vaccination",
+                        dueAt = dueVax,
+                        priority = "HIGH",
+                        metadata = Gson().toJson(mapOf("vaccineType" to "First vaccination"))
+                    )
+                    taskRepository.upsert(vaxTask)
+                    taskIds.add(vaxTask.taskId)
                 }
             }
             val dueGrowth = now + TimeUnit.DAYS.toMillis(7)
-            taskRepository.generateGrowthTask(productId, farmerId, week = 1, dueAt = dueGrowth)
+            val growthTask = TaskEntity(
+                taskId = generateId("task_growth_"),
+                farmerId = farmerId,
+                productId = productId,
+                taskType = "GROWTH_UPDATE",
+                title = "Growth update: Week 1",
+                dueAt = dueGrowth,
+                priority = "MEDIUM",
+                metadata = Gson().toJson(mapOf("week" to 1))
+            )
+            taskRepository.upsert(growthTask)
+            taskIds.add(growthTask.taskId)
 
             // Batch split reminder at 12 weeks
             if (product.isBatch == true) {
                 val base = product.birthDate ?: now
                 val dueSplit = base + TimeUnit.DAYS.toMillis(84) // 12 weeks
-                taskRepository.generateBatchSplitTask(batchId = productId, farmerId = farmerId, dueAt = dueSplit)
+                val splitTask = TaskEntity(
+                    taskId = generateId("task_batch_split_"),
+                    farmerId = farmerId,
+                    productId = null,
+                    batchId = productId,
+                    taskType = "BATCH_SPLIT",
+                    title = "Split batch into individuals",
+                    dueAt = dueSplit,
+                    priority = "MEDIUM",
+                    metadata = Gson().toJson(mapOf("reminder" to "proactive"))
+                )
+                taskRepository.upsert(splitTask)
+                taskIds.add(splitTask.taskId)
             }
 
-            Resource.Success(Unit)
+            // Generate additional initial tasks
+            // First Daily Log
+            val dailyTask = TaskEntity(
+                taskId = generateId("task_daily_"),
+                farmerId = farmerId,
+                productId = productId,
+                taskType = "DAILY_LOG",
+                title = "First Daily Log",
+                dueAt = now,
+                priority = "HIGH"
+            )
+            taskRepository.upsert(dailyTask)
+            taskIds.add(dailyTask.taskId)
+
+            // Review Vaccination Schedule
+            val reviewVaxTask = TaskEntity(
+                taskId = generateId("task_vax_"),
+                farmerId = farmerId,
+                productId = productId,
+                taskType = "VACCINATION",
+                title = "Vaccination: Review Vaccination Schedule",
+                dueAt = now + TimeUnit.DAYS.toMillis(3),
+                priority = "MEDIUM",
+                metadata = Gson().toJson(mapOf("vaccineType" to "Review Vaccination Schedule"))
+            )
+            taskRepository.upsert(reviewVaxTask)
+            taskIds.add(reviewVaxTask.taskId)
+
+            // First Growth Check
+            val firstGrowthTask = TaskEntity(
+                taskId = generateId("task_growth_"),
+                farmerId = farmerId,
+                productId = productId,
+                taskType = "GROWTH_UPDATE",
+                title = "Growth update: Week 0",
+                dueAt = now + TimeUnit.DAYS.toMillis(7),
+                priority = "MEDIUM",
+                metadata = Gson().toJson(mapOf("week" to 0))
+            )
+            taskRepository.upsert(firstGrowthTask)
+            taskIds.add(firstGrowthTask.taskId)
+
+            Resource.Success(taskIds)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to add product to farm monitoring")
         }
     }
+
+    private fun generateId(prefix: String): String = "$prefix${System.currentTimeMillis()}"
 
     private suspend fun createVaccinationSchedule(
         productId: String,

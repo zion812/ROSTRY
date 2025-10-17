@@ -15,13 +15,20 @@ import com.rio.rostry.utils.validation.OnboardingValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import java.util.UUID
 import javax.inject.Inject
+import android.content.Context
 import com.rio.rostry.domain.model.LifecycleStage
+import com.rio.rostry.utils.notif.FarmNotifier
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.data.sync.SyncManager
 
 @HiltViewModel
 class OnboardFarmBirdViewModel @Inject constructor(
@@ -31,8 +38,16 @@ class OnboardFarmBirdViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val mediaUploadManager: MediaUploadManager,
     private val familyTreeRepository: FamilyTreeRepository,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    @ApplicationContext private val context: Context,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val syncManager: SyncManager
 ) : ViewModel() {
+
+    private val _navigationEvent = MutableSharedFlow<String>()
+    val navigationEvent = _navigationEvent.asSharedFlow()
+
+    private val _refreshEvent = MutableSharedFlow<Unit>()
+    val refreshEvent = _refreshEvent.asSharedFlow()
 
     enum class WizardStep { PATH_SELECTION, AGE_GROUP, CORE_DETAILS, LINEAGE, PROOFS, REVIEW }
 
@@ -320,6 +335,11 @@ class OnboardFarmBirdViewModel @Inject constructor(
                         } catch (_: kotlinx.coroutines.TimeoutCancellationException) { /* best-effort */ }
                     }
                     _state.value = _state.value.copy(saving = false, savedId = newId)
+                    FarmNotifier.notifyBirdOnboarded(context, s.coreDetails.name, newId)
+                    // Trigger a background sync so dashboards refresh promptly
+                    runCatching { syncManager.syncAll() }
+                    _navigationEvent.emit(Routes.Builders.dailyLog(newId))
+                    _refreshEvent.emit(Unit)
                 }
                 is Resource.Error -> _state.value = _state.value.copy(saving = false, error = res.message)
                 is Resource.Loading -> {}

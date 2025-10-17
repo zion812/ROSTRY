@@ -18,8 +18,23 @@ object QrUtils {
         return bmp
     }
 
+    /**
+     * Generates a QR code bitmap for general product view.
+     * The QR code contains a deep-link to `rostry://product/{id}` which navigates to product details.
+     * Use this for general product identification.
+     */
     fun productQrBitmap(id: String, size: Int = 512): Bitmap {
         val deepLink = "rostry://product/$id"
+        return generateQr(deepLink, size)
+    }
+
+    /**
+     * Generates a QR code bitmap for product lineage/family tree view.
+     * The QR code contains a deep-link to `rostry://product/{id}/lineage` which navigates to the family tree view.
+     * Use this for traceability and lineage visualization.
+     */
+    fun productLineageQrBitmap(id: String, size: Int = 512): Bitmap {
+        val deepLink = "rostry://product/$id/lineage"
         return generateQr(deepLink, size)
     }
 }

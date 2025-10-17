@@ -23,6 +23,9 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.rio.rostry.ui.navigation.Routes
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 data class FetcherCard(
     val title: String,
@@ -37,17 +40,7 @@ data class FetcherCard(
 @Composable
 fun FarmerHomeScreen(
     viewModel: FarmerHomeViewModel = hiltViewModel(),
-    onOpenDailyLog: () -> Unit = {},
-    onOpenTasks: () -> Unit = {},
-    onOpenVaccination: () -> Unit = {},
-    onOpenGrowth: () -> Unit = {},
-    onOpenQuarantine: () -> Unit = {},
-    onOpenHatching: () -> Unit = {},
-    onOpenMortality: () -> Unit = {},
-    onOpenBreeding: () -> Unit = {},
-    onOpenListing: () -> Unit = {},
     onOpenAlerts: () -> Unit = {},
-    onNavigateToGrowthWithList: (String) -> Unit = {},
     onNavigateToAddBird: () -> Unit = {},
     onNavigateToAddBatch: () -> Unit = {},
     onNavigateRoute: (String) -> Unit = {}
@@ -101,6 +94,59 @@ fun FarmerHomeScreen(
                 }
             }
 
+            // Urgent KPIs Section
+            val urgentKpiCards = listOf(
+                FetcherCard(
+                    title = "Overdue Tasks",
+                    count = uiState.tasksOverdueCount,
+                    badgeCount = uiState.tasksOverdueCount,
+                    badgeColor = MaterialTheme.colorScheme.error,
+                    icon = Icons.Filled.Task,
+                    action = "View Tasks",
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_TASKS) }
+                ),
+                FetcherCard(
+                    title = "Overdue Vaccinations",
+                    count = uiState.vaccinationOverdueCount,
+                    badgeCount = uiState.vaccinationOverdueCount,
+                    badgeColor = MaterialTheme.colorScheme.error,
+                    icon = Icons.Filled.Vaccines,
+                    action = "View Schedule",
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_VACCINATION) }
+                ),
+                FetcherCard(
+                    title = "Quarantine Updates Due",
+                    count = uiState.quarantineUpdatesDue,
+                    badgeCount = uiState.quarantineUpdatesDue,
+                    badgeColor = MaterialTheme.colorScheme.tertiary,
+                    icon = Icons.Filled.LocalHospital,
+                    action = "Update Now",
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_QUARANTINE) }
+                ),
+                FetcherCard(
+                    title = "Batches Ready to Split",
+                    count = uiState.batchesDueForSplit,
+                    badgeCount = uiState.batchesDueForSplit,
+                    badgeColor = MaterialTheme.colorScheme.primary,
+                    icon = Icons.Filled.CallSplit,
+                    action = "View Growth",
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) }
+                )
+            )
+
+            Text(
+                "Urgent KPIs",
+                style = MaterialTheme.typography.titleLarge
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(urgentKpiCards) { card ->
+                    UrgentKpiCard(card)
+                }
+            }
+
             // Alerts Banner
             if (uiState.unreadAlerts.isNotEmpty()) {
                 Card(
@@ -135,7 +181,7 @@ fun FarmerHomeScreen(
             )
 
             val fetcherCards = listOf(
-                // Daily Log (Sprint 1 priority)
+                // Daily Log (first priority)
                 FetcherCard(
                     title = "Daily Log",
                     count = uiState.dailyLogsThisWeek,
@@ -143,7 +189,7 @@ fun FarmerHomeScreen(
                     action = "Log Today",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_DAILY_LOG) }
                 ),
-                // Tasks (Sprint 1 priority)
+                // Tasks Due (top priority)
                 FetcherCard(
                     title = "Tasks Due",
                     count = uiState.tasksDueCount,
@@ -153,6 +199,7 @@ fun FarmerHomeScreen(
                     action = "View Tasks",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_TASKS) }
                 ),
+                // Vaccination Today (top priority)
                 FetcherCard(
                     title = "Vaccination Today",
                     count = uiState.vaccinationDueCount,
@@ -162,6 +209,7 @@ fun FarmerHomeScreen(
                     action = "View Schedule",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_VACCINATION) }
                 ),
+                // Group related: vaccination, quarantine, growth
                 FetcherCard(
                     title = "Growth Updates",
                     count = uiState.growthRecordsThisWeek,
@@ -286,6 +334,74 @@ private fun KpiCard(title: String, value: String) {
                 value,
                 style = MaterialTheme.typography.titleMedium
             )
+        }
+    }
+}
+
+@Composable
+private fun UrgentKpiCard(card: FetcherCard) {
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .height(100.dp)
+            .border(
+                width = 4.dp,
+                color = card.badgeColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .semantics { contentDescription = "${card.title}: ${card.count}. ${card.action}" },
+        onClick = card.onClick
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(
+                    card.icon,
+                    contentDescription = "${card.title} icon",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                if (card.badgeCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = card.badgeColor,
+                                shape = RoundedCornerShape(50)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = card.badgeCount.toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            }
+
+            Column {
+                Text(
+                    card.title,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    card.count.toString(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    card.action,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -1,19 +1,35 @@
 package com.rio.rostry.marketplace.validation
 
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.GrowthRecordDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.marketplace.model.AgeGroup
 import com.rio.rostry.marketplace.model.ProductCategory
 import com.rio.rostry.data.repository.TraceabilityRepository
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
 
 /**
- * Validates product listings for marketplace rules.
+ * Validates product listings for marketplace rules, including farm data freshness.
  */
 @Singleton
 class ProductValidator @Inject constructor(
-    private val traceabilityRepository: TraceabilityRepository
+    private val traceabilityRepository: TraceabilityRepository,
+    private val vaccinationDao: VaccinationRecordDao,
+    private val growthDao: GrowthRecordDao,
+    private val dailyLogDao: DailyLogDao,
+    private val quarantineDao: QuarantineRecordDao
 ) {
+
+    // Freshness thresholds for farm data validation
+    private companion object {
+        const val VACCINATION_FRESHNESS_DAYS = 30
+        const val HEALTH_LOG_FRESHNESS_DAYS = 7
+        const val GROWTH_RECORD_FRESHNESS_WEEKS = 2
+    }
 
     data class ValidationResult(
         val valid: Boolean,
@@ -28,22 +44,32 @@ class ProductValidator @Inject constructor(
         if (product.price <= 0.0) reasons += "Price must be positive"
         if (product.quantity < 0.0) reasons += "Quantity cannot be negative"
 
-        // Location verification for farmers
+        // Category mapping and rules
+        val category = ProductCategory.fromString(product.category)
+        
+        // Location verification: mandatory only for traceable adoption
         if (product.latitude == null || product.longitude == null) {
-            reasons += "Accurate location (latitude/longitude) is required"
+            if (category is ProductCategory.AdoptionTraceable) {
+                reasons += "Accurate location (latitude/longitude) is required for traceable adoption"
+            }
         }
 
-        // Image quality/count
-        if (product.imageUrls.size < 2) reasons += "At least 2 product images are required"
+        // Image quality/count: only enforce if images are already present (not queued for upload)
+        if (product.imageUrls.isNotEmpty() && product.imageUrls.size < 2) reasons += "At least 2 product images are required"
 
         // Lifecycle enforcement
         val lifecycle = product.lifecycleStatus?.uppercase()
-        if (lifecycle == "QUARANTINE" || lifecycle == "DECEASED" || lifecycle == "TRANSFERRED") {
-            reasons += "Listing blocked: lifecycleStatus is $lifecycle"
+        if (lifecycle == "QUARANTINE") {
+            reasons += "Complete quarantine protocol before listing"
+        } else if (lifecycle == "DECEASED") {
+            reasons += "Cannot list deceased birds"
+        } else if (lifecycle == "TRANSFERRED") {
+            reasons += "This bird has been transferred. Update ownership records before listing"
+        } else if (lifecycle == "SOLD") {
+            reasons += "Cannot re-list sold items"
         }
 
-        // Category mapping and rules
-        val category = ProductCategory.fromString(product.category)
+        // Age group mapping
         val ageGroup = AgeGroup.fromBirthDate(product.birthDate, now)
 
         // Age group validations
@@ -113,12 +139,65 @@ class ProductValidator @Inject constructor(
     }
 
     /**
-     * Extended validation that performs lineage verification using injected TraceabilityRepository.
-     * Returns combined reasons from basic validation and lineage checks.
+     * Checks if a product is currently in active quarantine.
+     */
+    suspend fun checkQuarantineStatus(productId: String): Boolean {
+        val quarantineRecords = quarantineDao.observeForProduct(productId).first()
+        return quarantineRecords.any { it.status == "ACTIVE" }
+    }
+
+    /**
+     * Validates farm data freshness for the given product and category.
+     * Only applies to traceable adoptions; meat category relies on existing quarantine checks.
+     */
+    suspend fun validateFarmDataFreshness(
+        productId: String,
+        category: ProductCategory,
+        now: Long
+    ): ValidationResult {
+        val reasons = mutableListOf<String>()
+
+        if (category is ProductCategory.AdoptionTraceable) {
+            // Check vaccination freshness (within last 30 days)
+            val vaccinationRecords = vaccinationDao.observeForProduct(productId).first()
+            val hasRecentVaccination = vaccinationRecords.any { record ->
+                record.administeredAt != null && (now - record.administeredAt) <= (VACCINATION_FRESHNESS_DAYS * 24 * 60 * 60 * 1000L)
+            }
+            if (!hasRecentVaccination) {
+                reasons += "Traceable adoption requires vaccination within last 30 days"
+            }
+
+            // Check health log freshness (within last 7 days)
+            val dailyLogs = dailyLogDao.observeForProduct(productId).first()
+            val hasRecentHealthLog = dailyLogs.any { log ->
+                (now - log.createdAt) <= (HEALTH_LOG_FRESHNESS_DAYS * 24 * 60 * 60 * 1000L)
+            }
+            if (!hasRecentHealthLog) {
+                reasons += "Traceable adoption requires health log within last 7 days"
+            }
+
+            // Check growth record freshness (within last 2 weeks)
+            val growthRecords = growthDao.observeForProduct(productId).first()
+            val hasRecentGrowthRecord = growthRecords.any { record ->
+                (now - record.createdAt) <= (GROWTH_RECORD_FRESHNESS_WEEKS * 7 * 24 * 60 * 60 * 1000L)
+            }
+            if (!hasRecentGrowthRecord) {
+                reasons += "Traceable adoption requires growth monitoring within last 2 weeks"
+            }
+        }
+        // For ProductCategory.Meat, no additional checks beyond existing quarantine validation
+
+        return ValidationResult(valid = reasons.isEmpty(), reasons = reasons)
+    }
+
+    /**
+     * Extended validation that performs lineage verification and farm data freshness checks.
+     * Returns combined reasons from basic validation, lineage checks, and freshness validation.
      */
     suspend fun validateWithTraceability(
         product: ProductEntity,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        sourceProductId: String? = null
     ): ValidationResult {
         val base = validate(product, now)
         val reasons = base.reasons.toMutableList()
@@ -135,6 +214,13 @@ class ProductValidator @Inject constructor(
                     else -> reasons += "Unable to verify parentage at this time"
                 }
             }
+        }
+
+        // Add farm data freshness validation only for existing products (prefilled flows)
+        val productIdForFreshness = sourceProductId ?: product.productId
+        if (!productIdForFreshness.isNullOrBlank()) {
+            val freshnessResult = validateFarmDataFreshness(productIdForFreshness, category ?: ProductCategory.AdoptionNonTraceable, now)
+            reasons.addAll(freshnessResult.reasons)
         }
 
         return ValidationResult(valid = reasons.isEmpty(), reasons = reasons)

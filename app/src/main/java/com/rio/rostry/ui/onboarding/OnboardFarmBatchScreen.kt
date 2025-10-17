@@ -30,22 +30,27 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import com.rio.rostry.utils.notif.FarmNotifier
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardFarmBatchScreen(
-    onDone: (String) -> Unit,
+    onNavigateRoute: (String) -> Unit,
     onBack: () -> Unit,
     role: String? = null,
     vm: OnboardFarmBatchViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
-
-    LaunchedEffect(state.savedId) {
-        state.savedId?.let { onDone(it) }
-    }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(role) { role?.let { vm.setRole(it) } }
+
+    // Observe navigation events and route out
+    LaunchedEffect(Unit) {
+        vm.navigationEvent.collect { route ->
+            onNavigateRoute(route)
+        }
+    }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Onboard Batch") }) }) { padding ->
         Column(

@@ -1,5 +1,5 @@
 package com.rio.rostry.workers
-
+  
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -10,14 +10,17 @@ import androidx.work.WorkerParameters
 import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
+import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.notifications.TransferEventType
 import com.rio.rostry.utils.notif.TransferNotifier
 import com.rio.rostry.data.database.dao.PaymentDao
 import com.rio.rostry.data.repository.PaymentRepository
+import com.rio.rostry.data.repository.monitoring.TaskRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-
+  
 @HiltWorker
 class TransferTimeoutWorker @AssistedInject constructor(
     @Assisted appContext: Context,
@@ -27,8 +30,10 @@ class TransferTimeoutWorker @AssistedInject constructor(
     private val notifier: TransferNotifier,
     private val paymentDao: PaymentDao,
     private val paymentRepository: PaymentRepository,
+    private val intelligentNotificationService: IntelligentNotificationService,
+    private val taskRepository: TaskRepository,
 ) : CoroutineWorker(appContext, params) {
-
+  
     override suspend fun doWork(): Result {
         return try {
             val now = System.currentTimeMillis()
@@ -48,8 +53,12 @@ class TransferTimeoutWorker @AssistedInject constructor(
                         )
                     )
                     // Notify timeout explicitly
-                    notifier.notifyTimedOut(t.transferId)
-
+                    val message = "Transfer ${t.transferId} has timed out. Order: ${t.orderId ?: "N/A"}, Product: ${t.productId ?: "N/A"}, From: ${t.fromUserId}, To: ${t.toUserId ?: "N/A"}"
+                    val transferId = t.transferId ?: return@forEach
+                    val fromUserId = t.fromUserId ?: ""
+                    intelligentNotificationService.notifyTransferEvent(TransferEventType.TIMED_OUT, transferId, "Transfer Timed Out", message)
+                    taskRepository.generateTransferTimeoutTask(transferId, fromUserId, t.orderId, now)
+  
                     // Issue refund idempotently if linked to an order with a payment
                     try {
                         val orderId = t.orderId
@@ -68,7 +77,7 @@ class TransferTimeoutWorker @AssistedInject constructor(
             Result.retry()
         }
     }
-
+  
     companion object {
         private const val UNIQUE_NAME = "transfer_timeout_worker"
         fun schedule(context: Context) {

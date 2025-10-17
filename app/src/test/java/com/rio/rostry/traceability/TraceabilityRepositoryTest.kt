@@ -5,6 +5,12 @@ import com.rio.rostry.data.database.dao.LifecycleEventDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.ProductTraitDao
 import com.rio.rostry.data.database.dao.ProductTrackingDao
+import com.rio.rostry.data.database.dao.TransferVerificationDao
+import com.rio.rostry.data.database.dao.DisputeDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.GrowthRecordDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.entity.BreedingRecordEntity
 import com.rio.rostry.data.database.entity.ProductTrackingEntity
@@ -28,6 +34,12 @@ class TraceabilityRepositoryTest {
     private lateinit var productTraitDao: ProductTraitDao
     private lateinit var transferDao: TransferDao
     private lateinit var productTrackingDao: ProductTrackingDao
+    private lateinit var transferVerificationDao: TransferVerificationDao
+    private lateinit var disputeDao: DisputeDao
+    private lateinit var vaccinationDao: VaccinationRecordDao
+    private lateinit var dailyLogDao: DailyLogDao
+    private lateinit var growthDao: GrowthRecordDao
+    private lateinit var quarantineDao: QuarantineRecordDao
 
     private lateinit var repo: TraceabilityRepository
 
@@ -39,13 +51,25 @@ class TraceabilityRepositoryTest {
         productTraitDao = mockk()
         transferDao = mockk()
         productTrackingDao = mockk()
+        transferVerificationDao = mockk()
+        disputeDao = mockk()
+        vaccinationDao = mockk()
+        dailyLogDao = mockk()
+        growthDao = mockk()
+        quarantineDao = mockk()
         repo = TraceabilityRepositoryImpl(
             breedingDao,
             productDao,
             lifecycleDao,
             productTraitDao,
             transferDao,
-            productTrackingDao
+            transferVerificationDao,
+            disputeDao,
+            productTrackingDao,
+            vaccinationDao,
+            dailyLogDao,
+            growthDao,
+            quarantineDao
         )
     }
 

@@ -94,7 +94,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyLogEntity::class,
         TaskEntity::class
     ],
-    version = 34, // 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
+    version = 35, // 35 adds mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks with indices; 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -257,6 +257,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Add mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks (34 -> 35)
+        val MIGRATION_33_35_PLACEHOLDER = null // placeholder to keep numbering readable above
+        val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // daily_logs new columns (nullable timestamp, counters with defaults, boolean as INTEGER)
+                db.execSQL("ALTER TABLE `daily_logs` ADD COLUMN `mergedAt` INTEGER")
+                db.execSQL("ALTER TABLE `daily_logs` ADD COLUMN `mergeCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `daily_logs` ADD COLUMN `conflictResolved` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_daily_logs_mergedAt` ON `daily_logs` (`mergedAt`)")
+
+                // tasks new columns
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `mergedAt` INTEGER")
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `mergeCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_tasks_mergedAt` ON `tasks` (`mergedAt`)")
+            }
+        }
+
         // ... existing migrations up to 23_24 defined below (omitted in this view) ...
 
         // Add enthusiast-specific sync windows to sync_state
@@ -313,6 +330,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_31_32: Migration = Converters.MIGRATION_31_32
         val MIGRATION_32_33: Migration = Converters.MIGRATION_32_33
         val MIGRATION_33_34: Migration = Converters.MIGRATION_33_34
+        val MIGRATION_34_35: Migration = Converters.MIGRATION_34_35
 
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {

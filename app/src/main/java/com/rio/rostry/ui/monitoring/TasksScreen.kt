@@ -1,5 +1,7 @@
 package com.rio.rostry.ui.monitoring
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,9 +29,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rio.rostry.ui.components.SyncStatusBadge
+import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.ui.monitoring.vm.TaskTab
 import com.rio.rostry.ui.monitoring.vm.TasksViewModel
 import androidx.compose.foundation.clickable
@@ -74,23 +79,29 @@ fun TasksScreen(
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(list) { task ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .let { base ->
-                                val pid = task.productId
-                                if (!pid.isNullOrBlank()) base.then(Modifier.clickable { onNavigateToProduct(pid) }) else base
+                    AnimatedVisibility(visible = true, exit = fadeOut()) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .let { base ->
+                                    val pid = task.productId
+                                    if (!pid.isNullOrBlank()) base.then(Modifier.clickable { onNavigateToProduct(pid) }) else base
+                                }
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(task.title)
+                                task.description?.let { Text(it) }
                             }
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(task.title)
-                            task.description?.let { Text(it) }
-                        }
-                        if (state.selectedTab != TaskTab.COMPLETED) {
-                            Checkbox(checked = false, onCheckedChange = { vm.markComplete(task.taskId) })
-                        } else {
-                            Text("Done")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (state.selectedTab != TaskTab.COMPLETED) {
+                                    Checkbox(checked = false, onCheckedChange = { vm.markComplete(task.taskId) })
+                                } else {
+                                    Text("Done")
+                                }
+                                val syncState = state.taskSyncStates[task.taskId] ?: SyncState.SYNCED
+                                SyncStatusBadge(syncState = syncState, modifier = Modifier.padding(start = 8.dp))
+                            }
                         }
                     }
                 }

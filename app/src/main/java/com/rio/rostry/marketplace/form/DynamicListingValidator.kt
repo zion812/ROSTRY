@@ -5,6 +5,8 @@ import com.rio.rostry.marketplace.model.ProductCategory
 
 /**
  * Validates dynamic listing form inputs based on age group and category.
+ * Includes validation for farm data freshness: vaccination within 30 days, health log within 7 days, growth record within 14 days for traceable adoptions.
+ * Rationale: Ensures products meet health and traceability standards before listing to prevent invalid or outdated listings.
  */
 object DynamicListingValidator {
     data class Result(val valid: Boolean, val errors: List<String>)
@@ -37,7 +39,10 @@ object DynamicListingValidator {
         val price: Double?,
         val startPrice: Double?,
         val latitude: Double?,
-        val longitude: Double?
+        val longitude: Double?,
+        val hasRecentVaccination: Boolean? = null,
+        val hasRecentHealthLog: Boolean? = null,
+        val hasRecentGrowthRecord: Boolean? = null
     )
 
     fun validate(input: Input): Result {
@@ -134,6 +139,19 @@ object DynamicListingValidator {
             if (input.weightGrams == null) errors += "Weight required for meat category"
             if (input.birthDateMillis == null) errors += "Age (birth date) required for meat category"
             if (input.healthRecords.isNullOrBlank()) errors += "Health records required for meat category"
+        }
+
+        // Farm data freshness validation
+        when (input.category) {
+            is ProductCategory.AdoptionTraceable -> {
+                if (input.hasRecentVaccination == false) errors += "Recent vaccination record (within 30 days) required for traceable adoption"
+                if (input.hasRecentHealthLog == false) errors += "Recent health log (within 7 days) required for traceable adoption"
+                if (input.hasRecentGrowthRecord == false) errors += "Recent growth monitoring (within 2 weeks) required for traceable adoption"
+            }
+            is ProductCategory.Meat -> {
+                if (input.hasRecentHealthLog == false) errors += "Recent health log required for meat category"
+            }
+            else -> Unit
         }
 
         // Price sanity

@@ -25,6 +25,10 @@ interface TaskRepository {
     suspend fun generateIncubationCheckTask(batchId: String, farmerId: String, dueAt: Long)
     suspend fun generateStageTransitionTask(productId: String, farmerId: String, stage: String, dueAt: Long)
     suspend fun generateBatchSplitTask(batchId: String, farmerId: String, dueAt: Long)
+    suspend fun generateTransferTimeoutTask(transferId: String, farmerId: String, orderId: String?, dueAt: Long)
+    suspend fun generateOrderUpdateTask(orderId: String, userId: String, status: String, dueAt: Long)
+    suspend fun generateSocialActivityTask(userId: String, activityType: String, refId: String, dueAt: Long)
+    suspend fun findOrCreateTask(farmerId: String, taskType: String, refId: String, taskFactory: () -> TaskEntity): TaskEntity
 }
 
 @Singleton
@@ -149,6 +153,74 @@ class TaskRepositoryImpl @Inject constructor(
             priority = "URGENT"
         )
         upsert(task)
+    }
+
+    override suspend fun generateTransferTimeoutTask(transferId: String, farmerId: String, orderId: String?, dueAt: Long) {
+        val meta = mapOf(
+            "transferId" to transferId,
+            "orderId" to orderId,
+            "refundStatus" to null
+        )
+        val task = TaskEntity(
+            taskId = generateId("task_transfer_timeout_"),
+            farmerId = farmerId,
+            productId = null,
+            taskType = "TRANSFER_TIMEOUT",
+            title = "Resolve Transfer Timeout",
+            dueAt = dueAt,
+            priority = "HIGH",
+            metadata = Gson().toJson(meta)
+        )
+        upsert(task)
+    }
+
+    override suspend fun generateOrderUpdateTask(orderId: String, userId: String, status: String, dueAt: Long) {
+        val meta = mapOf(
+            "orderId" to orderId,
+            "status" to status,
+            "statusChangedAt" to dueAt
+        )
+        val task = TaskEntity(
+            taskId = generateId("task_order_update_"),
+            farmerId = userId,
+            productId = null,
+            taskType = "ORDER_UPDATE",
+            title = "Order $status",
+            dueAt = dueAt,
+            priority = "MEDIUM",
+            metadata = Gson().toJson(meta)
+        )
+        upsert(task)
+    }
+
+    override suspend fun generateSocialActivityTask(userId: String, activityType: String, refId: String, dueAt: Long) {
+        val meta = mapOf(
+            "activityType" to activityType,
+            "refId" to refId,
+            "fromUser" to null
+        )
+        val task = TaskEntity(
+            taskId = generateId("task_social_"),
+            farmerId = userId,
+            productId = null,
+            taskType = "SOCIAL_ACTIVITY",
+            title = "New $activityType",
+            dueAt = dueAt,
+            priority = "LOW",
+            metadata = Gson().toJson(meta)
+        )
+        upsert(task)
+    }
+
+    override suspend fun findOrCreateTask(farmerId: String, taskType: String, refId: String, taskFactory: () -> TaskEntity): TaskEntity {
+        val existing = dao.findPendingByTypeProduct(farmerId, refId, taskType)
+        if (existing.isNotEmpty()) {
+            return existing.first()
+        } else {
+            val task = taskFactory()
+            upsert(task)
+            return task
+        }
     }
 
     private fun generateId(prefix: String): String = "$prefix${System.currentTimeMillis()}"

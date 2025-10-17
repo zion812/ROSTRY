@@ -3,18 +3,22 @@ package com.rio.rostry.data.repository
 import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.DisputeDao
+import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.dao.TransferVerificationDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.DisputeEntity
 import com.rio.rostry.data.database.entity.TransferEntity
 import com.rio.rostry.data.database.entity.TransferVerificationEntity
+import com.rio.rostry.marketplace.validation.ProductValidator
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.VerificationUtils
 import com.rio.rostry.utils.notif.TransferNotifier
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -72,6 +76,13 @@ interface TransferWorkflowRepository {
     suspend fun computeTrustScore(transferId: String): Resource<Int>
 
     suspend fun generateDocumentation(transferId: String): Resource<String> // JSON package for now
+
+    suspend fun validateTransferEligibility(
+        productId: String,
+        fromUserId: String,
+        toUserId: String?,
+        logOnFailure: Boolean = true
+    ): Resource<Unit>
 }
 
 @Singleton
@@ -82,9 +93,91 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     private val auditLogDao: AuditLogDao,
     private val notifier: TransferNotifier,
     private val traceabilityRepository: TraceabilityRepository,
+    private val productValidator: ProductValidator,
+    private val productDao: ProductDao,
+    private val quarantineDao: QuarantineRecordDao,
 ) : TransferWorkflowRepository {
 
     private fun now() = System.currentTimeMillis()
+
+    /**
+     * Validates transfer eligibility by checking product existence, ownership, lifecycle status, and farm data freshness via traceability report.
+     */
+    override suspend fun validateTransferEligibility(
+        productId: String,
+        fromUserId: String,
+        toUserId: String?,
+        logOnFailure: Boolean
+    ): Resource<Unit> {
+        val product = productDao.findById(productId)
+        if (product == null) {
+            val msg = "Product not found"
+            if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+            return Resource.Error(msg)
+        }
+
+        // Check ownership
+        if (product.sellerId != fromUserId) {
+            val msg = "You do not own this product"
+            if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+            return Resource.Error(msg)
+        }
+
+        // Check lifecycle status
+        val lifecycle = product.lifecycleStatus?.uppercase()
+        when (lifecycle) {
+            "QUARANTINE" -> {
+                val msg = "Cannot transfer products in quarantine"
+                if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+                return Resource.Error(msg)
+            }
+            "DECEASED" -> {
+                val msg = "Cannot transfer deceased birds"
+                if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+                return Resource.Error(msg)
+            }
+            "TRANSFERRED" -> {
+                val msg = "Product already transferred"
+                if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+                return Resource.Error(msg)
+            }
+        }
+
+        // Use traceability report for freshness and related checks
+        when (val report = traceabilityRepository.getTransferEligibilityReport(productId)) {
+            is Resource.Success -> {
+                val data = report.data
+                val eligible = (data?.get("eligible") as? Boolean) == true
+                if (!eligible) {
+                    val reasons = (data?.get("reasons") as? List<*>)?.filterIsInstance<String>().orEmpty()
+                    val msg = reasons.joinToString("; ").ifBlank { "Not eligible for transfer" }
+                    if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, reasons)
+                    return Resource.Error(msg)
+                }
+            }
+            is Resource.Error -> {
+                val msg = report.message ?: "Eligibility report failed"
+                if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+                return Resource.Error(msg)
+            }
+            is Resource.Loading -> Unit
+        }
+
+        return Resource.Success(Unit)
+    }
+
+    /**
+     * Logs validation failures in audit logs.
+     */
+    private suspend fun logValidationFailure(productId: String?, action: String, actorUserId: String?, reasons: List<String>) {
+        val log = AuditLogEntity.createValidationFailureLog(
+            refId = productId ?: "UNKNOWN_PRODUCT",
+            action = action,
+            actorUserId = actorUserId,
+            reasons = reasons
+        )
+        auditLogDao.insert(log)
+    }
 
     override suspend fun initiate(
         productId: String,
@@ -99,6 +192,13 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         timeoutAt: Long?,
     ): Resource<String> = withContext(Dispatchers.IO) {
         try {
+            // Validate transfer eligibility before proceeding (with logOnFailure=false to avoid double logging)
+            val eligibility = validateTransferEligibility(productId, fromUserId, toUserId, logOnFailure = false)
+            if (eligibility is Resource.Error) {
+                logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(eligibility.message ?: "Unknown error"))
+                return@withContext Resource.Error(eligibility.message ?: "Not eligible for transfer")
+            }
+
             // Duplicate prevention: reject if a PENDING exists within last 60s
             val pendingCount = transferDao.countRecentPending(productId, fromUserId, toUserId, since = now() - 60_000)
             if (pendingCount > 0) return@withContext Resource.Error("Duplicate transfer request in cooldown window")
@@ -252,6 +352,35 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                 VerificationUtils.withinRadius(transfer.gpsLat, transfer.gpsLng, buyerGpsLat, buyerGpsLng, 100.0)
             } else true
 
+            // Farm data consistency check: verify product status hasn't changed since initiation
+            val pid = transfer.productId ?: return@withContext Resource.Error("Transfer missing product reference")
+            val product = productDao.findById(pid)
+            val statusChanged = product?.lifecycleStatus?.uppercase() in listOf("QUARANTINE", "DECEASED")
+            if (statusChanged) {
+                val ver = TransferVerificationEntity(
+                    verificationId = UUID.randomUUID().toString(),
+                    transferId = transferId,
+                    step = "BUYER_VERIFY",
+                    status = "REJECTED",
+                    notes = "Product status changed during transfer (now in quarantine/deceased)",
+                    createdAt = now(),
+                    updatedAt = now()
+                )
+                verificationDao.upsert(ver)
+                auditLogDao.insert(
+                    AuditLogEntity(
+                        logId = UUID.randomUUID().toString(),
+                        type = "VERIFICATION",
+                        refId = ver.verificationId,
+                        action = "BUYER_VERIFY_REJECTED",
+                        actorUserId = null,
+                        detailsJson = Gson().toJson(ver),
+                        createdAt = now()
+                    )
+                )
+                return@withContext Resource.Error("Product status changed during transfer")
+            }
+
             val ver = TransferVerificationEntity(
                 verificationId = UUID.randomUUID().toString(),
                 transferId = transferId,
@@ -318,6 +447,22 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
 
     override suspend fun complete(transferId: String): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
+            val transfer = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
+
+            // Final validation: ensure product is still eligible
+            val pid = transfer.productId ?: return@withContext Resource.Error("Transfer missing product reference")
+            val from = transfer.fromUserId ?: return@withContext Resource.Error("Transfer missing seller reference")
+            val eligibility = validateTransferEligibility(pid, from, transfer.toUserId)
+            if (eligibility is Resource.Error) {
+                // Cancel transfer instead of completing
+                transferDao.updateStatusAndTimestamps(transferId, "CANCELLED", now(), completedAt = null)
+                logValidationFailure(transfer.productId, "TRANSFER_CANCELLED_ON_COMPLETE", null, listOf(eligibility.message ?: "Unknown error"))
+                auditLogDao.insert(
+                    AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "CANCEL", null, "Validation failed during completion", now())
+                )
+                return@withContext Resource.Error("Transfer cancelled due to validation failure: ${eligibility.message}")
+            }
+
             transferDao.updateStatusAndTimestamps(transferId, "COMPLETED", now(), completedAt = now())
             auditLogDao.insert(
                 AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "COMPLETE", null, null, now())

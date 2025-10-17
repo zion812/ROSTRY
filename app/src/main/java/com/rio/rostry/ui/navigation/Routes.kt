@@ -57,6 +57,13 @@ object Routes {
         const val SANDBOX = "product/sandbox"
     }
 
+    /**
+     * Order routes for displaying order details, tracking, and status.
+     */
+    object Order {
+        const val DETAILS = "order/{orderId}"
+    }
+
     object Transfers {
         const val DETAILS = "transfer/{transferId}"
         const val LIST = "transfer/list"
@@ -165,7 +172,8 @@ object Routes {
             Product.DETAILS,
             Product.TRACEABILITY,
             Social.FEED,
-            Messaging.THREAD
+            Messaging.THREAD,
+            Order.DETAILS
         )
     )
 
@@ -210,7 +218,8 @@ object Routes {
             Monitoring.DASHBOARD,
             Monitoring.PERFORMANCE,
             Onboarding.FARM_BIRD,
-            Onboarding.FARM_BATCH
+            Onboarding.FARM_BATCH,
+            Order.DETAILS
         )
     )
 
@@ -258,7 +267,8 @@ object Routes {
             EnthusiastNav.EGG_COLLECTION,
             // Allow Add-to-Farm onboarding flows for Enthusiast
             Onboarding.FARM_BIRD,
-            Onboarding.FARM_BATCH
+            Onboarding.FARM_BATCH,
+            Order.DETAILS
         )
     )
 
@@ -324,6 +334,7 @@ object Routes {
     const val MONITORING_DAILY_LOG = Monitoring.DAILY_LOG
     const val MONITORING_DAILY_LOG_PRODUCT = Monitoring.DAILY_LOG_PRODUCT
     const val MONITORING_TASKS = Monitoring.TASKS
+    const val ORDER_DETAILS = Order.DETAILS
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS
@@ -403,7 +414,21 @@ object Routes {
 
     object Builders {
         fun productDetails(id: String): String = "product/${URLEncoder.encode(id, "UTF-8")}"
-        fun traceability(id: String): String = "$TRACEABILITY_BASE/${URLEncoder.encode(id, "UTF-8")}" 
+        /**
+         * Builds the route for the traceability screen, showing the family tree and lineage information.
+         * This route displays the TraceabilityScreen with the product as root.
+         */
+        fun traceability(id: String): String = "$TRACEABILITY_BASE/${URLEncoder.encode(id, "UTF-8")}"
+        /**
+         * Builds the route for the family tree view, an alternative entry point to the traceability screen.
+         * This route also displays the TraceabilityScreen but may have different initial focus or UI.
+         */
+        fun familyTree(id: String): String = "product/${URLEncoder.encode(id, "UTF-8")}/family_tree"
+        /**
+         * Generates the deep-link URL for the lineage view of a product.
+         * This can be used for QR codes or sharing to directly open the family tree.
+         */
+        fun lineageDeepLink(id: String): String = "rostry://product/${URLEncoder.encode(id, "UTF-8")}/lineage"
         fun transferDetails(id: String): String = "transfer/${URLEncoder.encode(id, "UTF-8") }"
         fun transferVerify(id: String): String = "transfer/${URLEncoder.encode(id, "UTF-8")}/verify"
         fun messagesThread(id: String): String = "messages/${URLEncoder.encode(id, "UTF-8")}"
@@ -436,6 +461,26 @@ object Routes {
             val q = role?.takeIf { it.isNotBlank() }?.let { "?role=${URLEncoder.encode(it, "UTF-8")}" } ?: ""
             return Onboarding.FARM_BATCH + q
         }
+
+        // Monitoring helpers
+        fun dailyLog(productId: String): String =
+            "${Monitoring.DAILY_LOG}/${URLEncoder.encode(productId, "UTF-8")}"
+
+        fun monitoringVaccination(productId: String): String =
+            "${Monitoring.VACCINATION}?productId=${URLEncoder.encode(productId, "UTF-8")}"
+
+        fun monitoringGrowth(productId: String): String =
+            "${Monitoring.GROWTH}?productId=${URLEncoder.encode(productId, "UTF-8")}"
+
+        /**
+         * Builds the route for order details, showing order tracking and status.
+         */
+        fun orderDetails(id: String): String = "order/${URLEncoder.encode(id, "UTF-8")}"
+
+        /**
+         * Builds the deep-link URL for a social post, used for sharing or notifications.
+         */
+        fun socialPost(postId: String): String = "social/feed?postId=${URLEncoder.encode(postId, "UTF-8")}"
     }
 
 } // Closing brace for object Routes

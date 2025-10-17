@@ -20,7 +20,7 @@ object FarmNotifier {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Notifications for farm monitoring alerts and reminders"
             }
@@ -43,13 +43,16 @@ object FarmNotifier {
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Batch Split Recommended")
             .setContentText("$batchName is ready for individual tracking. Consider splitting.")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(("batch_split_" + productId).hashCode(), notification)
+        manager.notify(("farm_" + "batchSplitDue" + "_" + productId).hashCode(), notification)
     }
 
     fun notifyBirdOnboarded(context: Context, birdName: String, productId: String) {
@@ -69,14 +72,18 @@ object FarmNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(("onboard_" + productId).hashCode(), notification)
+        manager.notify(("farm_" + "birdOnboarded" + "_" + productId).hashCode(), notification)
     }
 
     fun notifyVaccinationDue(context: Context, productId: String, vaccineType: String) {
-        val deepLink = "rostry://${Routes.MONITORING_VACCINATION}".toUri()
+        ensureChannel(context)
+        val deepLink = ("rostry://${Routes.Builders.monitoringVaccination(productId)}").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             productId.hashCode(),
@@ -91,13 +98,17 @@ object FarmNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(productId.hashCode(), notification)
+        manager.notify(("farm_" + "vaccinationDue" + "_" + productId).hashCode(), notification)
     }
 
     fun notifyQuarantineOverdue(context: Context, productId: String) {
+        ensureChannel(context)
         val deepLink = "rostry://${Routes.MONITORING_QUARANTINE}".toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -113,13 +124,17 @@ object FarmNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(productId.hashCode(), notification)
+        manager.notify(("farm_" + "quarantineOverdue" + "_" + productId).hashCode(), notification)
     }
 
     fun notifyHatchingDue(context: Context, batchId: String, batchName: String) {
+        ensureChannel(context)
         val deepLink = "rostry://${Routes.MONITORING_HATCHING}".toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -135,13 +150,17 @@ object FarmNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(batchId.hashCode(), notification)
+        manager.notify(("farm_" + "hatchingDue" + "_" + batchId).hashCode(), notification)
     }
 
     fun notifyMortalitySpike(context: Context, count: Int) {
+        ensureChannel(context)
         val deepLink = "rostry://${Routes.MONITORING_MORTALITY}".toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -157,10 +176,13 @@ object FarmNotifier {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .build()
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(9999, notification)
+        manager.notify(("farm_" + "mortalitySpike" + "_" + count.toString()).hashCode(), notification)
     }
     
     /**
@@ -168,6 +190,7 @@ object FarmNotifier {
      * Called when farmer dismisses the "Add to Farm" dialog without adding
      */
     fun notifyProductPurchased(context: Context, productId: String, productName: String) {
+        ensureChannel(context)
         // Deep link to add product to farm monitoring
         val deepLink = "rostry://add-to-farm?productId=$productId".toUri()
         val pendingIntent = PendingIntent.getActivity(
@@ -186,6 +209,9 @@ object FarmNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
             .addAction(
                 android.R.drawable.ic_input_add,
                 "Add to Farm",
@@ -195,6 +221,6 @@ object FarmNotifier {
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // Use a unique notification ID based on productId
-        manager.notify("farm_purchase_$productId".hashCode(), notification)
+        manager.notify(("farm_" + "productPurchased" + "_" + productId).hashCode(), notification)
     }
 }

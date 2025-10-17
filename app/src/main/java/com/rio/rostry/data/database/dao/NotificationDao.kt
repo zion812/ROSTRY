@@ -45,4 +45,19 @@ interface NotificationDao {
 
     @Query("DELETE FROM notifications")
     suspend fun deleteAllNotifications()
+
+    @Query("SELECT * FROM notifications WHERE userId = :userId AND isBatched = 1 ORDER BY createdAt ASC")
+    suspend fun getBatchedNotifications(userId: String): List<NotificationEntity>
+
+    @Query("SELECT COUNT(*) FROM notifications WHERE userId = :userId AND isBatched = 1")
+    fun observeBatchedCount(userId: String): Flow<Int>
+
+    @Query("UPDATE notifications SET isBatched = 0, displayedAt = :displayedAt WHERE notificationId IN (:notificationIds)")
+    suspend fun markBatchDisplayed(notificationIds: List<String>, displayedAt: Long)
+
+    @Query("SELECT * FROM notifications WHERE userId = :userId AND domain = :domain ORDER BY createdAt DESC LIMIT :limit")
+    fun getNotificationsByDomain(userId: String, domain: String, limit: Int): Flow<List<NotificationEntity>>
+
+    @Query("DELETE FROM notifications WHERE userId = :userId AND isRead = 1 AND displayedAt < :threshold")
+    suspend fun deleteOldReadNotifications(userId: String, threshold: Long)
 }

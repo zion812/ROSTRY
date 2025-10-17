@@ -9,6 +9,7 @@ import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
 import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.sync.SyncManager
 import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
@@ -48,6 +50,8 @@ data class FarmerHomeUiState(
     val dailyLogsThisWeek: Int = 0,
     val unreadAlerts: List<FarmAlertEntity> = emptyList(),
     val weeklySnapshot: FarmerDashboardSnapshotEntity? = null,
+    val batchesDueForSplit: Int = 0,
+    val urgentKpiCount: Int = 0,
     val isLoading: Boolean = true
 )
 
@@ -64,6 +68,7 @@ class FarmerHomeViewModel @Inject constructor(
     private val farmerDashboardRepository: FarmerDashboardRepository,
     private val taskDao: TaskDao,
     private val dailyLogDao: DailyLogDao,
+    private val productDao: ProductDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val syncManager: SyncManager
 ) : ViewModel() {
@@ -123,9 +128,11 @@ class FarmerHomeViewModel @Inject constructor(
                 farmAlertRepository.observeUnread(id).orDefault(emptyList()),
                 farmerDashboardRepository.observeLatest(id).orDefault(null),
                 taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
-                taskDao.observeOverdueForFarmer(id, now).orDefault(emptyList()),
                 taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
-                dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0)
+                dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+                productDao.observeActiveWithBirth().map { products ->
+                    products.count { it.sellerId == id && it.isBatch == true && ((it.ageWeeks ?: 0) >= 12) && it.splitAt == null }
+                }.orDefault(0)
             ) { values: Array<Any?> ->
                 val vacDue = values[0] as? Int ?: 0
                 val vacOverdue = values[1] as? Int ?: 0
@@ -141,10 +148,9 @@ class FarmerHomeViewModel @Inject constructor(
                 val snapshot = values[10] as? FarmerDashboardSnapshotEntity
                 val overdueCount = values[11] as? Int ?: 0
                 @Suppress("UNCHECKED_CAST")
-                val overdueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
-                @Suppress("UNCHECKED_CAST")
-                val dueTasks = values[13] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
-                val dailyLogsCount = values[14] as? Int ?: 0
+                val dueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
+                val dailyLogsCount = values[13] as? Int ?: 0
+                val batchesDue = values[14] as? Int ?: 0
 
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
                 if (elapsedMs > 3000) {
@@ -167,6 +173,8 @@ class FarmerHomeViewModel @Inject constructor(
                     dailyLogsThisWeek = dailyLogsCount,
                     unreadAlerts = alerts,
                     weeklySnapshot = snapshot,
+                    batchesDueForSplit = batchesDue,
+                    urgentKpiCount = overdueCount + vacOverdue + quarOverdue + batchesDue,
                     isLoading = false
                 )
             }

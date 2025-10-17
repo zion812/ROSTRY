@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.ui.components.SyncState
+import com.rio.rostry.ui.components.getSyncState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,7 +31,8 @@ class TasksViewModel @Inject constructor(
         val completedTasks: List<TaskEntity> = emptyList(),
         val selectedTab: TaskTab = TaskTab.DUE,
         val isLoading: Boolean = true,
-        val error: String? = null
+        val error: String? = null,
+        val taskSyncStates: Map<String, SyncState> = emptyMap()
     )
 
     private val selectedTab = MutableStateFlow(TaskTab.DUE)
@@ -45,12 +48,15 @@ class TasksViewModel @Inject constructor(
                 taskRepository.observeOverdue(farmerId, now),
                 taskRepository.observeRecentCompleted(farmerId, 50)
             ) { due, overdue, completed ->
+                val allTasks = due + overdue + completed
+                val taskSyncStates = allTasks.associate { it.taskId to getSyncState(it.dirty, it.syncedAt, it.updatedAt) }
                 TasksUiState(
                     dueTasks = due,
                     overdueTasks = overdue,
                     completedTasks = completed,
                     selectedTab = tab,
-                    isLoading = false
+                    isLoading = false,
+                    taskSyncStates = taskSyncStates
                 )
             }
         }

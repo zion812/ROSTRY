@@ -13,9 +13,11 @@ import com.rio.rostry.MainActivity
 import com.rio.rostry.R
 import com.rio.rostry.data.database.dao.NotificationDao
 import com.rio.rostry.data.database.entity.NotificationEntity
+import com.rio.rostry.notifications.FarmEventType
+import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.notifications.SocialEventType
+import com.rio.rostry.notifications.TransferEventType
 import com.rio.rostry.session.CurrentUserProvider
-import com.rio.rostry.utils.notif.SocialNotifierImpl
-import com.rio.rostry.utils.notif.TransferNotifierImpl
 import com.rio.rostry.utils.notif.AnalyticsNotifierImpl
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +37,9 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var currentUserProvider: CurrentUserProvider
 
+    @Inject
+    lateinit var intelligentNotificationService: IntelligentNotificationService
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
@@ -47,74 +52,86 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         val data = message.data
         val type = data["type"]
-        val notifier = SocialNotifierImpl(applicationContext)
-        val transferNotifier = TransferNotifierImpl(applicationContext)
-        val analyticsNotifier = AnalyticsNotifierImpl(applicationContext)
         when (type) {
             "message" -> {
                 val threadId = data["threadId"] ?: ""
                 val from = data["from"] ?: "Someone"
                 val text = data["text"] ?: "New message"
-                notifier.notifyNewMessage(threadId, from, text)
+                serviceScope.launch {
+                    intelligentNotificationService.notifySocialEvent(SocialEventType.NEW_MESSAGE, threadId, "New Message", text, from)
+                }
             }
             "comment" -> {
                 val postId = data["postId"] ?: ""
                 val who = data["who"] ?: "Someone"
-                notifier.notifyNewComment("", postId, who)
+                serviceScope.launch {
+                    intelligentNotificationService.notifySocialEvent(SocialEventType.NEW_COMMENT, postId, "New Comment", "New comment from $who", who)
+                }
             }
             "like" -> {
                 val postId = data["postId"] ?: ""
                 val who = data["who"] ?: "Someone"
-                notifier.notifyNewLike("", postId, who)
+                serviceScope.launch {
+                    intelligentNotificationService.notifySocialEvent(SocialEventType.NEW_LIKE, postId, "New Like", "New like from $who", who)
+                }
             }
             "follow" -> {
                 val userId = data["userId"] ?: ""
                 val who = data["who"] ?: "Someone"
-                notifier.notifyFollow(userId, who)
+                serviceScope.launch {
+                    intelligentNotificationService.notifySocialEvent(SocialEventType.NEW_FOLLOW, userId, "New Follow", "$who followed you", who)
+                }
             }
             // Marketplace and orders
             "ORDER_UPDATE" -> {
                 val orderId = data["orderId"] ?: return
                 val title = data["title"] ?: "Order Update"
                 val body = data["body"] ?: "Your order has been updated"
-                handleOrderUpdate(orderId, title, body)
+                serviceScope.launch { intelligentNotificationService.notifyOrderUpdate(orderId, "updated", title, body) }
             }
             "order_status" -> {
                 val orderId = data["orderId"] ?: return
                 val status = data["status"] ?: "updated"
                 val title = data["title"] ?: "Order $status"
                 val body = data["body"] ?: "Your order $orderId is $status"
-                // Track analytics insight if needed
-                analyticsNotifier.showInsight(title, body)
                 // Invoke the same order update handling for notification storage and deep linking
-                handleOrderUpdate(orderId, title, body)
+                serviceScope.launch { intelligentNotificationService.notifyOrderUpdate(orderId, status, title, body) }
             }
             "bid_update" -> {
                 val productId = data["productId"] ?: return
                 val messageText = data["message"] ?: "Bid update"
-                analyticsNotifier.showInsight("Bid update", messageText)
+                val analyticsNotifier = AnalyticsNotifierImpl(applicationContext)
+                analyticsNotifier.showInsight("Bid update", messageText, null)
             }
             // Transfers
             "transfer_status" -> {
                 val transferId = data["transferId"] ?: return
                 val status = data["status"] ?: "updated"
-                when (status.uppercase()) {
-                    "COMPLETED" -> transferNotifier.notifyCompleted(transferId)
-                    "CANCELLED" -> transferNotifier.notifyCancelled(transferId)
-                    "VERIFIED", "BUYER_VERIFIED" -> transferNotifier.notifyBuyerVerified(transferId)
-                    "DISPUTED", "DISPUTE" -> transferNotifier.notifyDisputeOpened(transferId)
-                    else -> transferNotifier.notifyInitiated(transferId, null)
+                val title = "Transfer $status"
+                val body = "Transfer $transferId is $status"
+                val eventType = when (status.uppercase()) {
+                    "COMPLETED" -> TransferEventType.COMPLETED
+                    "CANCELLED" -> TransferEventType.CANCELLED
+                    "VERIFIED", "BUYER_VERIFIED" -> TransferEventType.VERIFIED
+                    "DISPUTED", "DISPUTE" -> TransferEventType.DISPUTED
+                    "TIMED_OUT" -> TransferEventType.TIMED_OUT
+                    else -> TransferEventType.INITIATED
                 }
+                serviceScope.launch { intelligentNotificationService.notifyTransferEvent(eventType, transferId, title, body) }
             }
             // Farm monitoring
             "vaccination_reminder" -> {
+                val productId = data["productId"] ?: ""
                 val vaccine = data["vaccine"] ?: "Vaccination due"
-                analyticsNotifier.showInsight("Vaccination reminder", "$vaccine scheduled")
+                val title = "Vaccination Reminder"
+                val body = "$vaccine scheduled"
+                serviceScope.launch { intelligentNotificationService.notifyFarmEvent(FarmEventType.VACCINATION_DUE, productId, title, body) }
             }
             // Verification
             "verification_update" -> {
                 val status = data["status"] ?: "updated"
-                analyticsNotifier.showInsight("Verification $status", "Your verification status is $status")
+                val analyticsNotifier = AnalyticsNotifierImpl(applicationContext)
+                analyticsNotifier.showInsight("Verification $status", "Your verification status is $status", null)
             }
             else -> {
                 Timber.d("Unknown social notification type: $type")
@@ -122,78 +139,5 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun handleOrderUpdate(orderId: String, title: String, body: String) {
-        val userId = currentUserProvider.userIdOrNull() ?: return
 
-        // Store notification in database
-        serviceScope.launch {
-            try {
-                val notification = NotificationEntity(
-                    notificationId = UUID.randomUUID().toString(),
-                    userId = userId,
-                    title = title,
-                    message = body,
-                    type = "ORDER_UPDATE",
-                    deepLinkUrl = "rostry://general/cart?orderId=$orderId",
-                    isRead = false,
-                    createdAt = System.currentTimeMillis()
-                )
-                notificationDao.insertNotification(notification)
-                Timber.d("ORDER_UPDATE notification stored for user $userId, order $orderId")
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to store ORDER_UPDATE notification")
-            }
-        }
-
-        // Show Android notification
-        showOrderNotification(orderId, title, body)
-    }
-
-    private fun showOrderNotification(orderId: String, title: String, body: String) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        // Create notification channel (Android O+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                ORDER_CHANNEL_ID,
-                "Order Updates",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for order status updates"
-                enableVibration(true)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        // Create deep link intent to General cart/order detail
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("deepLink", "rostry://general/cart?orderId=$orderId")
-        }
-
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            orderId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Build high-priority notification
-        val notification = NotificationCompat.Builder(this, ORDER_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Replace with R.drawable.ic_notification in production
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .build()
-
-        notificationManager.notify(orderId.hashCode(), notification)
-        Timber.d("ORDER_UPDATE notification shown for order $orderId")
-    }
-
-    companion object {
-        private const val ORDER_CHANNEL_ID = "order_updates"
-    }
 }

@@ -3,12 +3,16 @@ package com.rio.rostry.ui.transfer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.TransferDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.entity.TransferEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.data.repository.TransferWorkflowRepository
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.marketplace.validation.ProductValidator
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +27,9 @@ class TransferCreateViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val userRepository: UserRepository,
     private val currentUserProvider: CurrentUserProvider,
+    private val transferWorkflowRepository: TransferWorkflowRepository,
+    private val productValidator: ProductValidator,
+    private val quarantineDao: QuarantineRecordDao,
 ) : ViewModel() {
 
     enum class TransferType { SALE, GIFT, BREEDING_LOAN, OWNERSHIP_TRANSFER }
@@ -45,7 +52,10 @@ class TransferCreateViewModel @Inject constructor(
         val validationErrors: Map<String, String> = emptyMap(),
         val showProductPicker: Boolean = false,
         val showRecipientPicker: Boolean = false,
-        val confirmationStep: Boolean = false
+        val confirmationStep: Boolean = false,
+        val productStatus: String? = null,
+        val validating: Boolean = false,
+        val ownershipVerified: Boolean? = null
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -95,8 +105,71 @@ class TransferCreateViewModel @Inject constructor(
             selectedProduct = product,
             amount = product?.price?.toString() ?: "",
             productId = productId,
-            showProductPicker = false
+            showProductPicker = false,
+            validating = true,
+            error = null
         )
+        // Check product eligibility asynchronously
+        viewModelScope.launch {
+            val (eligible, error) = checkProductEligibility(productId)
+            val currentUserId = currentUserProvider.userIdOrNull()
+            val selected = _state.value.availableProducts.find { it.productId == productId }
+            var status: String? = null
+            selected?.let { p ->
+                val lifecycle = p.lifecycleStatus?.uppercase()
+                status = when (lifecycle) {
+                    "QUARANTINE" -> "quarantine"
+                    "DECEASED" -> "deceased"
+                    "TRANSFERRED" -> "transferred"
+                    else -> null
+                }
+                if (status == null) {
+                    // Fall back to quarantine check via validator
+                    val inQuarantine = productValidator.checkQuarantineStatus(productId)
+                    if (inQuarantine) status = "quarantine"
+                }
+                if (status == null) {
+                    // Use validator to infer outdated farm data for traceable categories
+                    val v = productValidator.validateWithTraceability(p)
+                    if (!v.valid && v.reasons.any { it.contains("vaccination", true) || it.contains("health", true) || it.contains("growth", true) }) {
+                        status = "outdated_farm_data"
+                    }
+                }
+            }
+            _state.value = _state.value.copy(
+                validating = false,
+                error = if (!eligible) error else null,
+                productStatus = status,
+                ownershipVerified = selected?.sellerId?.let { it == currentUserId }
+            )
+        }
+    }
+
+    /**
+     * Checks product eligibility for transfer by validating lifecycle status, quarantine, and farm data freshness.
+     */
+    suspend fun checkProductEligibility(productId: String): Pair<Boolean, String?> {
+        val product = _state.value.availableProducts.find { it.productId == productId }
+            ?: return Pair(false, "Product not found")
+
+        val lifecycle = product.lifecycleStatus?.uppercase()
+        when (lifecycle) {
+            "QUARANTINE" -> return Pair(false, "This product is in quarantine. Complete quarantine protocol in Farm Monitoring before transfer.")
+            "DECEASED" -> return Pair(false, "This bird is marked as deceased. Cannot transfer.")
+            "TRANSFERRED" -> return Pair(false, "Product already transferred")
+        }
+
+        // Check quarantine status
+        val inQuarantine = productValidator.checkQuarantineStatus(productId)
+        if (inQuarantine) return Pair(false, "This product is in quarantine. Complete quarantine protocol in Farm Monitoring before transfer.")
+
+        // Check farm data freshness
+        val validation = productValidator.validateWithTraceability(product)
+        if (!validation.valid) {
+            return Pair(false, validation.reasons.joinToString("; "))
+        }
+
+        return Pair(true, null)
     }
 
     fun selectRecipient(userId: String) {
@@ -124,6 +197,19 @@ class TransferCreateViewModel @Inject constructor(
             }
             val senderId = currentUserProvider.userIdOrNull()
             if (!s.toUserId.isNullOrBlank() && senderId == s.toUserId) put("recipient", "Cannot transfer to yourself")
+
+            // Add farm data validation
+            if (s.selectedProduct != null) {
+                val lifecycle = s.selectedProduct.lifecycleStatus?.uppercase()
+                when (lifecycle) {
+                    "QUARANTINE" -> put("product", "Cannot transfer products in quarantine")
+                    "DECEASED" -> put("product", "Cannot transfer deceased birds")
+                    "TRANSFERRED" -> put("product", "Product already transferred")
+                }
+                if (s.selectedProduct.familyTreeId != null) {
+                    put("farmData", "Ensure farm data is up-to-date before transfer")
+                }
+            }
         }
     }
 
@@ -172,16 +258,32 @@ class TransferCreateViewModel @Inject constructor(
 
     fun create() {
         val s = _state.value
-        val amt = s.amount.toDoubleOrNull() ?: 0.0
+        val fromUserId = currentUserProvider.userIdOrNull()
+        if (fromUserId == null) {
+            _state.value = s.copy(error = "User not authenticated")
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _state.value = s.copy(loading = true, error = null, successTransferId = null)
+
+                // Perform comprehensive transfer eligibility validation
+                if (s.selectedProduct != null) {
+                    val eligibility = transferWorkflowRepository.validateTransferEligibility(s.productId, fromUserId, s.toUserId)
+                    if (eligibility is Resource.Error) {
+                        _state.value = _state.value.copy(loading = false, error = eligibility.message)
+                        return@launch
+                    }
+                }
+
+                val amt = s.amount.toDoubleOrNull() ?: 0.0
                 val id = UUID.randomUUID().toString()
                 val now = System.currentTimeMillis()
                 val entity = TransferEntity(
                     transferId = id,
                     productId = s.productId.ifBlank { null },
-                    fromUserId = currentUserProvider.userIdOrNull(),
+                    fromUserId = fromUserId,
                     toUserId = s.toUserId.ifBlank { null },
                     orderId = null,
                     amount = amt,

@@ -19,22 +19,27 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun TransferCreateScreen(
     viewModel: TransferCreateViewModel = hiltViewModel(),
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToQuarantine: () -> Unit = {}, // New: For actionable button navigation
+    onNavigateToFarmData: () -> Unit = {} // New: For actionable button navigation
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
+
     LaunchedEffect(state.successTransferId) {
         if (state.successTransferId != null) {
             onBack()
         }
     }
-    
+
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        // Error banner
+        // Enhanced error banner with icons
         state.error?.let { error ->
-            com.rio.rostry.ui.components.ErrorBanner(error, modifier = Modifier.padding(bottom = 16.dp))
+            EnhancedErrorBanner(
+                message = error,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
-        
+
         when {
             !state.confirmationStep -> TransferFormStep(
                 state = state,
@@ -44,7 +49,9 @@ fun TransferCreateScreen(
                 onAmountChange = { viewModel.update("amount", it) },
                 onNotesChange = { viewModel.update("notes", it) },
                 onProceed = viewModel::proceedToConfirmation,
-                onBack = onBack
+                onBack = onBack,
+                onNavigateToQuarantine = onNavigateToQuarantine,
+                onNavigateToFarmData = onNavigateToFarmData
             )
             else -> ConfirmationStep(
                 state = state,
@@ -52,7 +59,7 @@ fun TransferCreateScreen(
                 onBack = viewModel::exitConfirmation
             )
         }
-        
+
         // Product Picker Sheet
         if (state.showProductPicker) {
             ProductPickerSheet(
@@ -61,7 +68,7 @@ fun TransferCreateScreen(
                 onDismiss = viewModel::dismissProductPicker
             )
         }
-        
+
         // Recipient Picker Sheet
         if (state.showRecipientPicker) {
             RecipientPickerSheet(
@@ -70,6 +77,31 @@ fun TransferCreateScreen(
                 onSelect = viewModel::selectRecipient,
                 onDismiss = viewModel::dismissRecipientPicker
             )
+        }
+    }
+}
+
+// New: Enhanced error banner with icon support
+@Composable
+private fun EnhancedErrorBanner(message: String, modifier: Modifier = Modifier) {
+    val icon = when {
+        message.contains("quarantine", ignoreCase = true) || message.contains("farm data", ignoreCase = true) -> Icons.Filled.Warning
+        else -> Icons.Filled.Error
+    }
+    val containerColor = when {
+        message.contains("quarantine", ignoreCase = true) || message.contains("farm data", ignoreCase = true) -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.errorContainer
+    }
+    val contentColor = when {
+        message.contains("quarantine", ignoreCase = true) || message.contains("farm data", ignoreCase = true) -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onErrorContainer
+    }
+
+    Card(colors = CardDefaults.cardColors(containerColor = containerColor), modifier = modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = contentColor)
+            Spacer(Modifier.width(8.dp))
+            Text(text = message, color = contentColor, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -83,7 +115,9 @@ private fun TransferFormStep(
     onAmountChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
     onProceed: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToQuarantine: () -> Unit,
+    onNavigateToFarmData: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -92,7 +126,7 @@ private fun TransferFormStep(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Create Transfer", style = MaterialTheme.typography.titleLarge)
-        
+
         // Transfer Type Selector
         Text("Transfer Type", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -104,8 +138,8 @@ private fun TransferFormStep(
                 )
             }
         }
-        
-        // Product Selection
+
+        // Product Selection with inline badge
         Card(
             onClick = onSelectProduct,
             modifier = Modifier.fillMaxWidth()
@@ -115,12 +149,26 @@ private fun TransferFormStep(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text("Product", style = MaterialTheme.typography.labelMedium)
-                    Text(
-                        state.selectedProduct?.name ?: "Select a product",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            state.selectedProduct?.name ?: "Select a product",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        state.selectedProduct?.let { product ->
+                            val (badgeColor, badgeText) = when (state.productStatus) { // Assumes new field in UiState
+                                "quarantine" -> MaterialTheme.colorScheme.tertiary to "Quarantine - Cannot Transfer"
+                                "deceased" -> MaterialTheme.colorScheme.error to "Deceased - Cannot Transfer"
+                                "transferred" -> MaterialTheme.colorScheme.outline to "Already Transferred"
+                                else -> MaterialTheme.colorScheme.primary to "Available for Transfer"
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Card(colors = CardDefaults.cardColors(containerColor = badgeColor), modifier = Modifier.height(20.dp)) {
+                                Text(badgeText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            }
+                        }
+                    }
                 }
                 Icon(Icons.Filled.ChevronRight, null)
             }
@@ -128,7 +176,56 @@ private fun TransferFormStep(
         state.validationErrors["product"]?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
-        
+
+        // Product Status Warning Card (conditional)
+        state.selectedProduct?.let {
+            when (state.productStatus) {
+                "quarantine" -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("⚠️ This product is in quarantine. Complete quarantine protocol before transfer.", style = MaterialTheme.typography.bodyMedium)
+                            OutlinedButton(onClick = onNavigateToQuarantine) { Text("View Quarantine Status") }
+                        }
+                    }
+                }
+                "deceased" -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("❌ This bird is marked as deceased. Cannot transfer.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                "transferred" -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("❌ This product has already been transferred.", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                "outdated_farm_data" -> {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("⚠️ Farm data is outdated. Update vaccination and health logs before transfer.", style = MaterialTheme.typography.bodyMedium)
+                            OutlinedButton(onClick = onNavigateToFarmData) { Text("Update Farm Data") }
+                        }
+                    }
+                }
+                else -> Unit
+            }
+        }
+
         // Recipient Selection
         Card(
             onClick = onSelectRecipient,
@@ -152,7 +249,7 @@ private fun TransferFormStep(
         state.validationErrors["recipient"]?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
-        
+
         // Amount (if applicable)
         if (state.transferType == TransferCreateViewModel.TransferType.SALE) {
             OutlinedTextField(
@@ -173,7 +270,7 @@ private fun TransferFormStep(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }
-        
+
         // Notes
         OutlinedTextField(
             value = state.notes,
@@ -183,7 +280,7 @@ private fun TransferFormStep(
             modifier = Modifier.fillMaxWidth()
         )
     }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -191,8 +288,18 @@ private fun TransferFormStep(
         OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) {
             Text("Cancel")
         }
-        Button(onClick = onProceed, modifier = Modifier.weight(1f)) {
-            Text("Review")
+        Button(
+            onClick = onProceed,
+            enabled = !state.validating, // Assumes new field in UiState
+            modifier = Modifier.weight(1f)
+        ) {
+            if (state.validating) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Validating transfer eligibility...")
+            } else {
+                Text("Review")
+            }
         }
     }
 }
@@ -203,6 +310,14 @@ private fun ConfirmationStep(
     onConfirm: () -> Unit,
     onBack: () -> Unit
 ) {
+    val checklistItems = listOf(
+        "Product ownership verified" to (state.ownershipVerified ?: true), // Assumes new field in UiState
+        "Product not in quarantine" to (state.productStatus != "quarantine"),
+        "Product not deceased or transferred" to (state.productStatus !in listOf("deceased", "transferred")),
+        "Farm data up-to-date (for traceable products)" to (state.productStatus != "outdated_farm_data" || state.selectedProduct?.familyTreeId == null)
+    )
+    val allValid = checklistItems.all { it.second }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -210,22 +325,40 @@ private fun ConfirmationStep(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Confirm Transfer", style = MaterialTheme.typography.titleLarge)
-        
+
+        // Validation Checklist Card
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Validation Checklist", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                checklistItems.forEach { (label, passed) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (passed) Icons.Filled.Check else Icons.Filled.Close,
+                            contentDescription = null,
+                            tint = if (passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Transfer Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                
+
                 DetailRow("Type", state.transferType.name.replace('_', ' '))
                 Divider()
                 DetailRow("Product", state.selectedProduct?.name ?: "-")
                 Divider()
                 DetailRow("Recipient", state.selectedRecipient?.fullName ?: "-")
-                
+
                 if (state.transferType == TransferCreateViewModel.TransferType.SALE) {
                     Divider()
                     DetailRow("Amount", "₹${state.amount}")
                 }
-                
+
                 if (state.notes.isNotBlank()) {
                     Divider()
                     Column {
@@ -235,7 +368,7 @@ private fun ConfirmationStep(
                 }
             }
         }
-        
+
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
             Column(Modifier.padding(16.dp)) {
                 Text("⚠️ Important", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -243,7 +376,7 @@ private fun ConfirmationStep(
             }
         }
     }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -253,7 +386,7 @@ private fun ConfirmationStep(
         }
         Button(
             onClick = onConfirm,
-            enabled = !state.loading,
+            enabled = !state.loading && allValid,
             modifier = Modifier.weight(1f)
         ) {
             if (state.loading) {

@@ -2,7 +2,10 @@ package com.rio.rostry.utils.notif
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -12,7 +15,7 @@ import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 interface AnalyticsNotifier {
-    fun showInsight(title: String, message: String)
+    fun showInsight(title: String, message: String, deepLink: String? = null)
 }
 
 @Singleton
@@ -34,14 +37,22 @@ class AnalyticsNotifierImpl @Inject constructor(
         }
     }
 
-    override fun showInsight(title: String, message: String) {
+    override fun showInsight(title: String, message: String, deepLink: String?) {
         ensureChannel()
-        val notif = NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(message)
             .setAutoCancel(true)
-            .build()
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setGroup("ANALYTICS_INSIGHTS")
+        if (deepLink != null) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(deepLink))
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            builder.setContentIntent(pendingIntent)
+        }
+        val notif = builder.build()
         NotificationManagerCompat.from(context).notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notif)
     }
 }

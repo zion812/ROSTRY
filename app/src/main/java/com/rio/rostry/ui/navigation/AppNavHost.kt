@@ -543,18 +543,9 @@ private fun RoleNavGraph(
             val viewModel: com.rio.rostry.ui.farmer.FarmerHomeViewModel = hiltViewModel()
             FarmerHomeScreen(
                 viewModel = viewModel,
-                onOpenDailyLog = { navController.navigate(Routes.MONITORING_DAILY_LOG) },
-                onOpenTasks = { navController.navigate(Routes.MONITORING_TASKS) },
-                onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
-                onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
-                onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
-                onOpenHatching = { navController.navigate(Routes.MONITORING_HATCHING) },
-                onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
-                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
-                onOpenListing = { navController.navigate(Routes.FarmerNav.CREATE) },
                 onOpenAlerts = { navController.navigate(Routes.NOTIFICATIONS) },
-                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
-                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) },
+                onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird("farmer")) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("farmer")) },
                 onNavigateRoute = { route -> navController.navigate(route) }
             )
         }
@@ -810,7 +801,8 @@ private fun RoleNavGraph(
         }
         composable(
             route = Routes.USER_PROFILE,
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            arguments = listOf(navArgument("userId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://user/{userId}" })
         ) { backStackEntry ->
             val uid = backStackEntry.arguments?.getString("userId") ?: ""
             if (uid.isBlank()) {
@@ -837,9 +829,9 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val role = backStackEntry.arguments?.getString("role")
             com.rio.rostry.ui.onboarding.OnboardFarmBirdScreen(
-                onDone = { _ ->
+                onNavigateRoute = { route ->
                     val popTarget = if (role == "enthusiast") Routes.HOME_ENTHUSIAST else Routes.HOME_FARMER
-                    navController.navigate(Routes.MONITORING_DAILY_LOG) { popUpTo(popTarget) }
+                    navController.navigate(route) { popUpTo(popTarget) }
                 },
                 onBack = { navController.popBackStack() },
                 role = role
@@ -851,9 +843,9 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val role = backStackEntry.arguments?.getString("role")
             com.rio.rostry.ui.onboarding.OnboardFarmBatchScreen(
-                onDone = { _ ->
+                onNavigateRoute = { route ->
                     val popTarget = if (role == "enthusiast") Routes.HOME_ENTHUSIAST else Routes.HOME_FARMER
-                    navController.navigate(Routes.MONITORING_DAILY_LOG) { popUpTo(popTarget) }
+                    navController.navigate(route) { popUpTo(popTarget) }
                 },
                 onBack = { navController.popBackStack() },
                 role = role
@@ -885,7 +877,9 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("productId") { type = NavType.StringType }),
             deepLinks = listOf(
                 navDeepLink { uriPattern = "rostry://traceability/{productId}" },
-                navDeepLink { uriPattern = "https://rostry.app/traceability/{productId}" }
+                navDeepLink { uriPattern = "https://rostry.app/traceability/{productId}" },
+                navDeepLink { uriPattern = "rostry://product/{productId}/lineage" },
+                navDeepLink { uriPattern = "https://rostry.app/product/{productId}/lineage" }
             )
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
@@ -955,8 +949,7 @@ private fun RoleNavGraph(
                     onResult = { productId ->
                         when (ctx) {
                             "family_tree" -> {
-                                navController.previousBackStackEntry?.savedStateHandle?.set("scannedProductId", productId)
-                                navController.popBackStack()
+                                navController.navigate(Routes.Builders.traceability(productId))
                             }
                             "transfer_verify" -> {
                                 if (!tid.isNullOrBlank()) {
@@ -988,7 +981,8 @@ private fun RoleNavGraph(
 
         composable(
             route = Routes.TRANSFER_DETAILS,
-            arguments = listOf(navArgument("transferId") { type = NavType.StringType })
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/{transferId}" })
         ) { backStackEntry ->
             val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
             if (transferId.isBlank()) {
@@ -1026,6 +1020,21 @@ private fun RoleNavGraph(
             )
         }
 
+        composable(
+            route = Routes.ORDER_DETAILS,
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://order/{orderId}" })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            if (orderId.isBlank()) {
+                android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.ORDER_DETAILS}")
+                ErrorScreen(message = "Invalid order ID", onBack = { navController.popBackStack() })
+            } else {
+                // Placeholder for order details screen - navigate to order tracking/status view
+                PlaceholderScreen(title = "Order Details: $orderId")
+            }
+        }
+
         // Create transfer route
         composable(Routes.TRANSFER_CREATE) {
             val vm: TransferCreateViewModel = hiltViewModel()
@@ -1043,7 +1052,15 @@ private fun RoleNavGraph(
             )
         }
 
-        composable(Routes.SOCIAL_FEED) {
+        composable(
+            route = Routes.SOCIAL_FEED + "?postId={postId}",
+            arguments = listOf(navArgument("postId") { type = NavType.StringType; nullable = true; defaultValue = null }),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "rostry://social/feed" },
+                navDeepLink { uriPattern = "rostry://social/feed?postId={postId}" }
+            )
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId")
             com.rio.rostry.ui.social.SocialFeedScreen(
                 onOpenThread = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
                 onOpenGroups = {
@@ -1065,7 +1082,8 @@ private fun RoleNavGraph(
 
         composable(
             route = Routes.MESSAGES_THREAD,
-            arguments = listOf(navArgument("threadId") { type = NavType.StringType })
+            arguments = listOf(navArgument("threadId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://messages/{threadId}" })
         ) { backStackEntry ->
             val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
             if (threadId.isBlank()) {
@@ -1479,60 +1497,104 @@ private fun TraceabilityScreen(
     }
     val state by vm.state.collectAsState()
     val context = LocalContext.current
-    Column(Modifier.padding(16.dp)) {
-        TopAppBar(
-            title = { Text(text = "Traceability") },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
+    var showEventSheet by remember { mutableStateOf(false) }
+    val selectedNode = state.selectedNodeId
+    LaunchedEffect(selectedNode, state.selectedNodeEvents) {
+        showEventSheet = selectedNode != null && state.selectedNodeEvents != null
+    }
+    // If needed, handle scannedProductId at the caller level and pass via productId
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(Modifier.padding(16.dp)) {
+            TopAppBar(
+                title = { Text(text = "Traceability") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
                 }
-            }
-        )
-        Text(text = "For: ${state.rootId}", modifier = Modifier.padding(top = 8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onScanQr, modifier = Modifier.padding(top = 8.dp)) {
-                Text("Scan QR")
-            }
-            OutlinedButton(onClick = {
-                // Generate via ViewModel method
-                val uri = kotlinx.coroutines.runBlocking { vm.generateLineageProof(state.rootId) }
-                val share = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/pdf"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            )
+            Text(text = "For: ${state.rootId}", modifier = Modifier.padding(top = 8.dp))
+            val scope = rememberCoroutineScope()
+            var exporting by remember { mutableStateOf(false) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onScanQr, modifier = Modifier.padding(top = 8.dp)) {
+                    Text("Scan QR")
                 }
-                context.startActivity(Intent.createChooser(share, "Share Lineage Proof"))
-            }, modifier = Modifier.padding(top = 8.dp)) {
-                Text("Export Proof")
-            }
-        }
-        var resetKey by remember { mutableIntStateOf(0) }
-        OutlinedButton(onClick = { resetKey++ }, modifier = Modifier.padding(top = 8.dp)) {
-            Text("Reset Zoom & Center")
-        }
-        FamilyTreeView(
-            rootId = state.rootId,
-            layersUp = state.layersUp,
-            layersDown = state.layersDown,
-            edges = state.edges,
-            resetKey = resetKey,
-            modifier = Modifier.padding(top = 12.dp)
-        )
-        if (state.transferChain.isNotEmpty()) {
-            Text(text = "Transfer Chain", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
-            LazyColumn {
-                items(state.transferChain) { item ->
-                    when (item) {
-                        is com.rio.rostry.data.database.entity.TransferEntity -> {
-                            Text("Transfer • ${item.type} • ${item.status} • ${item.initiatedAt}")
+                OutlinedButton(
+                    onClick = {
+                        if (!exporting) {
+                            exporting = true
+                            scope.launch {
+                                val uri = vm.generateLineageProof(state.rootId)
+                                exporting = false
+                                val share = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(share, "Share Lineage Proof"))
+                            }
                         }
-                        is com.rio.rostry.data.database.entity.ProductTrackingEntity -> {
-                            Text("Tracking • ${item.status} • ${item.timestamp}")
+                    },
+                    modifier = Modifier.padding(top = 8.dp),
+                    enabled = !exporting
+                ) {
+                    if (exporting) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.height(18.dp))
+                            Text("Exporting…")
                         }
-                        else -> Text(item.toString())
+                    } else {
+                        Text("Export Proof")
                     }
                 }
             }
+            var resetKey by remember { mutableIntStateOf(0) }
+            OutlinedButton(onClick = { resetKey++ }, modifier = Modifier.padding(top = 8.dp)) {
+                Text("Reset Zoom & Center")
+            }
+            FamilyTreeView(
+                rootId = state.rootId,
+                layersUp = state.layersUp,
+                layersDown = state.layersDown,
+                edges = state.edges,
+                resetKey = resetKey,
+                modifier = Modifier.padding(top = 12.dp),
+                onNodeClick = { nodeId -> vm.selectNode(nodeId) },
+                onLoadMoreUp = { vm.loadMoreAncestors() },
+                onLoadMoreDown = { vm.loadMoreDescendants() },
+                nodeMetadata = state.nodeMetadata
+            )
+            if (state.transferChain.isNotEmpty()) {
+                Text(text = "Transfer Chain", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+                LazyColumn {
+                    items(state.transferChain) { item ->
+                        when (item) {
+                            is com.rio.rostry.data.database.entity.TransferEntity -> {
+                                Text("Transfer • ${item.type} • ${item.status} • ${item.initiatedAt}")
+                            }
+                            is com.rio.rostry.data.database.entity.ProductTrackingEntity -> {
+                                Text("Tracking • ${item.status} • ${item.timestamp}")
+                            }
+                            else -> Text(item.toString())
+                        }
+                    }
+                }
+            }
+        }
+        if (showEventSheet && state.selectedNodeEvents != null) {
+            val selectedId = state.selectedNodeId
+            val md = if (selectedId != null) state.nodeMetadata[selectedId] else null
+            if (md != null) {
+                com.rio.rostry.ui.traceability.NodeEventTimelineSheet(
+                    nodeMetadata = md,
+                    events = state.selectedNodeEvents!!,
+                    onDismiss = { vm.clearSelection(); showEventSheet = false }
+                )
+            }
+        }
+        if (state.loadingMore) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp))
         }
     }
 }

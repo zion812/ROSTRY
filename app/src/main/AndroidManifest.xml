@@ -66,6 +66,14 @@
                 <data android:scheme="rostry" android:host="family-tree" android:pathPattern=".*" />
             </intent-filter>
 
+            <!-- Deep link support for product lineage: rostry://product/{id}/lineage -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rostry" android:host="product" android:pathPattern=".*/lineage" />
+            </intent-filter>
+
             <!-- Deep link support for transfer verification: rostry://transfer/{transferId}/verify -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -93,7 +101,7 @@
             <!-- Deep link for verification resubmit: rostry://verification/resubmit -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.action.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="rostry" android:host="verification" android:pathPrefix="/resubmit" />
             </intent-filter>
@@ -104,6 +112,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="rostry.app" android:pathPrefix="/lineage" />
+                <data android:scheme="https" android:host="rostry.app" android:pathPattern="/product/.*/lineage" />
             </intent-filter>
         </activity>
 

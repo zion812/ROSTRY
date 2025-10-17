@@ -34,7 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardFarmBirdScreen(
-    onDone: (String) -> Unit,
+    onNavigateRoute: (String) -> Unit,
     onBack: () -> Unit,
     role: String? = null,
     vm: OnboardFarmBirdViewModel = hiltViewModel()
@@ -42,17 +42,15 @@ fun OnboardFarmBirdScreen(
     val state by vm.state.collectAsState()
     val ctx = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(state.savedId) {
-        state.savedId?.let { id ->
-            // Optional success notification with deep link to daily log
-            com.rio.rostry.utils.notif.FarmNotifier.ensureChannel(ctx)
-            com.rio.rostry.utils.notif.FarmNotifier.notifyBirdOnboarded(ctx, state.coreDetails.name.ifBlank { id }, id)
-            onDone(id)
-        }
-    }
-
     LaunchedEffect(role) {
         role?.let { vm.setRole(it) }
+    }
+
+    // Observe navigation events and route out
+    LaunchedEffect(Unit) {
+        vm.navigationEvent.collect { route ->
+            onNavigateRoute(route)
+        }
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Add Bird") }) }) { padding ->

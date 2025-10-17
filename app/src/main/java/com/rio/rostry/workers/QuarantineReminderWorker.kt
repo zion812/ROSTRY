@@ -9,7 +9,9 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.rio.rostry.data.database.dao.QuarantineRecordDao
-import com.rio.rostry.utils.notif.FarmNotifier
+import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.notifications.FarmEventType
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +25,8 @@ class QuarantineReminderWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val quarantineRecordDao: QuarantineRecordDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val intelligentNotificationService: IntelligentNotificationService,
+    private val taskRepository: TaskRepository,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -33,7 +37,23 @@ class QuarantineReminderWorker @AssistedInject constructor(
             val twelveHours = TimeUnit.HOURS.toMillis(12)
             active.filter { it.lastUpdatedAt + twelveHours < now }
                 .forEach {
-                    FarmNotifier.notifyQuarantineOverdue(applicationContext, it.productId)
+                    val overdueHours = (now - it.lastUpdatedAt) / (1000 * 60 * 60)
+                    val metadata = mapOf(
+                        "quarantineId" to it.quarantineId,
+                        "lastUpdatedAt" to it.lastUpdatedAt,
+                        "overdueHours" to overdueHours
+                    )
+                    intelligentNotificationService.notifyFarmEvent(
+                        FarmEventType.QUARANTINE_OVERDUE,
+                        it.productId,
+                        "Quarantine Update Required",
+                        "Update overdue by $overdueHours hours for ${it.productId}",
+                        metadata
+                    )
+                    val existingTasks = taskRepository.findPendingByTypeProduct(farmerId, it.productId, "QUARANTINE_CHECK")
+                    if (existingTasks.isEmpty()) {
+                        taskRepository.generateQuarantineCheckTask(it.productId, farmerId, now)
+                    }
                 }
             Result.success()
         } catch (e: Exception) {
