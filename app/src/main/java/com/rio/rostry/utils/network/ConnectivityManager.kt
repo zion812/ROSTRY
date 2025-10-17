@@ -5,6 +5,8 @@ import android.net.ConnectivityManager as AndroidConnectivityManager
 import android.net.NetworkCapabilities
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,6 +40,25 @@ class ConnectivityManager @Inject constructor(
         while (System.currentTimeMillis() - start < timeoutMs) {
             if (isUnmetered()) return
             delay(500)
+        }
+    }
+
+    data class ConnectivityState(
+        val isOnline: Boolean,
+        val isUnmetered: Boolean,
+        val isWifi: Boolean
+    )
+
+    fun observe(pollMs: Long = 2000L): Flow<ConnectivityState> = flow {
+        while (true) {
+            emit(
+                ConnectivityState(
+                    isOnline = isOnline(),
+                    isUnmetered = isUnmetered(),
+                    isWifi = isOnWifi()
+                )
+            )
+            delay(pollMs)
         }
     }
 }

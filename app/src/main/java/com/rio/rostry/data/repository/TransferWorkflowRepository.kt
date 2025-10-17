@@ -3,12 +3,14 @@ package com.rio.rostry.data.repository
 import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.DisputeDao
+import com.rio.rostry.data.database.dao.OutboxDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.dao.TransferVerificationDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.DisputeEntity
+import com.rio.rostry.data.database.entity.OutboxEntity
 import com.rio.rostry.data.database.entity.TransferEntity
 import com.rio.rostry.data.database.entity.TransferVerificationEntity
 import com.rio.rostry.marketplace.validation.ProductValidator
@@ -83,6 +85,8 @@ interface TransferWorkflowRepository {
         toUserId: String?,
         logOnFailure: Boolean = true
     ): Resource<Unit>
+
+    suspend fun retryFailedTransfer(transferId: String): Resource<Unit>
 }
 
 @Singleton
@@ -96,6 +100,8 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     private val productValidator: ProductValidator,
     private val productDao: ProductDao,
     private val quarantineDao: QuarantineRecordDao,
+    private val outboxDao: OutboxDao? = null,
+    private val gson: Gson = Gson(),
 ) : TransferWorkflowRepository {
 
     private fun now() = System.currentTimeMillis()
@@ -225,6 +231,19 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             )
             // Persist transfer
             transferDao.upsert(entity)
+
+            // Queue to outbox for sync
+            val outboxEntry = OutboxEntity(
+                outboxId = UUID.randomUUID().toString(),
+                userId = fromUserId,
+                entityType = OutboxEntity.TYPE_TRANSFER,
+                entityId = transferId,
+                operation = "CREATE",
+                payloadJson = gson.toJson(entity),
+                createdAt = now(),
+                priority = "CRITICAL"
+            )
+            outboxDao?.insert(outboxEntry)
 
             // Log initiation
             auditLogDao.insert(
@@ -402,6 +421,20 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             verificationDao.upsert(ver)
             // persist buyer photo url onto transfer for quick access
             transferDao.upsert(transfer.copy(buyerPhotoUrl = buyerPhotoUrl, updatedAt = now(), lastModifiedAt = now()))
+
+            // Queue update to outbox for sync
+            val outboxEntry = OutboxEntity(
+                outboxId = UUID.randomUUID().toString(),
+                userId = transfer.fromUserId ?: transfer.toUserId ?: "",
+                entityType = OutboxEntity.TYPE_TRANSFER,
+                entityId = transferId,
+                operation = "UPDATE",
+                payloadJson = gson.toJson(transfer.copy(buyerPhotoUrl = buyerPhotoUrl, updatedAt = now(), lastModifiedAt = now())),
+                createdAt = now(),
+                priority = "HIGH"
+            )
+            outboxDao?.insert(outboxEntry)
+
             auditLogDao.insert(
                 AuditLogEntity(
                     logId = UUID.randomUUID().toString(),
@@ -449,6 +482,8 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         try {
             val transfer = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
 
+            // Remote conflict handling is managed by SyncManager during sync. Proceed to final validations.
+
             // Final validation: ensure product is still eligible
             val pid = transfer.productId ?: return@withContext Resource.Error("Transfer missing product reference")
             val from = transfer.fromUserId ?: return@withContext Resource.Error("Transfer missing seller reference")
@@ -464,6 +499,20 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             }
 
             transferDao.updateStatusAndTimestamps(transferId, "COMPLETED", now(), completedAt = now())
+
+            // Queue completion to outbox for sync
+            val outboxEntry = OutboxEntity(
+                outboxId = UUID.randomUUID().toString(),
+                userId = transfer.fromUserId ?: transfer.toUserId ?: "",
+                entityType = OutboxEntity.TYPE_TRANSFER,
+                entityId = transferId,
+                operation = "UPDATE",
+                payloadJson = gson.toJson(transfer.copy(status = "COMPLETED", updatedAt = now(), lastModifiedAt = now(), completedAt = now())),
+                createdAt = now(),
+                priority = "CRITICAL"
+            )
+            outboxDao?.insert(outboxEntry)
+
             auditLogDao.insert(
                 AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "COMPLETE", null, null, now())
             )
@@ -477,6 +526,23 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     override suspend fun cancel(transferId: String, reason: String?): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
             transferDao.updateStatusAndTimestamps(transferId, "CANCELLED", now(), completedAt = null)
+
+            // Queue cancellation to outbox for sync
+            val transfer = transferDao.getById(transferId)
+            if (transfer != null) {
+                val outboxEntry = OutboxEntity(
+                    outboxId = UUID.randomUUID().toString(),
+                    userId = transfer.fromUserId ?: transfer.toUserId ?: "",
+                    entityType = OutboxEntity.TYPE_TRANSFER,
+                    entityId = transferId,
+                    operation = "UPDATE",
+                    payloadJson = gson.toJson(transfer.copy(status = "CANCELLED", updatedAt = now(), lastModifiedAt = now())),
+                    createdAt = now(),
+                    priority = "HIGH"
+                )
+                outboxDao?.insert(outboxEntry)
+            }
+
             auditLogDao.insert(
                 AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "CANCEL", null, reason, now())
             )
@@ -559,6 +625,30 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             Resource.Success(Gson().toJson(payload))
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to generate documentation")
+        }
+    }
+
+    override suspend fun retryFailedTransfer(transferId: String): Resource<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val transfer = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
+            if (transfer.status != "FAILED") return@withContext Resource.Error("Transfer is not in FAILED state")
+
+            // Re-queue to outbox with reset retry count
+            val outboxEntry = OutboxEntity(
+                outboxId = UUID.randomUUID().toString(),
+                userId = transfer.fromUserId ?: transfer.toUserId ?: "",
+                entityType = OutboxEntity.TYPE_TRANSFER,
+                entityId = transferId,
+                operation = "UPDATE",
+                payloadJson = gson.toJson(transfer),
+                createdAt = now(),
+                retryCount = 0, // Reset retry count
+                priority = "CRITICAL"
+            )
+            outboxDao?.insert(outboxEntry)
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to retry transfer")
         }
     }
 }

@@ -8,6 +8,8 @@ import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.monitoring.DailyLogRepository
 import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.ui.components.getSyncState
+import com.rio.rostry.ui.components.ConflictDetails
+import com.rio.rostry.data.repository.monitoring.ConflictEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,6 +36,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
 import kotlinx.coroutines.flow.collect
 import java.io.File
+import com.rio.rostry.utils.network.ConnectivityManager
 
 @HiltViewModel
 class DailyLogViewModel @Inject constructor(
@@ -41,7 +44,8 @@ class DailyLogViewModel @Inject constructor(
     private val dailyLogRepository: DailyLogRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val mediaUploadManager: MediaUploadManager,
-    @ApplicationContext private val appContext: Context
+    @ApplicationContext private val appContext: Context,
+    private val connectivityManager: ConnectivityManager
 ) : ViewModel() {
 
     data class DailyLogUiState(
@@ -51,7 +55,12 @@ class DailyLogViewModel @Inject constructor(
         val hasToday: Boolean = false,
         val isLoading: Boolean = true,
         val error: String? = null,
-        val currentLogSyncState: SyncState? = null
+        val currentLogSyncState: SyncState? = null,
+        val conflictDetails: ConflictDetails? = null,
+        val showConflictDialog: Boolean = false,
+        val pendingSyncCount: Int = 0,
+        val lastSyncedAt: Long? = null,
+        val isOnline: Boolean = true
     )
 
     private val selectedProductId = MutableStateFlow<String?>(null)
@@ -60,6 +69,8 @@ class DailyLogViewModel @Inject constructor(
     val isSynced: StateFlow<Boolean> = _synced.asStateFlow()
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving.asStateFlow()
+    private val _conflictDetails = MutableStateFlow<ConflictDetails?>(null)
+    private val _showConflictDialog = MutableStateFlow(false)
 
     // Chart data: last 30 days logs for selected product
     val chartData: StateFlow<List<DailyLogEntity>> = selectedProductId.flatMapLatest { pid ->
@@ -70,7 +81,7 @@ class DailyLogViewModel @Inject constructor(
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val uiState: StateFlow<DailyLogUiState> = selectedProductId.flatMapLatest { pid ->
+    val baseUiStateFlow: Flow<DailyLogUiState> = selectedProductId.flatMapLatest { pid ->
         val farmerId = firebaseAuth.currentUser?.uid
         if (farmerId == null) {
             MutableStateFlow(DailyLogUiState(isLoading = false))
@@ -93,10 +104,21 @@ class DailyLogViewModel @Inject constructor(
                     recentLogs = logs,
                     hasToday = logs.any { it.logDate == todayMidnight() },
                     isLoading = false,
-                    currentLogSyncState = syncState
+                    currentLogSyncState = syncState,
+                    pendingSyncCount = logs.count { it.dirty },
+                    lastSyncedAt = logs.maxOfOrNull { it.syncedAt ?: 0L }
                 )
             }
         }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyLogUiState())
+
+    private val onlineFlow: StateFlow<Boolean> = connectivityManager
+        .observe()
+        .map { it.isOnline }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val uiState: StateFlow<DailyLogUiState> = combine(baseUiStateFlow, _conflictDetails, _showConflictDialog, onlineFlow) { base, conflict, show, online ->
+        base.copy(conflictDetails = conflict, showConflictDialog = show, isOnline = online)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DailyLogUiState())
 
     init {
@@ -132,6 +154,31 @@ class DailyLogViewModel @Inject constructor(
                 }
             }
         }
+        // Observe conflict events
+        viewModelScope.launch {
+            dailyLogRepository.conflictEvents.collect { event ->
+                _conflictDetails.value = ConflictDetails(
+                    entityType = "DAILY_LOG",
+                    entityId = event.logId,
+                    conflictFields = event.conflictFields,
+                    mergedAt = event.mergedAt,
+                    message = "Daily log for product ${event.productId} was merged due to conflicts."
+                )
+            }
+        }
+    }
+
+    fun dismissConflict() {
+        _conflictDetails.value = null
+        _showConflictDialog.value = false
+    }
+
+    fun viewConflictDetails(logId: String) {
+        _showConflictDialog.value = true
+    }
+
+    fun acceptMerge(logId: String) {
+        dismissConflict()
     }
 
     fun loadForProduct(productId: String) {

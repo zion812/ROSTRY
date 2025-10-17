@@ -5,6 +5,12 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * ChatMessageEntity represents a chat message between users.
+ *
+ * Sync state fields: Messages are queued locally first (dirty = true), then synced when online.
+ * syncedAt tracks the last successful sync timestamp. deviceTimestamp provides offline audit trail.
+ */
 @Entity(
     tableName = "chat_messages",
     foreignKeys = [
@@ -21,7 +27,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("senderId"), Index("receiverId"), Index(value = ["senderId", "receiverId"])]
+    indices = [Index("senderId"), Index("receiverId"), Index(value = ["senderId", "receiverId"]), Index("syncedAt")]
 )
 data class ChatMessageEntity(
     @PrimaryKey val messageId: String,
@@ -37,5 +43,7 @@ data class ChatMessageEntity(
     val lastModifiedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
-    val dirty: Boolean = false
+    val dirty: Boolean = false,
+    val syncedAt: Long? = null,
+    val deviceTimestamp: Long = System.currentTimeMillis()
 )

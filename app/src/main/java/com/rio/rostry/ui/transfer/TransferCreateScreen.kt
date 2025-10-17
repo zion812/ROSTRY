@@ -15,6 +15,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rio.rostry.ui.components.SyncStatusBadge
+import com.rio.rostry.ui.components.ConflictNotification
 
 @Composable
 fun TransferCreateScreen(
@@ -38,6 +40,30 @@ fun TransferCreateScreen(
                 message = error,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
+        }
+
+        // Offline banner
+        if (!state.isOnline) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer), modifier = Modifier.fillMaxWidth()) {
+                Text("Offline - Transfer will sync when online")
+            }
+        }
+
+        // Conflict notification for transfers
+        state.conflictDetails?.let { c ->
+            ConflictNotification(
+                conflict = c,
+                onDismiss = { viewModel.dismissConflict() },
+                onViewDetails = { viewModel.viewConflictDetails(c.entityId) }
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // Retry button only when we have a concrete failed transfer id
+        state.failedTransferId?.let { failedId ->
+            Button(onClick = { viewModel.retryFailedTransfer(failedId) }) {
+                Text("Retry")
+            }
         }
 
         when {
@@ -126,6 +152,11 @@ private fun TransferFormStep(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Create Transfer", style = MaterialTheme.typography.titleLarge)
+
+        // Pending sync summary
+        if (state.pendingSyncCount > 0) {
+            Text("${state.pendingSyncCount} transfers pending sync", style = MaterialTheme.typography.bodySmall)
+        }
 
         // Transfer Type Selector
         Text("Transfer Type", style = MaterialTheme.typography.titleMedium)
@@ -366,6 +397,15 @@ private fun ConfirmationStep(
                         Text(state.notes, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
+            }
+        }
+
+        // Sync status badge
+        state.transferSyncState?.let { syncState ->
+            Row {
+                Text("Sync Status:")
+                Spacer(Modifier.width(8.dp))
+                SyncStatusBadge(syncState = syncState)
             }
         }
 

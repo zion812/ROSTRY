@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,7 +28,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.rio.rostry.data.database.entity.ChatMessageEntity
 import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.data.database.entity.TransferEntity
 
 enum class SyncState {
     PENDING,
@@ -35,12 +38,32 @@ enum class SyncState {
     CONFLICT
 }
 
+data class ConflictDetails(val entityType: String, val entityId: String, val conflictFields: List<String>, val mergedAt: Long, val message: String)
+
 // Shared sync state helper used by UI and ViewModels
 fun getSyncState(log: DailyLogEntity): SyncState {
     return when {
         log.dirty && log.syncedAt == null -> SyncState.PENDING
         !log.dirty && log.syncedAt != null -> SyncState.SYNCED
         log.updatedAt > (log.syncedAt ?: 0) && log.dirty -> SyncState.CONFLICT
+        else -> SyncState.SYNCED
+    }
+}
+
+fun getSyncState(transfer: TransferEntity): SyncState {
+    return when {
+        transfer.dirty && transfer.syncedAt == null -> SyncState.PENDING
+        !transfer.dirty && transfer.syncedAt != null -> SyncState.SYNCED
+        transfer.updatedAt > (transfer.syncedAt ?: 0) && transfer.dirty -> SyncState.CONFLICT
+        else -> SyncState.SYNCED
+    }
+}
+
+fun getSyncState(message: ChatMessageEntity): SyncState {
+    return when {
+        message.dirty && message.syncedAt == null -> SyncState.PENDING
+        !message.dirty && message.syncedAt != null -> SyncState.SYNCED
+        message.updatedAt > (message.syncedAt ?: 0) && message.dirty -> SyncState.CONFLICT
         else -> SyncState.SYNCED
     }
 }
@@ -127,6 +150,43 @@ fun SyncStatusBadge(syncState: SyncState, modifier: Modifier = Modifier) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
             Text(text, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+fun ConflictNotification(conflict: ConflictDetails, onDismiss: () -> Unit, onViewDetails: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = conflict.message,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (conflict.conflictFields.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Affected fields: ${conflict.conflictFields.joinToString(", ")}",
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Button(onClick = onDismiss) {
+                    Text("Dismiss")
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = onViewDetails) {
+                    Text("View Details")
+                }
+            }
         }
     }
 }

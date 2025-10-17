@@ -3,24 +3,45 @@ package com.rio.rostry.data.repository.monitoring
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.OutboxDao
 import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.data.database.entity.OutboxEntity
+import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.ui.components.SyncState
+import com.rio.rostry.ui.components.getSyncState
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 import timber.log.Timber
 
+data class ConflictEvent(
+    val logId: String,
+    val productId: String,
+    val conflictFields: List<String>,
+    val mergedAt: Long
+)
+
 interface DailyLogRepository {
+    val conflictEvents: Flow<ConflictEvent>
     fun observe(productId: String): Flow<List<DailyLogEntity>>
     fun observeForFarmerBetween(farmerId: String, start: Long, end: Long): Flow<List<DailyLogEntity>>
     suspend fun upsert(log: DailyLogEntity)
     suspend fun delete(logId: String)
     suspend fun getTodayLog(farmerId: String, productId: String): DailyLogEntity?
+    suspend fun getSyncState(logId: String): SyncState
 }
 
 @Singleton
 class DailyLogRepositoryImpl @Inject constructor(
-    private val dao: DailyLogDao
+    private val dao: DailyLogDao,
+    private val outboxDao: OutboxDao,
+    private val gson: Gson,
+    private val currentUserProvider: CurrentUserProvider
 ) : DailyLogRepository {
+    private val _conflictEvents = MutableSharedFlow<ConflictEvent>()
+    override val conflictEvents = _conflictEvents.asSharedFlow()
     override fun observe(productId: String): Flow<List<DailyLogEntity>> = dao.observeForProduct(productId)
 
     override fun observeForFarmerBetween(
@@ -36,6 +57,8 @@ class DailyLogRepositoryImpl @Inject constructor(
         if (existing == null) {
             try {
                 dao.upsert(log.copy(dirty = true, updatedAt = now))
+                // Queue to outbox for sync after local upsert
+                queueToOutbox(log.copy(dirty = true, updatedAt = now))
                 return
             } catch (e: android.database.sqlite.SQLiteConstraintException) {
                 // Another writer inserted between our read and write; fetch and merge
@@ -43,16 +66,36 @@ class DailyLogRepositoryImpl @Inject constructor(
                 if (cur != null) {
                     val mergedOnConflict = mergeLogs(cur, log).copy(dirty = true, updatedAt = now)
                     dao.upsert(mergedOnConflict)
+                    // Queue to outbox for sync after local upsert
+                    queueToOutbox(mergedOnConflict)
                     return
                 } else {
                     // Fallback retry once
                     dao.upsert(log.copy(dirty = true, updatedAt = now))
+                    // Queue to outbox for sync after local upsert
+                    queueToOutbox(log.copy(dirty = true, updatedAt = now))
                     return
                 }
             }
         }
         val merged = mergeLogs(existing, log).copy(dirty = true, updatedAt = now)
         dao.upsert(merged)
+        // Queue to outbox for sync after local upsert
+        queueToOutbox(merged)
+    }
+
+    private suspend fun queueToOutbox(log: DailyLogEntity) {
+        val outboxEntry = OutboxEntity(
+            outboxId = log.logId, // Use logId as unique outboxId
+            userId = currentUserProvider.userIdOrNull() ?: log.farmerId,
+            entityType = OutboxEntity.TYPE_DAILY_LOG,
+            entityId = log.logId,
+            operation = "UPSERT",
+            payloadJson = gson.toJson(log),
+            createdAt = System.currentTimeMillis(),
+            priority = "HIGH"
+        )
+        outboxDao.insert(outboxEntry)
     }
 
     override suspend fun delete(logId: String) {
@@ -64,12 +107,14 @@ class DailyLogRepositoryImpl @Inject constructor(
         return dao.getByFarmerAndDate(farmerId, midnight).firstOrNull { it.productId == productId }
     }
 
-    private fun mergeLogs(base: DailyLogEntity, incoming: DailyLogEntity): DailyLogEntity {
+    private suspend fun mergeLogs(base: DailyLogEntity, incoming: DailyLogEntity): DailyLogEntity {
         var conflictCount = 0
+        val conflictFields = mutableListOf<String>()
 
         fun logConflict(field: String, baseVal: Any?, incomingVal: Any?) {
             Timber.w("Merge conflict in $field: base=$baseVal, incoming=$incomingVal")
             conflictCount++
+            conflictFields.add(field)
         }
 
         fun <T> pick(a: T?, b: T?): T? = b ?: a
@@ -111,7 +156,7 @@ class DailyLogRepositoryImpl @Inject constructor(
             else -> "${base.notes}\n--- Merged at ${System.currentTimeMillis()} ---\n${incoming.notes}"
         }
         val now = System.currentTimeMillis()
-        return base.copy(
+        val merged = base.copy(
             weightGrams = pickCritical(base.weightGrams, incoming.weightGrams, base.deviceTimestamp, incoming.deviceTimestamp),
             feedKg = pickCritical(base.feedKg, incoming.feedKg, base.deviceTimestamp, incoming.deviceTimestamp),
             medicationJson = medication,
@@ -127,6 +172,23 @@ class DailyLogRepositoryImpl @Inject constructor(
             mergeCount = (base.mergeCount ?: 0) + 1,
             conflictResolved = conflictCount > 0
         )
+        // Emit conflict event if conflicts were detected
+        if (conflictCount > 0) {
+            _conflictEvents.emit(
+                ConflictEvent(
+                    logId = merged.logId,
+                    productId = merged.productId,
+                    conflictFields = conflictFields,
+                    mergedAt = now
+                )
+            )
+        }
+        return merged
+    }
+
+    override suspend fun getSyncState(logId: String): SyncState {
+        val log = dao.getById(logId) ?: return SyncState.SYNCED // Default if not found
+        return getSyncState(log)
     }
 
     private fun todayMidnight(): Long {

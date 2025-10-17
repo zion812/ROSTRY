@@ -4,9 +4,16 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.rio.rostry.data.database.dao.AuditLogDao
+import com.rio.rostry.data.database.dao.OutboxDao
+import com.rio.rostry.data.database.entity.OutboxEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductMarketplaceRepository
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.repository.monitoring.DailyLogRepository
+import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.utils.CompressionUtils
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.data.database.entity.UserEntity
@@ -16,10 +23,13 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import com.rio.rostry.data.database.dao.AuditLogDao
-import com.rio.rostry.data.repository.monitoring.DailyLogRepository
 import java.util.UUID
+import com.rio.rostry.data.sync.SyncManager
+import com.rio.rostry.ui.components.ConflictDetails
 
 @HiltViewModel
 class FarmerCreateViewModel @Inject constructor(
@@ -37,13 +47,26 @@ class FarmerCreateViewModel @Inject constructor(
     private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository,
     private val productValidator: com.rio.rostry.marketplace.validation.ProductValidator,
     private val dailyLogRepository: com.rio.rostry.data.repository.monitoring.DailyLogRepository,
-    private val auditLogDao: AuditLogDao
+    private val auditLogDao: AuditLogDao,
+    private val outboxDao: OutboxDao,
+    private val gson: Gson,
+    private val currentUserProvider: CurrentUserProvider,
+    private val connectivityManager: com.rio.rostry.utils.network.ConnectivityManager,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private var prefillProductId: String? = null
 
     init {
         loadDraft()
+        val userId = currentUserProvider.userIdOrNull()
+        if (userId != null) {
+            viewModelScope.launch {
+                outboxDao.observePendingCountByType(userId, OutboxEntity.TYPE_LISTING).collect { count ->
+                    _ui.value = _ui.value.copy(pendingListingsCount = count)
+                }
+            }
+        }
     }
 
     private fun loadDraft() {
@@ -132,11 +155,44 @@ class FarmerCreateViewModel @Inject constructor(
         val isSubmitting: Boolean = false,
         val successProductId: String? = null,
         val error: String? = null,
-        val validationStatus: Map<String, Boolean> = emptyMap()
+        val validationStatus: Map<String, Boolean> = emptyMap(),
+        val listingSyncState: SyncState? = null,
+        val pendingListingsCount: Int = 0,
+        val isOnline: Boolean = true,
+        val conflictDetails: ConflictDetails? = null
     )
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui
+
+    val onlineFlow: StateFlow<Boolean> = connectivityManager
+        .observe()
+        .map { it.isOnline }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    init {
+        viewModelScope.launch {
+            onlineFlow.collect { online ->
+                _ui.value = _ui.value.copy(isOnline = online)
+            }
+        }
+        viewModelScope.launch {
+            syncManager.conflictEvents.collect { ev ->
+                if (ev.entityType == com.rio.rostry.data.database.entity.OutboxEntity.TYPE_LISTING) {
+                    _ui.value = _ui.value.copy(
+                        conflictDetails = ConflictDetails(
+                            entityType = "listing",
+                            entityId = ev.entityId,
+                            conflictFields = ev.conflictFields,
+                            mergedAt = ev.mergedAt,
+                            message = "Listing was updated remotely. Your local changes were merged."
+                        )
+                    )
+                }
+            }
+        }
+    }
+
 
     private fun saveDraft() {
         viewModelScope.launch {
@@ -462,6 +518,14 @@ class FarmerCreateViewModel @Inject constructor(
         _ui.value = _ui.value.copy(error = null)
     }
 
+    fun dismissConflict() {
+        _ui.value = _ui.value.copy(conflictDetails = null)
+    }
+
+    fun viewConflictDetails(entityId: String) {
+        _ui.value = _ui.value.copy(conflictDetails = null)
+    }
+
     private var quarantineCheckPassed = true // Precomputed during loadPrefillData
     
     fun validateStep(step: WizardStep): Map<String, String> {
@@ -695,6 +759,17 @@ class FarmerCreateViewModel @Inject constructor(
             
             try {
                 val candidate = mapToEntity(currentUser, form)
+                val outboxEntry = OutboxEntity(
+                    outboxId = candidate.productId.ifBlank { UUID.randomUUID().toString() },
+                    userId = currentUser.userId,
+                    entityType = OutboxEntity.TYPE_LISTING,
+                    entityId = candidate.productId,
+                    operation = "CREATE",
+                    payloadJson = gson.toJson(candidate),
+                    createdAt = System.currentTimeMillis(),
+                    priority = "HIGH"
+                )
+                outboxDao.insert(outboxEntry)
                 // Validate with traceability before any heavy work
                 val validation = productValidator.validateWithTraceability(candidate, sourceProductId = prefillProductId)
                 if (!validation.valid) {
@@ -717,10 +792,10 @@ class FarmerCreateViewModel @Inject constructor(
                 val baseProduct = if (imageBytes.isNotEmpty()) candidate.copy(imageUrls = emptyList()) else candidate
                 when (val res = marketplace.createProduct(baseProduct, imageBytes)) {
                     is Resource.Success -> {
-                        _ui.value = UiState(isSubmitting = false, successProductId = res.data)
+                        _ui.value = _ui.value.copy(isSubmitting = false, successProductId = res.data, listingSyncState = if (connectivityManager.isOnline()) SyncState.SYNCED else SyncState.PENDING, error = if (connectivityManager.isOnline()) "Listing published successfully" else "Listing queued. Will publish when online.")
                         // Delete draft on successful publish
                         listingDraftRepository.deleteDraft("${currentUser.userId}_current")
-                        
+
                         // Track analytics: listing submitted
                         if (prefillProductId != null && res.data != null) {
                             analyticsRepository.trackFarmToMarketplaceListingSubmitted(

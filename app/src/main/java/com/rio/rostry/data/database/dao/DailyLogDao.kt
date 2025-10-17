@@ -39,4 +39,7 @@ interface DailyLogDao {
     // Cursor-based incremental sync
     @Query("SELECT * FROM daily_logs WHERE updatedAt > :since ORDER BY updatedAt ASC LIMIT :limit")
     suspend fun getUpdatedSince(since: Long, limit: Int): List<DailyLogEntity>
+
+    @Query("SELECT * FROM daily_logs WHERE logId = :logId LIMIT 1")
+    suspend fun getById(logId: String): DailyLogEntity?
 }

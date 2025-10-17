@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.monitoring
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +54,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import com.rio.rostry.ui.components.ConflictNotification
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,6 +101,18 @@ fun DailyLogScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (!state.isOnline) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                    Text("Offline - Changes will sync when online")
+                }
+            }
+            state.conflictDetails?.let { c ->
+                ConflictNotification(
+                    conflict = c,
+                    onDismiss = { vm.dismissConflict() },
+                    onViewDetails = { vm.viewConflictDetails(c.entityId) }
+                )
+            }
             if (productId == null) {
                 Text("Select a bird/batch to log")
                 if (state.products.isEmpty()) {
@@ -125,6 +143,9 @@ fun DailyLogScreen(
                 deviceTs?.let {
                     val formatted = remember(it) { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(java.util.Date(it)) }
                     Text("Device time: $formatted • Author: ${author ?: "unknown"}")
+                }
+                if (state.pendingSyncCount > 0) {
+                    Text("${state.pendingSyncCount} logs pending sync", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                 }
                 val weightInput = remember { mutableStateOf("") }
                 val feedInput = remember { mutableStateOf("") }
@@ -251,7 +272,12 @@ fun DailyLogScreen(
                         val formatted = ts?.let { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(java.util.Date(it)) } ?: "-"
                         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Logged Today • $formatted • by ${tLog?.author ?: "unknown"}")
-                            tLog?.let { SyncStatusBadge(syncState = getSyncState(it)) }
+                            Box(modifier = Modifier.clickable(onClick = { /* Show sync details */ })) {
+                                val t = tLog
+                                if (t != null) {
+                                    SyncStatusBadge(syncState = getSyncState(t))
+                                }
+                            }
                         }
                     } else {
                         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
@@ -271,7 +297,9 @@ fun DailyLogScreen(
                     items(state.recentLogs) { l ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("• ${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(l.logDate))}  W=${l.weightGrams ?: "-"}g  F=${l.feedKg ?: "-"}kg  ${l.activityLevel ?: ""}  by ${l.author ?: "unknown"}")
-                            SyncStatusBadge(syncState = getSyncState(l))
+                            Box(modifier = Modifier.clickable(onClick = { /* Show sync details */ })) {
+                                SyncStatusBadge(syncState = getSyncState(l))
+                            }
                         }
                     }
                 }

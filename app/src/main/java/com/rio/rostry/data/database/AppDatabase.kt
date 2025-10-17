@@ -94,7 +94,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyLogEntity::class,
         TaskEntity::class
     ],
-    version = 35, // 35 adds mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks with indices; 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
+    version = 37, // 37 adds outbox indexes; 36 adds syncedAt/mergedAt/mergeCount to transfers and syncedAt/deviceTimestamp to chat_messages with indices; 35 adds mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks with indices; 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -274,6 +274,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Add sync fields to transfers and chat_messages (35 -> 36)
+        val MIGRATION_35_36 = object : Migration(35, 36) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // transfers new columns and indices
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `mergedAt` INTEGER")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `mergeCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfers_syncedAt` ON `transfers` (`syncedAt`)")
+
+                // chat_messages new columns and indices
+                db.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `syncedAt` INTEGER")
+                db.execSQL("ALTER TABLE `chat_messages` ADD COLUMN `deviceTimestamp` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_chat_messages_syncedAt` ON `chat_messages` (`syncedAt`)")
+            }
+        }
+
+        // Create outbox indexes (36 -> 37)
+        val MIGRATION_36_37 = object : Migration(36, 37) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_priority` ON `outbox` (`priority`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outbox_status_priority_createdAt` ON `outbox` (`status`, `priority`, `createdAt`)")
+            }
+        }
+
         // ... existing migrations up to 23_24 defined below (omitted in this view) ...
 
         // Add enthusiast-specific sync windows to sync_state
@@ -331,6 +355,8 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_32_33: Migration = Converters.MIGRATION_32_33
         val MIGRATION_33_34: Migration = Converters.MIGRATION_33_34
         val MIGRATION_34_35: Migration = Converters.MIGRATION_34_35
+        val MIGRATION_35_36: Migration = Converters.MIGRATION_35_36
+        val MIGRATION_36_37: Migration = Converters.MIGRATION_36_37
 
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {

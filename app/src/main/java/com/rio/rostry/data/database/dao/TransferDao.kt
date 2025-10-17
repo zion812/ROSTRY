@@ -121,4 +121,13 @@ interface TransferDao {
         start: Long?,
         end: Long?
     ): androidx.paging.PagingSource<Int, TransferEntity>
+
+    @Query("SELECT * FROM transfers WHERE dirty = 1 ORDER BY updatedAt ASC LIMIT :limit")
+    suspend fun getDirty(limit: Int = 500): List<TransferEntity>
+
+    @Query("UPDATE transfers SET dirty = 0, syncedAt = :syncedAt WHERE transferId IN (:transferIds)")
+    suspend fun clearDirty(transferIds: List<String>, syncedAt: Long)
+
+    @Query("SELECT * FROM transfers WHERE (fromUserId = :userId OR toUserId = :userId) AND dirty = 1")
+    fun observeDirtyByUser(userId: String): Flow<List<TransferEntity>>
 }

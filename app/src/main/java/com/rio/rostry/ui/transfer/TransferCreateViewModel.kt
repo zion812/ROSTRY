@@ -12,14 +12,22 @@ import com.rio.rostry.data.repository.TransferWorkflowRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.marketplace.validation.ProductValidator
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.rio.rostry.utils.network.ConnectivityManager
+import com.rio.rostry.data.sync.SyncManager
+import com.rio.rostry.ui.components.ConflictDetails
+import com.rio.rostry.data.database.entity.OutboxEntity
 
 @HiltViewModel
 class TransferCreateViewModel @Inject constructor(
@@ -30,6 +38,8 @@ class TransferCreateViewModel @Inject constructor(
     private val transferWorkflowRepository: TransferWorkflowRepository,
     private val productValidator: ProductValidator,
     private val quarantineDao: QuarantineRecordDao,
+    private val connectivityManager: ConnectivityManager,
+    private val syncManager: SyncManager,
 ) : ViewModel() {
 
     enum class TransferType { SALE, GIFT, BREEDING_LOAN, OWNERSHIP_TRANSFER }
@@ -55,11 +65,21 @@ class TransferCreateViewModel @Inject constructor(
         val confirmationStep: Boolean = false,
         val productStatus: String? = null,
         val validating: Boolean = false,
-        val ownershipVerified: Boolean? = null
+        val ownershipVerified: Boolean? = null,
+        val transferSyncState: SyncState? = null,
+        val pendingSyncCount: Int = 0,
+        val isOnline: Boolean = true,
+        val failedTransferId: String? = null,
+        val conflictDetails: ConflictDetails? = null
     )
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    private val onlineFlow: StateFlow<Boolean> = connectivityManager
+        .observe()
+        .map { it.isOnline }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     fun update(field: String, value: String) {
         _state.value = when (field) {
@@ -76,6 +96,35 @@ class TransferCreateViewModel @Inject constructor(
 
     init {
         loadUserProducts()
+        val userId = currentUserProvider.userIdOrNull()
+        if (userId != null) {
+            viewModelScope.launch {
+                transferDao.observeDirtyByUser(userId).collect { dirtyTransfers ->
+                    _state.value = _state.value.copy(pendingSyncCount = dirtyTransfers.size)
+                }
+            }
+        }
+        viewModelScope.launch {
+            onlineFlow.collect { online ->
+                _state.value = _state.value.copy(isOnline = online)
+            }
+        }
+        // Observe conflict events for transfers
+        viewModelScope.launch {
+            syncManager.conflictEvents.collect { ev ->
+                if (ev.entityType == OutboxEntity.TYPE_TRANSFER) {
+                    _state.value = _state.value.copy(
+                        conflictDetails = ConflictDetails(
+                            entityType = "transfer",
+                            entityId = ev.entityId,
+                            conflictFields = ev.conflictFields,
+                            mergedAt = ev.mergedAt,
+                            message = "Transfer was updated remotely. Your local changes were merged."
+                        )
+                    )
+                }
+            }
+        }
     }
 
     fun loadUserProducts() {
@@ -265,6 +314,8 @@ class TransferCreateViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val id = UUID.randomUUID().toString()
+            var localPersisted = false
             try {
                 _state.value = s.copy(loading = true, error = null, successTransferId = null)
 
@@ -278,7 +329,6 @@ class TransferCreateViewModel @Inject constructor(
                 }
 
                 val amt = s.amount.toDoubleOrNull() ?: 0.0
-                val id = UUID.randomUUID().toString()
                 val now = System.currentTimeMillis()
                 val entity = TransferEntity(
                     transferId = id,
@@ -298,10 +348,40 @@ class TransferCreateViewModel @Inject constructor(
                     dirty = true
                 )
                 transferDao.upsert(entity)
-                _state.value = _state.value.copy(loading = false, successTransferId = id)
+                localPersisted = true
+                _state.value = _state.value.copy(
+                    loading = false,
+                    successTransferId = id,
+                    transferSyncState = SyncState.PENDING
+                )
+                if (!connectivityManager.isOnline()) {
+                    _state.value = _state.value.copy(error = "Transfer queued. Will sync when online.")
+                } else {
+                    _state.value = _state.value.copy(error = "Transfer initiated successfully")
+                }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(loading = false, error = e.message)
+                _state.value = _state.value.copy(loading = false, error = e.message, failedTransferId = if (localPersisted) id else null)
             }
         }
+    }
+
+    fun retryFailedTransfer(transferId: String) {
+        viewModelScope.launch {
+            val result = transferWorkflowRepository.retryFailedTransfer(transferId)
+            if (result is Resource.Success) {
+                _state.value = _state.value.copy(error = null, failedTransferId = null)
+            } else {
+                _state.value = _state.value.copy(error = result.message)
+            }
+        }
+    }
+
+    fun dismissConflict() {
+        _state.value = _state.value.copy(conflictDetails = null)
+    }
+
+    fun viewConflictDetails(entityId: String) {
+        // Placeholder: In a real app, navigate to a details screen or show a dialog
+        _state.value = _state.value.copy(conflictDetails = null)
     }
 }

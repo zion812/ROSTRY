@@ -5,6 +5,15 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * TransferEntity represents a transfer transaction.
+ *
+ * Sync state fields:
+ * - dirty: true means local changes pending sync
+ * - syncedAt: timestamp when last synced to remote, null if never synced
+ * - mergedAt: timestamp of last merge operation, null if never merged
+ * - mergeCount: number of merge operations performed
+ */
 @Entity(
     tableName = "transfers",
     foreignKeys = [
@@ -27,7 +36,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index(value = ["fromUserId"]), Index(value = ["toUserId"]), Index(value = ["orderId"]), Index(value = ["productId"])]
+    indices = [Index(value = ["fromUserId"]), Index(value = ["toUserId"]), Index(value = ["orderId"]), Index(value = ["productId"]), Index(value = ["syncedAt"])]
 )
 data class TransferEntity(
     @PrimaryKey val transferId: String,
@@ -54,5 +63,8 @@ data class TransferEntity(
     val lastModifiedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
-    val dirty: Boolean = false
+    val dirty: Boolean = false,
+    val syncedAt: Long? = null,
+    val mergedAt: Long? = null,
+    val mergeCount: Int = 0
 )

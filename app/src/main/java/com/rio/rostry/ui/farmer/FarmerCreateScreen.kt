@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.components.SyncStatusBadge
+import com.rio.rostry.ui.components.ConflictNotification
 
 // Legacy data classes for compatibility
 data class ListingForm(
@@ -104,6 +106,14 @@ fun FarmerCreateScreen(
     
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
     Column(Modifier.fillMaxSize().padding(padding)) {
+        // Conflict notification for listings
+        uiState.conflictDetails?.let { c ->
+            ConflictNotification(
+                conflict = c,
+                onDismiss = { viewModel.dismissConflict() },
+                onViewDetails = { viewModel.viewConflictDetails(c.entityId) }
+            )
+        }
         // Enhanced error banner with icon variations
         if (uiState.error != null) {
             val errorMessage = uiState.error!!
@@ -174,6 +184,12 @@ fun FarmerCreateScreen(
                 }
             }
         }
+        
+        // Add pending listings banner
+        if (uiState.pendingListingsCount > 0) {
+            Card { Text("${uiState.pendingListingsCount} listings pending sync") }
+        }
+        
         WizardProgressIndicator(wizardState.currentStep)
         
         Box(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -205,7 +221,8 @@ fun FarmerCreateScreen(
                     basicInfo = wizardState.basicInfo,
                     detailsInfo = wizardState.detailsInfo,
                     mediaInfo = wizardState.mediaInfo,
-                    validationStatus = uiState.validationStatus // Assuming added to uiState
+                    validationStatus = uiState.validationStatus, // Assuming added to uiState
+                    uiState = uiState
                 )
             }
         }
@@ -245,7 +262,8 @@ fun FarmerCreateScreen(
             onBack = viewModel::previousStep,
             onNext = viewModel::nextStep,
             onSubmit = viewModel::submitWizardListing,
-            onPublishRequest = { showConfirm = true }
+            onPublishRequest = { showConfirm = true },
+            uiState = uiState
         )
     }
     }
@@ -669,7 +687,8 @@ private fun ReviewStep(
     basicInfo: FarmerCreateViewModel.BasicInfoState,
     detailsInfo: FarmerCreateViewModel.DetailsInfoState,
     mediaInfo: FarmerCreateViewModel.MediaInfoState,
-    validationStatus: Map<String, Boolean> // Added parameter for validation status
+    validationStatus: Map<String, Boolean>, // Added parameter for validation status
+    uiState: FarmerCreateViewModel.UiState
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Review Your Listing", style = MaterialTheme.typography.titleLarge)
@@ -702,6 +721,14 @@ private fun ReviewStep(
             Column(Modifier.padding(16.dp)) {
                 Text("Ready to publish?", style = MaterialTheme.typography.titleMedium)
                 Text("Review all information before submitting.")
+            }
+        }
+        
+        // Add sync status card
+        Card {
+            Column {
+                Text("Sync Status")
+                if (uiState.listingSyncState != null) SyncStatusBadge(syncState = uiState.listingSyncState) else Text("Will sync after publish")
             }
         }
     }
@@ -737,7 +764,8 @@ private fun WizardNavigationButtons(
     onBack: () -> Unit,
     onNext: () -> Unit,
     onSubmit: () -> Unit,
-    onPublishRequest: () -> Unit = onSubmit
+    onPublishRequest: () -> Unit = onSubmit,
+    uiState: FarmerCreateViewModel.UiState
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -760,7 +788,7 @@ private fun WizardNavigationButtons(
                     Spacer(Modifier.width(8.dp))
                     Text("Validating farm data...")
                 } else {
-                    Text("Publish Listing")
+                    Text(if (uiState.isOnline) "Publish Listing" else "Queue Listing (Offline)")
                 }
             }
         } else {
@@ -770,5 +798,9 @@ private fun WizardNavigationButtons(
                 Icon(Icons.Filled.ArrowForward, null)
             }
         }
+    }
+    
+    if (!uiState.isOnline) {
+        Text("Listing will publish when online", style = MaterialTheme.typography.bodySmall)
     }
 }

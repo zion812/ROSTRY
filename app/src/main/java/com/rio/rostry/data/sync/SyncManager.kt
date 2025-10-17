@@ -6,53 +6,72 @@ import com.rio.rostry.data.database.entity.*
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.network.ConnectivityManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.rio.rostry.data.repository.TraceabilityRepository
+
 /**
  * SyncManager coordinates incremental, offline-first sync across entities.
  * It demonstrates a pattern and leaves actual network I/O to the caller (e.g., repositories or API services).
  */
 @Singleton
-    class SyncManager @Inject constructor(
-        private val userDao: UserDao,
-        private val productDao: ProductDao,
-        private val orderDao: OrderDao,
-        private val productTrackingDao: ProductTrackingDao,
-        private val chatMessageDao: ChatMessageDao,
-        private val transferDao: TransferDao,
-        private val syncStateDao: SyncStateDao,
-        private val outboxDao: OutboxDao,
-        private val firestoreService: SyncRemote,
-        private val connectivityManager: ConnectivityManager,
-        private val gson: Gson,
-        // Farm monitoring DAOs
-        private val breedingPairDao: com.rio.rostry.data.database.dao.BreedingPairDao,
-        private val farmAlertDao: com.rio.rostry.data.database.dao.FarmAlertDao,
-        private val farmerDashboardSnapshotDao: com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,
-        private val vaccinationRecordDao: com.rio.rostry.data.database.dao.VaccinationRecordDao,
-        private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
-        private val quarantineRecordDao: com.rio.rostry.data.database.dao.QuarantineRecordDao,
-        private val mortalityRecordDao: com.rio.rostry.data.database.dao.MortalityRecordDao,
-        private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
-        private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
-        // Sprint 1 DAOs
-        private val dailyLogDao: com.rio.rostry.data.database.dao.DailyLogDao,
-        private val taskDao: com.rio.rostry.data.database.dao.TaskDao,
-        // Enthusiast DAOs
-        private val matingLogDao: com.rio.rostry.data.database.dao.MatingLogDao,
-        private val eggCollectionDao: com.rio.rostry.data.database.dao.EggCollectionDao,
-        private val enthusiastDashboardSnapshotDao: com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,
-        private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-        private val traceabilityRepository: TraceabilityRepository
-        ) {
-        data class SyncStats(
-            val pushed: Int = 0,
-            val pulled: Int = 0,
-            val outboxProcessed: Int = 0
-        )
+class SyncManager @Inject constructor(
+    private val userDao: UserDao,
+    private val productDao: ProductDao,
+    private val orderDao: OrderDao,
+    private val productTrackingDao: ProductTrackingDao,
+    private val chatMessageDao: ChatMessageDao,
+    private val transferDao: TransferDao,
+    private val syncStateDao: SyncStateDao,
+    private val outboxDao: OutboxDao,
+    private val firestoreService: SyncRemote,
+    private val connectivityManager: ConnectivityManager,
+    private val gson: Gson,
+    // Farm monitoring DAOs
+    private val breedingPairDao: com.rio.rostry.data.database.dao.BreedingPairDao,
+    private val farmAlertDao: com.rio.rostry.data.database.dao.FarmAlertDao,
+    private val farmerDashboardSnapshotDao: com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,
+    private val vaccinationRecordDao: com.rio.rostry.data.database.dao.VaccinationRecordDao,
+    private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
+    private val quarantineRecordDao: com.rio.rostry.data.database.dao.QuarantineRecordDao,
+    private val mortalityRecordDao: com.rio.rostry.data.database.dao.MortalityRecordDao,
+    private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
+    private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
+    // Sprint 1 DAOs
+    private val dailyLogDao: com.rio.rostry.data.database.dao.DailyLogDao,
+    private val taskDao: com.rio.rostry.data.database.dao.TaskDao,
+    // Enthusiast DAOs
+    private val matingLogDao: com.rio.rostry.data.database.dao.MatingLogDao,
+    private val eggCollectionDao: com.rio.rostry.data.database.dao.EggCollectionDao,
+    private val enthusiastDashboardSnapshotDao: com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val traceabilityRepository: TraceabilityRepository
+) {
+    data class SyncStats(
+        val pushed: Int = 0,
+        val pulled: Int = 0,
+        val outboxProcessed: Int = 0
+    )
+
+    data class SyncProgress(
+        val totalPending: Int,
+        val processed: Int,
+        val currentEntityType: String,
+        val errors: List<String>
+    )
+
+    val syncProgressFlow = MutableSharedFlow<SyncProgress>()
+
+    data class ConflictEvent(
+        val entityType: String,
+        val entityId: String,
+        val conflictFields: List<String>,
+        val mergedAt: Long
+    )
+    val conflictEvents = MutableSharedFlow<ConflictEvent>(extraBufferCapacity = 64)
 
     private fun isTerminalTransferStatus(status: String?): Boolean {
         return when (status?.uppercase()) {
@@ -278,6 +297,35 @@ import com.rio.rostry.data.repository.TraceabilityRepository
                         if (local != null) mergeProductRemoteLocal(remote, local) else remote
                     }
                     productDao.insertProducts(resolved)
+                    // Emit conflict events for fields that changed due to remote taking precedence
+                    remoteProductsUpdated.forEach { remote ->
+                        val local = productDao.findById(remote.productId)
+                        if (local != null) {
+                            val conflictFields = mutableListOf<String>()
+                            val rU = remote.updatedAt
+                            val lU = local.updatedAt
+                            if (rU > lU) {
+                                if (remote.name != local.name) conflictFields.add("name")
+                                if (remote.description != local.description) conflictFields.add("description")
+                                if (remote.price != local.price) conflictFields.add("price")
+                                if (remote.quantity != local.quantity) conflictFields.add("quantity")
+                                if (remote.unit != local.unit) conflictFields.add("unit")
+                                if (remote.location != local.location) conflictFields.add("location")
+                                if (remote.stage != local.stage) conflictFields.add("stage")
+                                if (remote.lifecycleStatus != local.lifecycleStatus) conflictFields.add("lifecycleStatus")
+                            }
+                            if (conflictFields.isNotEmpty()) {
+                                conflictEvents.emit(
+                                    ConflictEvent(
+                                        entityType = OutboxEntity.TYPE_LISTING,
+                                        entityId = remote.productId,
+                                        conflictFields = conflictFields,
+                                        mergedAt = now
+                                    )
+                                )
+                            }
+                        }
+                    }
                     pulls += resolved.size
                 }
 
@@ -362,6 +410,17 @@ import com.rio.rostry.data.repository.TraceabilityRepository
                     val cleaned = localDirty.map { local ->
                         val remote = remoteTransfersUpdated.firstOrNull { it.transferId == local.transferId }
                         if (remote != null && isTerminalTransferStatus(remote.status)) {
+                            // Emit conflict on status override
+                            if (remote.status != local.status) {
+                                conflictEvents.emit(
+                                    ConflictEvent(
+                                        entityType = OutboxEntity.TYPE_TRANSFER,
+                                        entityId = local.transferId,
+                                        conflictFields = listOf("status"),
+                                        mergedAt = now
+                                    )
+                                )
+                            }
                             remote.copy(dirty = false, updatedAt = now)
                         } else {
                             local.copy(dirty = false, updatedAt = now)
@@ -384,6 +443,27 @@ import com.rio.rostry.data.repository.TraceabilityRepository
                     firestoreService.fetchUpdatedChats(state.lastChatSyncAt)
                 }
                 if (remoteMessagesUpdated.isNotEmpty()) {
+                    // Emit conflicts where remote overwrote different local fields by recency
+                    remoteMessagesUpdated.forEach { remote ->
+                        val local = chatMessageDao.getById(remote.messageId)
+                        if (local != null && remote.updatedAt > local.updatedAt) {
+                            val fields = mutableListOf<String>()
+                            if (remote.body != local.body) fields.add("body")
+                            if (remote.mediaUrl != local.mediaUrl) fields.add("mediaUrl")
+                            if (remote.deliveredAt != local.deliveredAt) fields.add("deliveredAt")
+                            if (remote.readAt != local.readAt) fields.add("readAt")
+                            if (fields.isNotEmpty()) {
+                                conflictEvents.emit(
+                                    ConflictEvent(
+                                        entityType = OutboxEntity.TYPE_CHAT_MESSAGE,
+                                        entityId = remote.messageId,
+                                        conflictFields = fields,
+                                        mergedAt = now
+                                    )
+                                )
+                            }
+                        }
+                    }
                     chatMessageDao.upsertAll(remoteMessagesUpdated)
                     pulls += remoteMessagesUpdated.size
                 }
@@ -397,43 +477,154 @@ import com.rio.rostry.data.repository.TraceabilityRepository
             // ================
             var outboxProcessed = 0
             run {
-                val pendingEntries = outboxDao.getPending(limit = 50)
-                for (entry in pendingEntries) {
-                    try {
-                        // Mark as in progress
-                        outboxDao.updateStatus(entry.outboxId, "IN_PROGRESS", now)
-                        
-                        // Process based on entity type
-                        when (entry.entityType) {
-                            "ORDER" -> {
-                                val order = gson.fromJson(entry.payloadJson, OrderEntity::class.java)
-                                withRetry { firestoreService.pushOrders(listOf(order)) }
-                            }
-                            "POST" -> {
-                                val post = gson.fromJson(entry.payloadJson, PostEntity::class.java)
-                                // Assuming posts have a push method - add if needed
-                                Timber.d("Outbox: Processing POST entity (implement push if needed)")
-                            }
-                            else -> {
-                                Timber.w("Unknown outbox entity type: ${entry.entityType}")
+                val pendingEntries = outboxDao.getPendingPrioritized(limit = 50)
+                val totalPending = pendingEntries.size
+                var processed = 0
+                val errors = mutableListOf<String>()
+
+                // Group by entity type for batch processing
+                val groupedEntries = pendingEntries.groupBy { it.entityType }
+
+                for ((entityType, entries) in groupedEntries) {
+                    syncProgressFlow.emit(SyncProgress(totalPending, processed, entityType, errors.toList()))
+
+                    // Mark batch IN_PROGRESS to prevent duplicates in concurrent runs
+                    val batchIds = entries.map { it.outboxId }.filter { it.isNotBlank() }
+                    if (batchIds.isNotEmpty()) {
+                        outboxDao.updateStatusBatch(batchIds, "IN_PROGRESS", now)
+                    }
+
+                    // Map entityId -> OutboxEntity to avoid empty lookups
+                    val outboxByEntityId = entries.associateBy { it.entityId }
+
+                    when (entityType) {
+                        OutboxEntity.TYPE_DAILY_LOG -> {
+                            val userId = firebaseAuth.currentUser?.uid ?: ""
+                            for (e in entries) {
+                                val log = gson.fromJson(e.payloadJson, DailyLogEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushDailyLogs(userId, listOf(log)) }
+                                    dailyLogDao.clearDirty(listOf(log.logId), now)
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    outboxDao.incrementRetry(e.outboxId, now)
+                                    val willRetry = (e.retryCount + 1) < e.maxRetries
+                                    outboxDao.updateStatus(e.outboxId, if (willRetry) "PENDING" else "FAILED", now)
+                                    errors.add("DailyLog push failed for ${log.logId}: ${t.message}")
+                                }
+                                processed++
                             }
                         }
-                        
-                        // Mark as completed
-                        outboxDao.updateStatus(entry.outboxId, "COMPLETED", now)
-                        pushes++
-                        outboxProcessed++
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to process outbox entry ${entry.outboxId}")
-                        outboxDao.incrementRetry(entry.outboxId, now)
-                        
-                        // Mark as FAILED if exceeded retry threshold
-                        if (entry.retryCount >= 2) { // Will be 3 after increment
-                            outboxDao.updateStatus(entry.outboxId, "FAILED", now)
+                        OutboxEntity.TYPE_TRANSFER -> {
+                            for (e in entries) {
+                                val transfer = gson.fromJson(e.payloadJson, TransferEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushTransfers(listOf(transfer)) }
+                                    transferDao.upsert(transfer.copy(dirty = false, updatedAt = now))
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    outboxDao.incrementRetry(e.outboxId, now)
+                                    val willRetry = (e.retryCount + 1) < e.maxRetries
+                                    outboxDao.updateStatus(e.outboxId, if (willRetry) "PENDING" else "FAILED", now)
+                                    errors.add("Transfer push failed for ${transfer.transferId}: ${t.message}")
+                                }
+                                processed++
+                            }
+                        }
+                        OutboxEntity.TYPE_LISTING -> {
+                            for (e in entries) {
+                                val product = gson.fromJson(e.payloadJson, ProductEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushProducts(listOf(product)) }
+                                    val cleaned = product.copy(dirty = false, updatedAt = now)
+                                    productDao.insertProducts(listOf(cleaned))
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    outboxDao.incrementRetry(e.outboxId, now)
+                                    val willRetry = (e.retryCount + 1) < e.maxRetries
+                                    outboxDao.updateStatus(e.outboxId, if (willRetry) "PENDING" else "FAILED", now)
+                                    errors.add("Listing push failed for ${product.productId}: ${t.message}")
+                                }
+                                processed++
+                            }
+                        }
+                        OutboxEntity.TYPE_CHAT_MESSAGE -> {
+                            for (e in entries) {
+                                val message = gson.fromJson(e.payloadJson, ChatMessageEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushChats(listOf(message)) }
+                                    chatMessageDao.clearDirty(listOf(message.messageId), now)
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    outboxDao.incrementRetry(e.outboxId, now)
+                                    val willRetry = (e.retryCount + 1) < e.maxRetries
+                                    outboxDao.updateStatus(e.outboxId, if (willRetry) "PENDING" else "FAILED", now)
+                                    errors.add("Chat message push failed for ${message.messageId}: ${t.message}")
+                                }
+                                processed++
+                            }
+                        }
+                        OutboxEntity.TYPE_GROUP_MESSAGE -> {
+                            for (e in entries) {
+                                // No remote API defined for group messages; mark as FAILED to surface
+                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
+                                errors.add("No remote API for group messages; marked FAILED for ${e.entityId}")
+                                processed++
+                            }
+                        }
+                        OutboxEntity.TYPE_TASK -> {
+                            val userId = firebaseAuth.currentUser?.uid ?: ""
+                            for (e in entries) {
+                                val task = gson.fromJson(e.payloadJson, TaskEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushTasks(userId, listOf(task)) }
+                                    taskDao.clearDirty(listOf(task.taskId), now)
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    outboxDao.incrementRetry(e.outboxId, now)
+                                    val willRetry = (e.retryCount + 1) < e.maxRetries
+                                    outboxDao.updateStatus(e.outboxId, if (willRetry) "PENDING" else "FAILED", now)
+                                    errors.add("Task push failed for ${task.taskId}: ${t.message}")
+                                }
+                                processed++
+                            }
+                        }
+                        OutboxEntity.TYPE_ORDER -> {
+                            for (e in entries) {
+                                val order = gson.fromJson(e.payloadJson, OrderEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushOrders(listOf(order)) }
+                                    orderDao.insertOrUpdate(order.copy(dirty = false, updatedAt = now))
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    outboxDao.incrementRetry(e.outboxId, now)
+                                    val willRetry = (e.retryCount + 1) < e.maxRetries
+                                    outboxDao.updateStatus(e.outboxId, if (willRetry) "PENDING" else "FAILED", now)
+                                    errors.add("Order push failed for ${order.orderId}: ${t.message}")
+                                }
+                                processed++
+                            }
+                        }
+                        OutboxEntity.TYPE_POST -> {
+                            for (e in entries) {
+                                // No remote API defined in SyncRemote; mark as FAILED to surface
+                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
+                                errors.add("No remote API for posts; marked FAILED for ${e.entityId}")
+                                processed++
+                            }
+                        }
+                        else -> {
+                            Timber.w("Unknown outbox entity type: $entityType")
+                            errors.add("Unknown type: $entityType")
                         }
                     }
+
+                    // Emit after each batch completion
+                    syncProgressFlow.emit(SyncProgress(totalPending, processed, entityType, errors.toList()))
                 }
-                
+
+                outboxProcessed = processed
+
                 // Purge completed entries older than 7 days
                 val sevenDaysAgo = now - (7L * 24 * 60 * 60 * 1000)
                 outboxDao.purgeCompleted(sevenDaysAgo)
