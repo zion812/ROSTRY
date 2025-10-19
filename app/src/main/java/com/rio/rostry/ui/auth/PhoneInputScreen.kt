@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -15,7 +16,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -24,10 +26,10 @@ import com.rio.rostry.utils.isValidIndianPhone
 @Composable
 fun PhoneInputScreen(
     viewModel: AuthViewModel = hiltViewModel(),
-    onNavigateToOtp: (String) -> Unit
+    onNavigateToOtp: (String) -> Unit,
+    activity: Activity?
 ) {
     val ui by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -38,19 +40,23 @@ fun PhoneInputScreen(
         OutlinedTextField(
             value = ui.phoneInput,
             onValueChange = { viewModel.onPhoneChanged(it) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Enter phone number" },
             label = { Text("Phone (+91XXXXXXXXXX)") },
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
         if (ui.error != null) {
             Text(text = ui.error!!, modifier = Modifier.padding(top = 8.dp))
         }
+        if (activity == null) {
+            Text(text = "Activity unavailable", modifier = Modifier.padding(top = 8.dp))
+        }
         Button(
             onClick = {
-                viewModel.startVerification(activity = context as Activity)
+                activity?.let { viewModel.startVerification(it) }
             },
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            enabled = ui.e164?.let { isValidIndianPhone(it) } == true && !ui.isLoading
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).semantics { contentDescription = "Send OTP" },
+            enabled = ui.e164?.let { isValidIndianPhone(it) } == true && !ui.isLoading && activity != null
         ) {
             Text("Send OTP")
         }

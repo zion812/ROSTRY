@@ -30,6 +30,10 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.ui.components.ConflictDetails
+import com.rio.rostry.domain.rbac.RbacGuard
+import com.rio.rostry.domain.model.VerificationStatus
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 @HiltViewModel
 class FarmerCreateViewModel @Inject constructor(
@@ -52,7 +56,8 @@ class FarmerCreateViewModel @Inject constructor(
     private val gson: Gson,
     private val currentUserProvider: CurrentUserProvider,
     private val connectivityManager: com.rio.rostry.utils.network.ConnectivityManager,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val rbacGuard: RbacGuard
 ) : ViewModel() {
 
     private var prefillProductId: String? = null
@@ -159,11 +164,15 @@ class FarmerCreateViewModel @Inject constructor(
         val listingSyncState: SyncState? = null,
         val pendingListingsCount: Int = 0,
         val isOnline: Boolean = true,
-        val conflictDetails: ConflictDetails? = null
+        val conflictDetails: ConflictDetails? = null,
+        val verificationRequired: Boolean = false
     )
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui
+
+    private val _navigationEvents = MutableSharedFlow<String>()
+    val navigationEvents = _navigationEvents.asSharedFlow()
 
     val onlineFlow: StateFlow<Boolean> = connectivityManager
         .observe()
@@ -729,7 +738,19 @@ class FarmerCreateViewModel @Inject constructor(
                 _ui.value = UiState(isSubmitting = false, error = "Not authenticated")
                 return@launch
             }
-            
+
+            // Check verification status
+            if (currentUser.verificationStatus != VerificationStatus.VERIFIED) {
+                _ui.value = _ui.value.copy(isSubmitting = false, error = "Complete KYC verification to list products. Go to Profile → Verification.", verificationRequired = true)
+                return@launch
+            }
+
+            // Check RBAC permission
+            if (!rbacGuard.canListProduct()) {
+                _ui.value = _ui.value.copy(isSubmitting = false, error = "You don't have permission to list products")
+                return@launch
+            }
+
             // Comment 2: Re-check quarantine status at submit time
             if (!prefillProductId.isNullOrBlank()) {
                 val inQuarantine = quarantineRepository.observe(prefillProductId!!).first()
@@ -918,5 +939,11 @@ class FarmerCreateViewModel @Inject constructor(
             "healthLog" to healthLogFresh,
             "growth" to growthFresh
         )
+    }
+
+    fun navigateToVerification() {
+        viewModelScope.launch {
+            _navigationEvents.emit("verification")
+        }
     }
 }

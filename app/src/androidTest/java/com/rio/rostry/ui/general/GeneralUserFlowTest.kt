@@ -8,7 +8,6 @@ import com.rio.rostry.MainActivity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.CartRepository
 import com.rio.rostry.data.repository.ProductRepository
-import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -43,8 +42,6 @@ class GeneralUserFlowTest {
     @Inject
     lateinit var cartRepository: CartRepository
 
-    @Inject
-    lateinit var currentUserProvider: CurrentUserProvider
 
     @Before
     fun setup() {

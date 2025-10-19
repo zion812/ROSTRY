@@ -18,6 +18,9 @@ class SocialFeedViewModel @Inject constructor(
 ) : ViewModel() {
     fun feed(): Flow<PagingData<PostEntity>> = socialRepository.feedRanked().cachedIn(viewModelScope)
 
+    val isAuthenticated: Boolean
+        get() = currentUserProvider.isAuthenticated()
+
     private fun uidOrThrow(): String = currentUserProvider.userIdOrNull()
         ?: throw IllegalStateException("No authenticated user")
 

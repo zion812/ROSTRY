@@ -12,6 +12,7 @@ import com.rio.rostry.data.repository.FamilyTreeRepository
 import com.rio.rostry.data.database.entity.FamilyTreeEntity
 import com.rio.rostry.utils.media.MediaUploadManager
 import com.rio.rostry.utils.validation.OnboardingValidator
+import com.rio.rostry.security.SecurityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import java.util.UUID
 import javax.inject.Inject
 import android.content.Context
@@ -38,6 +40,7 @@ class OnboardFarmBirdViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val mediaUploadManager: MediaUploadManager,
     private val familyTreeRepository: FamilyTreeRepository,
+    private val securityManager: SecurityManager,
     @ApplicationContext private val context: Context,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val syncManager: SyncManager
@@ -90,7 +93,9 @@ class OnboardFarmBirdViewModel @Inject constructor(
         val validationErrors: Map<String, String> = emptyMap(),
         val saving: Boolean = false,
         val error: String? = null,
-        val savedId: String? = null
+        val savedId: String? = null,
+        val uploadProgress: Map<String, Int> = emptyMap(),
+        val uploadStatus: Map<String, String> = emptyMap()
     )
 
     private val _state = MutableStateFlow(WizardState())
@@ -137,6 +142,11 @@ class OnboardFarmBirdViewModel @Inject constructor(
             productRepository.getProductById(productId).collect { res ->
                 if (res is Resource.Success) {
                     val p = res.data ?: return@collect
+                    if (p.sellerId != firebaseAuth.currentUser?.uid) {
+                        _state.value = _state.value.copy(error = "You can only link your own products as parents")
+                        securityManager.audit("LINEAGE_PARENT_REJECTED", mapOf("productId" to productId, "reason" to "ownership_mismatch"))
+                        return@collect
+                    }
                     val gender = (p.gender ?: "").lowercase()
                     if (expectedGender.equals("male", true) || gender == "male") {
                         selectMaleParent(p)
@@ -300,39 +310,80 @@ class OnboardFarmBirdViewModel @Inject constructor(
                         )
                         familyTreeRepository.upsert(node)
                     }
-                    // Persist media URLs as uploads succeed, filter and timeout
+                    // Initialize upload tracking in state
+                    val allRemotePaths = mutableSetOf<String>()
+                    s.media.photoUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/photos/$idx") }
+                    s.media.documentUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/documents/$idx") }
+                    val initialProgress = allRemotePaths.associateWith { 0 }
+                    val initialStatus = allRemotePaths.associateWith { "PENDING" }
+                    _state.value = _state.value.copy(uploadProgress = initialProgress, uploadStatus = initialStatus)
+
+                    // Collect upload events to update state and persist incrementally
                     val photos = mutableSetOf<String>()
                     val docs = mutableSetOf<String>()
-                    val expectedPhotos = s.media.photoUris.size
-                    val expectedDocs = s.media.documentUris.size
                     viewModelScope.launch {
-                        try {
-                            withTimeout(60_000) {
-                                mediaUploadManager.events.collect { ev ->
-                                    when (ev) {
-                                        is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
-                                            val path = ev.remotePath
-                                            if (!path.contains("products/$newId/")) return@collect
-                                            if (path.startsWith("products/$newId/photos/")) photos += ev.downloadUrl
-                                            else if (path.startsWith("products/$newId/documents/")) docs += ev.downloadUrl
-                                            val now2 = System.currentTimeMillis()
-                                            productRepository.updateProduct(
-                                                entity.copy(
-                                                    productId = newId,
-                                                    imageUrls = photos.toList(),
-                                                    documentUrls = docs.toList(),
-                                                    updatedAt = now2,
-                                                    lastModifiedAt = now2,
-                                                    dirty = true
-                                                )
-                                            )
-                                            if (photos.size >= expectedPhotos && docs.size >= expectedDocs) cancel()
-                                        }
-                                        else -> {}
-                                    }
-                                }
+                        mediaUploadManager.events.collect { ev ->
+                            val path: String = when (ev) {
+                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> ev.remotePath
+                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> ev.remotePath
+                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> ev.remotePath
+                                else -> return@collect
                             }
-                        } catch (_: kotlinx.coroutines.TimeoutCancellationException) { /* best-effort */ }
+                            if (!path.contains("products/$newId/")) return@collect
+                            when (ev) {
+                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> {
+                                    val currentProgress = _state.value.uploadProgress.toMutableMap()
+                                    currentProgress[path] = ev.percent
+                                    val currentStatus = _state.value.uploadStatus.toMutableMap()
+                                    currentStatus[path] = "UPLOADING"
+                                    _state.value = _state.value.copy(
+                                        uploadProgress = currentProgress,
+                                        uploadStatus = currentStatus
+                                    )
+                                }
+                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
+                                    if (path.startsWith("products/$newId/photos/")) photos += ev.downloadUrl
+                                    else if (path.startsWith("products/$newId/documents/")) docs += ev.downloadUrl
+                                    val currentProgress = _state.value.uploadProgress.toMutableMap()
+                                    currentProgress[path] = 100
+                                    val currentStatus = _state.value.uploadStatus.toMutableMap()
+                                    currentStatus[path] = "SUCCESS"
+                                    _state.value = _state.value.copy(
+                                        uploadProgress = currentProgress,
+                                        uploadStatus = currentStatus
+                                    )
+                                    val now2 = System.currentTimeMillis()
+                                    productRepository.updateProduct(
+                                        entity.copy(
+                                            productId = newId,
+                                            imageUrls = photos.toList(),
+                                            documentUrls = docs.toList(),
+                                            updatedAt = now2,
+                                            lastModifiedAt = now2,
+                                            dirty = true
+                                        )
+                                    )
+                                }
+                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> {
+                                    val currentStatus = _state.value.uploadStatus.toMutableMap()
+                                    currentStatus[path] = "FAILED"
+                                    _state.value = _state.value.copy(
+                                        uploadStatus = currentStatus
+                                    )
+                                }
+                                else -> {}
+                            }
+                        }
+                    }
+
+                    // Non-blocking timeout audit for uploads exceeding threshold
+                    viewModelScope.launch {
+                        delay(MediaUploadManager.MAX_UPLOAD_TIMEOUT_MS)
+                        val currentStatus = _state.value.uploadStatus
+                        val pendingUploads = currentStatus.filter { it.value == "PENDING" || it.value == "UPLOADING" }
+                        if (pendingUploads.isNotEmpty()) {
+                            securityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("productId" to newId, "pendingPaths" to pendingUploads.keys.joinToString()))
+                        }
                     }
                     _state.value = _state.value.copy(saving = false, savedId = newId)
                     FarmNotifier.notifyBirdOnboarded(context, s.coreDetails.name, newId)

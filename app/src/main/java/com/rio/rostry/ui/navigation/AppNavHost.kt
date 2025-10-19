@@ -98,11 +98,9 @@ import com.rio.rostry.ui.social.LiveBroadcastScreen
 import com.rio.rostry.ui.analytics.EnthusiastDashboardScreen
 import com.rio.rostry.ui.monitoring.FarmPerformanceScreen
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -120,13 +118,19 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
 import kotlin.math.roundToInt
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.DisposableEffect
 import androidx.annotation.VisibleForTesting
+import android.app.Activity
+import com.rio.rostry.domain.model.UserType
+import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.session.CurrentUserProvider
 
 @Composable
 fun AppNavHost() {
@@ -142,6 +146,13 @@ fun AppNavHost() {
             // Store the path portion for internal navigation e.g., rostry://traceability/ID -> traceability/ID
             val route = data.substringAfter("rostry://")
             sessionVm.setPendingDeepLink(route)
+        }
+    }
+
+    // Session validity check
+    if (state.isAuthenticated) {
+        LaunchedEffect("session-expiry") {
+            sessionVm.scheduleSessionExpiryCheck()
         }
     }
 
@@ -220,8 +231,7 @@ internal fun roleGraphRegisteredRoutesBasic(): Set<String> = setOf(
     Routes.ANALYTICS_FARMER,
     Routes.ANALYTICS_ENTHUSIAST,
     Routes.REPORTS,
-    Routes.PRODUCT_SANDBOX,
-)
+    Routes.PRODUCT_SANDBOX)
 
 @Composable
 private fun AuthFlow(
@@ -237,11 +247,22 @@ private fun AuthFlow(
     var password by rememberSaveable { mutableStateOf("") }
     var showOtp by rememberSaveable { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val activity = remember(context) {
+        var ctx = context
+        while (ctx is android.content.ContextWrapper) {
+            if (ctx is Activity) return@remember ctx
+            ctx = ctx.baseContext
+        }
+        ctx as? Activity
+    }
+
     LaunchedEffect(Unit) {
         authVm.navigation.collectLatest { event ->
             when (event) {
                 is AuthViewModel.NavAction.ToOtp -> navController.navigate("auth/otp/${event.verificationId}")
                 is AuthViewModel.NavAction.ToHome -> onAuthenticated()
+                is AuthViewModel.NavAction.ToUserSetup -> navController.navigate("onboard/user_setup")
             }
         }
     }
@@ -312,7 +333,7 @@ private fun AuthFlow(
                 startDestination = Routes.AUTH_PHONE
             ) {
                 composable(Routes.AUTH_PHONE) {
-                    PhoneInputScreen(onNavigateToOtp = { verificationId ->
+                    PhoneInputScreen(activity = activity, onNavigateToOtp = { verificationId ->
                         navController.navigate("auth/otp/$verificationId")
                     })
                 }
@@ -322,6 +343,9 @@ private fun AuthFlow(
                 ) { backStackEntry ->
                     val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
                     OtpScreen(verificationId = verificationId, onNavigateHome = onAuthenticated)
+                }
+                composable(Routes.Onboarding.USER_SETUP) {
+                    com.rio.rostry.ui.onboarding.UserSetupScreen(onRoleSelected = onAuthenticated)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -426,7 +450,7 @@ private fun RoleNavScaffold(
                 )
             }
         ) { padding ->
-            RoleNavGraph(navController = navController, navConfig = navConfig, modifier = Modifier.padding(padding))
+            RoleNavGraph(navController = navController, navConfig = navConfig, sessionVm = sessionVm, modifier = Modifier.padding(padding))
         }
 
         if (BuildConfig.DEBUG && state.authMode == SessionManager.AuthMode.DEMO) {
@@ -523,6 +547,7 @@ private fun DemoProfilePickerDialog(
 private fun RoleNavGraph(
     navController: NavHostController,
     navConfig: RoleNavigationConfig,
+    sessionVm: SessionViewModel,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -827,26 +852,31 @@ private fun RoleNavGraph(
             route = Routes.Onboarding.FARM_BIRD + "?role={role}",
             arguments = listOf(navArgument("role") { type = NavType.StringType; nullable = true; defaultValue = null })
         ) { backStackEntry ->
+            val auth by sessionVm.uiState.collectAsState()
+            if (!auth.isAuthenticated) {
+                navController.navigate(Routes.AUTH_PHONE) { launchSingleTop = true }
+                return@composable
+            }
             val role = backStackEntry.arguments?.getString("role")
             com.rio.rostry.ui.onboarding.OnboardFarmBirdScreen(
-                onNavigateRoute = { route ->
-                    val popTarget = if (role == "enthusiast") Routes.HOME_ENTHUSIAST else Routes.HOME_FARMER
-                    navController.navigate(route) { popUpTo(popTarget) }
-                },
+                onNavigateRoute = { navController.navigate(it) },
                 onBack = { navController.popBackStack() },
                 role = role
             )
         }
+
         composable(
             route = Routes.Onboarding.FARM_BATCH + "?role={role}",
             arguments = listOf(navArgument("role") { type = NavType.StringType; nullable = true; defaultValue = null })
         ) { backStackEntry ->
+            val auth by sessionVm.uiState.collectAsState()
+            if (!auth.isAuthenticated) {
+                navController.navigate(Routes.AUTH_PHONE) { launchSingleTop = true }
+                return@composable
+            }
             val role = backStackEntry.arguments?.getString("role")
             com.rio.rostry.ui.onboarding.OnboardFarmBatchScreen(
-                onNavigateRoute = { route ->
-                    val popTarget = if (role == "enthusiast") Routes.HOME_ENTHUSIAST else Routes.HOME_FARMER
-                    navController.navigate(route) { popUpTo(popTarget) }
-                },
+                onNavigateRoute = { navController.navigate(it) },
                 onBack = { navController.popBackStack() },
                 role = role
             )
@@ -1403,7 +1433,7 @@ private fun iconForRoute(route: String): androidx.compose.ui.graphics.vector.Ima
 
 @Composable
 private fun NotificationsAction(navController: NavHostController) {
-    val vm: com.rio.rostry.ui.notifications.NotificationsViewModel = hiltViewModel()
+    val vm: NotificationsViewModel = hiltViewModel()
     val state by vm.ui.collectAsState()
     LaunchedEffect(Unit) { vm.refresh() }
     BadgedBox(
@@ -1598,3 +1628,5 @@ private fun TraceabilityScreen(
         }
     }
 }
+
+ 

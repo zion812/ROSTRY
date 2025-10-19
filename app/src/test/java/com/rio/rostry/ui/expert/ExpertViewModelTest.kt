@@ -23,7 +23,10 @@ private class FakeExpertBookingsDao : ExpertBookingsDao {
     }
 }
 
-private class FakeUserProvider(private val id: String?) : CurrentUserProvider { override fun userIdOrNull(): String? = id }
+private class FakeUserProvider(private val id: String?) : CurrentUserProvider {
+    override fun userIdOrNull(): String? = id
+    override fun isAuthenticated(): Boolean = id != null
+}
 
 class ExpertViewModelTest {
     @Test

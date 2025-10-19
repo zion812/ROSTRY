@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.rio.rostry.session.SessionManager
 import com.rio.rostry.session.RolePreferenceStorage
+import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.utils.notif.TransferNotifier
 import com.rio.rostry.utils.notif.TransferNotifierImpl
 import com.rio.rostry.utils.notif.SocialNotifier
@@ -62,5 +63,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideGson(): Gson = Gson()
+
+    @Provides
+    @Singleton
+    fun provideSecurityManager(): SecurityManager = SecurityManager
 
 }

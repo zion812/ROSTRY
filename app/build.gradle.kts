@@ -258,6 +258,11 @@ dependencies {
     kspAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
     androidTestImplementation("androidx.test:rules:1.5.0")
     androidTestImplementation("androidx.test:runner:1.5.2")
+    // Truth and Mockito for instrumentation tests
+    androidTestImplementation("com.google.truth:truth:1.4.2")
+    androidTestImplementation("org.mockito:mockito-core:5.12.0")
+    androidTestImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
+    androidTestImplementation("androidx.arch.core:core-testing:2.2.0")
 
     // Misc
     implementation("com.google.zxing:core:3.5.2")

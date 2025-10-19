@@ -70,7 +70,9 @@ fun SocialFeedScreen(
 private fun PostCard(post: PostEntity, vm: SocialFeedViewModel = hiltViewModel()) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val isAuthenticated = vm.isAuthenticated
     var showCommentDialog by remember { mutableStateOf(false) }
+    var showLoginPrompt by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
     var liked by remember { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth().padding(12.dp)) {
@@ -93,13 +95,30 @@ private fun PostCard(post: PostEntity, vm: SocialFeedViewModel = hiltViewModel()
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = {
-                    scope.launch {
-                        if (!liked) vm.like(post.postId) else vm.unlike(post.postId)
-                        liked = !liked
-                    }
-                }) { Text(if (liked) "Unlike" else "Like") }
-                Button(onClick = { showCommentDialog = true }, modifier = Modifier.padding(start = 8.dp)) { Text("Comment") }
+                Button(
+                    onClick = {
+                        if (isAuthenticated) {
+                            scope.launch {
+                                if (!liked) vm.like(post.postId) else vm.unlike(post.postId)
+                                liked = !liked
+                            }
+                        } else {
+                            showLoginPrompt = true
+                        }
+                    },
+                    enabled = isAuthenticated
+                ) { Text(if (liked) "Unlike" else "Like") }
+                Button(
+                    onClick = {
+                        if (isAuthenticated) {
+                            showCommentDialog = true
+                        } else {
+                            showLoginPrompt = true
+                        }
+                    },
+                    modifier = Modifier.padding(start = 8.dp),
+                    enabled = isAuthenticated
+                ) { Text("Comment") }
                 Button(onClick = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
@@ -133,6 +152,19 @@ private fun PostCard(post: PostEntity, vm: SocialFeedViewModel = hiltViewModel()
                     },
                     dismissButton = {
                         TextButton(onClick = { showCommentDialog = false }) { Text("Cancel") }
+                    }
+                )
+            }
+
+            if (showLoginPrompt) {
+                AlertDialog(
+                    onDismissRequest = { showLoginPrompt = false },
+                    title = { Text("Authentication Required") },
+                    text = { Text("Please log in to interact with posts. You need to be authenticated to like, comment, or perform other social actions.") },
+                    confirmButton = {
+                        TextButton(onClick = { showLoginPrompt = false }) {
+                            Text("OK")
+                        }
                     }
                 )
             }

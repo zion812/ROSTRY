@@ -19,6 +19,10 @@ import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.UUID
+import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.channels.awaitClose
 
 @Singleton
 class UserRepositoryImpl @Inject constructor(
@@ -158,6 +162,11 @@ class UserRepositoryImpl @Inject constructor(
             )
         )
         docRef.set(updateMap, com.google.firebase.firestore.SetOptions.merge()).await()
+        val submissionId = UUID.randomUUID().toString()
+        val subResult = submitKycVerification(userId, submissionId, evidenceUrls, emptyList())
+        if (subResult is Resource.Error) {
+            throw Exception("Failed to submit KYC: ${subResult.message}")
+        }
         Unit
     }.firstOrNull() ?: Resource.Error("Failed to upload verification evidence")
 
@@ -175,6 +184,11 @@ class UserRepositoryImpl @Inject constructor(
         val current = userDao.getUserById(userId).firstOrNull() ?: UserEntity(userId = userId)
         val updated = current.copy(verificationStatus = VerificationStatus.PENDING, updatedAt = System.currentTimeMillis())
         userDao.insertUser(updated)
+        val submissionId = UUID.randomUUID().toString()
+        val subResult = submitKycVerification(userId, submissionId, emptyList(), breedingProofUrls)
+        if (subResult is Resource.Error) {
+            throw Exception("Failed to submit KYC: ${subResult.message}")
+        }
         Unit
     }.firstOrNull() ?: Resource.Error("Failed to request breeder verification")
 
@@ -215,21 +229,34 @@ class UserRepositoryImpl @Inject constructor(
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 emit(Resource.Error("Failed to load pending verifications: ${e.message}"))
             }
-    // Implement other methods like signIn, signUp, signOut, etc.
-    // Example:
-    // override suspend fun signInWithEmail(email: String, password: String): Resource<UserEntity> {
-    //     return safeCall {
-    //         val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
-    //         val firebaseUser = authResult.user
-    //         if (firebaseUser != null) {
-    //             val userDoc = usersCollection.document(firebaseUser.uid).get().await()
-    //             val userEntity = userDoc.toObject(UserEntity::class.java)
-    //                 ?: UserEntity(userId = firebaseUser.uid, email = firebaseUser.email) // Fallback or throw error
-    //             userDao.insertUser(userEntity)
-    //             userEntity
-    //         } else {
-    //             throw IllegalStateException("Firebase user is null after sign in")
-    //         }
-    //     }.firstOrNull() ?: Resource.Error("Sign in failed unexpectedly")
-    // }
+
+    override suspend fun submitKycVerification(userId: String, submissionId: String, documentUrls: List<String>, imageUrls: List<String>): Resource<Unit> = safeCall {
+        val verificationsCollection = firestore.collection("verifications")
+        val data = mapOf(
+            "submissionId" to submissionId,
+            "status" to "PENDING",
+            "documentUrls" to documentUrls,
+            "imageUrls" to imageUrls,
+            "submittedAt" to System.currentTimeMillis()
+        )
+        verificationsCollection.document(userId).set(data, SetOptions.merge()).await()
+        Unit
+    }.firstOrNull() ?: Resource.Error("Failed to submit KYC verification")
+
+    override fun getKycSubmissionStatus(userId: String): Flow<Resource<String?>> = callbackFlow {
+        val docRef = firestore.collection("verifications").document(userId)
+        val listener = docRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(Resource.Error("Failed to listen to KYC status: ${error.message}"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null && snapshot.exists()) {
+                val status = snapshot.getString("status")
+                trySend(Resource.Success(status))
+            } else {
+                trySend(Resource.Success(null))
+            }
+        }
+        awaitClose { listener.remove() }
+    }
 }

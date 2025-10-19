@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.farmer
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -62,39 +63,44 @@ fun FarmerHomeScreen(
         }
     ) { padding ->
         SwipeRefresh(state = refreshingState, onRefresh = { viewModel.refreshData() }) {
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
                     .padding(padding),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
             // Weekly KPI Cards
             uiState.weeklySnapshot?.let { snapshot ->
-                Text(
-                    "Weekly Performance",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    item {
-                        KpiCard("Revenue", "₹${snapshot.revenueInr.toInt()}")
-                    }
-                    item {
-                        KpiCard("Orders", snapshot.ordersCount.toString())
-                    }
-                    item {
-                        KpiCard("Hatch Rate", "${(snapshot.hatchSuccessRate * 100).toInt()}%")
-                    }
-                    item {
-                        KpiCard("Mortality", "${(snapshot.mortalityRate * 100).toInt()}%")
+                item {
+                    Text(
+                        "Weekly Performance",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        item {
+                            KpiCard("Revenue", "₹${snapshot.revenueInr.toInt()}")
+                        }
+                        item {
+                            KpiCard("Orders", snapshot.ordersCount.toString())
+                        }
+                        item {
+                            KpiCard("Hatch Rate", "${(snapshot.hatchSuccessRate * 100).toInt()}%")
+                        }
+                        item {
+                            KpiCard("Mortality", "${(snapshot.mortalityRate * 100).toInt()}%")
+                        }
                     }
                 }
             }
 
             // Urgent KPIs Section
+            item {
             val urgentKpiCards = listOf(
                 FetcherCard(
                     title = "Overdue Tasks",
@@ -134,21 +140,26 @@ fun FarmerHomeScreen(
                 )
             )
 
-            Text(
-                "Urgent KPIs",
-                style = MaterialTheme.typography.titleLarge
-            )
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(urgentKpiCards) { card ->
-                    UrgentKpiCard(card)
+            Column {
+                Text(
+                    "Urgent KPIs",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(urgentKpiCards) { card ->
+                        UrgentKpiCard(card)
+                    }
                 }
+            }
             }
 
             // Alerts Banner
             if (uiState.unreadAlerts.isNotEmpty()) {
+                item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
@@ -172,13 +183,16 @@ fun FarmerHomeScreen(
                         Icon(Icons.Filled.ChevronRight, contentDescription = "View alerts")
                     }
                 }
+                }
             }
 
             // Fetcher Grid
-            Text(
-                "Farm Monitoring",
-                style = MaterialTheme.typography.titleLarge
-            )
+            item {
+                Text(
+                    "Farm Monitoring",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
 
             val fetcherCards = listOf(
                 // Daily Log (first priority)
@@ -267,13 +281,20 @@ fun FarmerHomeScreen(
                 )
             )
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(fetcherCards) { card ->
-                    FetcherCardItem(card)
+            // Convert grid to rows to avoid nested lazy layout
+            items(fetcherCards.chunked(2)) { rowCards ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowCards.forEach { card ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            FetcherCardItem(card)
+                        }
+                    }
+                    if (rowCards.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
             }

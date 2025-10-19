@@ -8,9 +8,14 @@ import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.data.database.entity.TransferVerificationEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.TransferWorkflowRepositoryImpl
+import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.utils.Resource
+import com.rio.rostry.domain.model.VerificationStatus
+import com.rio.rostry.domain.rbac.RbacGuard
+import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -20,6 +25,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
@@ -96,6 +103,10 @@ class GpsVerificationTest {
 
     @Test
     fun gps_over_100m_requires_explanation_and_persists_notes() = runBlocking {
+        val productId = "p1"
+        val seller = "s1"
+        val buyer = "b1"
+
         val productValidator = com.rio.rostry.marketplace.validation.ProductValidator(
             traceabilityRepository = FakeTraceabilityRepo(),
             vaccinationDao = db.vaccinationRecordDao(),
@@ -103,6 +114,20 @@ class GpsVerificationTest {
             dailyLogDao = db.dailyLogDao(),
             quarantineDao = db.quarantineRecordDao()
         )
+        val rbacGuard = mock(RbacGuard::class.java).also {
+            `when`(it.canInitiateTransfer()).thenReturn(true)
+        }
+        val userRepository = mock(UserRepository::class.java).also {
+            `when`(it.getUserById(seller)).thenReturn(
+                flowOf(Resource.Success(com.rio.rostry.data.database.entity.UserEntity(
+                    userId = seller,
+                    verificationStatus = VerificationStatus.VERIFIED
+                )))
+            )
+        }
+        val currentUserProvider = mock(CurrentUserProvider::class.java).also {
+            `when`(it.userIdOrNull()).thenReturn(seller)
+        }
         val transferRepo = TransferWorkflowRepositoryImpl(
             transferDao = db.transferDao(),
             verificationDao = db.transferVerificationDao(),
@@ -112,12 +137,12 @@ class GpsVerificationTest {
             traceabilityRepository = FakeTraceabilityRepo(),
             productValidator = productValidator,
             productDao = db.productDao(),
-            quarantineDao = db.quarantineRecordDao()
+            quarantineDao = db.quarantineRecordDao(),
+            rbacGuard = rbacGuard,
+            userRepository = userRepository,
+            currentUserProvider = currentUserProvider
         )
 
-        val productId = "p1"
-        val seller = "s1"
-        val buyer = "b1"
         // Initiate with seller GPS at (0, 0)
         val initRes = transferRepo.initiate(
             productId = productId,

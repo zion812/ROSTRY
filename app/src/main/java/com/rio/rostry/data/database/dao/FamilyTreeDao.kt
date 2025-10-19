@@ -14,6 +14,9 @@ interface FamilyTreeDao {
     @Upsert
     suspend fun upsert(item: FamilyTreeEntity)
 
+    @Query("SELECT * FROM family_tree WHERE nodeId = :nodeId LIMIT 1")
+    suspend fun findById(nodeId: String): FamilyTreeEntity?
+
     @Query("SELECT * FROM family_tree WHERE productId = :productId AND isDeleted = 0")
     fun getForProduct(productId: String): Flow<List<FamilyTreeEntity>>
 

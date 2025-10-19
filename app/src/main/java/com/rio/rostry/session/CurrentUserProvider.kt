@@ -6,6 +6,7 @@ import javax.inject.Singleton
 
 interface CurrentUserProvider {
     fun userIdOrNull(): String?
+    fun isAuthenticated(): Boolean
 }
 
 @Singleton
@@ -13,4 +14,5 @@ class FirebaseCurrentUserProvider @Inject constructor(
     private val auth: FirebaseAuth
 ) : CurrentUserProvider {
     override fun userIdOrNull(): String? = auth.currentUser?.uid
+    override fun isAuthenticated(): Boolean = auth.currentUser != null
 }

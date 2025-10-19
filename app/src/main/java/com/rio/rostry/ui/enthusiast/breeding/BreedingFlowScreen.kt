@@ -100,7 +100,7 @@ private fun PairsTab(vm: BreedingFlowViewModel, onOpenPairDetail: (String) -> Un
     val pairs by vm.pairs.collectAsState()
     ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Active Pairs")
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(pairs) { pair ->
                 ElevatedCard(onClick = { onOpenPairDetail(pair.pairId) }) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -160,7 +160,7 @@ private fun MatingTab(vm: BreedingFlowViewModel) {
         // Simple bar chart of matings per week across all pairs
         val chartData = vm.matingsPerWeekChart.collectAsState().value
         BarChartView(data = chartData, modifier = Modifier.fillMaxWidth())
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(pairs) { p ->
                 val logs = matingsByPair[p.pairId].orEmpty()
                 ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -206,7 +206,7 @@ private fun EggsTab(vm: BreedingFlowViewModel) {
     val eggsByPair by vm.eggCollectionsByPair.collectAsState()
     ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Egg Collections")
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(pairs) { p ->
                 val cols = eggsByPair[p.pairId].orEmpty()
                 val total = cols.sumOf { it.eggsCollected }
@@ -264,7 +264,7 @@ private fun IncubationTab(vm: BreedingFlowViewModel, onOpenBatchDetail: (String)
     val batches by vm.incubationBatches.collectAsState()
     ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Active Batches")
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(batches) { b ->
                 val etaText = remember(b.expectedHatchAt) {
                     val now = System.currentTimeMillis()
@@ -329,7 +329,7 @@ private fun HatchingTab(vm: BreedingFlowViewModel) {
     val logsByBatch by vm.hatchingLogsByBatch.collectAsState()
     ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Hatching Logs")
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(batches) { b ->
                 val logs = logsByBatch[b.batchId].orEmpty()
                 val hatched = logs.count { it.eventType.equals("HATCHED", true) }

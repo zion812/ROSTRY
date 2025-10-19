@@ -42,7 +42,10 @@ private class FakeMessagingRepo : MessagingRepository {
     override fun streamUserThreadsWithMetadata(userId: String): Flow<List<MessagingRepository.ThreadWithMetadata>> = flowOf(emptyList())
 }
 
-private class FakeUserProvider(private val id: String?) : CurrentUserProvider { override fun userIdOrNull(): String? = id }
+private class FakeUserProvider(private val id: String?) : CurrentUserProvider {
+    override fun userIdOrNull(): String? = id
+    override fun isAuthenticated(): Boolean = id != null
+}
 
 class ThreadViewModelTest {
     @Test

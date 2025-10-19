@@ -3,6 +3,7 @@ package com.rio.rostry.domain.auth
 import android.app.Activity
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface AuthRepository {
     // Emits true when a user is authenticated and session is valid
@@ -10,6 +11,10 @@ interface AuthRepository {
 
     // Emits auth events such as CodeSent(verificationId), VerificationFailed, AutoVerified
     val events: Flow<AuthEvent>
+
+    val currentVerificationId: StateFlow<String?>
+
+    val currentPhoneE164: StateFlow<String?>
 
     // Indian phone number verification (E.164 expected, e.g., +91XXXXXXXXXX)
     suspend fun startPhoneVerification(activity: Activity, phoneE164: String): Resource<Unit>

@@ -43,6 +43,7 @@ object Routes {
         const val ENTHUSIAST = "onboard/enthusiast"
         const val FARM_BIRD = "onboard/farm/bird"
         const val FARM_BATCH = "onboard/farm/batch"
+        const val USER_SETUP = "onboard/user_setup"
     }
 
     object Product {
@@ -365,6 +366,8 @@ object Routes {
 
     // Whitelist of allowed query parameters per base route
     private val routeQueryWhitelist: Map<String, Set<String>> = mapOf(
+        Auth.PHONE to emptySet(),
+        Auth.OTP to emptySet(),
         FarmerNav.CREATE to setOf("prefillProductId", "pairId"),
         Onboarding.FARM_BIRD to setOf("role"),
         Onboarding.FARM_BATCH to setOf("role"),

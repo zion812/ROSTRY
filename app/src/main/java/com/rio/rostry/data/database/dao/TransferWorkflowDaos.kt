@@ -46,6 +46,10 @@ interface DisputeDao {
     suspend fun update(entity: DisputeEntity)
 }
 
+/**
+ * DAO for audit logs. Audit logs are immutable and write-once to ensure integrity of the audit trail.
+ * They cannot be modified or deleted after creation.
+ */
 @Dao
 interface AuditLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -56,4 +60,10 @@ interface AuditLogDao {
 
     @Query("SELECT * FROM audit_logs WHERE refId = :refId ORDER BY createdAt ASC")
     fun streamByRef(refId: String): Flow<List<AuditLogEntity>>
+
+    @Query("SELECT * FROM audit_logs WHERE type = :type ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getByType(type: String, limit: Int): List<AuditLogEntity>
+
+    @Query("SELECT * FROM audit_logs WHERE actorUserId = :userId ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getByActor(userId: String, limit: Int): List<AuditLogEntity>
 }

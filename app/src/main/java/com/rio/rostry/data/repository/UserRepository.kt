@@ -27,6 +27,10 @@ interface UserRepository {
 
     suspend fun updateFarmLocationVerification(userId: String, latitude: Double, longitude: Double): Resource<Unit>
 
+    suspend fun submitKycVerification(userId: String, submissionId: String, documentUrls: List<String>, imageUrls: List<String>): Resource<Unit>
+
+    fun getKycSubmissionStatus(userId: String): Flow<Resource<String?>>
+
     suspend fun seedDemoUsers()
 
     suspend fun upsertDemoUser(userEntity: UserEntity): Resource<Unit>

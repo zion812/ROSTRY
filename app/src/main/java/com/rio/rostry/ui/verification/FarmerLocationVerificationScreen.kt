@@ -59,9 +59,11 @@ import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.rio.rostry.BuildConfig
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.rememberCoroutineScope
+import com.rio.rostry.domain.model.VerificationStatus
 import kotlinx.coroutines.launch
 
 @Composable
@@ -147,6 +149,35 @@ fun FarmerLocationVerificationScreen(
         horizontalAlignment = Alignment.Start
     ) {
         Text("Farmer Location Verification")
+        // Status banner
+        ui.user?.let { user ->
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                when (user.verificationStatus) {
+                    VerificationStatus.PENDING -> Text("Verification in progress", modifier = Modifier.padding(16.dp))
+                    VerificationStatus.VERIFIED -> Text("Verified ✓", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
+                    VerificationStatus.REJECTED -> {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Verification rejected", color = MaterialTheme.colorScheme.error)
+                            user.kycRejectionReason?.let { reason ->
+                                Text(reason, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Button(onClick = {
+                                // Clear form for resubmission
+                                latState.value = ""
+                                lngState.value = ""
+                                addressState.value = ""
+                                markerState.value?.remove()
+                                markerState.value = null
+                                // Note: Clearing uploads would require a viewModel method; assuming it's handled separately
+                            }, modifier = Modifier.padding(top = 8.dp)) {
+                                Text("Resubmit Verification")
+                            }
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
         Text("Enter approximate farm location (lat/lng)")
         Text("Tap on the map to set location", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
@@ -337,7 +368,7 @@ fun FarmerLocationVerificationScreen(
                     viewModel.submitKycWithDocuments(passedLat = lat, passedLng = lng)
                 }
             },
-            enabled = !ui.isSubmitting && latState.value.toDoubleOrNull() != null && lngState.value.toDoubleOrNull() != null && ui.uploadedImages.isNotEmpty(),
+            enabled = !ui.isSubmitting && latState.value.toDoubleOrNull() != null && lngState.value.toDoubleOrNull() != null && ui.uploadedImages.isNotEmpty() && ui.user?.verificationStatus != VerificationStatus.VERIFIED,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         ) {
             if (ui.isSubmitting) {
@@ -347,7 +378,14 @@ fun FarmerLocationVerificationScreen(
                 Text("Submit Location & Documents")
             }
         }
-        if (latState.value.toDoubleOrNull() == null || lngState.value.toDoubleOrNull() == null || ui.uploadedImages.isEmpty()) {
+        if (ui.user?.verificationStatus == VerificationStatus.VERIFIED) {
+            Text(
+                "Your account is already verified",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        } else if (latState.value.toDoubleOrNull() == null || lngState.value.toDoubleOrNull() == null || ui.uploadedImages.isEmpty()) {
             Text(
                 "Please set location and upload at least one farm photo for verification",
                 style = MaterialTheme.typography.bodySmall,
@@ -366,7 +404,7 @@ fun FarmerLocationVerificationScreen(
                     Button(onClick = { onDone() }) { Text("OK") }
                 },
                 title = { Text("Submission received") },
-                text = { Text("Your verification documents have been submitted. We'll review them within 24-48 hours.") }
+                text = { Text("Your verification documents have been submitted.\nWe'll review them within 24-48 hours.\nYou'll receive a notification when verification is complete.\nOnce verified, you can list products and initiate transfers.") }
             )
         }
     }

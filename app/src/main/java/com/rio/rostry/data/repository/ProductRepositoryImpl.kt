@@ -3,8 +3,14 @@ package com.rio.rostry.data.repository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
 import com.rio.rostry.data.base.BaseRepository
+import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.data.database.entity.UserEntity
+import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.rbac.RbacGuard
+import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -23,7 +29,11 @@ import javax.inject.Singleton
 @Singleton
 class ProductRepositoryImpl @Inject constructor(
     private val productDao: ProductDao,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val rbacGuard: RbacGuard,
+    private val currentUserProvider: CurrentUserProvider,
+    private val userRepository: UserRepository,
+    private val auditLogDao: AuditLogDao
 ) : BaseRepository(), ProductRepository {
 
     private val productsCollection = firestore.collection("products")
@@ -73,57 +83,120 @@ class ProductRepositoryImpl @Inject constructor(
         emitAll(inner)
     }
 
-    override suspend fun addProduct(product: ProductEntity): Resource<String> = safeCall<String> {
-        // Offline-first: create ID locally and mark dirty for sync
-        val id = UUID.randomUUID().toString()
-        val now = System.currentTimeMillis()
-        val local = product.copy(
-            productId = id,
-            updatedAt = now,
-            lastModifiedAt = now,
-            isDeleted = false,
-            deletedAt = null,
-            dirty = true
-        )
-        productDao.upsert(local)
-        id
-    }.firstOrNull() ?: Resource.Error("Failed to add product")
+    override suspend fun addProduct(product: ProductEntity): Resource<String> {
+        val canList = rbacGuard.canListProduct()
+        if (!canList) {
+            val verified = rbacGuard.isVerified()
+            if (!verified) {
+                return Resource.Error("Complete KYC verification to list products. Go to Profile → Verification.")
+            } else {
+                return Resource.Error("You don't have permission to list products")
+            }
+        }
+        val result = safeCall<String> {
+            // Offline-first: create ID locally and mark dirty for sync
+            val id = UUID.randomUUID().toString()
+            val now = System.currentTimeMillis()
+            val local = product.copy(
+                productId = id,
+                updatedAt = now,
+                lastModifiedAt = now,
+                isDeleted = false,
+                deletedAt = null,
+                dirty = true
+            )
+            productDao.upsert(local)
+            // Create audit log
+            val currentUserId = currentUserProvider.userIdOrNull()
+            if (currentUserId != null) {
+                auditLogDao.insert(AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "PRODUCT",
+                    refId = id,
+                    action = "CREATE",
+                    actorUserId = currentUserId,
+                    detailsJson = null,
+                    createdAt = now
+                ))
+            }
+            id
+        }.firstOrNull() ?: Resource.Error("Failed to add product")
+        return result
+    }
 
-    override suspend fun updateProduct(product: ProductEntity): Resource<Unit> = safeCall<Unit> {
-        // Offline-first: mark dirty and bump times; sync manager will push later
-        val now = System.currentTimeMillis()
-        val local = product.copy(
-            updatedAt = now,
-            lastModifiedAt = now,
-            dirty = true
-        )
-        productDao.upsert(local)
-        Unit
-    }.firstOrNull() ?: Resource.Error("Failed to update product")
+    override suspend fun updateProduct(product: ProductEntity): Resource<Unit> {
+        val currentUserId = currentUserProvider.userIdOrNull()
+        if (product.sellerId != currentUserId) {
+            return Resource.Error("You can only update your own products")
+        }
+        val result = safeCall<Unit> {
+            // Offline-first: mark dirty and bump times; sync manager will push later
+            val now = System.currentTimeMillis()
+            val local = product.copy(
+                updatedAt = now,
+                lastModifiedAt = now,
+                dirty = true
+            )
+            productDao.upsert(local)
+            // Create audit log
+            if (currentUserId != null) {
+                auditLogDao.insert(AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "PRODUCT",
+                    refId = product.productId,
+                    action = "UPDATE",
+                    actorUserId = currentUserId,
+                    detailsJson = null,
+                    createdAt = now
+                ))
+            }
+            Unit
+        }.firstOrNull() ?: Resource.Error("Failed to update product")
+        return result
+    }
 
-    override suspend fun deleteProduct(productId: String): Resource<Unit> = safeCall<Unit> {
-        // Offline-first soft delete: mark isDeleted and dirty
-        val now = System.currentTimeMillis()
+    override suspend fun deleteProduct(productId: String): Resource<Unit> {
         val current = productDao.findById(productId)
-        val softDeleted = (current ?: ProductEntity(
-            productId = productId,
-            sellerId = "",
-            name = "",
-            description = "",
-            category = "",
-            price = 0.0,
-            quantity = 0.0,
-            unit = "",
-            location = ""
-        )).copy(
-            isDeleted = true,
-            deletedAt = now,
-            updatedAt = now,
-            lastModifiedAt = now,
-            dirty = true
-        )
-        productDao.upsert(softDeleted)
-    }.firstOrNull() ?: Resource.Error("Failed to delete product")
+        val currentUserId = currentUserProvider.userIdOrNull()
+        if (current?.sellerId != currentUserId) {
+            return Resource.Error("You can only delete your own products")
+        }
+        val result = safeCall<Unit> {
+            // Offline-first soft delete: mark isDeleted and dirty
+            val now = System.currentTimeMillis()
+            val softDeleted = (current ?: ProductEntity(
+                productId = productId,
+                sellerId = "",
+                name = "",
+                description = "",
+                category = "",
+                price = 0.0,
+                quantity = 0.0,
+                unit = "",
+                location = ""
+            )).copy(
+                isDeleted = true,
+                deletedAt = now,
+                updatedAt = now,
+                lastModifiedAt = now,
+                dirty = true
+            )
+            productDao.upsert(softDeleted)
+            // Create audit log
+            if (currentUserId != null) {
+                auditLogDao.insert(AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "PRODUCT",
+                    refId = productId,
+                    action = "DELETE",
+                    actorUserId = currentUserId,
+                    detailsJson = null,
+                    createdAt = now
+                ))
+            }
+        }.firstOrNull() ?: Resource.Error("Failed to delete product")
+        return result
+    }
 
     override suspend fun syncProductsFromRemote(): Resource<Unit> = safeCall<Unit> {
         // Deprecated in favor of SyncManager; keeping as a no-op success to preserve interface
@@ -206,6 +279,17 @@ class ProductRepositoryImpl @Inject constructor(
             source.filter { it.familyTreeId != null || !it.parentIdsJson.isNullOrBlank() }
         }
     }.firstOrNull() ?: Resource.Error("Failed to filter traceable products")
+
+    private fun now() = System.currentTimeMillis()
+
+    private suspend fun getCurrentUserOrNull(): UserEntity? {
+        val userId = currentUserProvider.userIdOrNull() ?: return null
+        val res = userRepository.getUserById(userId).firstOrNull()
+        return when (res) {
+            is Resource.Success -> res.data
+            else -> null
+        }
+    }
 
     private fun distanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val R = 6371.0 // km

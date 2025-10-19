@@ -16,9 +16,12 @@ import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -42,7 +45,8 @@ class SessionViewModel @Inject constructor(
         val demoProfiles: List<DemoUserProfile> = emptyList(),
         val currentDemoProfile: DemoUserProfile? = null,
         val authMode: SessionManager.AuthMode = SessionManager.AuthMode.FIREBASE,
-        val pendingDeepLink: String? = null
+        val pendingDeepLink: String? = null,
+        val sessionExpiryWarning: String? = null
     )
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -50,6 +54,7 @@ class SessionViewModel @Inject constructor(
 
     private var sessionJob: Job? = null
     private var userCollectionJob: Job? = null
+    private var expiryCheckJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -83,8 +88,10 @@ class SessionViewModel @Inject constructor(
                         isAuthenticated = false,
                         isLoading = false,
                         authMode = mode,
-                        error = null
+                        error = null,
+                        sessionExpiryWarning = null
                     )
+                    expiryCheckJob?.cancel()
                     return@collectLatest
                 }
                 _uiState.value = _uiState.value.copy(
@@ -167,7 +174,47 @@ class SessionViewModel @Inject constructor(
                             error = null,
                             authMode = mode
                         )
+                        scheduleSessionExpiryCheck()
                     }
+                }
+            }
+        }
+    }
+
+    fun scheduleSessionExpiryCheck() {
+        expiryCheckJob?.cancel()
+        expiryCheckJob = viewModelScope.launch {
+            val periodicFlow = flow {
+                emit(Unit)
+                while (true) {
+                    delay(3600000L) // Check every hour
+                    emit(Unit)
+                }
+            }
+            combine(periodicFlow, sessionManager.lastAuthAt(), sessionManager.sessionRole()) { _, last, role ->
+                if (last == null || role == null) return@combine null
+                val timeoutDays = when (role) {
+                    UserType.GENERAL -> 30L
+                    UserType.FARMER, UserType.ENTHUSIAST -> 7L
+                }
+                val timeoutMillis = timeoutDays * 24 * 60 * 60 * 1000
+                val now = System.currentTimeMillis()
+                val elapsed = now - last
+                val timeLeft = timeoutMillis - elapsed
+                timeLeft
+            }.collect { timeLeft ->
+                if (timeLeft == null) {
+                    _uiState.value = _uiState.value.copy(sessionExpiryWarning = null)
+                    return@collect
+                }
+                if (timeLeft <= 0) {
+                    // Session expired, sign out
+                    signOut()
+                } else if (timeLeft <= 86400000L) { // 1 day in ms
+                    val daysLeft = timeLeft / (24 * 60 * 60 * 1000)
+                    _uiState.value = _uiState.value.copy(sessionExpiryWarning = "Your session will expire in $daysLeft days. Please re-authenticate soon.")
+                } else {
+                    _uiState.value = _uiState.value.copy(sessionExpiryWarning = null)
                 }
             }
         }
@@ -238,6 +285,7 @@ class SessionViewModel @Inject constructor(
     }
 
     fun signOut() {
+        expiryCheckJob?.cancel()
         viewModelScope.launch {
             mockAuthManager.signOut()
             authRepository.signOut()
@@ -249,7 +297,8 @@ class SessionViewModel @Inject constructor(
                 error = null,
                 demoProfiles = mockAuthManager.allProfiles(),
                 currentDemoProfile = null,
-                authMode = SessionManager.AuthMode.DEMO
+                authMode = SessionManager.AuthMode.DEMO,
+                sessionExpiryWarning = null
             )
         }
     }

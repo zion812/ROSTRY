@@ -262,7 +262,7 @@ private fun GeneralMarketScreen(
                         }
                     }
                     
-                    // All Products Grid
+                    // All Products Grid Header
                     item {
                         Text(
                             text = "All Products",
@@ -274,17 +274,15 @@ private fun GeneralMarketScreen(
                         )
                     }
                     
-                    item {
-                        LazyVerticalGrid(
+                    // Products in grid pattern using LazyColumn items (avoids nested lazy layout crash)
+                    items(state.products.chunked(2), key = { row -> row.first().productId }) { rowProducts ->
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(((state.products.size / 2 + 1) * 320).dp),
-                            columns = GridCells.Adaptive(160.dp),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(state.products, key = { it.productId }) { product ->
+                            rowProducts.forEach { product ->
                                 EnhancedProductCard(
                                     product = product,
                                     isInWishlist = state.wishlistProductIds.contains(product.productId),
@@ -294,8 +292,13 @@ private fun GeneralMarketScreen(
                                     },
                                     onOpenTraceability = { onOpenTraceability(product.productId) },
                                     onAddToCart = { onAddToCart(product, 1.0) },
-                                    onToggleWishlist = { onToggleWishlist(product) }
+                                    onToggleWishlist = { onToggleWishlist(product) },
+                                    modifier = Modifier.weight(1f)
                                 )
+                            }
+                            // Fill empty space if odd number of products
+                            if (rowProducts.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }
@@ -314,15 +317,7 @@ private fun MarketTopBar(
     onSuggestionSelected: (String) -> Unit,
     expanded: Boolean
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        Text(
-            text = "Marketplace",
-            modifier = Modifier
-                .padding(start = 24.dp, top = 16.dp, bottom = 8.dp)
-                .semantics { heading() },
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Box {
             OutlinedTextField(
                 modifier = Modifier
@@ -686,12 +681,13 @@ private fun EnhancedProductCard(
     onClick: () -> Unit,
     onOpenTraceability: () -> Unit,
     onAddToCart: () -> Unit,
-    onToggleWishlist: () -> Unit
+    onToggleWishlist: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Box {
             Column(modifier = Modifier.fillMaxWidth()) {

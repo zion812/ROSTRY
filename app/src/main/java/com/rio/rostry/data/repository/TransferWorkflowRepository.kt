@@ -23,6 +23,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import com.rio.rostry.domain.rbac.RbacGuard
+import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.model.VerificationStatus
+import com.rio.rostry.session.CurrentUserProvider
 
 interface TransferWorkflowRepository {
     suspend fun initiate(
@@ -100,8 +104,11 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     private val productValidator: ProductValidator,
     private val productDao: ProductDao,
     private val quarantineDao: QuarantineRecordDao,
+    private val rbacGuard: RbacGuard,
+    private val userRepository: UserRepository,
     private val outboxDao: OutboxDao? = null,
     private val gson: Gson = Gson(),
+    private val currentUserProvider: CurrentUserProvider,
 ) : TransferWorkflowRepository {
 
     private fun now() = System.currentTimeMillis()
@@ -115,6 +122,13 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         toUserId: String?,
         logOnFailure: Boolean
     ): Resource<Unit> {
+        // Enforce that the current session user is the transfer actor
+        val currentUserId = currentUserProvider.userIdOrNull()
+        if (currentUserId != null && currentUserId != fromUserId) {
+            val msg = "You are not authorized to initiate transfers for other users"
+            if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+            return Resource.Error(msg)
+        }
         val product = productDao.findById(productId)
         if (product == null) {
             val msg = "Product not found"
@@ -125,6 +139,12 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         // Check ownership
         if (product.sellerId != fromUserId) {
             val msg = "You do not own this product"
+            if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+            return Resource.Error(msg)
+        }
+
+        if (!rbacGuard.canInitiateTransfer()) {
+            val msg = "You don't have permission to initiate transfers"
             if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
             return Resource.Error(msg)
         }
@@ -147,6 +167,17 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                 if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
                 return Resource.Error(msg)
             }
+        }
+
+        val userResource = userRepository.getUserById(fromUserId).first()
+        val user = when (userResource) {
+            is Resource.Success -> userResource.data
+            else -> null
+        }
+        if (user?.verificationStatus != VerificationStatus.VERIFIED) {
+            val msg = "Complete KYC verification to initiate transfers. Go to Profile → Verification."
+            if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+            return Resource.Error(msg)
         }
 
         // Use traceability report for freshness and related checks
@@ -514,7 +545,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             outboxDao?.insert(outboxEntry)
 
             auditLogDao.insert(
-                AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "COMPLETE", null, null, now())
+                AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "COMPLETE", null, gson.toJson(transfer), now())
             )
             notifier.notifyCompleted(transferId)
             Resource.Success(Unit)

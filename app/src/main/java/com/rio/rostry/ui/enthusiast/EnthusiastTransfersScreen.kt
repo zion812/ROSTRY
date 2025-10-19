@@ -3,10 +3,14 @@ package com.rio.rostry.ui.enthusiast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
@@ -63,7 +67,14 @@ androidx.compose.material3.TopAppBar(
             )
         }
     ) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text("Ownership Transfer Management")
             if (state.loading) {
                 Text("Loading...")
@@ -153,7 +164,10 @@ androidx.compose.material3.TopAppBar(
                             TextButton(onClick = { vm.clearSelection() }) { Text("Clear Selection") }
                         }
                     }
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().height(300.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         items(state.pending, key = { it.transferId }) { t ->
                             Column(Modifier.fillMaxWidth()) {
                                 Row(Modifier.fillMaxWidth()) {
@@ -223,7 +237,10 @@ androidx.compose.material3.TopAppBar(
                         Text("No history")
                     }
                 }
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().height(400.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     items(historyPaging.itemCount) { index ->
                         val t = historyPaging[index]
                         if (t != null) {

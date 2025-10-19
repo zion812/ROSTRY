@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.auth.AuthEvent
 import com.rio.rostry.domain.auth.AuthRepository
+import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.normalizeToE164India
@@ -47,23 +48,29 @@ class AuthViewModel @Inject constructor(
     sealed class NavAction {
         data class ToOtp(val verificationId: String): NavAction()
         data class ToHome(val userType: UserType): NavAction()
+        object ToUserSetup : NavAction()
     }
 
     private var cooldownJob: kotlinx.coroutines.Job? = null
 
+    private var lastStartVerificationAt: Long? = null
+    private var lastVerifyOtpAt: Long? = null
+
     init {
-        // Restore verificationId/phone from SavedStateHandle if present
-        val restoredVerificationId: String? = savedStateHandle.get<String>("verificationId")
-        val restoredPhone: String? = savedStateHandle.get<String>("phoneE164")
-        _uiState.value = _uiState.value.copy(
-            verificationId = restoredVerificationId,
-            e164 = restoredPhone
-        )
+        viewModelScope.launch {
+            authRepository.currentVerificationId.collectLatest { vid ->
+                _uiState.value = _uiState.value.copy(verificationId = vid)
+            }
+        }
+        viewModelScope.launch {
+            authRepository.currentPhoneE164.collectLatest { phone ->
+                _uiState.value = _uiState.value.copy(e164 = phone)
+            }
+        }
         viewModelScope.launch {
             authRepository.events.collectLatest { event ->
                 when (event) {
                     is AuthEvent.CodeSent -> {
-                        savedStateHandle["verificationId"] = event.verificationId
                         _uiState.value = _uiState.value.copy(verificationId = event.verificationId, isLoading = false)
                         startResendCooldown()
                         _navigation.tryEmit(NavAction.ToOtp(event.verificationId))
@@ -91,27 +98,52 @@ class AuthViewModel @Inject constructor(
     }
 
     fun startVerification(activity: Activity) {
+        val now = System.currentTimeMillis()
+        val lastStartAt = lastStartVerificationAt
+        if (lastStartAt != null && now - lastStartAt < 60000) {
+            val remaining = ((60000 - (now - lastStartAt)) / 1000).toInt()
+            _uiState.value = _uiState.value.copy(error = "Please wait ${remaining}s before requesting another OTP")
+            return
+        }
         val normalized = _uiState.value.e164
         if (normalized == null) {
             _uiState.value = _uiState.value.copy(error = "Enter a valid Indian number")
             return
         }
+        val maskedPhone = normalized.replaceRange(0, normalized.length - 4, "*".repeat(normalized.length - 4))
+        SecurityManager.audit("AUTH_START_VERIFICATION", mapOf("phone" to maskedPhone, "cooldown" to 60))
+        lastStartVerificationAt = now
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val res = authRepository.startPhoneVerification(activity, normalized)) {
-                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
+                    lastStartVerificationAt = null // reset on error
+                }
                 else -> Unit
             }
         }
     }
 
     fun verifyOtpAndSignIn() {
-        val verificationId = _uiState.value.verificationId ?: return
+        val now = System.currentTimeMillis()
+        val lastVerifyAt = lastVerifyOtpAt
+        if (lastVerifyAt != null && now - lastVerifyAt < 60000) {
+            val remaining = ((60000 - (now - lastVerifyAt)) / 1000).toInt()
+            _uiState.value = _uiState.value.copy(error = "Please wait ${remaining}s before verifying another OTP")
+            return
+        }
+        val verificationId = authRepository.currentVerificationId.value
+        if (verificationId == null) {
+            _uiState.value = _uiState.value.copy(error = "Verification session expired")
+            return
+        }
         val code = _uiState.value.otp
         if (code.length != 6 || !code.all { it.isDigit() }) {
             _uiState.value = _uiState.value.copy(error = "Enter a valid 6-digit OTP")
             return
         }
+        lastVerifyOtpAt = now
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val res = authRepository.verifyOtp(verificationId, code)) {
@@ -119,7 +151,10 @@ class AuthViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     postAuthBootstrapAndNavigate()
                 }
-                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
+                    lastVerifyOtpAt = null // reset on error
+                }
                 else -> Unit
             }
         }
@@ -127,11 +162,14 @@ class AuthViewModel @Inject constructor(
 
     fun resendOtp(activity: Activity) {
         if (_uiState.value.resendCooldownSec > 0) return
+        SecurityManager.audit("AUTH_RESEND_OTP", mapOf("attempt" to true, "cooldown" to _uiState.value.resendCooldownSec))
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val res = authRepository.resendVerificationCode(activity)) {
                 is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
-                else -> _uiState.value = _uiState.value.copy(isLoading = false)
+                else -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, otp = "")
+                }
             }
         }
     }
@@ -157,9 +195,12 @@ class AuthViewModel @Inject constructor(
                     val user = resource.data
                     if (user != null) {
                         sessionManager.markAuthenticated(System.currentTimeMillis(), user.userType)
+                        if (user.userType == UserType.GENERAL) {
+                            _navigation.tryEmit(NavAction.ToUserSetup)
+                        } else {
+                            _navigation.tryEmit(NavAction.ToHome(user.userType))
+                        }
                     }
-                    val role = user?.userType ?: UserType.GENERAL
-                    _navigation.tryEmit(NavAction.ToHome(role))
                 } else if (resource is Resource.Error) {
                     _uiState.value = _uiState.value.copy(error = resource.message)
                 }

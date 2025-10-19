@@ -1,5 +1,5 @@
 package com.rio.rostry.ui.onboarding
-
+  
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,9 +19,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.utils.validation.OnboardingValidator
@@ -31,7 +34,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.rio.rostry.utils.notif.FarmNotifier
-
+import com.rio.rostry.ui.scan.QrScannerScreen
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.core.content.ContextCompat
+  
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardFarmBatchScreen(
@@ -42,16 +51,53 @@ fun OnboardFarmBatchScreen(
 ) {
     val state by vm.state.collectAsState()
     val ctx = androidx.compose.ui.platform.LocalContext.current
-
+  
     LaunchedEffect(role) { role?.let { vm.setRole(it) } }
-
+  
     // Observe navigation events and route out
     LaunchedEffect(Unit) {
         vm.navigationEvent.collect { route ->
             onNavigateRoute(route)
         }
     }
+  
+    // Camera permission handling
+    val cameraPermissionGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    val showRationaleDialog = remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) showRationaleDialog.value = true
+    }
 
+    fun validateCurrent(state: OnboardFarmBatchViewModel.WizardState): Map<String, String> {
+        return when (state.currentStep) {
+            OnboardFarmBatchViewModel.WizardStep.PATH_SELECTION -> OnboardingValidator.validatePathSelection(state.isTraceable)
+            OnboardFarmBatchViewModel.WizardStep.AGE_GROUP -> OnboardingValidator.validateAgeGroup(state.ageGroup)
+            OnboardFarmBatchViewModel.WizardStep.BATCH_DETAILS -> {
+                val e = mutableMapOf<String, String>()
+                if (state.batchDetails.batchName.isBlank()) e["batchName"] = "Batch name is required"
+                val count = state.batchDetails.count.toIntOrNull() ?: 0
+                if (count < 2) e["count"] = "Count must be at least 2"
+                if (state.batchDetails.hatchDate == null) e["hatchDate"] = "Hatch date required"
+                e
+            }
+            OnboardFarmBatchViewModel.WizardStep.LINEAGE -> OnboardingValidator.validateLineage(
+                OnboardingValidator.LineageState(state.lineage.maleParentId, state.lineage.femaleParentId),
+                state.isTraceable == true
+            )
+            OnboardFarmBatchViewModel.WizardStep.PROOFS -> OnboardingValidator.validateMedia(
+                OnboardingValidator.MediaState(state.media.photoUris, state.media.videoUris, state.media.documentUris),
+                state.isTraceable == true
+            )
+            OnboardFarmBatchViewModel.WizardStep.REVIEW -> emptyMap()
+        }
+    }
+  
+    val currentErrors = validateCurrent(state)
+    val canProceed = currentErrors.isEmpty()
+  
+    var showScanner by remember { mutableStateOf(false) }
+    var scannerGender by remember { mutableStateOf("") }
+  
     Scaffold(topBar = { TopAppBar(title = { Text("Onboard Batch") }) }) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
@@ -66,7 +112,10 @@ fun OnboardFarmBatchScreen(
                 OnboardFarmBatchViewModel.WizardStep.PROOFS -> if (state.isTraceable == true) 5 else 4
                 OnboardFarmBatchViewModel.WizardStep.REVIEW -> totalSteps
             }
-            LinearProgressIndicator(progress = currentIndex / totalSteps.toFloat(), modifier = Modifier.fillMaxWidth())
+            LinearProgressIndicator(
+                progress = currentIndex / totalSteps.toFloat(),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Onboarding progress: step $currentIndex of $totalSteps" }
+            )
             when (state.currentStep) {
                 OnboardFarmBatchViewModel.WizardStep.PATH_SELECTION -> {
                     Text("Select Path")
@@ -74,35 +123,35 @@ fun OnboardFarmBatchScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         when (state.isTraceable) {
                             true -> {
-                                Button(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
-                                OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                                Button(onClick = { vm.updateIsTraceable(true) }, modifier = Modifier.semantics { contentDescription = "Select traceable path" }) { Text("Traceable") }
+                                OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast, modifier = Modifier.semantics { contentDescription = "Select non-traceable path" }) { Text("Non-Traceable") }
                             }
                             false -> {
-                                OutlinedButton(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
-                                Button(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                                OutlinedButton(onClick = { vm.updateIsTraceable(true) }, modifier = Modifier.semantics { contentDescription = "Select traceable path" }) { Text("Traceable") }
+                                Button(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast, modifier = Modifier.semantics { contentDescription = "Select non-traceable path" }) { Text("Non-Traceable") }
                             }
                             null -> {
-                                OutlinedButton(onClick = { vm.updateIsTraceable(true) }) { Text("Traceable") }
-                                OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast) { Text("Non-Traceable") }
+                                OutlinedButton(onClick = { vm.updateIsTraceable(true) }, modifier = Modifier.semantics { contentDescription = "Select traceable path" }) { Text("Traceable") }
+                                OutlinedButton(onClick = { if (!enthusiast) vm.updateIsTraceable(false) }, enabled = !enthusiast, modifier = Modifier.semantics { contentDescription = "Select non-traceable path" }) { Text("Non-Traceable") }
                             }
                         }
                     }
-                    state.validationErrors["path"]?.let { Text(it) }
+                    currentErrors["path"]?.let { Text(it) }
                 }
                 OnboardFarmBatchViewModel.WizardStep.AGE_GROUP -> {
                     Text("Select Age Group")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val sel = state.ageGroup
-                        if (sel == OnboardingValidator.AgeGroup.CHICK) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }) { Text("Chick") }
-                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }) { Text("Chick") }
+                        if (sel == OnboardingValidator.AgeGroup.CHICK) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }, modifier = Modifier.semantics { contentDescription = "Select chick age group" }) { Text("Chick") }
+                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.CHICK) }, modifier = Modifier.semantics { contentDescription = "Select chick age group" }) { Text("Chick") }
                         
-                        if (sel == OnboardingValidator.AgeGroup.ADULT) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }) { Text("Adult") }
-                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }) { Text("Adult") }
+                        if (sel == OnboardingValidator.AgeGroup.ADULT) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }, modifier = Modifier.semantics { contentDescription = "Select adult age group" }) { Text("Adult") }
+                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.ADULT) }, modifier = Modifier.semantics { contentDescription = "Select adult age group" }) { Text("Adult") }
                         
-                        if (sel == OnboardingValidator.AgeGroup.BREEDER) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }) { Text("Breeder") }
-                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }) { Text("Breeder") }
+                        if (sel == OnboardingValidator.AgeGroup.BREEDER) Button(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }, modifier = Modifier.semantics { contentDescription = "Select breeder age group" }) { Text("Breeder") }
+                        else OutlinedButton(onClick = { vm.updateAgeGroup(OnboardingValidator.AgeGroup.BREEDER) }, modifier = Modifier.semantics { contentDescription = "Select breeder age group" }) { Text("Breeder") }
                     }
-                    state.validationErrors["ageGroup"]?.let { Text(it) }
+                    currentErrors["ageGroup"]?.let { Text(it) }
                 }
                 OnboardFarmBatchViewModel.WizardStep.BATCH_DETAILS -> {
                     Text("Batch Details")
@@ -110,25 +159,30 @@ fun OnboardFarmBatchScreen(
                         value = state.batchDetails.batchName,
                         onValueChange = { text -> vm.updateBatchDetails { bd -> bd.copy(batchName = text) } },
                         label = { Text("Batch Name") },
-                        singleLine = true
+                        singleLine = true,
+                        modifier = Modifier.semantics { contentDescription = "Batch name" }
                     )
+                    currentErrors["batchName"]?.let { Text(it) }
                     OutlinedTextField(
                         value = state.batchDetails.count,
                         onValueChange = { text -> vm.updateBatchDetails { bd -> bd.copy(count = text.filter { it.isDigit() }) } },
                         label = { Text("Count (>= 2)") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.semantics { contentDescription = "Batch count" }
                     )
+                    currentErrors["count"]?.let { Text(it) }
                     OutlinedTextField(
                         value = state.batchDetails.breed,
                         onValueChange = { text -> vm.updateBatchDetails { bd -> bd.copy(breed = text) } },
                         label = { Text("Breed") },
-                        singleLine = true
+                        singleLine = true,
+                        modifier = Modifier.semantics { contentDescription = "Batch breed" }
                     )
                     // Hatch date picker
                     val showDate = remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showDate.value = true }) {
+                        OutlinedButton(onClick = { showDate.value = true }, modifier = Modifier.semantics { contentDescription = "Pick hatch date" }) {
                             val d = state.batchDetails.hatchDate?.let { java.text.SimpleDateFormat("dd MMM yyyy").format(java.util.Date(it)) } ?: "Pick Hatch Date"
                             Text(d)
                         }
@@ -145,7 +199,7 @@ fun OnboardFarmBatchScreen(
                             ).show()
                         }
                     }
-                    state.validationErrors.values.firstOrNull()?.let { Text(it) }
+                    currentErrors["hatchDate"]?.let { Text(it) }
                 }
                 OnboardFarmBatchViewModel.WizardStep.LINEAGE -> {
                     Text("Lineage - select parents (optional scaffold)")
@@ -155,12 +209,18 @@ fun OnboardFarmBatchScreen(
                     val females by vm.availableFemaleParents.collectAsState()
                     LaunchedEffect(Unit) { vm.loadAvailableParents() }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { showMale.value = true }) { Text("Select Male Parent") }
-                        Button(onClick = { showFemale.value = true }) { Text("Select Female Parent") }
+                        Button(onClick = { showMale.value = true }, modifier = Modifier.semantics { contentDescription = "Select male parent" }) { Text("Select Male Parent") }
+                        Button(onClick = {
+                            if (cameraPermissionGranted) { scannerGender = "male"; showScanner = true } else permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }, modifier = Modifier.semantics { contentDescription = "Scan QR for male parent" }, enabled = cameraPermissionGranted) { Text("Scan Male QR") }
+                        Button(onClick = { showFemale.value = true }, modifier = Modifier.semantics { contentDescription = "Select female parent" }) { Text("Select Female Parent") }
+                        Button(onClick = {
+                            if (cameraPermissionGranted) { scannerGender = "female"; showScanner = true } else permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }, modifier = Modifier.semantics { contentDescription = "Scan QR for female parent" }, enabled = cameraPermissionGranted) { Text("Scan Female QR") }
                         val male = vm.state.collectAsState().value.lineage.maleParentId
                         val female = vm.state.collectAsState().value.lineage.femaleParentId
-                        if (!male.isNullOrBlank()) OutlinedButton(onClick = { vm.updateLineage(null, vm.state.value.lineage.femaleParentId) }) { Text("Male: ${male.take(6)}…") }
-                        if (!female.isNullOrBlank()) OutlinedButton(onClick = { vm.updateLineage(vm.state.value.lineage.maleParentId, null) }) { Text("Female: ${female.take(6)}…") }
+                        if (!male.isNullOrBlank()) OutlinedButton(onClick = { vm.updateLineage(null, vm.state.value.lineage.femaleParentId) }, modifier = Modifier.semantics { contentDescription = "Remove male parent" }) { Text("Male: ${male.take(6)}…") }
+                        if (!female.isNullOrBlank()) OutlinedButton(onClick = { vm.updateLineage(vm.state.value.lineage.maleParentId, null) }, modifier = Modifier.semantics { contentDescription = "Remove female parent" }) { Text("Female: ${female.take(6)}…") }
                     }
                     if (showMale.value) {
                         ParentSelectorDialog(
@@ -186,7 +246,7 @@ fun OnboardFarmBatchScreen(
                             onScanQr = { /* navigate to scanner if needed */ }
                         )
                     }
-                    state.validationErrors["lineage"]?.let { Text(it) }
+                    currentErrors["lineage"]?.let { Text(it) }
                 }
                 OnboardFarmBatchViewModel.WizardStep.PROOFS -> {
                     Text("Proofs & Media")
@@ -197,14 +257,14 @@ fun OnboardFarmBatchScreen(
                         if (uris != null) vm.updateMedia { m -> m.copy(documentUris = uris.map { it.toString() }) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { pickImages.launch("image/*") }) { Text("Pick Photos") }
-                        OutlinedButton(onClick = { pickDocs.launch("application/pdf") }) { Text("Pick Documents") }
+                        OutlinedButton(onClick = { pickImages.launch("image/*") }, modifier = Modifier.semantics { contentDescription = "Pick photos for batch proofs" }) { Text("Pick Photos") }
+                        OutlinedButton(onClick = { pickDocs.launch("application/pdf") }, modifier = Modifier.semantics { contentDescription = "Pick documents for batch proofs" }) { Text("Pick Documents") }
                     }
                     val photos = state.media.photoUris.size
                     val docs = state.media.documentUris.size
                     Text("Selected: $photos photos, $docs documents")
-                    state.validationErrors["photos"]?.let { Text(it) }
-                    state.validationErrors["documents"]?.let { Text(it) }
+                    currentErrors["photos"]?.let { Text(it) }
+                    currentErrors["documents"]?.let { Text(it) }
                 }
                 OnboardFarmBatchViewModel.WizardStep.REVIEW -> {
                     Text("Review & Submit")
@@ -212,30 +272,51 @@ fun OnboardFarmBatchScreen(
                     Text("Count: ${state.batchDetails.count}")
                 }
             }
-
+  
             Spacer(Modifier.height(8.dp))
-            // Conditional gating for Next button
-            val canProceed = when (state.currentStep) {
-                OnboardFarmBatchViewModel.WizardStep.PATH_SELECTION -> state.isTraceable != null
-                OnboardFarmBatchViewModel.WizardStep.AGE_GROUP -> state.ageGroup != null
-                OnboardFarmBatchViewModel.WizardStep.BATCH_DETAILS -> {
-                    state.batchDetails.batchName.isNotBlank() && 
-                    (state.batchDetails.count.toIntOrNull() ?: 0) >= 2 &&
-                    state.batchDetails.hatchDate != null
-                }
-                OnboardFarmBatchViewModel.WizardStep.LINEAGE -> true
-                OnboardFarmBatchViewModel.WizardStep.PROOFS -> true
-                OnboardFarmBatchViewModel.WizardStep.REVIEW -> true
-            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.previousStep(onBack) }) { Text("Back") }
+                Button(onClick = { vm.previousStep(onBack) }, modifier = Modifier.semantics { contentDescription = "Go to previous step" }) { Text("Back") }
                 if (state.currentStep == OnboardFarmBatchViewModel.WizardStep.REVIEW) {
-                    Button(onClick = { vm.save() }, enabled = !state.saving) { Text("Submit") }
+                    Button(onClick = { vm.save() }, enabled = !state.saving, modifier = Modifier.semantics { contentDescription = "Submit batch onboarding" }) { Text("Submit") }
                 } else {
-                    Button(onClick = { vm.nextStep() }, enabled = canProceed) { Text("Next") }
+                    Button(onClick = { vm.nextStep() }, enabled = canProceed, modifier = Modifier.semantics { contentDescription = "Go to next step" }) { Text("Next") }
                 }
             }
             state.error?.let { Text(it) }
+
+            // Upload status banner
+            val pendingOrUploading = state.uploadStatus.values.count { it == "PENDING" || it == "UPLOADING" }
+            val successCount = state.uploadStatus.values.count { it == "SUCCESS" }
+            if (pendingOrUploading > 0) {
+                Text("Uploading media: $pendingOrUploading pending/uploading, $successCount succeeded")
+            }
         }
+    }
+  
+    if (showScanner) {
+        QrScannerScreen(
+            onResult = { productId ->
+                vm.applyScannedParent(productId, scannerGender)
+                showScanner = false
+            },
+            onValidate = { true },
+            hint = "Scan QR code for $scannerGender parent",
+            onError = { error -> vm.setError(error) }
+        )
+    }
+
+    // Rationale dialog for camera permission
+    if (showRationaleDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showRationaleDialog.value = false },
+            title = { Text("Camera Permission Required") },
+            text = { Text("To scan QR codes for parent selection, camera permission is needed. You can also enter the product ID manually.") },
+            confirmButton = {
+                TextButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA); showRationaleDialog.value = false }) { Text("Grant Permission") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRationaleDialog.value = false }) { Text("Manual Entry") }
+            }
+        )
     }
 }

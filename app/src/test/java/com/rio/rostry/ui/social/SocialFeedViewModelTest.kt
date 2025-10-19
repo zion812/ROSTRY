@@ -43,6 +43,7 @@ private class FakeSocialRepo : SocialRepository {
 
 private class FakeUserProvider(private val uid: String?) : CurrentUserProvider {
     override fun userIdOrNull(): String? = uid
+    override fun isAuthenticated(): Boolean = uid != null
 }
 
 class SocialFeedViewModelTest {

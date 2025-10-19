@@ -3,6 +3,9 @@ package com.rio.rostry.ui.verification
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.rio.rostry.data.database.dao.AuditLogDao
+import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.VerificationStatus
@@ -10,8 +13,10 @@ import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.media.MediaUploadManager
 import com.rio.rostry.utils.validation.VerificationValidationService
 import com.rio.rostry.notifications.VerificationNotificationService
+import com.rio.rostry.security.SecurityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.rio.rostry.session.CurrentUserProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -28,7 +33,9 @@ class VerificationViewModel @Inject constructor(
     private val mediaUploadManager: MediaUploadManager,
     private val verificationValidationService: VerificationValidationService,
     private val verificationNotificationService: VerificationNotificationService,
+    private val auditLogDao: AuditLogDao,
     @ApplicationContext private val appContext: Context,
+    private val currentUserProvider: CurrentUserProvider,
 ) : ViewModel() {
 
     data class UiState(
@@ -227,7 +234,7 @@ class VerificationViewModel @Inject constructor(
     fun submitKycWithDocuments(passedLat: Double? = null, passedLng: Double? = null) {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = false, isSubmitting = true, submissionSuccess = false, error = null, message = null)
-            
+
             // Fetch the latest user data to preserve recently entered location/KYC level
             val latestUserResource = userRepository.getCurrentUser().first()
             val current = when (latestUserResource) {
@@ -240,18 +247,26 @@ class VerificationViewModel @Inject constructor(
                     return@launch
                 }
             }
-            
+
             if (current == null) {
                 _ui.value = _ui.value.copy(isSubmitting = false, error = "User not found")
                 return@launch
             }
 
+            // Check for resubmission if previously rejected
+            val isResubmission = current.verificationStatus == VerificationStatus.REJECTED
+            val previousRejectionReason = current.kycRejectionReason // Assuming this field exists in UserEntity
+
             // Duplicate prevention centralized here
-            if (verificationValidationService.checkDuplicateSubmission(current.userId)) {
-                _ui.value = _ui.value.copy(isSubmitting = false, error = "Verification already pending. Please wait for review.")
-                return@launch
+            val statusResource = userRepository.getKycSubmissionStatus(current.userId).first()
+            if (statusResource is Resource.Success && statusResource.data != null) {
+                val status = statusResource.data
+                if (status == "PENDING" || status == "APPROVED") {
+                    _ui.value = _ui.value.copy(isSubmitting = false, error = "Verification already submitted. Please wait for review.")
+                    return@launch
+                }
             }
-            
+
             // Validate submission
             val effectiveLat = passedLat ?: current.farmLocationLat
             val effectiveLng = passedLng ?: current.farmLocationLng
@@ -268,10 +283,10 @@ class VerificationViewModel @Inject constructor(
             // Serialize document lists to JSON
             val documentUrlsJson = JSONArray(_ui.value.uploadedDocuments).toString()
             val imageUrlsJson = JSONArray(_ui.value.uploadedImages).toString()
-            
+
             // Create document types map from tracked types
             val docTypesMap = JSONObject(_ui.value.uploadedDocTypes)
-            
+
             val updated = current.copy(
                 kycDocumentUrls = documentUrlsJson,
                 kycImageUrls = imageUrlsJson,
@@ -283,7 +298,7 @@ class VerificationViewModel @Inject constructor(
                 farmLocationLng = effectiveLng,
                 updatedAt = System.currentTimeMillis()
             )
-            
+
             val res = userRepository.updateUserProfile(updated)
             if (res is Resource.Error) {
                 _ui.value = _ui.value.copy(isSubmitting = false, error = res.message)
@@ -291,6 +306,32 @@ class VerificationViewModel @Inject constructor(
                 // Send pending notification (non-blocking)
                 runCatching { verificationNotificationService.notifyVerificationPending(current.userId ?: "") }
                 _ui.value = _ui.value.copy(isSubmitting = false, submissionSuccess = true, message = "Submitted for verification")
+
+                // Create audit log for submission
+                val gson = Gson()
+                val action = if (isResubmission) "KYC_RESUBMITTED" else "KYC_SUBMITTED"
+                val details = mutableMapOf<String, Any?>(
+                    "documentCount" to _ui.value.uploadedDocuments.size,
+                    "imageCount" to _ui.value.uploadedImages.size
+                )
+                if (isResubmission) {
+                    details["previousRejectionReason"] = previousRejectionReason
+                }
+                auditLogDao.insert(
+                    AuditLogEntity(
+                        logId = UUID.randomUUID().toString(),
+                        type = "VERIFICATION",
+                        refId = current.userId,
+                        action = action,
+                        actorUserId = current.userId,
+                        detailsJson = gson.toJson(details),
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+
+                val submissionId = UUID.randomUUID().toString()
+                userRepository.submitKycVerification(current.userId, submissionId, _ui.value.uploadedDocuments, _ui.value.uploadedImages)
+                SecurityManager.audit("KYC_SUBMIT", mapOf("userId" to current.userId, "submissionId" to submissionId, "documentCount" to _ui.value.uploadedDocuments.size))
             }
         }
     }
@@ -305,6 +346,59 @@ class VerificationViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis()
             )
             userRepository.updateUserProfile(updated)
+        }
+    }
+
+    fun handleRejection(reason: String) {
+        val current = _ui.value.user ?: return
+        viewModelScope.launch {
+            val updated = current.copy(
+                verificationStatus = VerificationStatus.REJECTED,
+                kycRejectionReason = reason,
+                updatedAt = System.currentTimeMillis()
+            )
+            val res = userRepository.updateUserProfile(updated)
+            if (res is Resource.Success) {
+                // Create audit log for rejection
+                val gson = Gson()
+                auditLogDao.insert(
+                    AuditLogEntity(
+                        logId = UUID.randomUUID().toString(),
+                        type = "VERIFICATION",
+                        refId = current.userId,
+                        action = "KYC_REJECTED",
+                        actorUserId = currentUserProvider.userIdOrNull(),
+                        detailsJson = gson.toJson(mapOf("rejectionReason" to reason)),
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    fun handleApproval() {
+        val current = _ui.value.user ?: return
+        viewModelScope.launch {
+            val updated = current.copy(
+                verificationStatus = VerificationStatus.VERIFIED,
+                updatedAt = System.currentTimeMillis()
+            )
+            val res = userRepository.updateUserProfile(updated)
+            if (res is Resource.Success) {
+                // Create audit log for approval
+                val gson = Gson()
+                auditLogDao.insert(
+                    AuditLogEntity(
+                        logId = UUID.randomUUID().toString(),
+                        type = "VERIFICATION",
+                        refId = current.userId,
+                        action = "KYC_APPROVED",
+                        actorUserId = currentUserProvider.userIdOrNull(),
+                        detailsJson = gson.toJson(emptyMap<String, Any>()),
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+            }
         }
     }
 }
