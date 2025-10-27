@@ -94,7 +94,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyLogEntity::class,
         TaskEntity::class
     ],
-    version = 37, // 37 adds outbox indexes; 36 adds syncedAt/mergedAt/mergeCount to transfers and syncedAt/deviceTimestamp to chat_messages with indices; 35 adds mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks with indices; 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
+    version = 39, // 39 adds deferred foreign keys support; 38 adds farmer_dashboard_snapshots new KPI columns; 37 adds outbox indexes; 36 adds syncedAt/mergedAt/mergeCount to transfers and syncedAt/deviceTimestamp to chat_messages with indices; 35 adds mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks with indices; 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
     exportSchema = false // Set to true if you want to export schema to a folder for version control.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -298,6 +298,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Add/extend columns for farmer_dashboard_snapshots KPIs (37 -> 38)
+        val MIGRATION_37_38 = object : Migration(37, 38) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Helper to add column safely (ignore if already exists)
+                fun addColumn(sql: String) {
+                    try { db.execSQL(sql) } catch (_: Exception) { /* ignore if exists */ }
+                }
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `deathsCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `vaccinationCompletionRate` REAL NOT NULL DEFAULT 0.0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `growthRecordsCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `quarantineActiveCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `productsReadyToListCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `transfersInitiatedCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `transfersCompletedCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `complianceScore` REAL NOT NULL DEFAULT 0.0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `onboardingCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `dailyGoalsCompletedCount` INTEGER NOT NULL DEFAULT 0")
+                addColumn("ALTER TABLE `farmer_dashboard_snapshots` ADD COLUMN `analyticsInsightsCount` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         // ... existing migrations up to 23_24 defined below (omitted in this view) ...
 
         // Add enthusiast-specific sync windows to sync_state
@@ -357,6 +378,8 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_34_35: Migration = Converters.MIGRATION_34_35
         val MIGRATION_35_36: Migration = Converters.MIGRATION_35_36
         val MIGRATION_36_37: Migration = Converters.MIGRATION_36_37
+        val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
+        
 
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {
@@ -1208,12 +1231,38 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Extension functions for deferred foreign keys (use in DAO/Repository for bulk inserts)
+        /**
+         * Enables deferred foreign key checks. Foreign key constraints are checked at transaction commit instead of immediately.
+         * Use only in controlled scenarios (e.g., seeding/sync) where all references will be satisfied by commit.
+         * Always call disableDeferredForeignKeys() in a finally block.
+         */
+        fun SupportSQLiteDatabase.enableDeferredForeignKeys() {
+            execSQL("PRAGMA defer_foreign_keys = ON")
+        }
+
+        /**
+         * Disables deferred foreign key checks, reverting to immediate checks.
+         * Call this in a finally block after enableDeferredForeignKeys().
+         */
+        fun SupportSQLiteDatabase.disableDeferredForeignKeys() {
+            execSQL("PRAGMA defer_foreign_keys = OFF")
+        }
+
         // Add updatedAt to enthusiast_dashboard_snapshots (25 -> 26)
         val MIGRATION_25_26 = object : Migration(25, 26) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 try { db.execSQL("ALTER TABLE `enthusiast_dashboard_snapshots` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0") } catch (_: Exception) {}
                 // Backfill updatedAt = createdAt where possible
                 try { db.execSQL("UPDATE enthusiast_dashboard_snapshots SET updatedAt = createdAt WHERE updatedAt = 0") } catch (_: Exception) {}
+            }
+        }
+
+        // Add deferred foreign keys support (38 -> 39) - no schema changes, documents feature
+        val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // No schema changes - enables deferred foreign key checks for bulk operations
+                // Use enableDeferredForeignKeys() / disableDeferredForeignKeys() in controlled contexts
             }
         }
     }

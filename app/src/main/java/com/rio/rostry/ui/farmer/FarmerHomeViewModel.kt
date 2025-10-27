@@ -11,6 +11,11 @@ import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.sync.SyncManager
+import com.rio.rostry.data.repository.TransferRepository
+import com.rio.rostry.data.repository.TraceabilityRepository
+import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.repository.analytics.DailyGoal
 import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -52,7 +57,16 @@ data class FarmerHomeUiState(
     val weeklySnapshot: FarmerDashboardSnapshotEntity? = null,
     val batchesDueForSplit: Int = 0,
     val urgentKpiCount: Int = 0,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val transfersPendingCount: Int = 0,
+    val transfersAwaitingVerificationCount: Int = 0,
+    val recentlyAddedBirdsCount: Int = 0,
+    val recentlyAddedBatchesCount: Int = 0,
+    val productsEligibleForTransferCount: Int = 0,
+    val complianceAlertsCount: Int = 0,
+    val kycVerified: Boolean = false,
+    val dailyGoals: List<DailyGoal> = emptyList(),
+    val analyticsInsights: List<String> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -70,7 +84,11 @@ class FarmerHomeViewModel @Inject constructor(
     private val dailyLogDao: DailyLogDao,
     private val productDao: ProductDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val transferRepository: TransferRepository,
+    private val traceabilityRepository: TraceabilityRepository,
+    private val analyticsRepository: AnalyticsRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -132,7 +150,16 @@ class FarmerHomeViewModel @Inject constructor(
                 dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
                 productDao.observeActiveWithBirth().map { products ->
                     products.count { it.sellerId == id && it.isBatch == true && ((it.ageWeeks ?: 0) >= 12) && it.splitAt == null }
-                }.orDefault(0)
+                }.orDefault(0),
+                transferRepository.observePendingCountForFarmer(id).orDefault(0),
+                transferRepository.observeAwaitingVerificationCountForFarmer(id).orDefault(0),
+                productDao.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch != true } }.orDefault(0),
+                productDao.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch == true } }.orDefault(0),
+                productDao.observeEligibleForTransferCountForFarmer(id).orDefault(0),
+                traceabilityRepository.observeComplianceAlertsCount(id).orDefault(0),
+                traceabilityRepository.observeKycStatus(id).orDefault(false),
+                analyticsRepository.observeDailyGoals(id).orDefault(emptyList()),
+                analyticsRepository.getActionableInsights(id).map { it.map { it.description } }.orDefault(emptyList())
             ) { values: Array<Any?> ->
                 val vacDue = values[0] as? Int ?: 0
                 val vacOverdue = values[1] as? Int ?: 0
@@ -151,6 +178,17 @@ class FarmerHomeViewModel @Inject constructor(
                 val dueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
                 val dailyLogsCount = values[13] as? Int ?: 0
                 val batchesDue = values[14] as? Int ?: 0
+                val transfersPending = values[15] as? Int ?: 0
+                val transfersAwaiting = values[16] as? Int ?: 0
+                val recentlyAddedBirds = values[17] as? Int ?: 0
+                val recentlyAddedBatches = values[18] as? Int ?: 0
+                val productsEligible = values[19] as? Int ?: 0
+                val complianceAlerts = values[20] as? Int ?: 0
+                val kycVerified = values[21] as? Boolean ?: false
+                @Suppress("UNCHECKED_CAST")
+                val dailyGoals = values[22] as? List<DailyGoal> ?: emptyList()
+                @Suppress("UNCHECKED_CAST")
+                val analyticsInsights = values[23] as? List<String> ?: emptyList()
 
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
                 if (elapsedMs > 3000) {
@@ -175,7 +213,16 @@ class FarmerHomeViewModel @Inject constructor(
                     weeklySnapshot = snapshot,
                     batchesDueForSplit = batchesDue,
                     urgentKpiCount = overdueCount + vacOverdue + quarOverdue + batchesDue,
-                    isLoading = false
+                    isLoading = false,
+                    transfersPendingCount = transfersPending,
+                    transfersAwaitingVerificationCount = transfersAwaiting,
+                    recentlyAddedBirdsCount = recentlyAddedBirds,
+                    recentlyAddedBatchesCount = recentlyAddedBatches,
+                    productsEligibleForTransferCount = productsEligible,
+                    complianceAlertsCount = complianceAlerts,
+                    kycVerified = kycVerified,
+                    dailyGoals = dailyGoals,
+                    analyticsInsights = analyticsInsights
                 )
             }
         }
@@ -213,5 +260,35 @@ class FarmerHomeViewModel @Inject constructor(
     fun markTaskComplete(taskId: String) {
         // wired in Sprint 1 UI -> will call TaskRepository via VM handling layer
         // Intentionally left minimal here per current plan
+    }
+
+    fun navigateToTransfers() {
+        viewModelScope.launch {
+            _navigationEvent.emit("farmer/transfers")
+        }
+    }
+
+    fun navigateToCompliance() {
+        viewModelScope.launch {
+            _navigationEvent.emit(com.rio.rostry.ui.navigation.Routes.COMPLIANCE)
+        }
+    }
+
+    fun dismissGoal(goalId: String) {
+        viewModelScope.launch {
+            // Assume dismissal triggers a refresh or UI update; emit event for now
+            _navigationEvent.emit("goal/dismissed/$goalId")
+        }
+    }
+
+    fun refreshAnalytics() {
+        viewModelScope.launch {
+            try {
+                syncManager.syncAll() // Force a full sync to refresh analytics
+            } catch (t: Throwable) {
+                Timber.e(t, "Analytics refresh failed")
+                _errorEvents.emit("Failed to refresh analytics")
+            }
+        }
     }
 }

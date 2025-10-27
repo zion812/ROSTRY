@@ -24,10 +24,18 @@ interface AuthRepository {
     suspend fun resendVerificationCode(activity: Activity): Resource<Unit>
 
     suspend fun signOut(): Resource<Unit>
+
+    // Link phone number to existing authenticated user (for Google/Email sign-ins)
+    suspend fun linkPhoneToCurrentUser(activity: Activity, phoneE164: String): Resource<Unit>
+
+    // Verify OTP and complete phone linking
+    suspend fun verifyOtpAndLink(verificationId: String, otpCode: String): Resource<Unit>
 }
 
 sealed class AuthEvent {
     data class CodeSent(val verificationId: String) : AuthEvent()
     data class VerificationFailed(val message: String) : AuthEvent()
     object AutoVerified : AuthEvent()
+    data class PhoneLinkSuccess(val phoneNumber: String) : AuthEvent()
+    data class PhoneLinkFailed(val message: String) : AuthEvent()
 }

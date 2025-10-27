@@ -1,0 +1,20 @@
+Fix UI crashes, test compilation, and nested layout issues
+
+- Fixed test compilation by adding isAuthenticated() method to all test providers
+  - ExpertViewModelTest, ThreadViewModelTest, SocialFeedViewModelTest
+  - SessionModuleTestOverride for Android tests
+
+- Fixed critical nested lazy layout crashes (Motorola Moto G32 Android 13)
+  - GeneralMarketRoute: Removed LazyVerticalGrid nested inside LazyColumn
+  - FarmerHomeScreen: Converted Column to LazyColumn, removed nested LazyVerticalGrid
+  - Converted grids to chunked items with Row layout to prevent MeasurePassDelegate errors
+
+- Fixed UI white space and scrolling issues
+  - Removed redundant titles and optimized padding in GeneralMarketRoute
+  - Reduced top padding in FarmerHomeScreen for compact layout
+  - Fixed EnthusiastTransfersScreen scrolling with proper height constraints
+
+- Fixed BreedingFlowScreen nested scrolling crashes
+  - Added Modifier.weight(1f) to all LazyColumn instances in breeding tabs
+
+Resolves SubcomposeLayout measurement crashes in nested lazy layouts

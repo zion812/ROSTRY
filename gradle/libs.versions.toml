@@ -92,6 +92,7 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
  # Firebase App Check
  firebase-appcheck = { group = "com.google.firebase", name = "firebase-appcheck", version.ref = "firebaseAppCheck" }
  firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug", version.ref = "firebaseAppCheckDebug" }
+firebase-appcheck-playintegrity = { group = "com.google.firebase", name = "firebase-appcheck-playintegrity", version.ref = "firebaseAppCheck" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

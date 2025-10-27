@@ -57,6 +57,7 @@ class TraceabilityRepositoryTest {
         dailyLogDao = mockk()
         growthDao = mockk()
         quarantineDao = mockk()
+        val userRepository = mockk<com.rio.rostry.data.repository.UserRepository>()
         repo = TraceabilityRepositoryImpl(
             breedingDao,
             productDao,
@@ -69,7 +70,8 @@ class TraceabilityRepositoryTest {
             vaccinationDao,
             dailyLogDao,
             growthDao,
-            quarantineDao
+            quarantineDao,
+            userRepository
         )
     }
 

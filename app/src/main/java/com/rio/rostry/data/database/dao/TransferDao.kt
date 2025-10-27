@@ -130,4 +130,16 @@ interface TransferDao {
 
     @Query("SELECT * FROM transfers WHERE (fromUserId = :userId OR toUserId = :userId) AND dirty = 1")
     fun observeDirtyByUser(userId: String): Flow<List<TransferEntity>>
+
+    @Query("SELECT COUNT(*) FROM transfers WHERE (fromUserId = :userId OR toUserId = :userId) AND status = 'PENDING'")
+    fun observePendingCountForFarmer(userId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM transfers WHERE toUserId = :userId AND status = 'PENDING'")
+    fun observeAwaitingVerificationCountForFarmer(userId: String): Flow<Int>
+
+    @Query("SELECT * FROM transfers WHERE (fromUserId = :userId OR toUserId = :userId) AND initiatedAt >= :since ORDER BY initiatedAt DESC")
+    fun observeRecentTransfersForFarmer(userId: String, since: Long): Flow<List<TransferEntity>>
+
+    @Query("SELECT * FROM transfers WHERE (fromUserId = :userId OR toUserId = :userId) AND status = :status ORDER BY initiatedAt DESC")
+    fun observeTransfersByStatusForFarmer(userId: String, status: String): Flow<List<TransferEntity>>
 }

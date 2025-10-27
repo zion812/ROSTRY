@@ -15,10 +15,15 @@ import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.BreedingRecordEntity
 import com.rio.rostry.data.database.entity.LifecycleEventEntity
 import com.rio.rostry.domain.model.LifecycleStage
+import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.withContext
 import java.util.ArrayDeque
 import javax.inject.Inject
@@ -41,6 +46,11 @@ interface TraceabilityRepository {
     /** Fetches metadata for multiple nodes in parallel for efficiency. */
     suspend fun getNodeMetadataBatch(productIds: List<String>): Resource<Map<String, NodeMetadata>>
     fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String?
+    suspend fun getEligibleProductsCount(farmerId: String): Resource<Int>
+    suspend fun getComplianceAlerts(farmerId: String): Resource<List<Pair<String, List<String>>>>
+    fun observeKycStatus(userId: String): Flow<Boolean>
+    fun observeComplianceAlertsCount(farmerId: String): Flow<Int>
+    fun observeEligibleProductsCount(farmerId: String): Flow<Int>
 }
 
 data class NodeMetadata(
@@ -67,6 +77,7 @@ class TraceabilityRepositoryImpl @Inject constructor(
     private val dailyLogDao: DailyLogDao,
     private val growthDao: GrowthRecordDao,
     private val quarantineDao: QuarantineRecordDao,
+    private val userRepository: UserRepository,
 ) : TraceabilityRepository {
 
     // Simple in-memory LRU cache for traversals
@@ -356,6 +367,87 @@ class TraceabilityRepositoryImpl @Inject constructor(
             !pairId.isNullOrBlank() -> "FT_PAIR_${'$'}pairId"
             else -> null
         }
+    }
+
+    override suspend fun getEligibleProductsCount(farmerId: String): Resource<Int> = withContext(Dispatchers.IO) {
+        try {
+            val products = productDao.getProductsBySeller(farmerId).first()
+            var count = 0
+            for (product in products) {
+                val report = getTransferEligibilityReport(product.productId)
+                if (report is Resource.Success && (report.data?.get("eligible") as? Boolean) == true) {
+                    count++
+                }
+            }
+            Resource.Success(count)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get eligible products count")
+        }
+    }
+
+    override suspend fun getComplianceAlerts(farmerId: String): Resource<List<Pair<String, List<String>>>> = withContext(Dispatchers.IO) {
+        try {
+            val products = productDao.getProductsBySeller(farmerId).first()
+            val alerts = mutableListOf<Pair<String, List<String>>>()
+            for (product in products) {
+                val report = getTransferEligibilityReport(product.productId)
+                if (report is Resource.Success && (report.data?.get("eligible") as? Boolean) == false) {
+                    val reasons = (report.data?.get("reasons") as? List<String>) ?: emptyList()
+                    alerts.add(product.productId to reasons)
+                }
+            }
+            Resource.Success(alerts)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get compliance alerts")
+        }
+    }
+
+    override fun observeKycStatus(userId: String): Flow<Boolean> =
+        userRepository.getUserById(userId).mapLatest { res ->
+            res is Resource.Success && res.data?.verificationStatus == VerificationStatus.VERIFIED
+        }
+
+    override fun observeComplianceAlertsCount(farmerId: String): Flow<Int> {
+        return combine(
+            productDao.getProductsBySeller(farmerId),
+            vaccinationDao.observeOverdueForFarmer(farmerId, System.currentTimeMillis()),
+            dailyLogDao.observeCountForFarmerBetween(
+                farmerId,
+                System.currentTimeMillis() - 24 * 60 * 60 * 1000L,
+                System.currentTimeMillis()
+            ),
+            growthDao.observeCountForFarmerBetween(
+                farmerId,
+                System.currentTimeMillis() - 14 * 24 * 60 * 60 * 1000L,
+                System.currentTimeMillis()
+            ),
+            quarantineDao.observeActiveForFarmer(farmerId)
+        ) { products, _, _, _, _ ->
+            products
+        }.mapLatest { products ->
+            // Compute on background to avoid main-thread work
+            withContext(Dispatchers.Default) {
+                var count = 0
+                for (p in products) {
+                    val report = getTransferEligibilityReport(p.productId)
+                    if (report is Resource.Success && (report.data?.get("eligible") as? Boolean) == false) count++
+                }
+                count
+            }
+        }.flowOn(Dispatchers.Default)
+    }
+
+    override fun observeEligibleProductsCount(farmerId: String): Flow<Int> {
+        return productDao.getProductsBySeller(farmerId).mapLatest { products ->
+            withContext(Dispatchers.Default) {
+                var count = 0
+                for (p in products) {
+                    val report = getTransferEligibilityReport(p.productId)
+                    if (report is Resource.Success && (report.data?.get("eligible") as? Boolean) == true) count++
+                }
+                count
+            }
+        }.flowOn(Dispatchers.Default)
     }
 
     private suspend fun collectAncestors(rootId: String, maxDepth: Int): Map<Int, List<String>> {

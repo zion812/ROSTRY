@@ -6,6 +6,12 @@ import kotlinx.coroutines.flow.Flow
 
 interface ProductRepository {
 
+    data class ValidationResult(val isValid: Boolean, val invalidProducts: List<ProductEntity>)
+
+    fun validateProductReferences(product: ProductEntity): Boolean
+
+    fun validateProductReferences(products: List<ProductEntity>): ValidationResult
+
     fun getAllProducts(): Flow<Resource<List<ProductEntity>>>
 
     fun getProductById(productId: String): Flow<Resource<ProductEntity?>>
@@ -14,7 +20,12 @@ interface ProductRepository {
 
     fun getProductsByCategory(category: String): Flow<Resource<List<ProductEntity>>>
 
-    suspend fun addProduct(product: ProductEntity): Resource<String> // Returns ID of new product
+    suspend fun addProduct(product: ProductEntity, validateReferences: Boolean = true): Resource<String> {
+        if (validateReferences && !validateProductReferences(product)) {
+            return Resource.Error("Invalid product reference: seller does not exist")
+        }
+        throw NotImplementedError("addProduct must be implemented")
+    }
 
     suspend fun updateProduct(product: ProductEntity): Resource<Unit>
 

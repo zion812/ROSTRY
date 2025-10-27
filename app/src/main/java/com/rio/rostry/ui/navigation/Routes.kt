@@ -21,6 +21,7 @@ object Routes {
     object Auth {
         const val PHONE = "auth/phone"
         const val OTP = "auth/otp/{verificationId}"
+        const val PHONE_VERIFY = "auth/phone_verify"
     }
 
     object Scan {
@@ -70,6 +71,8 @@ object Routes {
         const val LIST = "transfer/list"
         const val VERIFY = "transfer/{transferId}/verify"
         const val CREATE = "transfer/create"
+        const val FARMER_TRANSFERS = "farmer/transfers"
+        const val COMPLIANCE_DETAILS = "compliance/{productId}"
     }
 
     object Social {
@@ -204,6 +207,10 @@ object Routes {
             Social.EVENTS,
             Scan.QR,
             Transfers.DETAILS,
+            Transfers.FARMER_TRANSFERS,
+            Transfers.COMPLIANCE_DETAILS,
+            // General compliance landing route
+            "compliance",
             Analytics.FARMER,
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
@@ -281,6 +288,7 @@ object Routes {
 
     const val AUTH_PHONE = Auth.PHONE
     const val AUTH_OTP = Auth.OTP
+    const val AUTH_PHONE_VERIFY = Auth.PHONE_VERIFY
     const val HOME_GENERAL = GeneralNav.HOME
     const val HOME_FARMER = FarmerNav.HOME
     const val HOME_ENTHUSIAST = EnthusiastNav.HOME
@@ -336,6 +344,9 @@ object Routes {
     const val MONITORING_DAILY_LOG_PRODUCT = Monitoring.DAILY_LOG_PRODUCT
     const val MONITORING_TASKS = Monitoring.TASKS
     const val ORDER_DETAILS = Order.DETAILS
+    const val FARMER_TRANSFERS = Transfers.FARMER_TRANSFERS
+    const val COMPLIANCE_DETAILS = Transfers.COMPLIANCE_DETAILS
+    const val COMPLIANCE = "compliance"
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS
@@ -484,6 +495,12 @@ object Routes {
          * Builds the deep-link URL for a social post, used for sharing or notifications.
          */
         fun socialPost(postId: String): String = "social/feed?postId=${URLEncoder.encode(postId, "UTF-8")}"
+
+        fun farmerTransfers(): String = Transfers.FARMER_TRANSFERS
+
+        fun complianceDetails(productId: String): String = "compliance/${URLEncoder.encode(productId, "UTF-8")}"
+
+        fun transfersWithFilter(status: String): String = "${Transfers.LIST}?status=${URLEncoder.encode(status, "UTF-8")}"
     }
 
 } // Closing brace for object Routes

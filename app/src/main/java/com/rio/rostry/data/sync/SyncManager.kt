@@ -73,6 +73,19 @@ class SyncManager @Inject constructor(
     )
     val conflictEvents = MutableSharedFlow<ConflictEvent>(extraBufferCapacity = 64)
 
+    private fun isForeignKeyConstraintFailure(t: Throwable): Boolean {
+        var cur: Throwable? = t
+        while (cur != null) {
+            val cn = cur::class.qualifiedName ?: cur::class.simpleName ?: ""
+            val msg = cur.message ?: ""
+            if ((cn.contains("SQLiteConstraintException")) && msg.contains("FOREIGN KEY constraint failed", ignoreCase = true)) {
+                return true
+            }
+            cur = cur.cause
+        }
+        return false
+    }
+
     private fun isTerminalTransferStatus(status: String?): Boolean {
         return when (status?.uppercase()) {
             "COMPLETED", "CANCELLED", "TIMED_OUT" -> true
@@ -282,6 +295,21 @@ class SyncManager @Inject constructor(
                 }
             }
 
+            // =====
+            // Users
+            // =====
+            run {
+                // Pull updated users to ensure sellers exist before product sync
+                val remoteUsersUpdated: List<UserEntity> = withRetry {
+                    firestoreService.fetchUpdatedUsers(state.lastUserSyncAt)
+                }
+                if (remoteUsersUpdated.isNotEmpty()) {
+                    userDao.insertUsers(remoteUsersUpdated)
+                    pulls += remoteUsersUpdated.size
+                }
+                // Users are not pushed as dirty in this context; handled elsewhere if needed
+            }
+
             // ==========
             // Products
             // ==========
@@ -290,11 +318,70 @@ class SyncManager @Inject constructor(
                 val remoteProductsUpdated: List<ProductEntity> = withRetry {
                     firestoreService.fetchUpdatedProducts(state.lastProductSyncAt)
                 }
+                // Ensure all referenced users exist before inserting products
+                val sellerIds = remoteProductsUpdated.map { it.sellerId }.distinct()
+                if (sellerIds.isNotEmpty()) {
+                    val existingSellers = userDao.getUsersByIds(sellerIds).map { it.userId }.toSet()
+                    val missingSellerIds = sellerIds.filter { it !in existingSellers }
+                    if (missingSellerIds.isNotEmpty()) {
+                        val fetchedUsers = withRetry { firestoreService.fetchUsersByIds(missingSellerIds) }
+                        if (fetchedUsers.isNotEmpty()) userDao.upsertUsers(fetchedUsers)
+                        Timber.d("Auto-fetched ${fetchedUsers.size} users for product sync")
+                        val fetchedIds = fetchedUsers.map { it.userId }.toSet()
+                        val stillMissing = missingSellerIds.filter { it !in fetchedIds }
+                        if (stillMissing.isNotEmpty()) {
+                            Timber.w("Skipping ${stillMissing.size} products due to unresolved sellers: ${stillMissing.joinToString()}")
+                        }
+                        // Filter out products with unresolved sellers
+                        val filtered = remoteProductsUpdated.filter { it.sellerId !in stillMissing }
+                        if (filtered.isNotEmpty()) {
+                            val resolved = mutableListOf<ProductEntity>()
+                            for (remote in filtered) {
+                                val local = productDao.findById(remote.productId)
+                                resolved.add(if (local != null) mergeProductRemoteLocal(remote, local) else remote)
+                            }
+                            productDao.insertProducts(resolved)
+                            // Emit conflict events
+                            filtered.forEach { remote ->
+                                val local = productDao.findById(remote.productId)
+                                if (local != null) {
+                                    val conflictFields = mutableListOf<String>()
+                                    val rU = remote.updatedAt
+                                    val lU = local.updatedAt
+                                    if (rU > lU) {
+                                        if (remote.name != local.name) conflictFields.add("name")
+                                        if (remote.description != local.description) conflictFields.add("description")
+                                        if (remote.price != local.price) conflictFields.add("price")
+                                        if (remote.quantity != local.quantity) conflictFields.add("quantity")
+                                        if (remote.unit != local.unit) conflictFields.add("unit")
+                                        if (remote.location != local.location) conflictFields.add("location")
+                                        if (remote.stage != local.stage) conflictFields.add("stage")
+                                        if (remote.lifecycleStatus != local.lifecycleStatus) conflictFields.add("lifecycleStatus")
+                                    }
+                                    if (conflictFields.isNotEmpty()) {
+                                        conflictEvents.emit(
+                                            ConflictEvent(
+                                                entityType = OutboxEntity.TYPE_LISTING,
+                                                entityId = remote.productId,
+                                                conflictFields = conflictFields,
+                                                mergedAt = now
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                            pulls += resolved.size
+                        }
+                        // Skip the default path when we handled insert above
+                        return@run
+                    }
+                }
                 if (remoteProductsUpdated.isNotEmpty()) {
-                    // Merge with local on pull
-                    val resolved = remoteProductsUpdated.map { remote ->
+                    // Merge with local on pull (explicit loop)
+                    val resolved = mutableListOf<ProductEntity>()
+                    for (remote in remoteProductsUpdated) {
                         val local = productDao.findById(remote.productId)
-                        if (local != null) mergeProductRemoteLocal(remote, local) else remote
+                        resolved.add(if (local != null) mergeProductRemoteLocal(remote, local) else remote)
                     }
                     productDao.insertProducts(resolved)
                     // Emit conflict events for fields that changed due to remote taking precedence
@@ -537,8 +624,30 @@ class SyncManager @Inject constructor(
                                 try {
                                     withRetry { firestoreService.pushProducts(listOf(product)) }
                                     val cleaned = product.copy(dirty = false, updatedAt = now)
-                                    productDao.insertProducts(listOf(cleaned))
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                    try {
+                                        productDao.insertProducts(listOf(cleaned))
+                                        outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                    } catch (t: Throwable) {
+                                        if (isForeignKeyConstraintFailure(t)) {
+                                            Timber.w(t, "Foreign key violation inserting product ${product.productId}, sellerId ${product.sellerId}")
+                                            // Attempt to fetch missing seller
+                                            val missingUser = withRetry { firestoreService.fetchUsersByIds(listOf(product.sellerId)).firstOrNull() }
+                                            if (missingUser != null) {
+                                                userDao.insertUser(missingUser)
+                                                Timber.d("Fetched and inserted missing seller ${product.sellerId} for product ${product.productId}")
+                                                // Retry insert
+                                                productDao.insertProducts(listOf(cleaned))
+                                                outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                            } else {
+                                                Timber.e("Failed to fetch seller ${product.sellerId} for product ${product.productId}")
+                                                outboxDao.incrementRetry(e.outboxId, now)
+                                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
+                                                errors.add("Listing push failed for ${product.productId}: missing seller ${product.sellerId}")
+                                            }
+                                        } else {
+                                            throw t
+                                        }
+                                    }
                                 } catch (t: Throwable) {
                                     outboxDao.incrementRetry(e.outboxId, now)
                                     val willRetry = (e.retryCount + 1) < e.maxRetries
@@ -853,6 +962,7 @@ class SyncManager @Inject constructor(
             syncStateDao.upsert(
                 state.copy(
                     lastSyncAt = now,
+                    lastUserSyncAt = now,
                     lastProductSyncAt = now,
                     lastOrderSyncAt = now,
                     lastTrackingSyncAt = now,

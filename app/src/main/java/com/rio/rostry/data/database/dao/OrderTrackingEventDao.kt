@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OrderTrackingEventDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(event: OrderTrackingEventEntity)
 
     @Query("SELECT * FROM order_tracking_events WHERE orderId = :orderId ORDER BY timestamp ASC")

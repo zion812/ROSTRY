@@ -79,6 +79,17 @@ class ProductValidatorTest {
             )
 
         override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? = null
+
+        override suspend fun getEligibleProductsCount(farmerId: String): Resource<Int> = Resource.Success(0)
+
+        override suspend fun getComplianceAlerts(farmerId: String): Resource<List<Pair<String, List<String>>>> =
+            Resource.Success(emptyList())
+
+        override fun observeKycStatus(userId: String) = flowOf(true)
+
+        override fun observeComplianceAlertsCount(farmerId: String) = flowOf(0)
+
+        override fun observeEligibleProductsCount(farmerId: String) = flowOf(0)
     }
 
     private val vaccinationDao: VaccinationRecordDao = mockk()

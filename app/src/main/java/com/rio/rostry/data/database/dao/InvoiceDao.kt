@@ -10,7 +10,7 @@ import com.rio.rostry.data.database.entity.InvoiceLineEntity
 
 @Dao
 interface InvoiceDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInvoice(entity: InvoiceEntity)
 
     @Insert(onConflict = OnConflictStrategy.ABORT)

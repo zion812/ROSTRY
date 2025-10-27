@@ -21,7 +21,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
   
 enum class FarmEventType {
-    VACCINATION_DUE, QUARANTINE_OVERDUE, GROWTH_CHECK, BATCH_SPLIT, HATCHING_DUE, MORTALITY_SPIKE
+    VACCINATION_DUE, QUARANTINE_OVERDUE, GROWTH_CHECK, BATCH_SPLIT, HATCHING_DUE, MORTALITY_SPIKE,
+    BIRD_ADDED, BATCH_ADDED, COMPLIANCE_ALERT, DAILY_GOAL_MILESTONE, KYC_REQUIRED
 }
   
 enum class TransferEventType {
@@ -162,6 +163,97 @@ class IntelligentNotificationService @Inject constructor(
         }
     }
   
+    suspend fun notifyOnboardingComplete(productId: String, productName: String, taskCount: Int, isBatch: Boolean) {
+        val type = if (isBatch) FarmEventType.BATCH_ADDED else FarmEventType.BIRD_ADDED
+        val userId = currentUserProvider.userIdOrNull() ?: return
+        val notificationId = generateId("notif_farm_")
+        val deepLink = generateDeepLink("FARM", productId, type.name)
+        val title = if (isBatch) "Batch Added" else "Bird Added"
+        val message = if (isBatch) "$productName added with $taskCount tasks. Check your task list!" else "$productName has been added to your farm. Start logging daily activities!"
+
+        val notification = NotificationEntity(
+            notificationId = notificationId,
+            userId = userId,
+            title = title,
+            message = message,
+            type = type.name,
+            deepLinkUrl = deepLink,
+            domain = "FARM",
+            isBatched = !connectivityManager.isOnline(),
+            batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
+        )
+
+        notificationDao.insertNotification(notification)
+
+        // No task creation for onboarding, as tasks are already created in FarmOnboardingRepository
+
+        if (connectivityManager.isOnline()) {
+            displayFarmNotification(type, productId, title, message, mapOf("productName" to productName, "taskCount" to taskCount))
+            markDisplayed(notificationId)
+        }
+    }
+
+    suspend fun notifyComplianceIssue(productId: String, productName: String) {
+        val type = FarmEventType.COMPLIANCE_ALERT
+        val userId = currentUserProvider.userIdOrNull() ?: return
+        val notificationId = generateId("notif_farm_")
+        val deepLink = generateDeepLink("FARM", productId, type.name)
+        val title = "Compliance Alert"
+        val message = "$productName has compliance issues. Review required."
+
+        val notification = NotificationEntity(
+            notificationId = notificationId,
+            userId = userId,
+            title = title,
+            message = message,
+            type = type.name,
+            deepLinkUrl = deepLink,
+            domain = "FARM",
+            isBatched = !connectivityManager.isOnline(),
+            batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
+        )
+
+        notificationDao.insertNotification(notification)
+
+        // Create task card for actionable compliance event
+        taskRepository.generateSocialActivityTask(userId, "COMPLIANCE_ALERT", productId, System.currentTimeMillis())
+
+        if (connectivityManager.isOnline()) {
+            displayFarmNotification(type, productId, title, message, mapOf("productName" to productName))
+            markDisplayed(notificationId)
+        }
+    }
+
+    suspend fun notifyGoalProgress(goalType: String, progress: Int) {
+        val type = FarmEventType.DAILY_GOAL_MILESTONE
+        val userId = currentUserProvider.userIdOrNull() ?: return
+        val notificationId = generateId("notif_farm_")
+        val deepLink = generateDeepLink("FARM", "", type.name)
+        val title = "Daily Goal Progress"
+        val message = "$goalType goal $progress% complete!"
+
+        val notification = NotificationEntity(
+            notificationId = notificationId,
+            userId = userId,
+            title = title,
+            message = message,
+            type = type.name,
+            deepLinkUrl = deepLink,
+            domain = "FARM",
+            isBatched = !connectivityManager.isOnline(),
+            batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
+        )
+
+        notificationDao.insertNotification(notification)
+
+        // No task creation for goal progress
+
+        if (connectivityManager.isOnline()) {
+            displayFarmNotification(type, "", title, message, mapOf("goalType" to goalType, "progress" to progress))
+            markDisplayed(notificationId)
+        }
+    }
+
     suspend fun notifySocialEvent(
         type: SocialEventType,
         refId: String,
@@ -256,6 +348,11 @@ class IntelligentNotificationService @Inject constructor(
                 "BATCH_SPLIT" -> "rostry://${Routes.Builders.monitoringGrowth(refId)}"
                 "HATCHING_DUE" -> "rostry://${Routes.MONITORING_HATCHING}"
                 "MORTALITY_SPIKE" -> "rostry://${Routes.MONITORING_MORTALITY}"
+                "BIRD_ADDED" -> "rostry://${Routes.MONITORING_DAILY_LOG}"
+                "BATCH_ADDED" -> "rostry://${Routes.MONITORING_TASKS}"
+                "COMPLIANCE_ALERT" -> "rostry://${Routes.Builders.complianceDetails(refId)}"
+                "DAILY_GOAL_MILESTONE" -> "rostry://${Routes.HOME_FARMER}"
+                "KYC_REQUIRED" -> "rostry://${Routes.VERIFY_FARMER_LOCATION}"
                 else -> "rostry://${Routes.MONITORING_DASHBOARD}"
             }
             "TRANSFER" -> "rostry://${Routes.Builders.transferDetails(refId)}"
@@ -277,6 +374,25 @@ class IntelligentNotificationService @Inject constructor(
                 FarmNotifier.notifyVaccinationDue(context, productId, vaccineType)
             }
             FarmEventType.QUARANTINE_OVERDUE -> FarmNotifier.notifyQuarantineOverdue(context, productId)
+            FarmEventType.BIRD_ADDED -> {
+                val productName = metadata?.get("productName") as? String ?: ""
+                FarmNotifier.notifyBirdAdded(context, productName, productId)
+            }
+            FarmEventType.BATCH_ADDED -> {
+                val productName = metadata?.get("productName") as? String ?: ""
+                val taskCount = metadata?.get("taskCount") as? Int ?: 0
+                FarmNotifier.notifyBatchAdded(context, productName, productId, taskCount)
+            }
+            FarmEventType.COMPLIANCE_ALERT -> {
+                val productName = metadata?.get("productName") as? String ?: ""
+                FarmNotifier.notifyComplianceAlert(context, productId, productName)
+            }
+            FarmEventType.DAILY_GOAL_MILESTONE -> {
+                val goalType = metadata?.get("goalType") as? String ?: ""
+                val progress = metadata?.get("progress") as? Int ?: 0
+                FarmNotifier.notifyDailyGoalProgress(context, goalType, progress)
+            }
+            FarmEventType.KYC_REQUIRED -> FarmNotifier.notifyKycRequired(context)
             // Add other displays as needed
             else -> {
                 // no-op
@@ -286,8 +402,22 @@ class IntelligentNotificationService @Inject constructor(
   
     private fun displayTransferNotification(type: TransferEventType, transferId: String, title: String, message: String) {
         when (type) {
+            TransferEventType.INITIATED -> {
+                // Best-effort product label; FarmNotifier requires a name string
+                val productLabel = title.ifBlank { "Product" }
+                FarmNotifier.notifyTransferPending(context, transferId, productLabel)
+            }
+            TransferEventType.VERIFIED -> {
+                val productLabel = title.ifBlank { "Product" }
+                FarmNotifier.notifyTransferVerificationNeeded(context, transferId, productLabel)
+            }
+            TransferEventType.COMPLETED -> {
+                transferNotifier.notifyCompleted(transferId)
+            }
+            TransferEventType.CANCELLED -> {
+                transferNotifier.notifyCancelled(transferId)
+            }
             TransferEventType.TIMED_OUT -> transferNotifier.notifyTimedOut(transferId)
-            // Add others
             else -> {
                 // no-op
             }

@@ -83,7 +83,17 @@ class ProductRepositoryImpl @Inject constructor(
         emitAll(inner)
     }
 
-    override suspend fun addProduct(product: ProductEntity): Resource<String> {
+    override fun validateProductReferences(product: ProductEntity): Boolean {
+        // Non-suspend quick check only; actual validation is performed in addProduct()
+        return true
+    }
+
+    override fun validateProductReferences(products: List<ProductEntity>): ProductRepository.ValidationResult {
+        // Non-suspend quick validation: assume valid; heavy checks belong in suspend repository ops
+        return ProductRepository.ValidationResult(true, emptyList())
+    }
+
+    override suspend fun addProduct(product: ProductEntity, validateReferences: Boolean): Resource<String> {
         val canList = rbacGuard.canListProduct()
         if (!canList) {
             val verified = rbacGuard.isVerified()
@@ -92,6 +102,16 @@ class ProductRepositoryImpl @Inject constructor(
             } else {
                 return Resource.Error("You don't have permission to list products")
             }
+        }
+        if (validateReferences) {
+            // Perform suspend validation against UserRepository
+            val exists = try {
+                when (val res = userRepository.getUserById(product.sellerId).firstOrNull()) {
+                    is Resource.Success -> res.data != null
+                    else -> false
+                }
+            } catch (e: Exception) { false }
+            if (!exists) return Resource.Error("Invalid product reference: seller does not exist")
         }
         val result = safeCall<String> {
             // Offline-first: create ID locally and mark dirty for sync

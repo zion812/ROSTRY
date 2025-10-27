@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +38,94 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.rio.rostry.data.database.dao.*
+import com.rio.rostry.session.CurrentUserProvider
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import java.time.LocalDate
+import java.time.ZoneId
+import javax.inject.Inject
+
+@HiltViewModel
+class FarmMonitoringViewModel @Inject constructor(
+    private val currentUserProvider: CurrentUserProvider,
+    private val growthRecordDao: GrowthRecordDao,
+    private val breedingPairDao: BreedingPairDao,
+    private val eggCollectionDao: EggCollectionDao,
+    private val hatchingBatchDao: HatchingBatchDao,
+    private val vaccinationRecordDao: VaccinationRecordDao,
+    private val quarantineRecordDao: QuarantineRecordDao,
+    private val mortalityRecordDao: MortalityRecordDao
+) : ViewModel() {
+
+    private val uid = currentUserProvider.userIdOrNull()
+
+    private val now = System.currentTimeMillis()
+    private val weekAgo = now - 7 * 24 * 3600 * 1000L
+
+    val summary: StateFlow<MonitoringSummary> = if (uid == null) {
+        MutableStateFlow(MonitoringSummary())
+    } else {
+        combine(
+            listOf(
+                // 0: Growth tracked in the last 7 days
+                growthRecordDao.observeCountForFarmerBetween(uid, weekAgo, now),
+                // 1: Active breeding pairs
+                breedingPairDao.observeActive(uid).map { it.size },
+                // 2: Eggs collected today from recent collections stream
+                eggCollectionDao.observeRecentByFarmer(uid, 50).map { list ->
+                    val today = LocalDate.now(ZoneId.systemDefault())
+                    val start = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    val end = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() - 1
+                    list.filter { it.collectedAt in start..end }.sumOf { it.eggsCollected }
+                },
+                // 3: Hatching active count
+                hatchingBatchDao.observeActiveForFarmer(uid, now),
+                // 4: Hatching due this week
+                hatchingBatchDao.observeDueThisWeekForFarmer(uid, now, now + 7 * 24 * 3600 * 1000L),
+                // 5: Vaccination due
+                vaccinationRecordDao.observeDueForFarmer(uid, now, now + 7 * 24 * 3600 * 1000L),
+                // 6: Vaccination overdue
+                vaccinationRecordDao.observeOverdueForFarmer(uid, now),
+                // 7: Quarantine active
+                quarantineRecordDao.observeActiveForFarmer(uid),
+                // 8: Mortality last 7 days
+                mortalityRecordDao.observeCountForFarmerBetween(uid, weekAgo, now)
+            )
+        ) { values ->
+            val growthTracked = values[0] as Int
+            val breedingPairs = values[1] as Int
+            val eggsCollectedToday = values[2] as Int
+            val incubatingBatches = values[3] as Int
+            val hatchDueThisWeek = values[4] as Int
+            val vaccinationDue = values[5] as Int
+            val vaccinationOverdue = values[6] as Int
+            val quarantineActive = values[7] as Int
+            val mortalityLast7d = values[8] as Int
+            val pendingAlerts = mutableListOf<String>()
+            if (vaccinationOverdue > 0) pendingAlerts.add("$vaccinationOverdue vaccinations overdue")
+            if (quarantineActive > 0) pendingAlerts.add("$quarantineActive birds in quarantine need attention")
+            if (mortalityLast7d > 5) pendingAlerts.add("High mortality rate detected ($mortalityLast7d deaths in 7 days)")
+            MonitoringSummary(
+                growthTracked = growthTracked,
+                breedingPairs = breedingPairs,
+                eggsCollectedToday = eggsCollectedToday,
+                incubatingBatches = incubatingBatches,
+                hatchDueThisWeek = hatchDueThisWeek,
+                broodingBatches = 0, // Not implemented in seeding
+                vaccinationDue = vaccinationDue,
+                vaccinationOverdue = vaccinationOverdue,
+                quarantineActive = quarantineActive,
+                mortalityLast7d = mortalityLast7d,
+                pendingAlerts = pendingAlerts,
+                weeklyCadence = emptyList() // Not implemented
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MonitoringSummary())
+    }
+}
 
 @Immutable
 data class MonitoringSummary(
@@ -63,8 +152,9 @@ fun FarmMonitoringScreen(
     onOpenMortality: () -> Unit,
     onOpenHatching: () -> Unit,
     onOpenPerformance: () -> Unit,
-    summary: MonitoringSummary = MonitoringSummary()
+    vm: FarmMonitoringViewModel = hiltViewModel()
 ) {
+    val summary by vm.summary.collectAsState()
     Column(
         modifier = Modifier
             .fillMaxSize()

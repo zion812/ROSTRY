@@ -185,6 +185,7 @@
 # Firebase App Check
 -keep class com.google.firebase.appcheck.** { *; }
 -keep class com.google.firebase.appcheck.debug.** { *; }
+-keep class com.google.firebase.appcheck.playintegrity.** { *; }
 
 # Prevent obfuscation of App Check token classes
 -keepclassmembers class * {

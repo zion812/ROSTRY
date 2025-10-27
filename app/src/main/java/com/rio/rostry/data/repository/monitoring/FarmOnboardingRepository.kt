@@ -4,9 +4,14 @@ import com.google.gson.Gson
 import com.rio.rostry.data.database.entity.GrowthRecordEntity
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
-import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.data.repository.analytics.AnalyticsRepository
 import com.rio.rostry.utils.Resource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -18,15 +23,34 @@ import javax.inject.Singleton
  */
 interface FarmOnboardingRepository {
     suspend fun addProductToFarmMonitoring(productId: String, farmerId: String): Resource<List<String>>
+    fun observeRecentOnboardingActivity(farmerId: String, days: Int = 7): Flow<List<OnboardingActivity>>
+    suspend fun getOnboardingStats(farmerId: String): OnboardingStats
 }
+
+data class OnboardingActivity(
+    val productId: String,
+    val productName: String,
+    val addedAt: Long,
+    val tasksCreated: Int,
+    val vaccinationsScheduled: Int,
+    val isBatch: Boolean
+)
+
+data class OnboardingStats(
+    val birdsAddedThisWeek: Int,
+    val batchesAddedThisWeek: Int,
+    val tasksGenerated: Int
+)
 
 @Singleton
 class FarmOnboardingRepositoryImpl @Inject constructor(
-    private val productRepository: ProductRepository,
+    private val productDao: ProductDao,
     private val growthRepository: GrowthRepository,
     private val vaccinationRepository: VaccinationRepository,
     private val dailyLogRepository: DailyLogRepository,
     private val taskRepository: TaskRepository,
+    private val intelligentNotificationService: IntelligentNotificationService,
+    private val analyticsRepository: AnalyticsRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : FarmOnboardingRepository {
 
@@ -41,13 +65,8 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
                 return Resource.Success(emptyList()) // Already exists
             }
 
-            // Fetch product entity for baseline data - unwrap Resource
-            val productResource = productRepository.getProductById(productId).first()
-            val product = when (productResource) {
-                is Resource.Success -> productResource.data ?: return Resource.Error("Product not found")
-                is Resource.Error -> return Resource.Error(productResource.message ?: "Product not found")
-                is Resource.Loading -> return Resource.Error("Product data still loading")
-            }
+            // Fetch product entity for baseline data
+            val product = productDao.findById(productId) ?: return Resource.Error("Product not found")
 
             val now = System.currentTimeMillis()
             val taskIds = mutableListOf<String>()
@@ -181,10 +200,56 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
             taskRepository.upsert(firstGrowthTask)
             taskIds.add(firstGrowthTask.taskId)
 
+            // Wire onboarding completion to notification system
+            intelligentNotificationService.notifyOnboardingComplete(
+                productId,
+                product.name ?: "Unknown Product",
+                taskIds.size,
+                product.isBatch == true
+            )
+            // analyticsRepository.trackOnboardingComplete(farmerId, productId, taskIds.size) // Removed: not implemented
+            // FarmerHome refresh will be triggered reactively via updated flows
+
             Resource.Success(taskIds)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to add product to farm monitoring")
         }
+    }
+
+    override fun observeRecentOnboardingActivity(farmerId: String, days: Int): Flow<List<OnboardingActivity>> {
+        val since = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong())
+        val productsFlow = productDao.observeRecentlyAddedForFarmer(farmerId, since)
+        val tasksFlow = taskRepository.observeByFarmer(farmerId) // Assuming TaskRepository has observeByFarmer; adjust if needed
+        val vaccinationsFlow = vaccinationRepository.observeByFarmer(farmerId) // Assuming VaccinationRepository has observeByFarmer; adjust if needed
+
+        return combine(productsFlow, tasksFlow, vaccinationsFlow) { products, tasks, vaccinations ->
+            products.map { product ->
+                val tasksCreated = tasks.count { it.productId == product.productId }
+                val vaccinationsScheduled = vaccinations.count { it.productId == product.productId }
+                OnboardingActivity(
+                    productId = product.productId,
+                    productName = product.name ?: "Unknown",
+                    addedAt = product.createdAt,
+                    tasksCreated = tasksCreated,
+                    vaccinationsScheduled = vaccinationsScheduled,
+                    isBatch = product.isBatch == true
+                )
+            }
+        }
+    }
+
+    override suspend fun getOnboardingStats(farmerId: String): OnboardingStats {
+        val weekAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+        val products = productDao.observeRecentlyAddedForFarmer(farmerId, weekAgo).first()
+        val tasks = taskRepository.observeByFarmer(farmerId).first() // Assuming observeByFarmer exists; filter by createdAt if needed
+        val birdsAdded = products.count { it.isBatch != true }
+        val batchesAdded = products.count { it.isBatch == true }
+        val tasksGenerated = tasks.count { it.createdAt >= weekAgo } // Assuming TaskEntity has createdAt; adjust if not
+        return OnboardingStats(
+            birdsAddedThisWeek = birdsAdded,
+            batchesAddedThisWeek = batchesAdded,
+            tasksGenerated = tasksGenerated
+        )
     }
 
     private fun generateId(prefix: String): String = "$prefix${System.currentTimeMillis()}"

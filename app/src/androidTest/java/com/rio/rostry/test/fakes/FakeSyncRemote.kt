@@ -48,6 +48,7 @@ class FakeSyncRemote @Inject constructor(): SyncRemote {
     var matingLogsToFetch: List<MatingLogEntity> = emptyList()
     var eggCollectionsToFetch: List<EggCollectionEntity> = emptyList()
     var enthusiastSnapshotsToFetch: List<EnthusiastDashboardSnapshotEntity> = emptyList()
+    var usersToFetch: List<UserEntity> = emptyList()
 
     override suspend fun fetchUpdatedProducts(since: Long, limit: Int): List<ProductEntity> = productsToFetch
     override suspend fun fetchUpdatedOrders(since: Long, limit: Int): List<OrderEntity> = ordersToFetch
@@ -87,4 +88,6 @@ class FakeSyncRemote @Inject constructor(): SyncRemote {
     override suspend fun pushEggCollections(userId: String, entities: List<EggCollectionEntity>): Int { pushedEggCollections += entities; return entities.size }
     override suspend fun fetchUpdatedEnthusiastSnapshots(userId: String, since: Long, limit: Int): List<EnthusiastDashboardSnapshotEntity> = enthusiastSnapshotsToFetch
     override suspend fun pushEnthusiastSnapshots(userId: String, entities: List<EnthusiastDashboardSnapshotEntity>): Int { pushedEnthusiastSnapshots += entities; return entities.size }
+    override suspend fun fetchUpdatedUsers(since: Long, limit: Int): List<UserEntity> = usersToFetch
+    override suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> = usersToFetch.filter { it.userId in ids }
 }

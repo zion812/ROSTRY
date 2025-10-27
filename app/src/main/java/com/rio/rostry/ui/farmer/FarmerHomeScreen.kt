@@ -27,6 +27,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.rio.rostry.data.repository.analytics.DailyGoal
+import androidx.compose.ui.text.style.TextAlign
 
 data class FetcherCard(
     val title: String,
@@ -51,6 +53,7 @@ fun FarmerHomeScreen(
     val scope = rememberCoroutineScope()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val refreshingState = rememberSwipeRefreshState(isRefreshing = isRefreshing)
+    val colorScheme = MaterialTheme.colorScheme
 
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -70,6 +73,34 @@ fun FarmerHomeScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+            // Compliance Banner
+            if (!uiState.kycVerified || uiState.complianceAlertsCount > 0) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        onClick = { viewModel.navigateToCompliance() }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Warning, contentDescription = "Compliance icon")
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Compliance Issues: ${uiState.complianceAlertsCount}",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            Icon(Icons.Filled.ChevronRight, contentDescription = "View compliance")
+                        }
+                    }
+                }
+            }
             // Weekly KPI Cards
             uiState.weeklySnapshot?.let { snapshot ->
                 item {
@@ -98,15 +129,33 @@ fun FarmerHomeScreen(
                     }
                 }
             }
+            // Recent Activity Section
+            item {
+                Text(
+                    "Recent Activity",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(Modifier.height(12.dp))
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Recently added: ${uiState.recentlyAddedBirdsCount} birds, ${uiState.recentlyAddedBatchesCount} batches")
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { /* TODO: navigate to recent activity */ }) {
+                            Text("View All")
+                        }
+                    }
+                }
+            }
 
             // Urgent KPIs Section
             item {
+            val colorScheme = MaterialTheme.colorScheme
             val urgentKpiCards = listOf(
                 FetcherCard(
                     title = "Overdue Tasks",
                     count = uiState.tasksOverdueCount,
                     badgeCount = uiState.tasksOverdueCount,
-                    badgeColor = MaterialTheme.colorScheme.error,
+                    badgeColor = colorScheme.error,
                     icon = Icons.Filled.Task,
                     action = "View Tasks",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_TASKS) }
@@ -115,7 +164,7 @@ fun FarmerHomeScreen(
                     title = "Overdue Vaccinations",
                     count = uiState.vaccinationOverdueCount,
                     badgeCount = uiState.vaccinationOverdueCount,
-                    badgeColor = MaterialTheme.colorScheme.error,
+                    badgeColor = colorScheme.error,
                     icon = Icons.Filled.Vaccines,
                     action = "View Schedule",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_VACCINATION) }
@@ -124,7 +173,7 @@ fun FarmerHomeScreen(
                     title = "Quarantine Updates Due",
                     count = uiState.quarantineUpdatesDue,
                     badgeCount = uiState.quarantineUpdatesDue,
-                    badgeColor = MaterialTheme.colorScheme.tertiary,
+                    badgeColor = colorScheme.tertiary,
                     icon = Icons.Filled.LocalHospital,
                     action = "Update Now",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_QUARANTINE) }
@@ -133,7 +182,7 @@ fun FarmerHomeScreen(
                     title = "Batches Ready to Split",
                     count = uiState.batchesDueForSplit,
                     badgeCount = uiState.batchesDueForSplit,
-                    badgeColor = MaterialTheme.colorScheme.primary,
+                    badgeColor = colorScheme.primary,
                     icon = Icons.Filled.CallSplit,
                     action = "View Growth",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) }
@@ -150,11 +199,46 @@ fun FarmerHomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(urgentKpiCards) { card ->
+                    items(
+                        items = urgentKpiCards,
+                        key = { it.title },
+                        contentType = { "urgent_kpi" }
+                    ) { card ->
                         UrgentKpiCard(card)
                     }
                 }
             }
+            }
+            // Transfer Activity Section
+            item {
+                Text(
+                    "Transfer Activity",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        TransferActivityCard(
+                            title = "Pending Transfers",
+                            count = uiState.transfersPendingCount,
+                            icon = Icons.Filled.Schedule,
+                            action = "View Pending",
+                            onClick = { viewModel.navigateToTransfers() }
+                        )
+                    }
+                    item {
+                        TransferActivityCard(
+                            title = "Awaiting Verification",
+                            count = uiState.transfersAwaitingVerificationCount,
+                            icon = Icons.Filled.Verified,
+                            action = "Verify Now",
+                            onClick = { viewModel.navigateToTransfers() }
+                        )
+                    }
+                }
             }
 
             // Alerts Banner
@@ -235,7 +319,7 @@ fun FarmerHomeScreen(
                     title = "Quarantine 12h",
                     count = uiState.quarantineActiveCount,
                     badgeCount = uiState.quarantineUpdatesDue,
-                    badgeColor = MaterialTheme.colorScheme.tertiary,
+                    badgeColor = colorScheme.tertiary,
                     icon = Icons.Filled.LocalHospital,
                     action = "Update Now",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_QUARANTINE) }
@@ -244,7 +328,7 @@ fun FarmerHomeScreen(
                     title = "Hatching Batches",
                     count = uiState.hatchingBatchesActive,
                     badgeCount = uiState.hatchingDueThisWeek,
-                    badgeColor = MaterialTheme.colorScheme.secondary,
+                    badgeColor = colorScheme.secondary,
                     icon = Icons.Filled.EggAlt,
                     action = "View Batches",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_HATCHING) }
@@ -267,7 +351,7 @@ fun FarmerHomeScreen(
                     title = "Ready to List",
                     count = uiState.productsReadyToListCount,
                     badgeCount = if (uiState.productsReadyToListCount > 0) uiState.productsReadyToListCount else 0,
-                    badgeColor = MaterialTheme.colorScheme.primaryContainer,
+                    badgeColor = colorScheme.primaryContainer,
                     icon = Icons.Filled.Storefront,
                     action = "Quick List",
                     onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) } // Navigate to growth tracking to see products
@@ -278,11 +362,32 @@ fun FarmerHomeScreen(
                     icon = Icons.Filled.AddCircle,
                     action = "Create Listing",
                     onClick = { viewModel.navigateToModule(Routes.PRODUCT_CREATE) }
+                ),
+                FetcherCard(
+                    title = "Eligible for Transfer",
+                    count = uiState.productsEligibleForTransferCount,
+                    icon = Icons.Filled.Send,
+                    action = "View Eligible",
+                    onClick = { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("PENDING")) }
+                ),
+                FetcherCard(
+                    title = "Compliance Alerts",
+                    count = uiState.complianceAlertsCount,
+                    badgeCount = uiState.complianceAlertsCount,
+                    badgeColor = colorScheme.error,
+                    icon = Icons.Filled.Warning,
+                    action = "View Details",
+                    onClick = { viewModel.navigateToCompliance() }
                 )
             )
 
-            // Convert grid to rows to avoid nested lazy layout
-            items(fetcherCards.chunked(2)) { rowCards ->
+            // Convert grid to rows to avoid nested lazy layout with stable keys
+            val fetcherRows = fetcherCards.chunked(2)
+            items(
+                items = fetcherRows,
+                key = { row -> row.joinToString(separator = "|") { it.title } },
+                contentType = { "fetcher_row" }
+            ) { rowCards ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -294,6 +399,46 @@ fun FarmerHomeScreen(
                     }
                     if (rowCards.size == 1) {
                         Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+            
+            // Daily Goals Section
+            item {
+                Text(
+                    "Daily Goals",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(uiState.dailyGoals) { goal ->
+                        GoalCard(
+                            goal = goal,
+                            onAction = { viewModel.navigateToModule(goal.deepLink) },
+                            onDismiss = { viewModel.dismissGoal(goal.goalId) }
+                        )
+                    }
+                }
+            }
+            // Analytics Insights Section
+            item {
+                Text(
+                    "Analytics Insights",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Spacer(Modifier.height(12.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    uiState.analyticsInsights.forEach { insight ->
+                        InsightCard(
+                            insight = insight,
+                            onClick = { /* TODO: handle insight click */ },
+                            onDismiss = { /* TODO: dismiss insight */ }
+                        )
                     }
                 }
             }
@@ -476,6 +621,152 @@ private fun FetcherCardItem(card: FetcherCard) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransferActivityCard(
+    title: String,
+    count: Int,
+    icon: ImageVector,
+    action: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .height(100.dp)
+            .semantics { contentDescription = "$title: $count. $action" },
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = "$title icon",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                if (count > 0) {
+                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                        Text(count.toString())
+                    }
+                }
+            }
+
+            Column {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    count.toString(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    action,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalCard(
+    goal: DailyGoal,
+    onAction: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(160.dp)
+            .height(180.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Icon(
+                    Icons.Filled.Star, // TODO: use goal.iconName
+                    contentDescription = goal.title
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Filled.Close, contentDescription = "Dismiss")
+                }
+            }
+
+            Text(
+                goal.title,
+                style = MaterialTheme.typography.titleSmall,
+                textAlign = TextAlign.Center
+            )
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(60.dp)
+            ) {
+                CircularProgressIndicator(
+                    progress = goal.progress,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Text(
+                    "${(goal.progress * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+
+            Text(
+                "${goal.currentCount}/${goal.targetCount}",
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Button(onClick = onAction) {
+                Text("Complete")
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightCard(
+    insight: String,
+    onClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(insight)
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Filled.Close, contentDescription = "Dismiss")
             }
         }
     }

@@ -1,9 +1,11 @@
 package com.rio.rostry.data.demo
 
+import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.database.entity.ProductEntity
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -18,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class DemoProductSeeder @Inject constructor(
     private val productDao: ProductDao,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val database: AppDatabase
 ) {
     
     private data class BreedTemplate(
@@ -70,111 +73,128 @@ class DemoProductSeeder @Inject constructor(
     
     suspend fun seedProducts() = withContext(Dispatchers.IO) {
         try {
-            val existingProducts = productDao.findById("demo_prod_check")
-            if (existingProducts != null) {
-                Timber.d("DemoProductSeeder: Database already seeded")
+            val existingCount = productDao.countDemoProducts()
+            if (existingCount > 0) {
+                Timber.d("DemoProductSeeder: Database already seeded with $existingCount demo products")
                 return@withContext
             }
 
             Timber.i("DemoProductSeeder: Starting to seed 80 sample products...")
 
-            // Ensure demo sellers exist to satisfy FK on products.sellerId
-            val demoUsers = sellerIds.map { sid ->
-                UserEntity(
-                    userId = sid,
-                    fullName = sid.replace('_', ' ').replaceFirstChar { it.uppercase() },
-                    email = "$sid@example.com"
-                )
-            }
-            userDao.insertUsers(demoUsers)
-            
-            val products = mutableListOf<ProductEntity>()
-            val now = System.currentTimeMillis()
-            // Generate products for each breed
-            for (breedTemplate in breeds) {
-                // Generate 13-14 products per breed (total ~80)
-                repeat(13) { index ->
-                    val location = locations.random()
-                    val ageGroup = ageGroups.random()
-                    val daysOld = ageGroup.second.random()
-                    
-                    // Price variation based on age and random factor
-                    val priceVariation = when {
-                        daysOld < 30 -> 0.3 // Young birds cheaper
-                        daysOld < 120 -> 0.8
-                        daysOld < 365 -> 1.2
-                        else -> 1.5 // Mature birds more expensive
-                    }
-                    val price = (breedTemplate.avgPrice * priceVariation * (0.8 + Math.random() * 0.4))
-                    
-                    // Determine if traceable (50% chance)
-                    val isTraceable = Math.random() > 0.5
-                    val familyTreeId = if (isTraceable) "FAMILY_${UUID.randomUUID().toString().take(8)}" else null
-                    
-                    // Determine if from verified seller (60% chance)
-                    val seller = sellerIds.random()
-                    val isVerified = Math.random() > 0.4
-                    
-                    // Generate realistic name
-                    val gender = listOf("Rooster", "Hen", "Pair", "Chicks").random()
-                    val ageDesc = when {
-                        daysOld < 30 -> "Day-old"
-                        daysOld < 120 -> "$daysOld days"
-                        daysOld < 365 -> "${daysOld / 30} months"
-                        else -> "${daysOld / 365} years"
-                    }
-                    val name = "${breedTemplate.name} $gender - $ageDesc"
-                    
-                    // Quantity varies
-                    val quantity = when {
-                        gender == "Chicks" -> (5..20).random().toDouble()
-                        gender == "Pair" -> 2.0
-                        else -> 1.0
-                    }
-                    
-                    val product = ProductEntity(
-                        productId = "demo_prod_${UUID.randomUUID()}",
-                        sellerId = seller,
-                        name = name,
-                        description = "${breedTemplate.description}. Age: $ageDesc. Location: ${location.city}.",
-                        category = breedTemplate.name,
-                        price = price,
-                        quantity = quantity,
-                        unit = if (quantity == 1.0) "piece" else "pieces",
-                        imageUrls = listOf(generateImageUrl(breedTemplate.name, index)),
-                        location = "${location.city}, ${location.state}",
-                        latitude = location.latitude + (Math.random() * 0.1 - 0.05), // Slight variation
-                        longitude = location.longitude + (Math.random() * 0.1 - 0.05),
-                        status = "available",
-                        condition = if (Math.random() > 0.7) "organic" else "fresh",
-                        birthDate = now - (daysOld * 86400000L),
-                        vaccinationRecordsJson = if (Math.random() > 0.5) """[{"date":${now - 30 * 86400000L},"vaccine":"Newcastle"}]""" else null,
-                        weightGrams = calculateWeight(breedTemplate.name, daysOld) * 1000, // Convert kg to grams
-                        gender = gender.takeIf { it != "Pair" && it != "Chicks" },
-                        color = listOf("Black", "White", "Brown", "Red", "Mixed").random(),
-                        breed = breedTemplate.name,
-                        familyTreeId = familyTreeId,
-                        parentIdsJson = if (isTraceable) """["parent_${UUID.randomUUID().toString().take(6)}"]""" else null,
-                        transferHistoryJson = if (isTraceable) """[{"from":"breeder_1","to":"$seller","date":${now - 86400000}}]""" else null,
-                        createdAt = now - ((0..30).random() * 86400000L), // Created within last 30 days
-                        updatedAt = now,
-                        lastModifiedAt = now,
-                        isDeleted = false,
-                        dirty = false
+            // Wrap the entire seeding operation in a suspend transaction for atomicity
+            database.withTransaction {
+                // Ensure demo sellers exist to satisfy FK on products.sellerId
+                val demoUsers = sellerIds.map { sid ->
+                    UserEntity(
+                        userId = sid,
+                        fullName = sid.replace('_', ' ').replaceFirstChar { it.uppercase() },
+                        email = "$sid@example.com"
                     )
-                    
-                    products.add(product)
                 }
+                userDao.insertUsers(demoUsers)
+
+                val products = mutableListOf<ProductEntity>()
+                val now = System.currentTimeMillis()
+                // Generate products for each breed
+                for (breedTemplate in breeds) {
+                    // Generate 13-14 products per breed (total ~80)
+                    repeat(13) { index ->
+                        val location = locations.random()
+                        val ageGroup = ageGroups.random()
+                        val daysOld = ageGroup.second.random()
+
+                        // Price variation based on age and random factor
+                        val priceVariation = when {
+                            daysOld < 30 -> 0.3 // Young birds cheaper
+                            daysOld < 120 -> 0.8
+                            daysOld < 365 -> 1.2
+                            else -> 1.5 // Mature birds more expensive
+                        }
+                        val price = (breedTemplate.avgPrice * priceVariation * (0.8 + Math.random() * 0.4))
+
+                        // Determine if traceable (50% chance)
+                        val isTraceable = Math.random() > 0.5
+                        val familyTreeId = if (isTraceable) "FAMILY_${UUID.randomUUID().toString().take(8)}" else null
+
+                        // Determine if from verified seller (60% chance)
+                        val seller = sellerIds.random()
+                        val isVerified = Math.random() > 0.4
+
+                        // Generate realistic name
+                        val gender = listOf("Rooster", "Hen", "Pair", "Chicks").random()
+                        val ageDesc = when {
+                            daysOld < 30 -> "Day-old"
+                            daysOld < 120 -> "$daysOld days"
+                            daysOld < 365 -> "${daysOld / 30} months"
+                            else -> "${daysOld / 365} years"
+                        }
+                        val name = "${breedTemplate.name} $gender - $ageDesc"
+
+                        // Quantity varies
+                        val quantity = when {
+                            gender == "Chicks" -> (5..20).random().toDouble()
+                            gender == "Pair" -> 2.0
+                            else -> 1.0
+                        }
+
+                        val product = ProductEntity(
+                            productId = "demo_prod_${UUID.randomUUID()}",
+                            sellerId = seller,
+                            name = name,
+                            description = "${breedTemplate.description}. Age: $ageDesc. Location: ${location.city}.",
+                            category = breedTemplate.name,
+                            price = price,
+                            quantity = quantity,
+                            unit = if (quantity == 1.0) "piece" else "pieces",
+                            imageUrls = listOf(generateImageUrl(breedTemplate.name, index)),
+                            location = "${location.city}, ${location.state}",
+                            latitude = location.latitude + (Math.random() * 0.1 - 0.05), // Slight variation
+                            longitude = location.longitude + (Math.random() * 0.1 - 0.05),
+                            status = "available",
+                            condition = if (Math.random() > 0.7) "organic" else "fresh",
+                            birthDate = now - (daysOld * 86400000L),
+                            vaccinationRecordsJson = if (Math.random() > 0.5) """[{"date":${now - 30 * 86400000L},"vaccine":"Newcastle"}]""" else null,
+                            weightGrams = calculateWeight(breedTemplate.name, daysOld) * 1000, // Convert kg to grams
+                            gender = gender.takeIf { it != "Pair" && it != "Chicks" },
+                            color = listOf("Black", "White", "Brown", "Red", "Mixed").random(),
+                            breed = breedTemplate.name,
+                            familyTreeId = familyTreeId,
+                            parentIdsJson = if (isTraceable) """["parent_${UUID.randomUUID().toString().take(6)}"]""" else null,
+                            transferHistoryJson = if (isTraceable) """[{"from":"breeder_1","to":"$seller","date":${now - 86400000}}]""" else null,
+                            createdAt = now - ((0..30).random() * 86400000L), // Created within last 30 days
+                            updatedAt = now,
+                            lastModifiedAt = now,
+                            isDeleted = false,
+                            dirty = false,
+                            debug = true
+                        )
+
+                        products.add(product)
+                    }
+                }
+
+                // Batch insert all products
+                productDao.insertProducts(products)
+
+                // Verification: Count inserted products and check for missing sellers
+                val insertedCount = sellerIds.sumOf { productDao.countActiveByOwnerId(it) }
+                if (insertedCount != products.size) {
+                    Timber.e("DemoProductSeeder: Verification failed - Expected ${products.size} products, but inserted $insertedCount")
+                } else {
+                    Timber.i("DemoProductSeeder: Verification passed - All ${products.size} products inserted successfully")
+                }
+
+                val allMissingSellers = productDao.getProductsWithMissingSellers()
+                val demoMissingSellers = allMissingSellers.filter { it.productId.startsWith("demo_prod_") }
+                if (demoMissingSellers.isNotEmpty()) {
+                    Timber.e("DemoProductSeeder: Verification failed - Found ${demoMissingSellers.size} demo products with missing sellers: ${demoMissingSellers.map { it.productId }}")
+                }
+
+                Timber.i("DemoProductSeeder: Successfully seeded ${products.size} products")
+                Timber.d("DemoProductSeeder: Breeds: ${products.groupBy { it.breed }.mapValues { it.value.size }}")
+                Timber.d("DemoProductSeeder: Locations: ${products.groupBy { it.location }.mapValues { it.value.size }}")
+                Timber.d("DemoProductSeeder: Traceable: ${products.count { it.familyTreeId != null }}")
             }
-            
-            // Batch insert all products
-            productDao.insertProducts(products)
-            
-            Timber.i("DemoProductSeeder: Successfully seeded ${products.size} products")
-            Timber.d("DemoProductSeeder: Breeds: ${products.groupBy { it.breed }.mapValues { it.value.size }}")
-            Timber.d("DemoProductSeeder: Locations: ${products.groupBy { it.location }.mapValues { it.value.size }}")
-            Timber.d("DemoProductSeeder: Traceable: ${products.count { it.familyTreeId != null }}")
-            
         } catch (e: Exception) {
             Timber.e(e, "DemoProductSeeder: Failed to seed products")
         }

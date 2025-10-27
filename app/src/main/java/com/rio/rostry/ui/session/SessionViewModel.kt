@@ -136,6 +136,20 @@ class SessionViewModel @Inject constructor(
         synchronizeRole(_uiState.value.authMode)
     }
 
+    fun refreshUserProfile() {
+        viewModelScope.launch {
+            val uid = currentUserProvider.userIdOrNull() ?: return@launch
+            when (val result = userRepository.refreshCurrentUser(uid)) {
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(error = result.message)
+                }
+                else -> {
+                    synchronizeRole(_uiState.value.authMode)
+                }
+            }
+        }
+    }
+
     private fun synchronizeRole(mode: SessionManager.AuthMode) {
         userCollectionJob?.cancel()
         userCollectionJob = viewModelScope.launch {

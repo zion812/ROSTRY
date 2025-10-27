@@ -8,6 +8,7 @@ This comprehensive guide explains how to use ROSTRY's built-in demo mode to expl
 - Available Demo Profiles
 - Getting Started
 - Use Cases
+- Feature Coverage
 - Troubleshooting
 - Developer Notes
 - Resetting and Maintenance
@@ -33,7 +34,7 @@ Demo mode is controlled by the `DemoModeManager` and integrates with `SessionMan
 In demo mode:
 - **Mocked**: Payments (via MockPaymentSystem), Firebase auth/data sync, external APIs
 - **Real**: Local database operations, UI navigation, offline storage, feature logic (e.g., gamification, traceability)
-- **Data Seeding Process**: On demo login, DemoSeeders clears and repopulates Room tables with JSON-defined datasets, creating consistent snapshots for each profile.
+- **Data Seeding Process**: DemoSeeders now populates 50+ entity types across 12 feature areas, with role-specific data tailored to each profile (farmers get farm monitoring data, enthusiasts get breeding and gamification data, general users get marketplace and social data). Analytics aggregation entities (AnalyticsDailyEntity, FarmerDashboardSnapshotEntity) are seeded last, computing realistic metrics from all previously seeded transactional data. This ensures dashboards display meaningful insights without requiring manual data entry.
 
 This architecture ensures demo mode mirrors production behavior while remaining self-contained.
 
@@ -43,9 +44,9 @@ Each demo profile is preloaded with role-specific data to showcase different use
 
 | Username          | Password     | Role       | Pre-Seeded Data Highlights | Key Features to Explore | Sample Workflow |
 |-------------------|--------------|------------|----------------------------|--------------------------|-----------------|
-| `demo_buyer1`     | `password123`| General Buyer | 15 curated marketplace listings (eggs, chicks, feed), 8 completed transfers, 12 social posts from connections | Marketplace browsing, transfer receipts, social feed | Search for "organic eggs", view product details, initiate a mock transfer, check transfer history |
-| `demo_farmer1`    | `password123`| Farmer     | 10 active live-bird listings, 5 pending transfers, farm monitoring data, breeding records | Product creation, transfer management, farm analytics | Create a new product listing, monitor farm performance, review breeding lineage, manage outgoing transfers |
-| `demo_enthusiast2`| `password123`| Enthusiast | Premium breeder metrics, 20 social connections, gamification achievements, traceability views | Community engagement, gamification, advanced traceability | Browse community posts, view achievement badges, explore family trees, connect with breeders |
+| `demo_buyer1`     | `password123`| General Buyer | 15 curated marketplace listings (eggs, chicks, feed), 8 completed transfers, 12 social posts from connections, 5 orders (2 delivered, 2 in-transit, 1 pending), 3 cart items, 8 wishlist items, participated in 2 auctions, 12 notifications, 15 social interactions (comments, likes). Dashboard shows 30-day purchase history, engagement trends, spending analytics | Marketplace browsing, transfer receipts, social feed | Search for "organic eggs", view product details, initiate a mock transfer, check transfer history |
+| `demo_farmer1`    | `password123`| Farmer     | 10 active live-bird listings, 5 pending transfers, farm monitoring data, breeding records, 30 daily logs, 8 tasks (3 overdue), 15 growth records, 2 quarantine cases, 5 mortality records, 12 vaccination schedules, 2 hatching batches, 4 breeding pairs, 10 orders as seller. Dashboard displays revenue trends (4 weeks), mortality rate chart, hatch success progression, vaccination compliance | Product creation, transfer management, farm analytics | Create a new product listing, monitor farm performance, review breeding lineage, manage outgoing transfers |
+| `demo_enthusiast2`| `password123`| Enthusiast | Premium breeder metrics, 20 social connections, gamification achievements, traceability views, 6 mating logs, 8 egg collections, 5 unlocked achievements, 18,500 coin balance with 10 transactions, rank #3 on monthly leaderboard, 4 family trees (3 generations), 2 expert bookings. Dashboard shows breeding success rate (65-85%), transfer analytics, engagement score trends | Community engagement, gamification, advanced traceability | Browse community posts, view achievement badges, explore family trees, connect with breeders |
 
 Each profile's data is tailored to demonstrate role-specific workflows, with realistic relationships (e.g., demo_farmer1's listings appear in demo_buyer1's search results).
 
@@ -81,6 +82,7 @@ Log in as `demo_buyer1` to experience curated shopping:
 - View product details, including lineage traceability.
 - Simulate purchases with mock payments (no real transactions occur).
 - Check transfer history for completed deliveries.
+- View order history with tracking updates, manage cart and wishlist, participate in live auctions, check coin balance and rewards.
 
 ### Managing a Farm as a Farmer
 Use `demo_farmer1` for operational workflows:
@@ -89,6 +91,7 @@ Use `demo_farmer1` for operational workflows:
 - Review breeding records and family trees for traceability.
 - Handle transfer logistics for outgoing shipments.
 - Access vaccination reminders and health tracking.
+- Log daily activities (feed, water, health checks), complete scheduled tasks, track growth metrics per bird, manage quarantine cases, record mortality events, schedule vaccinations, monitor hatching batches, manage breeding pairs.
 
 ### Engaging with Community as an Enthusiast
 Switch to `demo_enthusiast2` for social and advanced features:
@@ -97,8 +100,42 @@ Switch to `demo_enthusiast2` for social and advanced features:
 - Explore detailed family trees for poultry lineage.
 - Participate in community posts and discussions.
 - Access personalized recommendations based on interests.
+- Track breeding performance (mating logs, egg collections), view unlocked achievements and badges, check leaderboard ranking, explore detailed family trees with lifecycle events, book expert consultations.
+
+### Viewing Analytics Dashboards
+Explore role-specific analytics dashboards populated with demo data:
+- General users: Navigate to Dashboard to see total orders, spending, engagement score, and AI-powered suggestions
+- Farmers: View Dashboard to see revenue trends, farm performance metrics, weekly KPI charts, and actionable insights
+- Enthusiasts: Check Dashboard for breeding success rate, transfer count, engagement score, and leaderboard ranking
+- All roles: Export dashboard data as CSV for offline analysis
 
 These scenarios demonstrate end-to-end user journeys, highlighting how demo mode supports testing without real data risks.
+
+## Dashboard Metrics Explained
+
+- **General Dashboard**: totalOrders, totalSpend, recentEngagement, suggestions
+- **Farmer Dashboard**: revenue, orders, productViews, engagementScore, plus trend charts (revenue, mortality rate, hatch success rate)
+- **Enthusiast Dashboard**: breedingSuccessRate, transfers, engagementScore, plus KPI overview bar chart
+- Note: All metrics are computed from seeded transactional data (orders, posts, likes, breeding records, etc.)
+
+## Feature Coverage
+
+Demo mode now includes comprehensive seeding for all major app features, providing realistic data across 50+ entity types:
+
+- **Marketplace**: Orders, Cart, Wishlist, Auctions, Bids, Invoices, Payments
+- **Farm Monitoring**: Daily Logs, Tasks, Growth Records, Quarantine, Mortality, Vaccination, Hatching, Breeding Pairs
+- **Gamification**: Achievements, Coins, Leaderboards
+- **Community**: Comments, Likes, Follows, Groups, Events, Chat Messages, Expert Bookings
+- **Traceability**: Family Trees, Lifecycle Events
+- **Breeding**: Mating Logs, Egg Collections
+- **Notifications**: Multi-domain notifications
+- **Analytics & Dashboards**
+  - AnalyticsDailyEntity: 30 days of aggregated metrics (orders, revenue, engagement, breeding success)
+  - FarmerDashboardSnapshotEntity: 4 weeks of trend data (revenue, mortality, hatch success)
+  - Role-specific dashboards: General (marketplace metrics), Farmer (farm KPIs + trends), Enthusiast (breeding metrics)
+  - ReportEntity: Sample report metadata
+
+This ensures users can explore the full breadth of ROSTRY's capabilities with pre-seeded, interconnected data.
 
 ## Troubleshooting
 
@@ -110,6 +147,8 @@ These scenarios demonstrate end-to-end user journeys, highlighting how demo mode
 - **Demo Mode Limitations**: Offline-only; no real payments, external API calls, or data persistence beyond the session. Features like real-time sync are mocked.
 - **Crash on Launch**: Verify `app/google-services.json` exists (required for Firebase init, even in demo). Check logs for DemoSeeders errors during seeding.
 - **Feature Flags Not Working**: Use DemoModeManager.updateFlags() to toggle (e.g., disable payments for testing). Reset via resetFlags() if issues persist.
+- **Demo seeding now takes 2-3 seconds due to comprehensive data population. A loading indicator is shown during profile activation.**
+- **If dashboards show zero metrics, ensure you're using the latest demo seeding implementation that includes analytics entity seeding (added in Sprint X).**
 
 If problems continue, consult developer notes or check the codebase for DemoModeManager logs.
 

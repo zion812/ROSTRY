@@ -113,6 +113,12 @@ data class FarmerDashboardSnapshotEntity(
     val medicationUsageCount: Int? = null,
     val dailyLogComplianceRate: Double? = null,
     val actionSuggestions: String? = null, // JSON array of suggestions
+    val transfersInitiatedCount: Int = 0,
+    val transfersCompletedCount: Int = 0,
+    val complianceScore: Double = 0.0,
+    val onboardingCount: Int = 0,
+    val dailyGoalsCompletedCount: Int = 0,
+    val analyticsInsightsCount: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
     val syncedAt: Long? = null

@@ -33,8 +33,12 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.rio.rostry.data.session.UserSessionManager
+import javax.inject.Inject
 import com.google.android.libraries.places.api.Places
 import com.rio.rostry.data.demo.DemoProductSeeder
 import kotlinx.coroutines.CoroutineScope
@@ -47,10 +51,19 @@ import java.util.concurrent.TimeUnit
 @HiltAndroidApp
 class RostryApp : Application(), Configuration.Provider {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    @Inject
+    lateinit var userSessionManager: UserSessionManager
+
+    @Inject
+    lateinit var appCheckProviderFactory: com.google.firebase.appcheck.AppCheckProviderFactory
+
+    @Inject
+    lateinit var databaseValidationHelper: com.rio.rostry.util.DatabaseValidationHelper
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface WorkerFactoryEntryPoint {
-fun   hiltWorkerFactory(): HiltWorkerFactory
+        fun hiltWorkerFactory(): HiltWorkerFactory
     }
 
     override val workManagerConfiguration: Configuration
@@ -63,25 +76,46 @@ fun   hiltWorkerFactory(): HiltWorkerFactory
                 .setWorkerFactory(entryPoint.hiltWorkerFactory())
                 .build()
         }
-    
+
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            // Enable StrictMode to surface hidden API and other bad practices in debug builds
+            try {
+                val threadPolicy = android.os.StrictMode.ThreadPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .build()
+                android.os.StrictMode.setThreadPolicy(threadPolicy)
+
+                val vmBuilder = android.os.StrictMode.VmPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    vmBuilder.detectNonSdkApiUsage()
+                }
+                android.os.StrictMode.setVmPolicy(vmBuilder.build())
+            } catch (t: Throwable) {
+                Timber.w(t, "Failed to enable StrictMode")
+            }
         }
 
         // Initialize Firebase explicitly
         FirebaseApp.initializeApp(this)
 
-        // Initialize Firebase App Check with Debug Provider (for development)
-        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+        // Disable Phone Auth app verification in debug builds to bypass reCAPTCHA/Play Integrity
         if (BuildConfig.DEBUG) {
-            // Use debug provider for development - register the debug token in Firebase Console
-            firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance()
-            )
-            Timber.d("App Check Debug Provider initialized")
+            FirebaseAuth.getInstance()
+                .firebaseAuthSettings
+                .setAppVerificationDisabledForTesting(true)
+            Timber.w("Phone Auth: App verification disabled for TESTING (debug build only)")
         }
+
+        // Initialize Firebase App Check using the injected factory
+        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+        firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
+        Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
 
         // Initialize Places SDK (New) with App Check support
         if (!Places.isInitialized()) {
@@ -101,68 +135,83 @@ fun   hiltWorkerFactory(): HiltWorkerFactory
         // Initialize WorkManager with our custom WorkerFactory configuration
         WorkManager.initialize(this, workManagerConfiguration)
 
-        // Schedule periodic sync (every 6 hours, requires network)
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
-            .setConstraints(constraints)
-            .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            SyncWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request
-        )
-
-        // Schedule lifecycle milestone worker (daily)
-        LifecycleWorker.schedule(this)
-
-        // Schedule transfer timeout checker (every ~15 minutes)
-        TransferTimeoutWorker.schedule(this)
-
-        // Schedule moderation scanner (every 6 hours)
-        ModerationWorker.schedule(this)
-
-        // Schedule outgoing message sender (every 15 minutes, requires network)
-        OutgoingMessageWorker.schedule(this)
-
-        // Schedule analytics aggregation (daily) and reporting (weekly)
-        AnalyticsAggregationWorker.schedule(this)
-        ReportingWorker.schedule(this)
-
-        // Schedule farm monitoring workers
-        VaccinationReminderWorker.schedule(this)
-        FarmPerformanceWorker.schedule(this)
-        // Schedule quarantine overdue reminder
-        com.rio.rostry.workers.QuarantineReminderWorker.schedule(this)
-        // Schedule enthusiast KPIs aggregation (weekly)
-        com.rio.rostry.workers.EnthusiastPerformanceWorker.schedule(this)
-
-        // Schedule sync workers for offline-first reconciliation
-        com.rio.rostry.workers.OutboxSyncWorker.schedule(this)
-        com.rio.rostry.workers.PullSyncWorker.schedule(this)
-
-        // Schedule General user order status polling (every 30 minutes)
-        OrderStatusWorker.schedule(this)
-
-        // Schedule prefetch under safe conditions (Wi‑Fi, charging)
-        com.rio.rostry.workers.PrefetchWorker.schedule(this)
-
-        // Schedule loveable-product background workers
-        com.rio.rostry.workers.PersonalizationWorker.schedule(this)
-        com.rio.rostry.workers.CommunityEngagementWorker.schedule(this)
-
-        // Schedule notification batching flush worker (every 15 minutes when online)
-        // This ensures batched notifications are flushed periodically when connectivity is available
-        com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
+        // Schedule workers based on user session
+        setupSessionBasedWorkers()
         
         // Register connectivity listener for expedited sync on network reconnection
         setupConnectivityListener()
         
         // Seed demo products in debug builds only
         if (BuildConfig.DEBUG) {
+            // Validate database integrity before seeding demo data
+            applicationScope.launch {
+                try {
+                    val report = databaseValidationHelper.validateProductForeignKeys()
+                    if (!report.isValid) {
+                        Timber.w("Orphaned products found: ${report.invalidCount}, IDs: ${report.invalidIds.joinToString()}")
+                        // Optionally show a debug toast alerting developers
+                        android.widget.Toast.makeText(
+                            this@RostryApp,
+                            "Orphaned products detected: ${report.invalidCount}",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Timber.d("Database validation passed: no orphaned products")
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to validate database on startup")
+                }
+            }
             seedDemoData()
         }
+    }
+
+    private fun setupSessionBasedWorkers() {
+        applicationScope.launch {
+            userSessionManager.isUserLoggedIn.collect { isLoggedIn ->
+                val workManager = WorkManager.getInstance(this@RostryApp)
+                if (isLoggedIn) {
+                    Timber.i("User is logged in, scheduling background workers.")
+                    scheduleAllWorkers(workManager)
+                } else {
+                    Timber.i("User is logged out, cancelling all background workers.")
+                    workManager.cancelAllWork()
+                }
+            }
+        }
+    }
+
+    private fun scheduleAllWorkers(workManager: WorkManager) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
+            .setConstraints(constraints)
+            .build()
+        workManager.enqueueUniquePeriodicWork(
+            SyncWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+
+        LifecycleWorker.schedule(this)
+        TransferTimeoutWorker.schedule(this)
+        ModerationWorker.schedule(this)
+        OutgoingMessageWorker.schedule(this)
+        AnalyticsAggregationWorker.schedule(this)
+        ReportingWorker.schedule(this)
+        VaccinationReminderWorker.schedule(this)
+        FarmPerformanceWorker.schedule(this)
+        com.rio.rostry.workers.QuarantineReminderWorker.schedule(this)
+        com.rio.rostry.workers.EnthusiastPerformanceWorker.schedule(this)
+        com.rio.rostry.workers.OutboxSyncWorker.schedule(this)
+        com.rio.rostry.workers.PullSyncWorker.schedule(this)
+        OrderStatusWorker.schedule(this)
+        com.rio.rostry.workers.PrefetchWorker.schedule(this)
+        com.rio.rostry.workers.PersonalizationWorker.schedule(this)
+        com.rio.rostry.workers.CommunityEngagementWorker.schedule(this)
+        com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
     }
     
     private fun setupConnectivityListener() {

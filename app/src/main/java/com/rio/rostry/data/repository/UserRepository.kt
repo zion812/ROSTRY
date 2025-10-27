@@ -37,6 +37,8 @@ interface UserRepository {
 
     // Moderation and verification queries
     fun streamPendingVerifications(): Flow<Resource<List<UserEntity>>>
+
+    suspend fun refreshPhoneNumber(userId: String): Resource<Unit>
 }
 // Add other user-related operations like:
 // suspend fun signInWithEmail(email: String, password: String): Resource<UserEntity>

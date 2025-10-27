@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CoinLedgerDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: CoinLedgerEntity)
 
     @Query("SELECT COALESCE(SUM(coins), 0) FROM coin_ledger WHERE userId = :userId")

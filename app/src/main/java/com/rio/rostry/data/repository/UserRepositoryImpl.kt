@@ -52,15 +52,19 @@ class UserRepositoryImpl @Inject constructor(
                         userDao.insertUser(userEntity) // Cache locally
                         emit(Resource.Success<UserEntity?>(userEntity))
                     } else {
-                        // User exists in Auth but not in Firestore users collection (edge case)
-                        val newUser = UserEntity(
-                            userId = firebaseUser.uid,
-                            email = firebaseUser.email,
-                            phoneNumber = firebaseUser.phoneNumber
-                        )
-                        usersCollection.document(firebaseUser.uid).set(newUser).await()
-                        userDao.insertUser(newUser)
-                        emit(Resource.Success<UserEntity?>(newUser))
+                        // No Firestore profile yet. Defer auto-create until phone is linked to satisfy security rules.
+                        if (firebaseUser.phoneNumber.isNullOrBlank()) {
+                            emit(Resource.Success<UserEntity?>(null))
+                        } else {
+                            val newUser = UserEntity(
+                                userId = firebaseUser.uid,
+                                email = firebaseUser.email,
+                                phoneNumber = firebaseUser.phoneNumber
+                            )
+                            usersCollection.document(firebaseUser.uid).set(newUser).await()
+                            userDao.insertUser(newUser)
+                            emit(Resource.Success<UserEntity?>(newUser))
+                        }
                     }
                 } else {
                     emit(Resource.Success<UserEntity?>(null))
@@ -191,6 +195,23 @@ class UserRepositoryImpl @Inject constructor(
         }
         Unit
     }.firstOrNull() ?: Resource.Error("Failed to request breeder verification")
+
+    override suspend fun refreshPhoneNumber(userId: String): Resource<Unit> = safeCall<Unit> {
+        val firebaseUser = firebaseAuth.currentUser
+        if (firebaseUser == null || firebaseUser.uid != userId) {
+            throw IllegalStateException("User not authenticated")
+        }
+        val phone = firebaseUser.phoneNumber
+        if (phone != null) {
+            val docRef = usersCollection.document(userId)
+            docRef.update(mapOf("phoneNumber" to phone, "updatedAt" to System.currentTimeMillis())).await()
+            val local = userDao.getUserById(userId).firstOrNull()
+            if (local != null) {
+                userDao.insertUser(local.copy(phoneNumber = phone, updatedAt = System.currentTimeMillis()))
+            }
+        }
+        Unit
+    }.firstOrNull() ?: Resource.Error("Failed to refresh phone number")
 
     override suspend fun updateFarmLocationVerification(userId: String, latitude: Double, longitude: Double): Resource<Unit> = safeCall {
         val docRef = usersCollection.document(userId)

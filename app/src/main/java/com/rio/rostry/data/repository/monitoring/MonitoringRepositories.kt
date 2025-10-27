@@ -49,6 +49,7 @@ interface VaccinationRepository {
     fun observe(productId: String): Flow<List<VaccinationRecordEntity>>
     suspend fun upsert(record: VaccinationRecordEntity)
     suspend fun dueReminders(byTime: Long): List<VaccinationRecordEntity>
+    fun observeByFarmer(farmerId: String): Flow<List<VaccinationRecordEntity>>
 }
 
 class VaccinationRepositoryImpl @Inject constructor(
@@ -57,6 +58,7 @@ class VaccinationRepositoryImpl @Inject constructor(
     override fun observe(productId: String) = dao.observeForProduct(productId)
     override suspend fun upsert(record: VaccinationRecordEntity) = dao.upsert(record)
     override suspend fun dueReminders(byTime: Long) = dao.dueReminders(byTime)
+    override fun observeByFarmer(farmerId: String) = dao.observeByFarmer(farmerId)
 }
 
 interface HatchingRepository {

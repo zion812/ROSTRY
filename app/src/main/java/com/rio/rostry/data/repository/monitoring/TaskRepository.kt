@@ -13,6 +13,7 @@ interface TaskRepository {
     fun observeDueWindow(farmerId: String, now: Long, endOfDay: Long): Flow<List<TaskEntity>>
     fun observeOverdueCount(farmerId: String, now: Long): Flow<Int>
     fun observeRecentCompleted(farmerId: String, limit: Int): Flow<List<TaskEntity>>
+    fun observeByFarmer(farmerId: String): Flow<List<TaskEntity>>
     fun observeByBatch(batchId: String): Flow<List<TaskEntity>>
     suspend fun upsert(task: TaskEntity)
     suspend fun markComplete(taskId: String, completedBy: String)
@@ -44,6 +45,8 @@ class TaskRepositoryImpl @Inject constructor(
     override fun observeOverdueCount(farmerId: String, now: Long): Flow<Int> = dao.observeOverdueCountForFarmer(farmerId, now)
 
     override fun observeRecentCompleted(farmerId: String, limit: Int): Flow<List<TaskEntity>> = dao.observeRecentCompletedForFarmer(farmerId, limit)
+
+    override fun observeByFarmer(farmerId: String): Flow<List<TaskEntity>> = dao.observeByFarmer(farmerId)
 
     override fun observeByBatch(batchId: String): Flow<List<TaskEntity>> = dao.observeByBatchId(batchId)
 

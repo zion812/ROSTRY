@@ -31,6 +31,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND completedAt IS NOT NULL ORDER BY completedAt DESC LIMIT :limit")
     fun observeRecentCompletedForFarmer(farmerId: String, limit: Int): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE farmerId = :farmerId ORDER BY createdAt DESC")
+    fun observeByFarmer(farmerId: String): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE dirty = 1")
     suspend fun getDirty(): List<TaskEntity>
 

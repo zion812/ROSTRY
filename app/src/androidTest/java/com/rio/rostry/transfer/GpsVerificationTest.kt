@@ -90,6 +90,11 @@ class GpsVerificationTest {
                 !pairId.isNullOrBlank() -> "FT_PAIR_${'$'}pairId"
                 else -> null
             }
+        override suspend fun getEligibleProductsCount(farmerId: String) = Resource.Success(0)
+        override suspend fun getComplianceAlerts(farmerId: String) = Resource.Success(emptyList<Pair<String, List<String>>>())
+        override fun observeKycStatus(userId: String) = flowOf(true)
+        override fun observeComplianceAlertsCount(farmerId: String) = flowOf(0)
+        override fun observeEligibleProductsCount(farmerId: String) = flowOf(0)
     }
 
     @Before
@@ -128,12 +133,14 @@ class GpsVerificationTest {
         val currentUserProvider = mock(CurrentUserProvider::class.java).also {
             `when`(it.userIdOrNull()).thenReturn(seller)
         }
+        val intel = mock(com.rio.rostry.notifications.IntelligentNotificationService::class.java)
         val transferRepo = TransferWorkflowRepositoryImpl(
             transferDao = db.transferDao(),
             verificationDao = db.transferVerificationDao(),
             disputeDao = db.disputeDao(),
             auditLogDao = db.auditLogDao(),
             notifier = FakeNotifier(),
+            intelligentNotificationService = intel,
             traceabilityRepository = FakeTraceabilityRepo(),
             productValidator = productValidator,
             productDao = db.productDao(),

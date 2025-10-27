@@ -1,9 +1,14 @@
 package com.rio.rostry.data.repository.analytics
 
 import com.rio.rostry.data.database.dao.AnalyticsDao
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.TaskDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.AnalyticsDailyEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.firstOrNull
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -33,11 +38,40 @@ data class EnthusiastDashboard(
     val suggestions: List<String> = emptyList(),
 )
 
+// Data class for daily goals tracking
+data class DailyGoal(
+    val goalId: String,
+    val type: String, // TASKS, DAILY_LOGS, VACCINATIONS
+    val title: String,
+    val description: String,
+    val targetCount: Int,
+    val currentCount: Int,
+    val progress: Float, // 0.0 to 1.0
+    val priority: String, // HIGH, MEDIUM, LOW
+    val deepLink: String,
+    val iconName: String,
+    val completedAt: Long? = null
+)
+
+// Data class for actionable insights with deep links
+data class ActionableInsight(
+    val id: String,
+    val title: String,
+    val description: String,
+    val deepLink: String,
+    val priority: String // HIGH, MEDIUM, LOW
+)
+
 interface AnalyticsRepository {
     fun generalDashboard(userId: String): Flow<GeneralDashboard>
     fun farmerDashboard(userId: String): Flow<FarmerDashboard>
     fun enthusiastDashboard(userId: String): Flow<EnthusiastDashboard>
-    
+
+    // Daily goals tracking methods
+    fun observeDailyGoals(userId: String): Flow<List<DailyGoal>>
+    suspend fun calculateGoalProgress(userId: String): Map<String, Float>
+    fun getActionableInsights(userId: String): Flow<List<ActionableInsight>>
+
     // Farm-Marketplace Bridge Analytics
     suspend fun trackFarmToMarketplaceListClicked(userId: String, productId: String, source: String)
     suspend fun trackFarmToMarketplacePrefillInitiated(userId: String, productId: String)
@@ -46,7 +80,7 @@ interface AnalyticsRepository {
     suspend fun trackMarketplaceToFarmDialogShown(userId: String, productId: String)
     suspend fun trackMarketplaceToFarmAdded(userId: String, productId: String, recordsCreated: Int)
     suspend fun trackMarketplaceToFarmDialogDismissed(userId: String, productId: String)
-    
+
     // Comment 7 & Comment 10: Security event tracking
     suspend fun trackSecurityEvent(userId: String, eventType: String, resourceId: String)
 }
@@ -54,7 +88,10 @@ interface AnalyticsRepository {
 @Singleton
 class AnalyticsRepositoryImpl @Inject constructor(
     private val analyticsDao: AnalyticsDao,
-    private val firebaseAnalytics: com.google.firebase.analytics.FirebaseAnalytics
+    private val firebaseAnalytics: com.google.firebase.analytics.FirebaseAnalytics,
+    private val taskDao: TaskDao,
+    private val dailyLogDao: DailyLogDao,
+    private val vaccinationRecordDao: VaccinationRecordDao
 ) : AnalyticsRepository {
 
     private val fmt = DateTimeFormatter.ISO_DATE
@@ -197,6 +234,94 @@ class AnalyticsRepositoryImpl @Inject constructor(
         firebaseAnalytics.logEvent("marketplace_to_farm_dismissed", bundle)
     }
     
+    override fun observeDailyGoals(userId: String): Flow<List<DailyGoal>> {
+        val now = System.currentTimeMillis()
+        val endOfDay = now + 24 * 60 * 60 * 1000L // Approximate end of day
+        val startOfDay = now - (now % (24 * 60 * 60 * 1000L)) // Start of today
+
+        val tasksFlow = taskDao.observeDueWindowForFarmer(userId, now, endOfDay).map { it.size }
+        val logsFlow = dailyLogDao.observeCountForFarmerBetween(userId, startOfDay, endOfDay)
+        val vaccFlow = vaccinationRecordDao.observeDueForFarmer(userId, now, endOfDay)
+
+        return combine(tasksFlow, logsFlow, vaccFlow) { tasksCount, logsCount, vaccCount ->
+            listOf(
+                DailyGoal(
+                    goalId = "tasks_today",
+                    type = "TASKS",
+                    title = "Complete Daily Tasks",
+                    description = "Finish scheduled farm tasks for today",
+                    targetCount = 5, // Fixed target; can be made dynamic based on farm size
+                    currentCount = tasksCount,
+                    progress = (tasksCount / 5f).coerceAtMost(1f),
+                    priority = "HIGH",
+                    deepLink = "farmer/tasks",
+                    iconName = "task_icon"
+                ),
+                DailyGoal(
+                    goalId = "logs_today",
+                    type = "DAILY_LOGS",
+                    title = "Record Daily Logs",
+                    description = "Log daily updates for your birds/batches",
+                    targetCount = 3, // Fixed target
+                    currentCount = logsCount,
+                    progress = (logsCount / 3f).coerceAtMost(1f),
+                    priority = "MEDIUM",
+                    deepLink = "farmer/logs",
+                    iconName = "log_icon"
+                ),
+                DailyGoal(
+                    goalId = "vaccinations_today",
+                    type = "VACCINATIONS",
+                    title = "Administer Vaccinations",
+                    description = "Complete due vaccinations for your flock",
+                    targetCount = 2, // Fixed target
+                    currentCount = vaccCount,
+                    progress = (vaccCount / 2f).coerceAtMost(1f),
+                    priority = "HIGH",
+                    deepLink = "farmer/vaccinations",
+                    iconName = "vaccination_icon"
+                )
+            )
+        }
+    }
+
+    override suspend fun calculateGoalProgress(userId: String): Map<String, Float> {
+        val now = System.currentTimeMillis()
+        val endOfDay = now + 24 * 60 * 60 * 1000L
+        val startOfDay = now - (now % (24 * 60 * 60 * 1000L))
+
+        val tasksCount = taskDao.observeDueWindowForFarmer(userId, now, endOfDay).map { it.size }.firstOrNull() ?: 0
+        val logsCount = dailyLogDao.observeCountForFarmerBetween(userId, startOfDay, endOfDay).firstOrNull() ?: 0
+        val vaccCount = vaccinationRecordDao.countDueForFarmer(userId, startOfDay, endOfDay)
+
+        return mapOf(
+            "TASKS" to (tasksCount / 5f).coerceAtMost(1f),
+            "DAILY_LOGS" to (logsCount / 3f).coerceAtMost(1f),
+            "VACCINATIONS" to (vaccCount / 2f).coerceAtMost(1f)
+        )
+    }
+
+    override fun getActionableInsights(userId: String): Flow<List<ActionableInsight>> {
+        // Build on existing FarmerDashboard suggestions, adding deep links for actionability
+        return farmerDashboard(userId).map { dashboard ->
+            dashboard.suggestions.mapIndexed { index, suggestion ->
+                val deepLink = when {
+                    suggestion.contains("views") -> "farmer/marketplace"
+                    suggestion.contains("engagement") -> "farmer/social"
+                    suggestion.contains("revenue") -> "farmer/analytics"
+                    else -> "farmer/home"
+                }
+                ActionableInsight(
+                    id = "insight_$index",
+                    title = "Insight ${index + 1}",
+                    description = suggestion,
+                    deepLink = deepLink,
+                    priority = if (index == 0) "HIGH" else "MEDIUM"
+                )
+            }
+        }
+    }
+
     override suspend fun trackSecurityEvent(userId: String, eventType: String, resourceId: String) {
         val bundle = android.os.Bundle().apply {
             putString("user_id", userId)

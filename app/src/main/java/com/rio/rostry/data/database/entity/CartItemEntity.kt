@@ -1,5 +1,6 @@
 package com.rio.rostry.data.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -23,10 +24,11 @@ import androidx.room.PrimaryKey
     ],
     indices = [Index("userId"), Index("productId")]
 )
+@Keep
 data class CartItemEntity(
-    @PrimaryKey val id: String,
-    val userId: String,
-    val productId: String,
-    val quantity: Double,
-    val addedAt: Long = System.currentTimeMillis()
+    @PrimaryKey val id: String = "",
+    val userId: String = "",
+    val productId: String = "",
+    val quantity: Double = 0.0,
+    val addedAt: Long = 0L
 )

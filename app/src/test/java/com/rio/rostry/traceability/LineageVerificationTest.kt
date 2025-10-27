@@ -55,6 +55,7 @@ class LineageVerificationTest {
         dailyLogDao = mockk()
         growthDao = mockk()
         quarantineDao = mockk()
+        val userRepository = mockk<com.rio.rostry.data.repository.UserRepository>()
         repo = TraceabilityRepositoryImpl(
             breedingDao,
             productDao,
@@ -67,7 +68,8 @@ class LineageVerificationTest {
             vaccinationDao,
             dailyLogDao,
             growthDao,
-            quarantineDao
+            quarantineDao,
+            userRepository
         )
     }
 

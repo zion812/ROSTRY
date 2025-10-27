@@ -38,4 +38,6 @@ class FeatureToggles @Inject constructor(
     fun isModerationEnabled(): Boolean = BuildConfig.DEBUG
     fun isLeaderboardEnabled(): Boolean = BuildConfig.DEBUG
     fun isLiveBroadcast(): Boolean = BuildConfig.DEBUG
+
+    fun isPhoneVerificationRequired(): Boolean = true
 }

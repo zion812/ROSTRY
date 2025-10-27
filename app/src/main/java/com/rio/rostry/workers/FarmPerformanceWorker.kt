@@ -34,7 +34,8 @@ class FarmPerformanceWorker @AssistedInject constructor(
     private val productDao: ProductDao,
     private val farmerDashboardSnapshotDao: FarmerDashboardSnapshotDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val dailyLogDao: DailyLogDao
+    private val dailyLogDao: DailyLogDao,
+    private val transferDao: TransferDao
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -116,6 +117,23 @@ class FarmPerformanceWorker @AssistedInject constructor(
             if (medicationUsageCount > 0) suggestions += "Review medication usage trends"
             val actionSuggestions = if (suggestions.isNotEmpty()) suggestions.joinToString(prefix = "[\"", separator = "\",\"", postfix = "\"]") else null
             
+            // Transfer metrics
+            val allTransfers = transferDao.getUserTransfersBetween(farmerId, weekStart, weekEnd).first()
+            val transfersInitiatedCount = allTransfers.count { it.fromUserId == farmerId }
+            val transfersCompletedCount = allTransfers.count { it.status == "COMPLETED" }
+            
+            // Onboarding count: birds/batches added this week
+            val onboardingCount = productDao.getProductsBySeller(farmerId).first().count { it.createdAt in weekStart..weekEnd }
+            
+            // Compliance score: percentage of products meeting transfer eligibility
+            // Simplified: active products not in quarantine
+            val activeProductsCount = productDao.countActiveByOwnerId(farmerId)
+            val complianceScore = if (activeProductsCount > 0) {
+                (activeProductsCount - quarantineActiveCount).toDouble() / activeProductsCount * 100.0
+            } else {
+                0.0
+            }
+            
             // Create snapshot
             val snapshot = FarmerDashboardSnapshotEntity(
                 snapshotId = UUID.randomUUID().toString(),
@@ -135,6 +153,12 @@ class FarmPerformanceWorker @AssistedInject constructor(
                 medicationUsageCount = medicationUsageCount,
                 dailyLogComplianceRate = dailyLogComplianceRate,
                 actionSuggestions = actionSuggestions,
+                transfersInitiatedCount = transfersInitiatedCount,
+                transfersCompletedCount = transfersCompletedCount,
+                complianceScore = complianceScore,
+                onboardingCount = onboardingCount,
+                dailyGoalsCompletedCount = 0, // TODO: implement daily goals tracking
+                analyticsInsightsCount = 0, // TODO: implement analytics insights count
                 createdAt = System.currentTimeMillis(),
                 dirty = true
             )

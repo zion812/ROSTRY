@@ -266,6 +266,10 @@ object DatabaseModule {
 
     @Provides
     @Singleton
+    fun provideLeaderboardDao(appDatabase: AppDatabase): com.rio.rostry.data.database.dao.LeaderboardDao = appDatabase.leaderboardDao()
+
+    @Provides
+    @Singleton
     fun provideFarmAlertDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmAlertDao = db.farmAlertDao()
 
     @Provides
@@ -370,6 +374,10 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideExpertProfileDao(db: AppDatabase): com.rio.rostry.data.database.dao.ExpertProfileDao = db.expertProfileDao()
+
+    @Provides
+    @Singleton
+    fun provideUserProgressDao(appDatabase: AppDatabase): com.rio.rostry.data.database.dao.UserProgressDao = appDatabase.userProgressDao()
 
     @Provides
     @Singleton

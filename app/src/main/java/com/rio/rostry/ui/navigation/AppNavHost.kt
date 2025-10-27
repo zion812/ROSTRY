@@ -63,6 +63,8 @@ import com.rio.rostry.data.demo.DemoUserProfile
 import com.rio.rostry.ui.auth.AuthViewModel
 import com.rio.rostry.ui.auth.OtpScreen
 import com.rio.rostry.ui.auth.PhoneInputScreen
+import com.rio.rostry.ui.auth.PhoneVerificationScreen
+import com.rio.rostry.ui.auth.MultiProviderAuthScreen
 import com.rio.rostry.ui.product.ProductDetailsScreen
 import com.rio.rostry.ui.profile.ProfileScreen
 import com.rio.rostry.ui.screens.HomeEnthusiastScreen
@@ -131,9 +133,14 @@ import android.app.Activity
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.session.CurrentUserProvider
+import com.google.firebase.auth.FirebaseAuth
+import com.rio.rostry.utils.network.FeatureToggles
 
 @Composable
-fun AppNavHost() {
+fun AppNavHost(
+    featureToggles: FeatureToggles,
+    firebaseAuth: FirebaseAuth
+) {
     val sessionVm: SessionViewModel = hiltViewModel()
     val state by sessionVm.uiState.collectAsState()
     val navConfig = state.navConfig
@@ -157,7 +164,29 @@ fun AppNavHost() {
     }
 
     when {
-        state.isAuthenticated && navConfig != null -> RoleNavScaffold(navConfig, sessionVm, state)
+        state.isAuthenticated && navConfig != null -> {
+            val user = firebaseAuth.currentUser
+            val meta = user?.metadata
+            val isNew = meta?.creationTimestamp == meta?.lastSignInTimestamp
+            val isDemo = state.authMode == com.rio.rostry.session.SessionManager.AuthMode.DEMO
+            val needsPhone = !isDemo && (isNew == true) && (user?.phoneNumber == null) && featureToggles.isPhoneVerificationRequired()
+            if (needsPhone) {
+                val activity = run {
+                    var ctx = context
+                    while (ctx is android.content.ContextWrapper) {
+                        if (ctx is Activity) break
+                        ctx = ctx.baseContext
+                    }
+                    ctx as? Activity
+                }
+                PhoneVerificationScreen(
+                    activity = activity,
+                    onVerificationComplete = { sessionVm.refresh() }
+                )
+            } else {
+                RoleNavScaffold(navConfig, sessionVm, state)
+            }
+        }
         state.isAuthenticated -> {
             LaunchedEffect("await-config") { sessionVm.refresh() }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -267,88 +296,96 @@ private fun AuthFlow(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("Field test demo login", modifier = Modifier.fillMaxWidth())
-
-        if (state.isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-        }
-        val errorMessage = state.error
-        if (!errorMessage.isNullOrBlank()) {
-            Text("Error: $errorMessage")
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Demo username") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-            Button(
-                onClick = { scope.launch { onDemoLogin(username.trim(), password) } },
-                enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Sign in with demo credentials")
+    if (showOtp) {
+        // Render the phone auth flow full-screen to ensure visibility
+        NavHost(
+            navController = navController,
+            startDestination = Routes.AUTH_PHONE,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            composable(Routes.AUTH_PHONE) {
+                PhoneInputScreen(activity = activity, onNavigateToOtp = { verificationId ->
+                    navController.navigate("auth/otp/$verificationId")
+                })
             }
-            state.currentDemoProfile?.let { current ->
-                Text("Active demo user: ${current.fullName} (${current.role.displayName})")
+            composable(
+                route = Routes.AUTH_OTP,
+                arguments = listOf(navArgument("verificationId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
+                OtpScreen(verificationId = verificationId, onNavigateHome = onAuthenticated)
+            }
+            composable(Routes.Onboarding.USER_SETUP) {
+                com.rio.rostry.ui.onboarding.UserSetupScreen(onRoleSelected = onAuthenticated)
             }
         }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Field test demo login", modifier = Modifier.fillMaxWidth())
 
-        if (state.demoProfiles.isNotEmpty()) {
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+            val errorMessage = state.error
+            if (!errorMessage.isNullOrBlank()) {
+                Text("Error: $errorMessage")
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Demo username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+                Button(
+                    onClick = { scope.launch { onDemoLogin(username.trim(), password) } },
+                    enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Sign in with demo credentials")
+                }
+                state.currentDemoProfile?.let { current ->
+                    Text("Active demo user: ${current.fullName} (${current.role.displayName})")
+                }
+            }
+
+            if (state.demoProfiles.isNotEmpty()) {
+                Divider()
+                QuickSelectDemoList(
+                    profiles = state.demoProfiles,
+                    onSelect = onQuickSelect,
+                    currentId = state.currentDemoProfile?.id
+                )
+            }
+
             Divider()
-            QuickSelectDemoList(
-                profiles = state.demoProfiles,
-                onSelect = onQuickSelect,
-                currentId = state.currentDemoProfile?.id
-            )
-        }
-
-        Divider()
-        TextButton(onClick = { showOtp = !showOtp }) {
-            Text(if (showOtp) "Hide phone verification" else "Use phone verification")
-        }
-
-        if (showOtp) {
-            NavHost(
-                navController = navController,
-                startDestination = Routes.AUTH_PHONE
-            ) {
-                composable(Routes.AUTH_PHONE) {
-                    PhoneInputScreen(activity = activity, onNavigateToOtp = { verificationId ->
-                        navController.navigate("auth/otp/$verificationId")
-                    })
-                }
-                composable(
-                    route = Routes.AUTH_OTP,
-                    arguments = listOf(navArgument("verificationId") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
-                    OtpScreen(verificationId = verificationId, onNavigateHome = onAuthenticated)
-                }
-                composable(Routes.Onboarding.USER_SETUP) {
-                    com.rio.rostry.ui.onboarding.UserSetupScreen(onRoleSelected = onAuthenticated)
-                }
+            Text("Sign in with Google/Email/Phone")
+            MultiProviderAuthScreen(onRequestPhone = {
+                // Flip the flag; the phone NavHost will replace this content above.
+                showOtp = true
+            })
+            TextButton(onClick = { showOtp = !showOtp }) {
+                Text(if (showOtp) "Hide phone verification" else "Use phone verification")
             }
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -393,38 +430,45 @@ private fun RoleNavScaffold(
     LaunchedEffect(navConfig.role) {
         val pending = sessionVm.consumePendingDeepLink()
         if (!pending.isNullOrBlank()) {
-            val allowed = navConfig.accessibleRoutes
-            if (Routes.isRouteAccessible(allowed, pending)) {
+            val isDemo = state.authMode == SessionManager.AuthMode.DEMO
+            if (isDemo) {
                 navController.navigate(pending)
+            } else {
+                val allowed = navConfig.accessibleRoutes
+                if (Routes.isRouteAccessible(allowed, pending)) {
+                    navController.navigate(pending)
+                }
             }
         }
     }
 
-    // Role-based route guard: validate base route and declared query keys (exclude path params)
-    DisposableEffect(navController, navConfig.role) {
-        val allowed = navConfig.accessibleRoutes
-        val listener: (androidx.navigation.NavController, androidx.navigation.NavDestination, android.os.Bundle?) -> Unit =
-            { controller, destination, _ ->
-                val pattern = destination.route ?: ""
-                val base = pattern.substringBefore("?")
-                // Parse declared query keys from the destination pattern, not from runtime arguments
-                val declaredQueryKeys = pattern.substringAfter("?", "")
-                    .takeIf { it.isNotBlank() }
-                    ?.split("&")
-                    ?.mapNotNull { part -> part.substringBefore("=", missingDelimiterValue = "").takeIf { it.isNotBlank() } }
-                    ?.sorted()
-                    .orEmpty()
-                val querySuffix = if (declaredQueryKeys.isNotEmpty()) "?" + declaredQueryKeys.joinToString("&") else ""
-                val concreteLike = base + querySuffix
-                if (concreteLike.isNotBlank() && !Routes.isRouteAccessible(allowed, concreteLike)) {
-                    controller.navigate(navConfig.startDestination) {
-                        launchSingleTop = true
-                        popUpTo(controller.graph.startDestinationId) { inclusive = false }
+    // Role-based route guard: bypass in DEMO mode
+    if (state.authMode != SessionManager.AuthMode.DEMO) {
+        DisposableEffect(navController, navConfig.role) {
+            val allowed = navConfig.accessibleRoutes
+            val listener: (androidx.navigation.NavController, androidx.navigation.NavDestination, android.os.Bundle?) -> Unit =
+                { controller, destination, _ ->
+                    val pattern = destination.route ?: ""
+                    val base = pattern.substringBefore("?")
+                    // Parse declared query keys from the destination pattern, not from runtime arguments
+                    val declaredQueryKeys = pattern.substringAfter("?", "")
+                        .takeIf { it.isNotBlank() }
+                        ?.split("&")
+                        ?.mapNotNull { part -> part.substringBefore("=", missingDelimiterValue = "").takeIf { it.isNotBlank() } }
+                        ?.sorted()
+                        .orEmpty()
+                    val querySuffix = if (declaredQueryKeys.isNotEmpty()) "?" + declaredQueryKeys.joinToString("&") else ""
+                    val concreteLike = base + querySuffix
+                    if (concreteLike.isNotBlank() && !Routes.isRouteAccessible(allowed, concreteLike)) {
+                        controller.navigate(navConfig.startDestination) {
+                            launchSingleTop = true
+                            popUpTo(controller.graph.startDestinationId) { inclusive = false }
+                        }
                     }
                 }
-            }
-        navController.addOnDestinationChangedListener(listener)
-        onDispose { navController.removeOnDestinationChangedListener(listener) }
+            navController.addOnDestinationChangedListener(listener)
+            onDispose { navController.removeOnDestinationChangedListener(listener) }
+        }
     }
 
     // Wrap Scaffold in a Box to overlay a draggable FAB above all content
@@ -453,12 +497,12 @@ private fun RoleNavScaffold(
             RoleNavGraph(navController = navController, navConfig = navConfig, sessionVm = sessionVm, modifier = Modifier.padding(padding))
         }
 
-        if (BuildConfig.DEBUG && state.authMode == SessionManager.AuthMode.DEMO) {
+        if (state.authMode == SessionManager.AuthMode.DEMO) {
             DraggableDemoFab(onClick = { showSwitcher = true })
         }
     }
 
-    if (showSwitcher && BuildConfig.DEBUG && state.authMode == SessionManager.AuthMode.DEMO) {
+    if (showSwitcher && state.authMode == SessionManager.AuthMode.DEMO) {
         DemoProfilePickerDialog(
             profiles = state.demoProfiles,
             currentId = state.currentDemoProfile?.id,
@@ -1267,8 +1311,6 @@ private fun RoleNavGraph(
             route = Routes.MONITORING_DASHBOARD,
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/dashboard" })
         ) {
-            val vm: com.rio.rostry.ui.monitoring.vm.FarmMonitoringViewModel = hiltViewModel()
-            val summary by vm.summary.collectAsState()
             com.rio.rostry.ui.monitoring.FarmMonitoringScreen(
                 onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
                 onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
@@ -1276,8 +1318,7 @@ private fun RoleNavGraph(
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
                 onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
                 onOpenHatching = { navController.navigate(Routes.MONITORING_HATCHING) },
-                onOpenPerformance = { navController.navigate(Routes.MONITORING_PERFORMANCE) },
-                summary = summary
+                onOpenPerformance = { navController.navigate(Routes.MONITORING_PERFORMANCE) }
             )
         }
         composable(

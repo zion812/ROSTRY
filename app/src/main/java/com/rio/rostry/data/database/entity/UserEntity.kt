@@ -1,13 +1,15 @@
 package com.rio.rostry.data.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
 
+@Keep
 @Entity(tableName = "users")
 data class UserEntity(
-    @PrimaryKey val userId: String, // Firebase UID or custom ID
+    @PrimaryKey val userId: String = "",
     val phoneNumber: String? = null,
     val email: String? = null,
     val fullName: String? = null,
@@ -30,6 +32,6 @@ data class UserEntity(
     val kycVerifiedAt: Long? = null,
     val kycRejectionReason: String? = null,
     // Common audit
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )

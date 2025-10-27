@@ -27,6 +27,8 @@ import com.rio.rostry.domain.rbac.RbacGuard
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.notifications.TransferEventType
 
 interface TransferWorkflowRepository {
     suspend fun initiate(
@@ -100,6 +102,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     private val disputeDao: DisputeDao,
     private val auditLogDao: AuditLogDao,
     private val notifier: TransferNotifier,
+    private val intelligentNotificationService: IntelligentNotificationService,
     private val traceabilityRepository: TraceabilityRepository,
     private val productValidator: ProductValidator,
     private val productDao: ProductDao,
@@ -177,6 +180,12 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         if (user?.verificationStatus != VerificationStatus.VERIFIED) {
             val msg = "Complete KYC verification to initiate transfers. Go to Profile → Verification."
             if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+            intelligentNotificationService.notifyFarmEvent(
+                com.rio.rostry.notifications.FarmEventType.KYC_REQUIRED,
+                productId,
+                "KYC Required",
+                msg
+            )
             return Resource.Error(msg)
         }
 
@@ -189,12 +198,16 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                     val reasons = (data?.get("reasons") as? List<*>)?.filterIsInstance<String>().orEmpty()
                     val msg = reasons.joinToString("; ").ifBlank { "Not eligible for transfer" }
                     if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, reasons)
+                    val pName = productDao.findById(productId)?.name ?: "Product"
+                    intelligentNotificationService.notifyComplianceIssue(productId, pName)
                     return Resource.Error(msg)
                 }
             }
             is Resource.Error -> {
                 val msg = report.message ?: "Eligibility report failed"
                 if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
+                val pName = productDao.findById(productId)?.name ?: "Product"
+                intelligentNotificationService.notifyComplianceIssue(productId, pName)
                 return Resource.Error(msg)
             }
             is Resource.Loading -> Unit
@@ -302,7 +315,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                     updatedAt = now()
                 )
             )
-            notifier.notifyInitiated(transferId, toUserId)
+            intelligentNotificationService.notifyTransferEvent(TransferEventType.INITIATED, transferId, "Transfer Initiated", "A transfer has been initiated for your product.")
             Resource.Success(transferId)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to initiate transfer")
@@ -376,8 +389,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                     createdAt = now()
                 )
             )
-            // Notify using existing method
-            notifier.notifyInitiated(transferId, null)
+            // Notification routed via IntelligentNotificationService elsewhere
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to append seller evidence")
@@ -477,7 +489,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                     createdAt = now()
                 )
             )
-            notifier.notifyBuyerVerified(transferId)
+            intelligentNotificationService.notifyTransferEvent(TransferEventType.VERIFIED, transferId, "Transfer Verified", "The transfer has been verified by the buyer.")
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Buyer verification failed")
@@ -547,7 +559,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             auditLogDao.insert(
                 AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "COMPLETE", null, gson.toJson(transfer), now())
             )
-            notifier.notifyCompleted(transferId)
+            intelligentNotificationService.notifyTransferEvent(TransferEventType.COMPLETED, transferId, "Transfer Completed", "The transfer has been successfully completed.")
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to complete transfer")
@@ -577,7 +589,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             auditLogDao.insert(
                 AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "CANCEL", null, reason, now())
             )
-            notifier.notifyCancelled(transferId)
+            intelligentNotificationService.notifyTransferEvent(TransferEventType.CANCELLED, transferId, "Transfer Cancelled", reason ?: "Transfer has been cancelled.")
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to cancel transfer")

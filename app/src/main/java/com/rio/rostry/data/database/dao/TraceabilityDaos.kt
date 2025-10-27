@@ -48,7 +48,7 @@ interface ProductTraitDao {
 
 @Dao
 interface LifecycleEventDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(event: LifecycleEventEntity)
 
     @Query("SELECT * FROM lifecycle_events WHERE productId = :productId ORDER BY week ASC, timestamp ASC")

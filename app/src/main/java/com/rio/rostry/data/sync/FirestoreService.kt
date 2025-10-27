@@ -22,6 +22,7 @@ import com.rio.rostry.data.database.entity.EggCollectionEntity
 import com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity
 import com.rio.rostry.data.database.entity.DailyLogEntity
 import com.rio.rostry.data.database.entity.TaskEntity
+import com.rio.rostry.data.database.entity.UserEntity
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
@@ -69,6 +70,8 @@ interface SyncRemote {
     suspend fun pushEggCollections(userId: String, entities: List<com.rio.rostry.data.database.entity.EggCollectionEntity>): Int
     suspend fun fetchUpdatedEnthusiastSnapshots(userId: String, since: Long, limit: Int = 100): List<com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity>
     suspend fun pushEnthusiastSnapshots(userId: String, entities: List<com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity>): Int
+    suspend fun fetchUpdatedUsers(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.UserEntity>
+    suspend fun fetchUsersByIds(ids: List<String>): List<com.rio.rostry.data.database.entity.UserEntity>
 }
 
 /**
@@ -87,6 +90,7 @@ class FirestoreService @Inject constructor(
     // collectionGroup() takes a subcollection ID only (no '/'). These exist under multiple parents.
     private val dailyLogs = firestore.collectionGroup("daily_logs")
     private val tasks = firestore.collectionGroup("tasks")
+    private val users = firestore.collection("users")
 
     override suspend fun fetchUpdatedProducts(since: Long, limit: Int): List<ProductEntity> =
         products.whereGreaterThan("updatedAt", since)
@@ -224,6 +228,26 @@ class FirestoreService @Inject constructor(
         }
         batch.commit().await()
         return entities.size
+    }
+
+    override suspend fun fetchUpdatedUsers(since: Long, limit: Int): List<UserEntity> =
+        users.whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(UserEntity::class.java) }
+
+    override suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> {
+        if (ids.isEmpty()) return emptyList()
+        // Firestore whereIn supports up to 10 elements; batch accordingly
+        val batches = ids.distinct().chunked(10)
+        val results = mutableListOf<UserEntity>()
+        for (chunk in batches) {
+            val snapshot = users.whereIn("userId", chunk).get().await()
+            results += snapshot.documents.mapNotNull { it.toObject(UserEntity::class.java) }
+        }
+        // Deduplicate by userId in case of overlaps
+        return results.distinctBy { it.userId }
     }
 
     // Farm monitoring entity sync methods (farmer-scoped subcollections)

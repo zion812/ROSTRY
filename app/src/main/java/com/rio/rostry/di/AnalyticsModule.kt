@@ -5,8 +5,13 @@ import com.google.firebase.analytics.FirebaseAnalytics
 import com.rio.rostry.data.database.dao.AnalyticsDao
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepositoryImpl
+import com.rio.rostry.data.database.dao.TaskDao
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTracker
 import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTrackerImpl
+import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
+import com.rio.rostry.utils.analytics.AuthAnalyticsTrackerImpl
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -21,6 +26,10 @@ abstract class AnalyticsBindingsModule {
     @Binds
     @Singleton
     abstract fun bindGeneralAnalyticsTracker(impl: GeneralAnalyticsTrackerImpl): GeneralAnalyticsTracker
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthAnalyticsTracker(impl: AuthAnalyticsTrackerImpl): AuthAnalyticsTracker
 }
 
 @Module
@@ -37,8 +46,17 @@ object AnalyticsModule {
     @Singleton
     fun provideAnalyticsRepository(
         analyticsDao: AnalyticsDao,
-        firebaseAnalytics: FirebaseAnalytics
+        firebaseAnalytics: FirebaseAnalytics,
+        taskDao: TaskDao,
+        dailyLogDao: DailyLogDao,
+        vaccinationRecordDao: VaccinationRecordDao
     ): AnalyticsRepository {
-        return AnalyticsRepositoryImpl(analyticsDao, firebaseAnalytics)
+        return AnalyticsRepositoryImpl(
+            analyticsDao,
+            firebaseAnalytics,
+            taskDao,
+            dailyLogDao,
+            vaccinationRecordDao
+        )
     }
 }

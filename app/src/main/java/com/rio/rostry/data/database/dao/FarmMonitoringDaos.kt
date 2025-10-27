@@ -140,6 +140,9 @@ interface VaccinationRecordDao {
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NULL AND scheduledAt < :now")
     fun observeOverdueForFarmer(farmerId: String, now: Long): Flow<Int>
 
+    @Query("SELECT * FROM vaccination_records WHERE farmerId = :farmerId ORDER BY scheduledAt DESC")
+    fun observeByFarmer(farmerId: String): Flow<List<VaccinationRecordEntity>>
+
     @Query("SELECT * FROM vaccination_records WHERE dirty = 1")
     suspend fun getDirty(): List<VaccinationRecordEntity>
 

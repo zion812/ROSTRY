@@ -43,6 +43,7 @@ class AutoChickCreationTest {
         override fun observeRecentCompleted(farmerId: String, limit: Int) = flowOf(emptyList<com.rio.rostry.data.database.entity.TaskEntity>())
         override fun observeByBatch(batchId: String) = flowOf(emptyList<com.rio.rostry.data.database.entity.TaskEntity>())
         override suspend fun upsert(task: com.rio.rostry.data.database.entity.TaskEntity) {}
+        override fun observeByFarmer(farmerId: String) = flowOf(emptyList<com.rio.rostry.data.database.entity.TaskEntity>())
         override suspend fun generateVaccinationTask(productId: String, farmerId: String, vaccineType: String, dueAt: Long) {
             vaccinations += Triple(productId, vaccineType, dueAt)
         }
@@ -73,6 +74,7 @@ class AutoChickCreationTest {
         override suspend fun upsert(record: VaccinationRecordEntity) { upserts += record }
         override fun observe(productId: String) = flowOf(emptyList<VaccinationRecordEntity>())
         override suspend fun dueReminders(byTime: Long): List<VaccinationRecordEntity> = emptyList()
+        override fun observeByFarmer(farmerId: String) = flowOf(emptyList<VaccinationRecordEntity>())
     }
 
     private class FakeTraceabilityRepo : TraceabilityRepository {
@@ -120,6 +122,11 @@ class AutoChickCreationTest {
                 !pairId.isNullOrBlank() -> "FT_PAIR_${'$'}pairId"
                 else -> null
             }
+        override suspend fun getEligibleProductsCount(farmerId: String) = Resource.Success(0)
+        override suspend fun getComplianceAlerts(farmerId: String) = Resource.Success(emptyList<Pair<String, List<String>>>())
+        override fun observeKycStatus(userId: String) = flowOf(true)
+        override fun observeComplianceAlertsCount(farmerId: String) = flowOf(0)
+        override fun observeEligibleProductsCount(farmerId: String) = flowOf(0)
     }
 
     @Before

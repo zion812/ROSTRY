@@ -223,4 +223,186 @@ object FarmNotifier {
         // Use a unique notification ID based on productId
         manager.notify(("farm_" + "productPurchased" + "_" + productId).hashCode(), notification)
     }
+
+    fun notifyBirdAdded(context: Context, birdName: String, productId: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.MONITORING_DAILY_LOG).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (productId + "_birdAdded").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_input_add)
+            .setContentTitle("Bird Added")
+            .setContentText("$birdName has been added to your farm. Start logging daily activities!")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "birdAdded" + "_" + productId).hashCode(), notification)
+    }
+
+    fun notifyBatchAdded(context: Context, batchName: String, productId: String, taskCount: Int) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.MONITORING_TASKS).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (productId + "_batchAdded").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_input_add)
+            .setContentTitle("Batch Added")
+            .setContentText("$batchName added with $taskCount tasks. Check your task list!")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "batchAdded" + "_" + productId).hashCode(), notification)
+    }
+
+    fun notifyTransferPending(context: Context, transferId: String, productName: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://${Routes.Builders.transferDetails(transferId)}").toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (transferId + "_transferPending").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Transfer Pending")
+            .setContentText("Action required for transfer of $productName")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "transferPending" + "_" + transferId).hashCode(), notification)
+    }
+
+    fun notifyTransferVerificationNeeded(context: Context, transferId: String, productName: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://${Routes.Builders.transferVerify(transferId)}").toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (transferId + "_transferVerify").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Transfer Verification Needed")
+            .setContentText("Verify transfer for $productName")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "transferVerify" + "_" + transferId).hashCode(), notification)
+    }
+
+    fun notifyComplianceAlert(context: Context, productId: String, productName: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://${Routes.Builders.complianceDetails(productId)}").toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (productId + "_complianceAlert").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("Compliance Alert")
+            .setContentText("$productName has compliance issues. Review required.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "complianceAlert" + "_" + productId).hashCode(), notification)
+    }
+
+    fun notifyDailyGoalProgress(context: Context, goalType: String, progress: Int) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.HOME_FARMER).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (goalType + "_goalProgress").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Daily Goal Progress")
+            .setContentText("$goalType goal $progress% complete!")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "goalProgress" + "_" + goalType).hashCode(), notification)
+    }
+
+    fun notifyKycRequired(context: Context) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.VERIFY_FARMER_LOCATION).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            "kycRequired".hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("KYC Required")
+            .setContentText("Complete verification to enable transfers")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "kycRequired").hashCode(), notification)
+    }
 }

@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.annotation.Keep
 
 // Enthusiast-specific breeding entities
 
@@ -70,6 +71,7 @@ data class EggCollectionEntity(
     val syncedAt: Long? = null
 )
 
+@Keep
 @Entity(
     tableName = "enthusiast_dashboard_snapshots",
     indices = [
@@ -78,10 +80,10 @@ data class EggCollectionEntity(
     ]
 )
 data class EnthusiastDashboardSnapshotEntity(
-    @PrimaryKey val snapshotId: String,
-    val userId: String,
-    val weekStartAt: Long,
-    val weekEndAt: Long,
+    @PrimaryKey val snapshotId: String = "",
+    val userId: String = "",
+    val weekStartAt: Long = 0L,
+    val weekEndAt: Long = 0L,
     val hatchRateLast30Days: Double = 0.0,
     val breederSuccessRate: Double = 0.0,
     val disputedTransfersCount: Int = 0,

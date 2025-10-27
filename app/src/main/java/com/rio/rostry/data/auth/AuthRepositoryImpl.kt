@@ -10,6 +10,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.rio.rostry.data.database.dao.RateLimitDao
@@ -57,6 +58,7 @@ class AuthRepositoryImpl @Inject constructor(
     override val currentPhoneE164: StateFlow<String?> = _currentPhoneE164
 
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
+    private var isLinkingMode: Boolean = false
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -234,6 +236,106 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun linkPhoneToCurrentUser(activity: Activity, phoneE164: String): Resource<Unit> {
+        val user = firebaseAuth.currentUser ?: return Resource.Error("Not authenticated")
+        val userId = phoneE164
+        val now = System.currentTimeMillis()
+        val limit = rateLimitDao.get(userId, "AUTH_SEND_OTP")
+        if (limit != null && (now - limit.lastAt) < 60000) {
+            val remaining = 60 - ((now - limit.lastAt) / 1000)
+            SecurityManager.audit("AUTH_RATE_LIMIT", mapOf("action" to "AUTH_SEND_OTP", "phone" to maskPhone(phoneE164), "remaining" to remaining))
+            return Resource.Error("Rate limit exceeded. Try again in $remaining seconds.")
+        }
+        return try {
+            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                    scope.launch {
+                        runCatching { user.linkWithCredential(credential).await() }
+                            .onSuccess {
+                                val phone = firebaseAuth.currentUser?.phoneNumber ?: phoneE164
+                                _events.tryEmit(AuthEvent.PhoneLinkSuccess(phone))
+                                clearVerificationState()
+                                SecurityManager.audit("AUTH_PHONE_LINK_COMPLETED", mapOf("success" to true, "phone" to maskPhone(phone)))
+                            }
+                            .onFailure { e ->
+                                val msg = mapError(e as Exception)
+                                _events.tryEmit(AuthEvent.PhoneLinkFailed(msg))
+                                SecurityManager.audit("AUTH_PHONE_LINK_COMPLETED", mapOf("success" to false, "error" to e.message))
+                            }
+                    }
+                }
+
+                override fun onVerificationFailed(e: FirebaseException) {
+                    Timber.e(e, "Phone link verification failed")
+                    _events.tryEmit(AuthEvent.PhoneLinkFailed(mapError(e)))
+                    SecurityManager.audit("AUTH_PHONE_LINK_FAILED", mapOf("error" to e.message))
+                }
+
+                override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                    _currentVerificationId.value = verificationId
+                    _currentPhoneE164.value = phoneE164
+                    resendToken = token
+                    isLinkingMode = true
+                    Timber.d("Link OTP code sent; verificationId stored")
+                    _events.tryEmit(AuthEvent.CodeSent(verificationId))
+                    scope.launch { persistVerificationState(verificationId, phoneE164) }
+                    SecurityManager.audit("AUTH_CODE_SENT", mapOf("phone" to maskPhone(phoneE164), "verificationId" to verificationId, "mode" to "link"))
+                }
+            }
+
+            val options = PhoneAuthOptions.newBuilder(firebaseAuth)
+                .setPhoneNumber(phoneE164)
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setActivity(activity)
+                .setCallbacks(callbacks)
+                .build()
+
+            PhoneAuthProvider.verifyPhoneNumber(options)
+            rateLimitDao.upsert(RateLimitEntity(id = "$userId:AUTH_SEND_OTP", userId = userId, action = "AUTH_SEND_OTP", lastAt = now))
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "linkPhoneToCurrentUser exception")
+            Resource.Error("Failed to start phone linking: ${e.message}")
+        }
+    }
+
+    override suspend fun verifyOtpAndLink(verificationId: String, otpCode: String): Resource<Unit> {
+        val phone = _currentPhoneE164.value ?: ""
+        val user = firebaseAuth.currentUser ?: return Resource.Error("Not authenticated")
+        val userId = if (phone.isNotBlank()) phone else verificationId
+        val now = System.currentTimeMillis()
+        val limit = rateLimitDao.get(userId, "AUTH_VERIFY_OTP")
+        if (limit != null && (now - limit.lastAt) < 60000) {
+            val remaining = 60 - ((now - limit.lastAt) / 1000)
+            SecurityManager.audit("AUTH_RATE_LIMIT", mapOf("action" to "AUTH_VERIFY_OTP", "remaining" to remaining))
+            return Resource.Error("Rate limit exceeded. Try again in $remaining seconds.")
+        }
+        return try {
+            val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
+            runCatching { user.linkWithCredential(credential).await() }
+                .onSuccess {
+                    val linkedPhone = firebaseAuth.currentUser?.phoneNumber ?: phone
+                    _events.tryEmit(AuthEvent.PhoneLinkSuccess(linkedPhone))
+                    clearVerificationState()
+                    rateLimitDao.upsert(RateLimitEntity(id = "$userId:AUTH_VERIFY_OTP", userId = userId, action = "AUTH_VERIFY_OTP", lastAt = now))
+                    SecurityManager.audit("AUTH_OTP_LINK_VERIFIED", mapOf("result" to "success", "phone" to maskPhone(linkedPhone)))
+                    return Resource.Success(Unit)
+                }
+                .onFailure { e ->
+                    val msg = if (e is FirebaseAuthUserCollisionException) "Phone already linked to another account" else (e.message ?: "Linking failed")
+                    _events.tryEmit(AuthEvent.PhoneLinkFailed(msg))
+                    rateLimitDao.upsert(RateLimitEntity(id = "$userId:AUTH_VERIFY_OTP", userId = userId, action = "AUTH_VERIFY_OTP", lastAt = now))
+                    SecurityManager.audit("AUTH_OTP_LINK_VERIFIED", mapOf("result" to "failure", "error" to e.message))
+                    return Resource.Error("Failed to link phone: $msg")
+                }
+            Resource.Error("Unexpected error during linking")
+        } catch (e: Exception) {
+            Timber.e(e, "verifyOtpAndLink exception")
+            SecurityManager.audit("AUTH_OTP_LINK_VERIFIED", mapOf("result" to "failure", "error" to e.message))
+            Resource.Error("Failed to verify OTP for link: ${e.message}")
+        }
+    }
+
     override suspend fun signOut(): Resource<Unit> {
         return try {
             firebaseAuth.signOut()
@@ -271,6 +373,7 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun clearVerificationState() {
         _currentVerificationId.value = null
         _currentPhoneE164.value = null
+        isLinkingMode = false
         context.authDataStore.edit { prefs ->
             prefs.remove(stringPreferencesKey("auth_verification_id"))
             prefs.remove(stringPreferencesKey("auth_phone_e164"))

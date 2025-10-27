@@ -12,6 +12,8 @@ import com.rio.rostry.ui.auth.AuthViewModel
 import com.rio.rostry.ui.auth.AuthViewModel.NavAction
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.normalizeToE164India
+import com.rio.rostry.utils.network.FeatureToggles
+import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -44,11 +46,25 @@ class AuthFlowIntegrationTest {
     @Mock
     private lateinit var savedStateHandle: SavedStateHandle
 
+    @Mock
+    private lateinit var featureToggles: FeatureToggles
+
+    @Mock
+    private lateinit var authAnalytics: AuthAnalyticsTracker
+
     private lateinit var authViewModel: AuthViewModel
 
     @Before
     fun setUp() {
-        authViewModel = AuthViewModel(authRepository, userRepository, sessionManager, savedStateHandle)
+        authViewModel = AuthViewModel(
+            authRepository = authRepository,
+            userRepository = userRepository,
+            sessionManager = sessionManager,
+            savedStateHandle = savedStateHandle,
+            featureToggles = featureToggles,
+            authAnalytics = authAnalytics,
+            firebaseAuth = firebaseAuth
+        )
     }
 
     // Unit tests for normalizeToE164India
