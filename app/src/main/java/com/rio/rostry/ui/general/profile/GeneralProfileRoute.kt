@@ -132,7 +132,7 @@ private fun NotAuthenticatedState() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Filled.ShoppingBag, contentDescription = null, modifier = Modifier.height(48.dp))
+        Icon(Icons.Filled.ShoppingBag, contentDescription = "Profile", modifier = Modifier.height(48.dp))
         Spacer(Modifier.height(12.dp))
         Text("Sign in to view your profile", style = MaterialTheme.typography.titleMedium)
     }
@@ -203,7 +203,7 @@ private fun PreferenceChip(icon: androidx.compose.ui.graphics.vector.ImageVector
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.height(18.dp))
+        Icon(icon, contentDescription = label, modifier = Modifier.height(18.dp))
         Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }

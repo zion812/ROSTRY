@@ -2,6 +2,7 @@ package com.rio.rostry.ui.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,15 +29,25 @@ fun ProfileScreen(
     val ui by viewModel.ui.collectAsState()
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Top,
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Text("Profile")
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
         if (ui.isLoading) {
-            CircularProgressIndicator()
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+
+        if (!ui.isLoading && ui.user == null) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "No profile data",
+                subtitle = "Please sign in or try again later",
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+            )
         }
 
         ui.user?.let { user ->

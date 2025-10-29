@@ -88,6 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added payments & DI section
 - Consolidated recent changes
 
+### Documentation
+- Updated all documentation dates to 2025-10-29
+- Removed "Coming soon" labels from completed feature docs (AI personalization, gamification, traceability, worker catalog, export utilities)
+- Corrected PersonalizationWorker schedule documentation (6 hours, not 12 hours)
+- Added implementation status notes to feature documentation
+- Enhanced README.md with clearer feature guide descriptions
+- Incremented documentation version to 3.1
+
 ### Deprecated
 - (none)
 

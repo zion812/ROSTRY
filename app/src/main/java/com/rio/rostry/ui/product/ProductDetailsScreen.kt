@@ -154,7 +154,9 @@ private fun ProductDetailsContent(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Image Gallery
         item {
@@ -626,7 +628,7 @@ private fun SimilarProductsSection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(products) { product ->
+            items(items = products, key = { it.productId }) { product ->
                 RecommendationCard(product = product, onClick = { onProductClick(product.productId) })
             }
         }
@@ -650,7 +652,7 @@ private fun FrequentlyBoughtTogetherSection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(products) { product ->
+            items(items = products, key = { product -> product.productId }) { product ->
                 RecommendationCard(product = product, onClick = { onProductClick(product.productId) })
             }
         }
@@ -782,7 +784,7 @@ private fun ProductActionBar(
                 modifier = Modifier.weight(1f).height(48.dp),
                 enabled = product.quantity > 0
             ) {
-                Icon(Icons.Filled.ShoppingCart, contentDescription = null)
+                Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to cart")
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Add to Cart")
             }

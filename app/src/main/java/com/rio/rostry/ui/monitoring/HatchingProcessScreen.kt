@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
@@ -76,6 +77,7 @@ fun HatchingProcessScreen(
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -131,7 +133,7 @@ fun HatchingProcessScreen(
                 )
             }
 
-            items(uiState.batches) { batch ->
+            items(items = uiState.batches, key = { it.batchId }) { batch ->
                 HatchingBatchCard(
                     batch = batch,
                     dateFormat = dateFormat,

@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -400,13 +402,20 @@ private fun QuickSelectDemoList(
         Text("Quick select demo profiles")
         profiles.groupBy { it.role }.forEach { (role, roleProfiles) ->
             Text(role.displayName, modifier = Modifier.padding(top = 4.dp))
-            roleProfiles.forEach { profile ->
-                OutlinedButton(onClick = { onSelect(profile.id) }, modifier = Modifier.fillMaxWidth()) {
-                    val suffix = if (profile.id == currentId) " (active)" else ""
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("${profile.fullName}$suffix")
-                        Text(profile.headline)
-                        Text(profile.location)
+            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(items = roleProfiles, key = { it.id }) { profile ->
+                        OutlinedButton(onClick = { onSelect(profile.id) }, modifier = Modifier.fillMaxWidth()) {
+                            val suffix = if (profile.id == currentId) " (active)" else ""
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("${profile.fullName}$suffix")
+                                Text(profile.headline)
+                                Text(profile.location)
+                            }
+                        }
                     }
                 }
             }
@@ -564,8 +573,11 @@ private fun DemoProfilePickerDialog(
         onDismissRequest = onDismiss,
         title = { Text("Switch demo profile") },
         text = {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(profiles) { profile ->
+            LazyColumn(
+                contentPadding = PaddingValues(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(items = profiles, key = { it.id }) { profile ->
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                         val suffix = if (profile.id == currentId) " (active)" else ""
                         Text("${profile.fullName}$suffix")

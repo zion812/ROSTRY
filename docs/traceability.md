@@ -1,6 +1,6 @@
 Title: Traceability
 Version: 1.0
-Last Updated: 2025-10-16
+Last Updated: 2025-10-29
 Audience: Developers, Contributors
 
 ## Table of Contents
@@ -52,6 +52,8 @@ data class FamilyTreeEntity(
     val deletedAt: Long? = null
 )
 ```
+
+**Implementation Status**: FamilyTreeEntity is fully implemented in the database schema. UI components (FamilyTreeView, LineagePreviewScreen) and repository methods are in active development.
 
 Key components:
 - **nodeId**: Unique identifier for each tree node

@@ -2,9 +2,7 @@ package com.rio.rostry.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -14,6 +12,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,18 +44,26 @@ fun SettingsScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text("Preferences", style = MaterialTheme.typography.titleMedium)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Notifications")
-                Switch(checked = notifications.value, onCheckedChange = { notifications.value = it })
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Low data mode")
-                Switch(checked = lowDataMode.value, onCheckedChange = { lowDataMode.value = it })
-            }
+            ListItem(
+                headlineContent = { Text("Notifications") },
+                trailingContent = {
+                    Switch(checked = notifications.value, onCheckedChange = { notifications.value = it })
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+            ListItem(
+                headlineContent = { Text("Low data mode") },
+                supportingContent = { Text("Reduce media previews and background data usage") },
+                trailingContent = {
+                    Switch(checked = lowDataMode.value, onCheckedChange = { lowDataMode.value = it })
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+            )
         }
     }
 }
+

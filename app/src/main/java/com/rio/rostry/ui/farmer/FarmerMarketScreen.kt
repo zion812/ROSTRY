@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -158,7 +159,10 @@ private fun BrowseMarket(
         it.title.contains(searchText, ignoreCase = true)
     }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         // Search + Filter toggle row
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -166,10 +170,10 @@ private fun BrowseMarket(
                     value = searchText,
                     onValueChange = { searchText = it },
                     label = { Text("Search") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
                     trailingIcon = {
                         IconButton(onClick = { filtersExpanded = !filtersExpanded }) {
-                            Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+                            Icon(Icons.Filled.FilterList, contentDescription = "Toggle filters")
                         }
                     },
                     modifier = Modifier.weight(1f)
@@ -242,23 +246,36 @@ private fun BrowseMarket(
             item { Divider(modifier = Modifier.padding(vertical = 4.dp)) }
         }
 
-        if (isLoading) {
-            item { Text("Loading...") }
+        if (isLoading && displayed.isEmpty()) {
+            items(3) { _ ->
+                com.rio.rostry.ui.components.ProductCardSkeleton(modifier = Modifier.fillMaxWidth())
+            }
         }
-        items(displayed) { item ->
-            Card { Column(Modifier.padding(12.dp)) {
-                Text(item.title, style = MaterialTheme.typography.titleMedium)
-                Text("₹${item.price}")
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    Text("Views: ${item.views}")
-                    Text("Inquiries: ${item.inquiries}")
-                    Text("Orders: ${item.orders}")
+        if (!isLoading && displayed.isEmpty()) {
+            item {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "No listings",
+                    subtitle = "Try adjusting filters or create a new listing",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+                )
+            }
+        }
+        items(items = displayed, key = { it.id }) { item ->
+            Card {
+                Column(Modifier.padding(12.dp)) {
+                    Text(item.title, style = MaterialTheme.typography.titleMedium)
+                    Text("₹${item.price}")
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        Text("Views: ${item.views}")
+                        Text("Inquiries: ${item.inquiries}")
+                        Text("Orders: ${item.orders}")
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                        OutlinedButton(onClick = { onOpenOrder(item.id) }) { Text("Message") }
+                        Button(onClick = { onOpenProduct(item.id) }) { Text("Buy") }
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    OutlinedButton(onClick = { onOpenOrder(item.id) }) { Text("Message") }
-                    Button(onClick = { onOpenProduct(item.id) }) { Text("Buy") }
-                }
-            } }
+            }
         }
     }
     
@@ -321,7 +338,10 @@ private fun SellManager(
     metricsOrders: Int,
     metricsViews: Int,
 ) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = onCreateListing, modifier = Modifier.fillMaxWidth()) { Text("Create Listing") }
@@ -338,10 +358,21 @@ private fun SellManager(
         }
         item { Spacer(Modifier.height(4.dp)) }
         item { Text("Your Listings", style = MaterialTheme.typography.titleMedium) }
-        if (isLoading) {
-            item { Text("Loading...") }
+        if (isLoading && items.isEmpty()) {
+            items(2) { _ ->
+                com.rio.rostry.ui.components.ProductCardSkeleton(modifier = Modifier.fillMaxWidth())
+            }
         }
-        items(items) { item ->
+        if (!isLoading && items.isEmpty()) {
+            item {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "No listings yet",
+                    subtitle = "Create your first listing to start selling",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+                )
+            }
+        }
+        items(items = items, key = { it.id }) { item ->
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.padding(12.dp)) {
                     Text(item.title, style = MaterialTheme.typography.titleMedium)

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
@@ -40,16 +41,33 @@ fun NotificationsScreen(
             Button(onClick = onOpenOrders, modifier = Modifier.weight(1f)) { Text("Orders (${state.pendingOrders})") }
         }
         Divider()
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.items) { n ->
-                Card { Column(Modifier.padding(12.dp)) {
-                    Text(n.title, style = MaterialTheme.typography.titleMedium)
-                    Text(n.body, modifier = Modifier.padding(top = 4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Button(onClick = { onOpenRoute(n.route) }) { Text("Open") }
+        if (state.items.isEmpty()) {
+            com.rio.rostry.ui.components.EmptyState(
+                title = "You're all caught up",
+                subtitle = "No new notifications",
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+            )
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(items = state.items, key = { it.hashCode() }) { n ->
+                    Card {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(n.title, style = MaterialTheme.typography.titleMedium)
+                            Text(n.body, modifier = Modifier.padding(top = 4.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            ) {
+                                Button(onClick = { onOpenRoute(n.route) }) { Text("Open") }
+                            }
+                        }
                     }
-                } }
+                }
             }
         }
     }
 }
+

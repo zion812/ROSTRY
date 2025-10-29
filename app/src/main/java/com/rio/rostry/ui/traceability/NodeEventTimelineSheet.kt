@@ -17,6 +17,7 @@ import com.rio.rostry.ui.traceability.TraceabilityViewModel.NodeEventData
 import com.rio.rostry.ui.traceability.TraceabilityViewModel.NodeMetadata
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.layout.PaddingValues
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +31,7 @@ fun NodeEventTimelineSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -74,12 +76,12 @@ fun NodeEventTimelineSheet(
                     Text("No vaccination records yet. Add vaccination schedule in Farm Monitoring.", style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
-                items(events.vaccinations.sortedByDescending { it.scheduledAt }) { vacc ->
+                items(items = events.vaccinations.sortedByDescending { it.scheduledAt }, key = { it.hashCode() }) { vacc ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 if (vacc.administeredAt != null) Icons.Filled.Check else Icons.Filled.Schedule,
-                                contentDescription = null
+                                contentDescription = if (vacc.administeredAt != null) "Administered" else "Scheduled"
                             )
                             Spacer(Modifier.width(8.dp))
                             Column {
@@ -109,7 +111,7 @@ fun NodeEventTimelineSheet(
                     Text("No growth records yet.", style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
-                items(events.growthRecords.sortedBy { it.week }) { growth ->
+                items(items = events.growthRecords.sortedBy { it.week }, key = { it.week }) { growth ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text("Week ${growth.week}", style = MaterialTheme.typography.bodyLarge)
@@ -140,10 +142,10 @@ fun NodeEventTimelineSheet(
                     Text("No recent daily logs.", style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
-                items(recentLogs) { log ->
+                items(items = recentLogs, key = { it.hashCode() }) { log ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Filled.CalendarToday, contentDescription = null)
+                            Icon(Icons.Filled.CalendarToday, contentDescription = "Log date")
                             Spacer(Modifier.width(8.dp))
                             Column {
                                 Text(formatDate(log.logDate), style = MaterialTheme.typography.bodyLarge)
@@ -174,10 +176,10 @@ fun NodeEventTimelineSheet(
                     Text("No transfer history.", style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
-                items(events.transfers.sortedByDescending { it.initiatedAt }) { transfer ->
+                items(items = events.transfers.sortedByDescending { it.initiatedAt }, key = { it.hashCode() }) { transfer ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.ArrowForward, contentDescription = null)
+                            Icon(Icons.Filled.ArrowForward, contentDescription = "Transfer")
                             Spacer(Modifier.width(8.dp))
                             Column {
                                 Text(transfer.type, style = MaterialTheme.typography.bodyLarge)

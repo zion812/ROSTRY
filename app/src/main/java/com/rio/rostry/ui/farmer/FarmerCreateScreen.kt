@@ -136,7 +136,7 @@ fun FarmerCreateScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Icon(icon, contentDescription = "Error", tint = MaterialTheme.colorScheme.error)
                     Column(Modifier.weight(1f)) {
                         Text(
                             errorMessage,
@@ -176,7 +176,7 @@ fun FarmerCreateScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Filled.Info, contentDescription = null)
+                    Icon(Icons.Filled.Info, contentDescription = "Info")
                     Text(
                         "Pre-filled from your farm monitoring data. Review and edit as needed.",
                         style = MaterialTheme.typography.bodySmall
@@ -282,7 +282,7 @@ private fun ActionCard(label: String, route: String) {
         ) {
             Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             IconButton(onClick = { /* Navigate to route */ }) {
-                Icon(Icons.Filled.ArrowForward, contentDescription = null)
+                Icon(Icons.Filled.ArrowForward, contentDescription = "Navigate")
             }
         }
     }
@@ -621,7 +621,7 @@ private fun DetailsStep(
                 Spacer(Modifier.width(8.dp))
                 Text("Detecting...")
             } else {
-                Icon(Icons.Filled.LocationOn, null)
+                Icon(Icons.Filled.LocationOn, "Location")
                 Spacer(Modifier.width(8.dp))
                 Text("Auto-detect Location")
             }
@@ -674,7 +674,7 @@ private fun MediaSection(
                 onClick = onLaunchPicker,
                 enabled = count < maxCount
             ) {
-                Icon(Icons.Filled.Add, null)
+                Icon(Icons.Filled.Add, "Add")
                 Spacer(Modifier.width(8.dp))
                 Text("Add $label")
             }
@@ -739,7 +739,7 @@ private fun ValidationItem(label: String, isValid: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             if (isValid) Icons.Filled.Check else Icons.Filled.Close,
-            contentDescription = null,
+            contentDescription = if (isValid) "Valid" else "Invalid",
             tint = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
         )
         Spacer(Modifier.width(8.dp))

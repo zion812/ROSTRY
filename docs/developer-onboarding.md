@@ -1,5 +1,5 @@
-**Version:** 2.1  
-**Last Updated:** 2025-10-10  
+**Version:** 2.2  
+**Last Updated:** 2025-10-29  
 **Audience:** New developers  
 **Estimated Time:** 2–3 hours for setup and first PR
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Storefront
@@ -112,7 +113,10 @@ fun VaccinationScheduleScreen(
                             if (selectedTab.value == 0) "Due Today" else "Overdue",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             items(tasks, key = { it.taskId }) { t ->
                                 Card(Modifier.fillMaxWidth()) {
                                     Column(
@@ -227,7 +231,10 @@ fun VaccinationScheduleScreen(
                         Divider()
                         Text("Records", style = MaterialTheme.typography.titleMedium)
 
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             items(state.records, key = { it.vaccinationId }) { rec ->
                                 val overdue =
                                     rec.administeredAt == null && rec.scheduledAt < System.currentTimeMillis()
@@ -406,12 +413,12 @@ fun VaccinationScheduleScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.CheckCircle,
-                                    contentDescription = null,
+                                    contentDescription = "Vaccination complete",
                                     modifier = Modifier.padding(end = 4.dp)
                                 )
                                 Icon(
                                     Icons.Filled.Storefront,
-                                    contentDescription = null,
+                                    contentDescription = "List product",
                                     modifier = Modifier.padding(end = 8.dp)
                                 )
                                 Text("List with Vaccination Proof")

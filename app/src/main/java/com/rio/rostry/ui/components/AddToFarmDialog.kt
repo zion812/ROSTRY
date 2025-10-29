@@ -73,7 +73,7 @@ fun AddToFarmDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Filled.Pets, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Filled.Pets, contentDescription = "Individual bird", tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f)) {
                             Text("Individual Bird", style = MaterialTheme.typography.titleMedium)
                             Text("Track a single bird with lineage and health records", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -91,7 +91,7 @@ fun AddToFarmDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Filled.Group, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Filled.Group, contentDescription = "Batch", tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f)) {
                             Text("Batch", style = MaterialTheme.typography.titleMedium)
                             Text("Track a group together, split later for individuals", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

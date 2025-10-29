@@ -209,7 +209,7 @@ private fun ExploreTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
             trailingIcon = {
                 if (query.isNotBlank()) {
                     TextButton(onClick = onClearQuery) { Text("Clear") }
@@ -248,25 +248,25 @@ private fun ExploreFilterRow(
                 selected = selected == ExploreFilter.RECENT,
                 onClick = { onSelected(ExploreFilter.RECENT) },
                 label = { Text("Recent") },
-                leadingIcon = { Icon(Icons.Filled.Public, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Filled.Public, contentDescription = "Recent posts") }
             )
             FilterChip(
                 selected = selected == ExploreFilter.POPULAR,
                 onClick = { onSelected(ExploreFilter.POPULAR) },
                 label = { Text("Popular") },
-                leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = "Popular filter") }
             )
             FilterChip(
                 selected = selected == ExploreFilter.NEARBY,
                 onClick = { onSelected(ExploreFilter.NEARBY) },
                 label = { Text("Nearby") },
-                leadingIcon = { Icon(Icons.Outlined.NearMe, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Outlined.NearMe, contentDescription = "Nearby") }
             )
             FilterChip(
                 selected = selected == ExploreFilter.FOLLOWING,
                 onClick = { onSelected(ExploreFilter.FOLLOWING) },
                 label = { Text("Following") },
-                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = "Following") }
             )
         }
         if (!tokensSummary.isEmpty) {
@@ -379,17 +379,17 @@ private fun SearchHintChips(onChipClick: (String) -> Unit) {
             AssistChip(
                 onClick = { onChipClick("#poultry") },
                 label = { Text("#poultry") },
-                leadingIcon = { Icon(Icons.Filled.Public, null, modifier = Modifier.size(16.dp)) }
+                leadingIcon = { Icon(Icons.Filled.Public, contentDescription = "Hashtag", modifier = Modifier.size(16.dp)) }
             )
             AssistChip(
                 onClick = { onChipClick("breed:asil") },
                 label = { Text("breed:asil") },
-                leadingIcon = { Icon(Icons.Filled.Search, null, modifier = Modifier.size(16.dp)) }
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", modifier = Modifier.size(16.dp)) }
             )
             AssistChip(
                 onClick = { onChipClick("loc:bangalore") },
                 label = { Text("loc:bangalore") },
-                leadingIcon = { Icon(Icons.Filled.LocationOn, null, modifier = Modifier.size(16.dp)) }
+                leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = "Location", modifier = Modifier.size(16.dp)) }
             )
         }
     }
@@ -469,7 +469,7 @@ private fun SearchTipItem(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = title,
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.primary
         )
@@ -508,7 +508,7 @@ private fun ProfilePreviewSheet(preview: UserPreview) {
             Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 AsyncImage(
                     model = preview.avatarUrl,
-                    contentDescription = null,
+                    contentDescription = "User avatar",
                     modifier = Modifier
                         .padding(bottom = 12.dp)
                         .height(72.dp)

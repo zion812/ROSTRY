@@ -166,7 +166,7 @@ private fun SearchBar(
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
         placeholder = { Text("Search messages, groups, events...") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
         trailingIcon = {
             IconButton(onClick = onClose) {
                 Icon(Icons.Default.Close, contentDescription = "Close search")
@@ -192,9 +192,12 @@ private fun MessagesTab(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(threads) { threadData ->
+            items(
+                items = threads,
+                key = { it.threadId }
+            ) { threadData ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onThreadClick(threadData.threadId) }
@@ -266,7 +269,7 @@ private fun DiscoverTab(
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(connections.take(5)) { connection ->
+                    items(items = connections.take(5), key = { it.userId }) { connection ->
                         Card(modifier = Modifier.width(200.dp)) {
                             Column(Modifier.padding(12.dp)) {
                                 Text(connection.name, style = MaterialTheme.typography.titleSmall)
@@ -294,7 +297,7 @@ private fun DiscoverTab(
                     fontWeight = FontWeight.Bold
                 )
             }
-            items(groups.take(5)) { group ->
+            items(items = groups.take(5), key = { it.groupId }) { group ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onNavigateToGroup(group.groupId) }
@@ -327,7 +330,7 @@ private fun DiscoverTab(
                     fontWeight = FontWeight.Bold
                 )
             }
-            items(events.take(3)) { event ->
+            items(items = events.take(3), key = { it.eventId }) { event ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onNavigateToEvent(event.eventId) }
@@ -360,7 +363,7 @@ private fun DiscoverTab(
                     fontWeight = FontWeight.Bold
                 )
             }
-            items(experts.take(3)) { expert ->
+            items(items = experts.take(3), key = { it.userId }) { expert ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onNavigateToExpert(expert.userId) }
@@ -439,7 +442,7 @@ private fun FeedTab(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(posts) { post ->
+            items(items = posts, key = { it.postId }) { post ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onPostClick(post.postId) }
@@ -501,7 +504,7 @@ private fun MyGroupsTab(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(groups) { group ->
+            items(items = groups, key = { it.groupId }) { group ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onGroupClick(group.groupId) }

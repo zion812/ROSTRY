@@ -230,11 +230,11 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun seedDemoUsers() {
         val entities = DemoAccounts.all.map { it.toUserEntity() }
-        userDao.insertUsers(entities)
+        userDao.upsertUsers(entities)
     }
 
     override suspend fun upsertDemoUser(userEntity: UserEntity): Resource<Unit> = safeCall {
-        userDao.insertUser(userEntity)
+        userDao.upsertUsers(listOf(userEntity))
         Unit
     }.firstOrNull() ?: Resource.Error("Failed to upsert demo user")
 

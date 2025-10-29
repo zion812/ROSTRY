@@ -118,7 +118,7 @@ private fun AuthRequiredState() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Filled.ShoppingCart, contentDescription = null, modifier = Modifier.height(48.dp))
+        Icon(Icons.Filled.ShoppingCart, contentDescription = "Cart", modifier = Modifier.height(48.dp))
         Spacer(Modifier.height(16.dp))
         Text("Sign in to manage your cart", style = MaterialTheme.typography.titleMedium)
     }
@@ -179,7 +179,7 @@ private fun GeneralCartScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(state.items) { item ->
+                items(items = state.items, key = { it.productId }) { item ->
                     CartItemCard(
                         item = item,
                         onIncrement = { onIncrement(item.productId) },
@@ -248,7 +248,7 @@ private fun CartItemCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = item.imageUrl,
-                    contentDescription = null,
+                    contentDescription = "Product image",
                     modifier = Modifier.height(80.dp).fillMaxWidth(0.3f)
                 )
                 Spacer(Modifier.width(12.dp))
@@ -284,7 +284,7 @@ private fun DeliveryCard(
             Text("Delivery", style = MaterialTheme.typography.titleMedium)
             Text(state.selectedDelivery?.eta ?: "Select delivery")
             TextButton(onClick = onToggleDeliveryMenu) {
-                Icon(Icons.Filled.LocalShipping, contentDescription = null)
+                Icon(Icons.Filled.LocalShipping, contentDescription = "Delivery options")
                 Spacer(Modifier.width(8.dp))
                 Text(state.selectedDelivery?.label ?: "Choose option")
             }
@@ -310,7 +310,7 @@ private fun PaymentCard(
     Card { Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Payment method", style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = onTogglePaymentMenu) {
-                Icon(Icons.Filled.Payment, contentDescription = null)
+                Icon(Icons.Filled.Payment, contentDescription = "Payment methods")
                 Spacer(Modifier.width(8.dp))
                 Text(state.selectedPayment.name.replace('_', ' '))
             }
@@ -337,7 +337,7 @@ private fun AddressCard(
             Text("Delivery address", style = MaterialTheme.typography.titleMedium)
             Text(state.selectedAddress ?: "Select address")
             TextButton(onClick = onToggleAddressMenu) {
-                Icon(Icons.Filled.Home, contentDescription = null)
+                Icon(Icons.Filled.Home, contentDescription = "Addresses")
                 Spacer(Modifier.width(8.dp))
                 Text("Change address")
             }

@@ -109,7 +109,7 @@ fun EmptyState(title: String, subtitle: String? = null, modifier: Modifier = Mod
         verticalArrangement = Arrangement.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Info, contentDescription = null)
+            Icon(Icons.Filled.Info, contentDescription = "Info")
             Spacer(Modifier.height(4.dp))
         }
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
@@ -147,7 +147,7 @@ fun SyncStatusBadge(syncState: SyncState, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = text, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(4.dp))
             Text(text, style = MaterialTheme.typography.labelSmall)
         }

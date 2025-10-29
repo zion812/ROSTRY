@@ -74,7 +74,7 @@ fun GrowthTrackingScreen(
                         enabled = pid.value.isNotBlank() && state.records.isNotEmpty(),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Filled.Storefront, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
+                        Icon(Icons.Filled.Storefront, contentDescription = "List on marketplace", modifier = Modifier.padding(end = 4.dp))
                         Text("List on Marketplace")
                     }
                 }

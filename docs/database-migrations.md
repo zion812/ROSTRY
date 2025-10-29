@@ -1,7 +1,7 @@
 # Database Migrations Guide
 
 **Version:** 1.0  
-**Last Updated:** 2025-10-16  
+**Last Updated:** 2025-10-29  
 **Audience:** Developers
 
 ---

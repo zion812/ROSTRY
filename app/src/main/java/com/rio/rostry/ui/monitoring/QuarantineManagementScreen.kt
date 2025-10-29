@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Warning
@@ -79,6 +80,7 @@ fun QuarantineManagementScreen(
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -157,7 +159,7 @@ fun QuarantineManagementScreen(
                 else -> emptyList()
             }
 
-            items(displayedActive) { record ->
+            items(items = displayedActive, key = { it.quarantineId }) { record ->
                 QuarantineCard(
                     record = record,
                     dateFormat = dateFormat,
@@ -180,7 +182,7 @@ fun QuarantineManagementScreen(
                 else -> emptyList()
             }
 
-            items(displayedHistory) { record ->
+            items(items = displayedHistory, key = { it.quarantineId }) { record ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Product: ${record.productId}", style = MaterialTheme.typography.titleMedium)

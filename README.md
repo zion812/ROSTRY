@@ -90,13 +90,13 @@ Temporarily hidden until assets are added. Target path: `docs/images/screenshots
 
 ## Documentation
 
-📚 **Documentation recently reorganized for better navigation.** See `docs/README-docs.md` for the complete index.
+📚 **Comprehensive documentation available.** See `docs/README-docs.md` for the complete index including architecture guides, feature documentation, and operational procedures.
 
 - Central index: `docs/README-docs.md`
 - Architecture: `docs/architecture.md`
 - Testing: `docs/testing-strategy.md`
 - Security: `docs/security-encryption.md`
-- Feature guides: `docs/ai-personalization.md`, `docs/gamification.md`, `docs/traceability.md`, `docs/worker-catalog.md`, `docs/export-utilities.md`
+- Feature guides: `docs/ai-personalization.md` (AI recommendations), `docs/gamification.md` (achievements & rewards), `docs/traceability.md` (lineage tracking), `docs/worker-catalog.md` (background jobs), `docs/export-utilities.md` (data export)
 
 ## Architecture (highlights)
 

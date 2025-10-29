@@ -1,6 +1,6 @@
 Title: Worker Catalog
 Version: 1.0
-Last Updated: 2025-10-16
+Last Updated: 2025-10-29
 Audience: Developers, DevOps
 
 ## Table of Contents
@@ -112,19 +112,20 @@ Farm monitoring workers automate poultry health tracking, vaccination schedules,
 These workers handle AI-driven personalization and data aggregation for insights and recommendations.
 
 ### PersonalizationWorker
-**Purpose**: 12-hour recommendation updates for personalized content
+**Purpose**: 6-hour recommendation updates for personalized content
 - Processes user interaction data
 - Updates CommunityRecommendationEntity
 - Refreshes UserInterestEntity weights
 - Generates personalized content suggestions
 
-**Scheduling**: Every 12 hours (see CHANGELOG entry for provenance)
+**Scheduling**: Every 6 hours (as implemented in PersonalizationWorker.kt)
+**Note**: The actual implementation uses 6-hour intervals. The CHANGELOG reference to 12 hours may reflect an earlier design decision that was changed during implementation.
 **Constraints**: Network connected
 **Integration**: Uses PersonalizationService for scoring
 
 ```kotlin
-// Scheduling from CHANGELOG (12 hours)
-val request = PeriodicWorkRequestBuilder<PersonalizationWorker>(12, TimeUnit.HOURS)
+// Scheduling as implemented (6 hours)
+val request = PeriodicWorkRequestBuilder<PersonalizationWorker>(6, TimeUnit.HOURS)
     .setConstraints(Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)
         .build())
@@ -637,7 +638,7 @@ override suspend fun doWork(): Result {
 companion object {
     fun schedule(context: Context) {
         val request = PeriodicWorkRequestBuilder<PersonalizationWorker>(
-            12, TimeUnit.HOURS
+            6, TimeUnit.HOURS
         )
             .setConstraints(
                 Constraints.Builder()

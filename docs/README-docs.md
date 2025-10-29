@@ -4,8 +4,8 @@
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2025-01-15  
-**Documentation Version**: 3.0
+**Last Updated**: 2025-10-29  
+**Documentation Version**: 3.1
 
 ## Table of Contents
 
@@ -108,11 +108,11 @@ Essential guides for developers working on ROSTRY:
 | `background-jobs.md` | WorkManager workers, constraints, monitoring |
 | `performance-optimization.md` | Performance best practices and profiling |
 | `maps-places-integration.md` | Maps and location services integration |
-| `ai-personalization.md` | AI-powered recommendations and personalization (NEW - Coming soon) |
-| `gamification.md` | Achievement system, rewards, and progression (NEW - Coming soon) |
-| `traceability.md` | Lineage tracking and family trees (NEW - Coming soon) |
-| `worker-catalog.md` | Comprehensive catalog of WorkManager workers (NEW - Coming soon) |
-| `export-utilities.md` | CSV and PDF export utilities (NEW - Coming soon) |
+| `ai-personalization.md` | AI-powered recommendations and personalization |
+| `gamification.md` | Achievement system, rewards, and progression |
+| `traceability.md` | Lineage tracking and family trees |
+| `worker-catalog.md` | Comprehensive catalog of WorkManager workers |
+| `export-utilities.md` | CSV and PDF export utilities |
 
 ## Operations & Testing
 
@@ -180,7 +180,7 @@ flowchart TD
     A --> D[Operations<br/>Testing, Deployment]
     A --> E[ADRs<br/>Decision Records]
     B --> F[blueprint.md<br/>High-Level Overview]
-    C --> G[New Features<br/>AI, Gamification, etc.<br/>Coming Soon]
+    C --> G[Feature Guides<br/>AI, Gamification, Traceability, etc.]
     D --> H[QUICK_START.md<br/>Setup Guide]
     E --> I[adr-001, adr-002, etc.]
 ```

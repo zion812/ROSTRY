@@ -1,7 +1,7 @@
 # ROSTRY Blueprint (High-Level System Overview)
 
-Version: 1.0
-Last Updated: 2025-10-16
+Version: 1.1
+Last Updated: 2025-10-29
 Audience: Stakeholders, Product Managers, Architects
 
 This document provides a high-level system overview and architecture summary for stakeholders and new team members. For detailed documentation navigation, see `docs/README-docs.md`.

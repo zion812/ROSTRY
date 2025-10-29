@@ -39,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.compose.foundation.layout.PaddingValues
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,16 +72,19 @@ androidx.compose.material3.TopAppBar(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Ownership Transfer Management")
             if (state.loading) {
-                Text("Loading...")
+                androidx.compose.material3.CircularProgressIndicator()
             }
             state.error?.let { err ->
-                ElevatedCard { Column(Modifier.padding(12.dp)) { Text("Error: $err") } }
+                com.rio.rostry.ui.components.ErrorState(
+                    error = err,
+                    retryAction = { vm.refresh() },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             // Filters
             ElevatedCard {
@@ -154,7 +158,11 @@ androidx.compose.material3.TopAppBar(
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Pending Transfers (Verification Required)")
                 if (state.pending.isEmpty() && !state.loading) {
-                    Text("No pending transfers")
+                    com.rio.rostry.ui.components.EmptyState(
+                        title = "No pending transfers",
+                        subtitle = "You're all caught up",
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    )
                 } else {
                     // Bulk actions
                     if (state.selection.isNotEmpty()) {
@@ -166,6 +174,7 @@ androidx.compose.material3.TopAppBar(
                     }
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().height(300.dp),
+                        contentPadding = PaddingValues(vertical = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         items(state.pending, key = { it.transferId }) { t ->
@@ -234,14 +243,19 @@ androidx.compose.material3.TopAppBar(
                     if (state.loading) {
                         androidx.compose.material3.CircularProgressIndicator()
                     } else {
-                        Text("No history")
+                        com.rio.rostry.ui.components.EmptyState(
+                            title = "No history",
+                            subtitle = "Transfers you participate in will appear here",
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                        )
                     }
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().height(400.dp),
+                    contentPadding = PaddingValues(vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(historyPaging.itemCount) { index ->
+                    items(historyPaging.itemCount, key = { index -> historyPaging[index]?.transferId ?: "history-$index" }) { index ->
                         val t = historyPaging[index]
                         if (t != null) {
                             Column(Modifier.fillMaxWidth()) {

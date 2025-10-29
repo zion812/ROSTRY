@@ -241,7 +241,7 @@ fun GeneralCreateRoute(
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(12.dp))
                 } else {
-                    Icon(Icons.Filled.Send, contentDescription = null)
+                    Icon(Icons.Filled.Send, contentDescription = "Send")
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(if (uiState.isPosting) "Sharing..." else "Share with community")
@@ -284,7 +284,7 @@ private fun PrivacyChip(icon: ImageVector, label: String, selected: Boolean, onC
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        leadingIcon = { Icon(icon, contentDescription = null) }
+        leadingIcon = { Icon(icon, contentDescription = label) }
     )
 }
 
@@ -302,7 +302,7 @@ private fun LocationRow(location: String?, onChange: () -> Unit, onClear: () -> 
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onChange) {
-                Icon(Icons.Filled.LocationOn, contentDescription = null)
+                Icon(Icons.Filled.LocationOn, contentDescription = "Location")
                 Spacer(Modifier.width(4.dp))
                 Text(if (location.isNullOrBlank()) "Add" else "Edit")
             }
@@ -344,7 +344,7 @@ private fun MediaAttachmentRow(attachment: MediaAttachment, onRemove: (String) -
     ) {
         AsyncImage(
             model = attachment.uri,
-            contentDescription = null,
+            contentDescription = "Attachment",
             modifier = Modifier.height(80.dp).fillMaxWidth(0.8f)
         )
         IconButton(onClick = { onRemove(attachment.uriString) }) {

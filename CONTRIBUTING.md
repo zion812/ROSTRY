@@ -336,7 +336,7 @@ Run checks locally before pushing:
 
 ## Documentation
 
-📚 **Note**: Documentation was recently reorganized for better navigation. See `docs/README-docs.md` for the complete index.
+📚 **Note**: Comprehensive documentation is available and regularly updated. See `docs/README-docs.md` for the complete index including 50+ guides covering architecture, features, testing, and operations.
 
 ### When to Update Docs
 
@@ -345,6 +345,15 @@ Update documentation when:
 - Changing existing behavior
 - Adding new architectural patterns
 - Modifying database schema
+
+New feature documentation is available for:
+- AI personalization and recommendations (`docs/ai-personalization.md`)
+- Gamification system (`docs/gamification.md`)
+- Traceability and lineage tracking (`docs/traceability.md`)
+- Background workers catalog (`docs/worker-catalog.md`)
+- Export utilities (`docs/export-utilities.md`)
+
+Update these docs when modifying related features.
 
 ### Documentation Files
 

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Transaction
 import com.rio.rostry.data.database.entity.UserEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -16,8 +17,11 @@ interface UserDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertUsers(users: List<UserEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertUsers(users: List<UserEntity>)
+    @Transaction
+    suspend fun upsertUsers(users: List<UserEntity>) {
+        insertUsers(users)
+        users.forEach { updateUser(it) }
+    }
 
     @Update
     suspend fun updateUser(user: UserEntity)

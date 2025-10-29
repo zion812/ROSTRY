@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -103,20 +104,34 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
             }
 
             // Messages list
-            LazyColumn(Modifier.weight(1f)) {
-                items(msgs) { m ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Column(Modifier.padding(8.dp)) {
-                            Text(
-                                m.fromUserId.take(8),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(m.text, style = MaterialTheme.typography.bodyMedium)
+            if (msgs.isEmpty()) {
+                com.rio.rostry.ui.components.EmptyState(
+                    title = "No messages yet",
+                    subtitle = "Say hi to start the conversation",
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(items = msgs, key = { it.hashCode() }) { m ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(
+                                    m.fromUserId.take(8),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(m.text, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }
@@ -142,6 +157,8 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
                     },
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
+                    Icon(Icons.Default.Send, contentDescription = "Send")
+                    Spacer(Modifier.width(6.dp))
                     Text("Send")
                 }
             }

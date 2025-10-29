@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -223,7 +224,7 @@ private fun AlertsPriorityCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Warning,
-                    contentDescription = null,
+                    contentDescription = "Alert",
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
@@ -270,7 +271,7 @@ private fun AlertRow(text: String, onAction: () -> Unit) {
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.onErrorContainer
         )
-        OutlinedButton(
+        TextButton(
             onClick = onAction,
             modifier = Modifier.height(32.dp)
         ) {
@@ -376,7 +377,7 @@ private fun QuickActionCard(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = label,
                 modifier = Modifier.size(24.dp),
                 tint = if (urgent) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.primary
             )
@@ -507,13 +508,13 @@ private fun TaskRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Icon(icon, contentDescription = title, modifier = Modifier.size(24.dp))
             Column {
                 Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        OutlinedButton(onClick = onClick) {
+        TextButton(onClick = onClick) {
             Text("View")
         }
     }

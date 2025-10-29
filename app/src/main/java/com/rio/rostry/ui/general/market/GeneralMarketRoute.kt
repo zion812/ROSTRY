@@ -440,7 +440,7 @@ private fun ProductCard(
         Column(modifier = Modifier.fillMaxWidth()) {
             AsyncImage(
                 model = product.imageUrls.firstOrNull(),
-                contentDescription = null,
+                contentDescription = "Product image",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(128.dp)
@@ -479,7 +479,7 @@ private fun ProductCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onOpenTraceability) {
-                        Icon(Icons.Filled.Map, contentDescription = null)
+                        Icon(Icons.Filled.Map, contentDescription = "Traceability")
                         Spacer(modifier = Modifier.size(4.dp))
                         Text("Traceability")
                     }
@@ -638,7 +638,7 @@ private fun CompactProductCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Filled.Star,
-                            contentDescription = null,
+                            contentDescription = "Rating",
                             modifier = Modifier.size(14.dp),
                             tint = Color(0xFFFFC107)
                         )
@@ -710,7 +710,7 @@ private fun EnhancedProductCard(
                             androidx.compose.material3.AssistChip(
                                 onClick = {},
                                 label = { Text("Traceable", style = MaterialTheme.typography.labelSmall) },
-                                leadingIcon = { Icon(Icons.Filled.Map, null, modifier = Modifier.size(14.dp)) },
+                                leadingIcon = { Icon(Icons.Filled.Map, contentDescription = "Traceable", modifier = Modifier.size(14.dp)) },
                                 modifier = Modifier.height(24.dp)
                             )
                         }
@@ -775,7 +775,7 @@ private fun EnhancedProductCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Filled.Star,
-                            contentDescription = null,
+                            contentDescription = "Rating",
                             modifier = Modifier.size(16.dp),
                             tint = Color(0xFFFFC107)
                         )

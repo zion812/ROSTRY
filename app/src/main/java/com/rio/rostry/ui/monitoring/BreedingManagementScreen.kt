@@ -49,6 +49,7 @@ fun BreedingManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (error != null) {
@@ -67,7 +68,7 @@ fun BreedingManagementScreen(
                     }
                 }
             }
-            items(breedingPairs) { pair ->
+            items(items = breedingPairs, key = { it.pairId }) { pair ->
                 BreedingPairCard(
                     pair = pair,
                     onViewDetails = { selectedPairId = pair.pairId },
@@ -170,7 +171,7 @@ private fun BreedingPairCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
                 ) {
                     OutlinedButton(onClick = onListPair) {
-                        Icon(Icons.Filled.Storefront, contentDescription = null, modifier = Modifier.padding(end = 4.dp))
+                        Icon(Icons.Filled.Storefront, contentDescription = "List breeding pair", modifier = Modifier.padding(end = 4.dp))
                         Text("List Breeding Pair")
                     }
                     OutlinedButton(onClick = onRetire) {
