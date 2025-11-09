@@ -62,6 +62,9 @@ interface QuarantineRecordDao {
     @Query("SELECT COUNT(*) FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE' AND lastUpdatedAt < :cutoff")
     suspend fun countUpdatesOverdueForFarmer(farmerId: String, cutoff: Long): Int
 
+    @Query("SELECT * FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE' AND lastUpdatedAt < :cutoff")
+    suspend fun getUpdatesOverdueForFarmer(farmerId: String, cutoff: Long): List<QuarantineRecordEntity>
+
     @Query("SELECT COUNT(*) FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE'")
     fun observeActiveForFarmer(farmerId: String): Flow<Int>
 
@@ -128,6 +131,9 @@ interface VaccinationRecordDao {
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NULL AND scheduledAt < :now")
     suspend fun countOverdueForFarmer(farmerId: String, now: Long): Int
 
+    @Query("SELECT * FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NULL AND scheduledAt < :now ORDER BY scheduledAt ASC")
+    suspend fun getOverdueForFarmer(farmerId: String, now: Long): List<VaccinationRecordEntity>
+
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND scheduledAt BETWEEN :start AND :end")
     suspend fun countScheduledBetweenForFarmer(farmerId: String, start: Long, end: Long): Int
 
@@ -179,6 +185,9 @@ interface HatchingBatchDao {
 
     @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt BETWEEN :now AND :weekEnd")
     fun observeDueThisWeekForFarmer(farmerId: String, now: Long, weekEnd: Long): Flow<Int>
+
+    @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND status = 'ACTIVE' AND expectedHatchAt BETWEEN :start AND :end ORDER BY expectedHatchAt ASC")
+    suspend fun getHatchingDueSoon(farmerId: String, start: Long, end: Long): List<HatchingBatchEntity>
 
     // Fetch batches created from specific egg collections
     @Query("SELECT * FROM hatching_batches WHERE sourceCollectionId IN (:collectionIds)")

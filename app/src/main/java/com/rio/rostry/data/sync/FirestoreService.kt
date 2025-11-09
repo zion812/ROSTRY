@@ -23,7 +23,9 @@ import com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity
 import com.rio.rostry.data.database.entity.DailyLogEntity
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.UserEntity
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -82,6 +84,13 @@ interface SyncRemote {
 class FirestoreService @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : SyncRemote {
+
+    companion object {
+        // Timeout constants for different operation types
+        private const val READ_TIMEOUT_MS = 15_000L // 15 seconds for reads
+        private const val WRITE_TIMEOUT_MS = 30_000L // 30 seconds for writes
+        private const val BATCH_TIMEOUT_MS = 60_000L // 60 seconds for batch operations
+    }
     private val products = firestore.collection("products")
     private val orders = firestore.collection("orders")
     private val transfers = firestore.collection("transfers")
@@ -92,50 +101,87 @@ class FirestoreService @Inject constructor(
     private val tasks = firestore.collectionGroup("tasks")
     private val users = firestore.collection("users")
 
-    override suspend fun fetchUpdatedProducts(since: Long, limit: Int): List<ProductEntity> =
-        products.whereGreaterThan("updatedAt", since)
-            .orderBy("updatedAt", Query.Direction.ASCENDING)
-            .limit(limit.toLong())
-            .get().await()
-            .documents.mapNotNull { it.toObject(ProductEntity::class.java) }
+    override suspend fun fetchUpdatedProducts(since: Long, limit: Int): List<ProductEntity> = try {
+        withTimeout(READ_TIMEOUT_MS) {
+            products.whereGreaterThan("updatedAt", since)
+                .orderBy("updatedAt", Query.Direction.ASCENDING)
+                .limit(limit.toLong())
+                .get().await()
+                .documents.mapNotNull { it.toObject(ProductEntity::class.java) }
+        }
+    } catch (e: TimeoutCancellationException) {
+        Timber.e(e, "Timeout fetching products since=$since")
+        emptyList()
+    }
 
-    override suspend fun fetchUpdatedOrders(since: Long, limit: Int): List<OrderEntity> =
-        orders.whereGreaterThan("updatedAt", since)
-            .orderBy("updatedAt", Query.Direction.ASCENDING)
-            .limit(limit.toLong())
-            .get().await()
-            .documents.mapNotNull { it.toObject(OrderEntity::class.java) }
+    override suspend fun fetchUpdatedOrders(since: Long, limit: Int): List<OrderEntity> = try {
+        withTimeout(READ_TIMEOUT_MS) {
+            orders.whereGreaterThan("updatedAt", since)
+                .orderBy("updatedAt", Query.Direction.ASCENDING)
+                .limit(limit.toLong())
+                .get().await()
+                .documents.mapNotNull { it.toObject(OrderEntity::class.java) }
+        }
+    } catch (e: TimeoutCancellationException) {
+        Timber.e(e, "Timeout fetching orders since=$since")
+        emptyList()
+    }
 
-    override suspend fun fetchUpdatedTransfers(since: Long, limit: Int): List<TransferEntity> =
-        transfers.whereGreaterThan("updatedAt", since)
-            .orderBy("updatedAt", Query.Direction.ASCENDING)
-            .limit(limit.toLong())
-            .get().await()
-            .documents.mapNotNull { it.toObject(TransferEntity::class.java) }
+    override suspend fun fetchUpdatedTransfers(since: Long, limit: Int): List<TransferEntity> = try {
+        withTimeout(READ_TIMEOUT_MS) {
+            transfers.whereGreaterThan("updatedAt", since)
+                .orderBy("updatedAt", Query.Direction.ASCENDING)
+                .limit(limit.toLong())
+                .get().await()
+                .documents.mapNotNull { it.toObject(TransferEntity::class.java) }
+        }
+    } catch (e: TimeoutCancellationException) {
+        Timber.e(e, "Timeout fetching transfers since=$since")
+        emptyList()
+    }
 
-    override suspend fun fetchUpdatedTrackings(since: Long, limit: Int): List<ProductTrackingEntity> =
-        trackings.whereGreaterThan("updatedAt", since)
-            .orderBy("updatedAt", Query.Direction.ASCENDING)
-            .limit(limit.toLong())
-            .get().await()
-            .documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+    override suspend fun fetchUpdatedTrackings(since: Long, limit: Int): List<ProductTrackingEntity> = try {
+        withTimeout(READ_TIMEOUT_MS) {
+            trackings.whereGreaterThan("updatedAt", since)
+                .orderBy("updatedAt", Query.Direction.ASCENDING)
+                .limit(limit.toLong())
+                .get().await()
+                .documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+        }
+    } catch (e: TimeoutCancellationException) {
+        Timber.e(e, "Timeout fetching trackings since=$since")
+        emptyList()
+    }
 
-    override suspend fun fetchUpdatedChats(since: Long, limit: Int): List<ChatMessageEntity> =
-        chats.whereGreaterThan("updatedAt", since)
-            .orderBy("updatedAt", Query.Direction.ASCENDING)
-            .limit(limit.toLong())
-            .get().await()
-            .documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
+    override suspend fun fetchUpdatedChats(since: Long, limit: Int): List<ChatMessageEntity> = try {
+        withTimeout(READ_TIMEOUT_MS) {
+            chats.whereGreaterThan("updatedAt", since)
+                .orderBy("updatedAt", Query.Direction.ASCENDING)
+                .limit(limit.toLong())
+                .get().await()
+                .documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
+        }
+    } catch (e: TimeoutCancellationException) {
+        Timber.e(e, "Timeout fetching chats since=$since")
+        emptyList()
+    }
 
     override suspend fun pushProducts(entities: List<ProductEntity>): Int {
         if (entities.isEmpty()) return 0
-        val batch = firestore.batch()
-        entities.forEach { e ->
-            val doc = products.document(e.productId)
-            batch.set(doc, e, SetOptions.merge())
+        return try {
+            withTimeout(BATCH_TIMEOUT_MS) {
+                val batch = firestore.batch()
+                entities.forEach { e ->
+                    val doc = products.document(e.productId)
+                    batch.set(doc, e, SetOptions.merge())
+                }
+                batch.commit().await()
+                entities.size
+            }
+        } catch (e: TimeoutCancellationException) {
+            Timber.e(e, "Timeout pushing ${entities.size} products")
+            0
         }
-        batch.commit().await()
-        return entities.size
     }
 
     // ==============================

@@ -140,4 +140,7 @@ interface ProductDao {
 
     @Query("SELECT p.* FROM products p LEFT JOIN users u ON p.sellerId = u.userId WHERE u.userId IS NULL AND p.isDeleted = 0")
     suspend fun getProductsWithMissingSellers(): List<ProductEntity>
+
+    @Query("SELECT * FROM products WHERE sellerId = :farmerId AND isBatch = 1 AND status = 'ACTIVE' AND isDeleted = 0 AND birthDate IS NOT NULL AND birthDate <= :minBirthDate")
+    suspend fun getBatchesReadyToSplit(farmerId: String, minBirthDate: Long): List<ProductEntity>
 }

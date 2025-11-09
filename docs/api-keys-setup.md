@@ -99,11 +99,27 @@ MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 **How it works**:
 
-1. **Gradle** reads key from `local.properties`:
+1. **Gradle** reads key from `local.properties` using providers API:
    ```kotlin
    // In app/build.gradle.kts
-   buildConfigField("String", "MAPS_API_KEY", 
-       "\"${project.findProperty("MAPS_API_KEY") ?: "your_api_key_here"}\"")
+   val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
+
+   buildTypes {
+       release {
+           val releaseKey = mapsApiKeyProvider.orNull
+               ?: throw GradleException("MAPS_API_KEY is not set. Add it to local.properties for release builds.")
+           if (releaseKey == "<set me>" || releaseKey == "your_api_key_here" || releaseKey == "debug-placeholder") {
+               throw GradleException("MAPS_API_KEY is a placeholder. Configure a real key in local.properties for release builds.")
+           }
+           buildConfigField("String", "MAPS_API_KEY", "\"$releaseKey\"")
+           manifestPlaceholders["MAPS_API_KEY"] = releaseKey
+       }
+       debug {
+           val debugKey = mapsApiKeyProvider.orElse("debug-placeholder").get()
+           buildConfigField("String", "MAPS_API_KEY", "\"$debugKey\"")
+           manifestPlaceholders["MAPS_API_KEY"] = debugKey
+       }
+   }
    ```
 
 2. **BuildConfig** makes it available in code:

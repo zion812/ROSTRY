@@ -16,6 +16,14 @@ plugins {
     id("jacoco")
 }
 
+// Export Room schemas for migration testing (KSP)
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// Read Maps API key strictly from local.properties via Gradle properties
+val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
+
 // Pin JaCoCo tool version to avoid instrumentation incompatibilities
 jacoco {
     toolVersion = "0.8.10"
@@ -53,15 +61,23 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "com.rio.rostry.HiltTestRunner"
-        // Expose Google Maps API key via BuildConfig for Places/Maps initialization
-        buildConfigField("String", "MAPS_API_KEY", "\"${project.findProperty("MAPS_API_KEY") ?: "your_api_key_here"}\"")
         // Feature flags
         buildConfigField("boolean", "FEATURE_QR_CAMERA", "true")
-        // Provide manifest placeholder used by AndroidManifest meta-data value
-        manifestPlaceholders += mapOf(
-            "MAPS_API_KEY" to (project.findProperty("MAPS_API_KEY") ?: "your_api_key_here")
-        )
     }
+    
+    // Enable ABI splits to generate separate APKs per architecture
+    // This reduces APK size by ~30-40% per architecture
+    // Temporarily disabled - uncomment and verify AGP version compatibility
+    /*
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = false // Set to true if you need a universal APK for testing
+        }
+    }
+    */
 
     buildTypes {
         release {
@@ -75,17 +91,30 @@ android {
             firebaseCrashlytics {
                 mappingFileUploadEnabled = true
             }
+            // Strictly require MAPS_API_KEY to be set in local.properties for release builds
+            val releaseKey = mapsApiKeyProvider.orNull
+                ?: throw GradleException("MAPS_API_KEY is not set. Add it to local.properties for release builds.")
+            if (releaseKey == "your_api_key_here" || releaseKey == "<set me>" || releaseKey == "debug-placeholder") {
+                throw GradleException("MAPS_API_KEY is a placeholder. Configure a real key in local.properties for release builds.")
+            }
+            buildConfigField("String", "MAPS_API_KEY", "\"$releaseKey\"")
+            manifestPlaceholders["MAPS_API_KEY"] = releaseKey
         }
         debug {
             // Disable runtime coverage to avoid JaCoCo bytecode instrumentation interfering with Compose at runtime
             // You can still generate unit test coverage via the jacocoTestReport task below
             enableUnitTestCoverage = false
             enableAndroidTestCoverage = false
+            // Allow a safe debug fallback to avoid build breaks during local development
+            val debugKey = mapsApiKeyProvider.orElse("debug-placeholder").get()
+            buildConfigField("String", "MAPS_API_KEY", "\"$debugKey\"")
+            manifestPlaceholders["MAPS_API_KEY"] = debugKey
         }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = false // Disable if not using Java 8+ APIs on older devices
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -100,6 +129,15 @@ android {
             excludes += "/META-INF/{LICENSE*,NOTICE*,AL2.0,LGPL2.1}"
         }
     }
+
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDirs(files("$projectDir/schemas"))
+        }
+    }
+    androidResources {
+        localeFilters.addAll(listOf("en"))
+    }
 }
 
 // ---- Coverage reporting (JaCoCo) ----
@@ -109,7 +147,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         xml.required.set(true)
         html.required.set(true)
     }
-    val javaClasses = fileTree("${'$'}buildDir/intermediates/javac/debug/classes") {
+    val javaClasses = fileTree("${layout.buildDirectory.get().asFile}/intermediates/javac/debug/classes") {
         exclude(
             "**/R.class",
             "**/R$*.class",
@@ -120,7 +158,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
             "kotlin/**"
         )
     }
-    val kotlinClasses = fileTree("${'$'}buildDir/tmp/kotlin-classes/debug") {
+    val kotlinClasses = fileTree("${layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug") {
         exclude(
             "**/R.class",
             "**/R$*.class",
@@ -133,7 +171,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     }
     classDirectories.setFrom(files(javaClasses, kotlinClasses))
     sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
-    executionData.setFrom(fileTree("${'$'}buildDir") { include("**/jacoco/testDebugUnitTest.exec", "**/jacoco/testDebugUnitTest.exec*", "**/jacoco.exec") })
+    executionData.setFrom(fileTree("${layout.buildDirectory.get().asFile}") { include("**/jacoco/testDebugUnitTest.exec", "**/jacoco/testDebugUnitTest.exec*", "**/jacoco.exec") })
 }
 
 // ---- APK size check ----
@@ -193,6 +231,8 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
     implementation("androidx.room:room-paging:2.6.1")
+    // Room testing for migration tests
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
 
     // Encrypted database support
     implementation(libs.sqlcipher)

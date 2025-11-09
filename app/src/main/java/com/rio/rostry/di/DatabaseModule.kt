@@ -55,6 +55,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
+import com.rio.rostry.BuildConfig
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -67,7 +68,7 @@ object DatabaseModule {
         val passphrase: ByteArray = SQLiteDatabase.getBytes("rostry-db-passphrase".toCharArray())
         val factory = SupportFactory(passphrase)
 
-        return Room.databaseBuilder(
+        val builder = Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
@@ -108,10 +109,18 @@ object DatabaseModule {
             AppDatabase.MIGRATION_33_34,
             AppDatabase.MIGRATION_34_35,
             AppDatabase.MIGRATION_35_36,
-            AppDatabase.MIGRATION_36_37
+            AppDatabase.MIGRATION_36_37,
+            AppDatabase.MIGRATION_37_38,
+            AppDatabase.MIGRATION_38_39,
+            AppDatabase.MIGRATION_39_40
         )
-        .fallbackToDestructiveMigration()
-        .build()
+
+        // Optional: allow destructive migrations only for debug builds
+        if (BuildConfig.DEBUG) {
+            builder.fallbackToDestructiveMigration()
+        }
+
+        return builder.build()
     }
 
     @Provides

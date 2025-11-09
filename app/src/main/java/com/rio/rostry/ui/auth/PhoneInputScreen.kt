@@ -25,7 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.utils.isValidIndianPhone
+import com.rio.rostry.utils.isValidE164
 
 @Composable
 fun PhoneInputScreen(
@@ -48,7 +48,7 @@ fun PhoneInputScreen(
             value = ui.phoneInput,
             onValueChange = { viewModel.onPhoneChanged(it) },
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Enter phone number" },
-            label = { Text("Phone (+91XXXXXXXXXX)") },
+            label = { Text("Phone (+countrycode number)") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
@@ -63,7 +63,7 @@ fun PhoneInputScreen(
                 activity?.let { viewModel.startVerification(it) }
             },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp).semantics { contentDescription = "Send OTP" },
-            enabled = ui.e164?.let { isValidIndianPhone(it) } == true && !ui.isLoading && activity != null
+            enabled = ui.e164?.let { isValidE164(it) } == true && !ui.isLoading && activity != null
         ) {
             Text("Send OTP")
         }

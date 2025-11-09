@@ -7,6 +7,7 @@ import com.rio.rostry.data.database.entity.OutgoingMessageEntity
 import com.rio.rostry.data.repository.social.MessagingRepository
 import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,9 @@ class ThreadViewModel @Inject constructor(
     private val currentUserProvider: CurrentUserProvider,
 ) : ViewModel() {
 
+    // Track bind job to prevent memory leaks from multiple collectors
+    private var bindJob: Job? = null
+
     private val _messages = MutableStateFlow<List<MessagingRepository.MessageDTO>>(emptyList())
     val messages: StateFlow<List<MessagingRepository.MessageDTO>> = _messages.asStateFlow()
 
@@ -29,20 +33,31 @@ class ThreadViewModel @Inject constructor(
     val threadMetadata: StateFlow<MessagingRepository.ThreadMetadata?> = _threadMetadata.asStateFlow()
 
     fun bind(threadId: String) {
-        viewModelScope.launch {
-            messagingRepository.streamThread(threadId).collect { list ->
-                _messages.value = list
+        // Cancel previous bind job to prevent memory leak
+        bindJob?.cancel()
+        
+        // Combine all bind operations into a single job
+        bindJob = viewModelScope.launch {
+            launch {
+                messagingRepository.streamThread(threadId).collect { list ->
+                    _messages.value = list
+                }
+            }
+            launch {
+                messagingRepository.streamThreadMetadata(threadId).collect { metadata ->
+                    _threadMetadata.value = metadata
+                }
+            }
+            launch {
+                val uid = currentUserProvider.userIdOrNull() ?: return@launch
+                messagingRepository.markThreadSeen(threadId, uid)
             }
         }
-        viewModelScope.launch {
-            messagingRepository.streamThreadMetadata(threadId).collect { metadata ->
-                _threadMetadata.value = metadata
-            }
-        }
-        viewModelScope.launch {
-            val uid = currentUserProvider.userIdOrNull() ?: return@launch
-            messagingRepository.markThreadSeen(threadId, uid)
-        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        bindJob?.cancel()
     }
 
     fun updateThreadTitle(threadId: String, title: String) {

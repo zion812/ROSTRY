@@ -11,7 +11,8 @@ import com.rio.rostry.session.SessionManager
 import com.rio.rostry.ui.auth.AuthViewModel
 import com.rio.rostry.ui.auth.AuthViewModel.NavAction
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.normalizeToE164India
+import com.rio.rostry.utils.normalizeToE164
+import com.rio.rostry.utils.formatToE164
 import com.rio.rostry.utils.network.FeatureToggles
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,47 +68,47 @@ class AuthFlowIntegrationTest {
         )
     }
 
-    // Unit tests for normalizeToE164India
+    // Unit tests for E.164 normalization/formatting
 
     @Test
-    fun `normalizeToE164India with 10 digits returns +91 prefixed`() {
-        val result = normalizeToE164India("9876543210")
+    fun `formatToE164 with +91 and 10 digits formats correctly`() {
+        val result = formatToE164("+91", "9876543210")
         assertEquals("+919876543210", result)
     }
 
     @Test
-    fun `normalizeToE164India with +91 prefixed valid returns same`() {
-        val result = normalizeToE164India("+919876543210")
+    fun `normalizeToE164 with + prefixed valid returns same`() {
+        val result = normalizeToE164("+919876543210")
         assertEquals("+919876543210", result)
     }
 
     @Test
-    fun `normalizeToE164India with 91 prefixed 12 digits returns + prefixed`() {
-        val result = normalizeToE164India("919876543210")
+    fun `formatToE164 with country code 91 and national digits builds E164`() {
+        val result = formatToE164("91", "9876543210")
         assertEquals("+919876543210", result)
     }
 
     @Test
-    fun `normalizeToE164India invalid length returns null`() {
-        val result = normalizeToE164India("123")
+    fun `normalizeToE164 invalid length returns null`() {
+        val result = normalizeToE164("123")
         assertNull(result)
     }
 
     @Test
-    fun `normalizeToE164India with letters returns null`() {
-        val result = normalizeToE164India("abc1234567")
+    fun `normalizeToE164 with letters returns null`() {
+        val result = normalizeToE164("abc1234567")
         assertNull(result)
     }
 
     @Test
-    fun `normalizeToE164India with spaces and dashes normalizes correctly`() {
-        val result = normalizeToE164India("987-654 3210")
+    fun `formatToE164 removes spaces and dashes in national number`() {
+        val result = formatToE164("+91", "987-654 3210")
         assertEquals("+919876543210", result)
     }
 
     @Test
-    fun `normalizeToE164India with invalid prefix returns null`() {
-        val result = normalizeToE164India("+929876543210")
+    fun `normalizeToE164 with invalid country code returns null`() {
+        val result = normalizeToE164("+0123456789")
         assertNull(result)
     }
 

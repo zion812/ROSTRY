@@ -8,7 +8,8 @@
 # Google Maps Platform API Key
 # Get your key from: https://console.cloud.google.com/google/maps-apis/credentials
 # This key is used for Google Maps SDK and Places API
-MAPS_API_KEY=AIzaSyBMXAkl6h9akSxLe1m-P_dztm4u_ZrYtlE
+# IMPORTANT: Keep real keys ONLY in local.properties (never in gradle.properties)
+MAPS_API_KEY=<set me>
 
 # Optional: Firebase Project ID (for multi-project setups)
 # FIREBASE_PROJECT_ID=rostry-72

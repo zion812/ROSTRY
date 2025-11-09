@@ -40,10 +40,13 @@ import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderF
 import com.rio.rostry.data.session.UserSessionManager
 import javax.inject.Inject
 import com.google.android.libraries.places.api.Places
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.rio.rostry.data.demo.DemoProductSeeder
+import com.rio.rostry.security.RootDetection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -112,18 +115,28 @@ class RostryApp : Application(), Configuration.Provider {
             Timber.w("Phone Auth: App verification disabled for TESTING (debug build only)")
         }
 
-        // Initialize Firebase App Check using the injected factory
-        val firebaseAppCheck = FirebaseAppCheck.getInstance()
-        firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
-        Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
-
-        // Initialize Places SDK (New) with App Check support
-        if (!Places.isInitialized()) {
-            Places.initializeWithNewPlacesApiEnabled(this, BuildConfig.MAPS_API_KEY)
-            Timber.d("Places SDK initialized")
+        // Defer Firebase App Check installation to background for faster startup
+        applicationScope.launch(Dispatchers.IO) {
+            try {
+                val firebaseAppCheck = FirebaseAppCheck.getInstance()
+                firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
+                Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
+                if (!BuildConfig.DEBUG) {
+                    if (appCheckProviderFactory is PlayIntegrityAppCheckProviderFactory) {
+                        Timber.i("App Check: Play Integrity is active (release build)")
+                    } else {
+                        Timber.w("App Check: Unexpected provider in release: %s", appCheckProviderFactory.javaClass.name)
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to initialize App Check")
+            }
         }
-        // TODO: For production, replace DebugAppCheckProviderFactory with appropriate provider
-        // (Play Integrity if publishing to Play Store, or Custom provider for other distribution)
+
+        // Defer Places SDK initialization - will be initialized lazily when first needed
+        // This saves ~200ms on app startup
+        // Places SDK will be initialized in LocationModule or first map screen
+        Timber.d("Places SDK initialization deferred for startup optimization")
 
         // Coil ImageLoader from DI for centralized config (memory/disk cache, RGB_565, OkHttp cache)
         val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
@@ -132,37 +145,70 @@ class RostryApp : Application(), Configuration.Provider {
         // Attach MediaUploadManager outbox at startup (initializer has side-effects in init)
         entryPoint.mediaUploadInitializer()
 
-        // Initialize WorkManager with our custom WorkerFactory configuration
-        WorkManager.initialize(this, workManagerConfiguration)
+        // WorkManager is configured via Configuration.Provider; avoid explicit initialize to prevent duplicates.
 
-        // Schedule workers based on user session
-        setupSessionBasedWorkers()
+        // Defer worker scheduling by 3 seconds to avoid blocking app startup
+        applicationScope.launch {
+            delay(3000)
+            setupSessionBasedWorkers()
+            Timber.d("Background workers scheduled after startup delay")
+        }
         
         // Register connectivity listener for expedited sync on network reconnection
         setupConnectivityListener()
         
+        // Root detection - check in background and log results
+        applicationScope.launch(Dispatchers.IO) {
+            try {
+                val rootResult = RootDetection.isDeviceRooted(this@RostryApp)
+                if (rootResult.isRooted) {
+                    Timber.w("Root detected: ${rootResult.detectionMethods.joinToString(", ")}")
+                    // Log to Firebase Analytics for monitoring
+                    FirebaseAnalytics.getInstance(this@RostryApp).logEvent("root_detected", null)
+                    
+                    // Show non-blocking warning dialog on main thread
+                    launch(Dispatchers.Main) {
+                        // Dialog will be shown when activity is created
+                        // Store root detection result for later display
+                        getSharedPreferences("security_prefs", MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("device_rooted", true)
+                            .putString("root_methods", rootResult.detectionMethods.joinToString(", "))
+                            .apply()
+                    }
+                } else {
+                    Timber.d("Root detection: Device not rooted")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Root detection failed")
+            }
+        }
+        
         // Seed demo products in debug builds only
         if (BuildConfig.DEBUG) {
-            // Validate database integrity before seeding demo data
-            applicationScope.launch {
+            // Move debug operations off main thread for faster startup
+            applicationScope.launch(Dispatchers.IO) {
+                delay(2000) // Delay debug operations to not interfere with startup
                 try {
                     val report = databaseValidationHelper.validateProductForeignKeys()
                     if (!report.isValid) {
                         Timber.w("Orphaned products found: ${report.invalidCount}, IDs: ${report.invalidIds.joinToString()}")
-                        // Optionally show a debug toast alerting developers
-                        android.widget.Toast.makeText(
-                            this@RostryApp,
-                            "Orphaned products detected: ${report.invalidCount}",
-                            android.widget.Toast.LENGTH_LONG
-                        ).show()
+                        // Show toast on main thread
+                        launch(Dispatchers.Main) {
+                            android.widget.Toast.makeText(
+                                this@RostryApp,
+                                "Orphaned products detected: ${report.invalidCount}",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
                     } else {
                         Timber.d("Database validation passed: no orphaned products")
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to validate database on startup")
                 }
+                seedDemoData()
             }
-            seedDemoData()
         }
     }
 

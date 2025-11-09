@@ -14,7 +14,7 @@ import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.normalizeToE164India
+import com.rio.rostry.utils.normalizeToE164
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
 import com.rio.rostry.utils.network.FeatureToggles
@@ -117,7 +117,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun onPhoneChanged(input: String) {
-        val e164 = normalizeToE164India(input)
+        val e164 = normalizeToE164(input)
         _uiState.value = _uiState.value.copy(phoneInput = input, e164 = e164)
         savedStateHandle["phoneE164"] = e164
     }
@@ -136,7 +136,7 @@ class AuthViewModel @Inject constructor(
         }
         val normalized = _uiState.value.e164
         if (normalized == null) {
-            _uiState.value = _uiState.value.copy(error = "Enter a valid Indian number")
+            _uiState.value = _uiState.value.copy(error = "Enter a valid phone number (E.164, e.g. +1234567890)")
             return
         }
         val maskedPhone = normalized.replaceRange(0, normalized.length - 4, "*".repeat(normalized.length - 4))

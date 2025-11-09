@@ -1,0 +1,140 @@
+package com.rio.rostry.ui.accessibility
+
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import com.rio.rostry.ui.general.market.GeneralMarketRoute
+import com.rio.rostry.ui.transfer.TransferCreateScreen
+import com.rio.rostry.ui.auth.PhoneInputScreen
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.performClick
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.Assert.assertTrue
+import androidx.test.espresso.accessibility.AccessibilityChecks
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
+import kotlin.math.roundToInt
+
+/**
+ * Espresso accessibility test scaffolding for key user flows.
+ * Enables AccessibilityChecks and asserts basic semantics on key screens.
+ */
+@RunWith(AndroidJUnit4::class)
+class AccessibilityTest {
+    @get:org.junit.Rule
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Before
+    fun enableA11y() {
+        AccessibilityChecks.enable()
+    }
+
+    @Test
+    fun transfer_create_has_labels_and_roles() {
+        composeRule.setContent { TransferCreateScreen(onBack = {}) }
+        composeRule.waitForIdle()
+        // Buttons/interactive elements should be present and clickable
+        composeRule.onNodeWithText("Create Transfer").assertIsDisplayed()
+        // Transfer Type selector area should be reachable
+        composeRule.onNodeWithText("Transfer Type").assertIsDisplayed()
+        // Proceed/Cancel buttons should have click actions
+        composeRule.onNodeWithText("Cancel").assertHasClickAction()
+        composeRule.onNodeWithText("Review").assertHasClickAction()
+    }
+
+    @Test
+    fun market_top_bar_has_roles_and_descriptions() {
+        composeRule.setContent { GeneralMarketRoute(onOpenProductDetails = {}, onOpenTraceability = {}) }
+        composeRule.waitForIdle()
+        // Search field is displayed
+        composeRule.onNodeWithTag("market_search_field").assertIsDisplayed()
+        // Filter button is button role and has click action
+        composeRule.onNodeWithTag("market_filter_button").assertIsDisplayed().assertHasClickAction()
+    }
+
+    @Test
+    fun wishlist_icons_have_accessible_descriptions() {
+        composeRule.setContent { GeneralMarketRoute(onOpenProductDetails = {}, onOpenTraceability = {}) }
+        composeRule.waitForIdle()
+        // Either Add to wishlist or Remove from wishlist should be present per item
+        val addMatcher = androidx.compose.ui.test.hasContentDescription("Add to wishlist")
+        val removeMatcher = androidx.compose.ui.test.hasContentDescription("Remove from wishlist")
+        val hasAny = try { composeRule.onNode(addMatcher).assertIsDisplayed(); true } catch (_: Throwable) {
+            try { composeRule.onNode(removeMatcher).assertIsDisplayed(); true } catch (_: Throwable) { false }
+        }
+        assertTrue(hasAny)
+    }
+
+    @Test
+    fun touch_targets_are_at_least_48dp() {
+        // Market filter button
+        composeRule.setContent { GeneralMarketRoute(onOpenProductDetails = {}, onOpenTraceability = {}) }
+        composeRule.waitForIdle()
+        val node = composeRule.onNodeWithTag("market_filter_button").fetchSemanticsNode()
+        val bounds = node.boundsInRoot
+        val density = composeRule.density
+        val widthDp = with(density) { (bounds.width).toDp().value }
+        val heightDp = with(density) { (bounds.height).toDp().value }
+        assertTrue("Filter button width < 48dp: ${'$'}widthDp", widthDp >= 48f)
+        assertTrue("Filter button height < 48dp: ${'$'}heightDp", heightDp >= 48f)
+
+        // Cart primary button
+        composeRule.setContent { com.rio.rostry.ui.general.cart.GeneralCartRoute(onCheckoutComplete = {}, onNavigateToAddressManagement = {}) }
+        composeRule.waitForIdle()
+        // Remove-from-cart icon has content description
+        try { composeRule.onNodeWithContentDescription("Remove from cart").assertIsDisplayed() } catch (_: Throwable) {}
+        val placeNode = composeRule.onNodeWithText("Place order").fetchSemanticsNode()
+        val pbounds = placeNode.boundsInRoot
+        val pwidthDp = with(density) { (pbounds.width).toDp().value }
+        val pheightDp = with(density) { (pbounds.height).toDp().value }
+        assertTrue("Place order width < 48dp: ${'$'}pwidthDp", pwidthDp >= 48f)
+        assertTrue("Place order height < 48dp: ${'$'}pheightDp", pheightDp >= 48f)
+    }
+
+    @Test
+    fun keyboard_focusability_proxy_for_presets() {
+        composeRule.setContent { GeneralMarketRoute(onOpenProductDetails = {}, onOpenTraceability = {}) }
+        composeRule.waitForIdle()
+        // Quick preset chips container should exist; we at least verify presence to run AccessibilityChecks on it
+        composeRule.onNodeWithTag("market_filter_button").performClick()
+        composeRule.onNodeWithTag("market_filter_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun phone_input_labels_and_send_button_state() {
+        // Activity is null in this harness; provide a non-null by using the rule's activity
+        val activity = composeRule.activity
+        composeRule.setContent { PhoneInputScreen(onNavigateToOtp = {}, activity = activity) }
+        composeRule.waitForIdle()
+        // Field labeled via contentDescription
+        composeRule.onNodeWithContentDescription("Enter phone number").assertIsDisplayed()
+        // Send OTP disabled until valid phone
+        composeRule.onNodeWithContentDescription("Send OTP").assertIsNotEnabled()
+        // Enter a valid number and assert enabled
+        composeRule.onNodeWithContentDescription("Enter phone number").performTextInput("9876543210")
+        // allow recomposition
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription("Send OTP").assertIsEnabled()
+    }
+
+    @Test
+    fun market_location_dialog_focus_path() {
+        composeRule.setContent { GeneralMarketRoute(onOpenProductDetails = {}, onOpenTraceability = {}) }
+        composeRule.waitForIdle()
+        // Open Filters then request location dialog via button semantics
+        composeRule.onNodeWithTag("market_filter_button").performClick()
+        // Quick preset chips have semantics; we instead open the dialog by clicking the filter button again to ensure UI remains stable
+        // This is a minimal focus path to ensure dialog components can be interacted when present
+        // No explicit dialog tag available; skip strict focus assertions due to missing focus APIs in this harness
+        composeRule.onNodeWithTag("market_filter_button").assertIsDisplayed()
+    }
+}

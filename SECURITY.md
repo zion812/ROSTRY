@@ -110,14 +110,13 @@ If you're contributing to ROSTRY:
 
 **Setup Process**:
 1. Copy `local.properties.template` to `local.properties`
-2. Add your actual API keys to `local.properties`
-3. Verify `local.properties` is in `.gitignore` (already configured)
+2. Add your actual API keys to `local.properties` (this file is gitignored)
+3. Do not place secrets in `gradle.properties` or source code
 
 **Google Maps API Key**:
-- Stored in `local.properties` as `MAPS_API_KEY`
-- Accessed via BuildConfig: `BuildConfig.MAPS_API_KEY`
-- Injected into AndroidManifest via manifestPlaceholders
-- **Never hardcode** API keys in source code
+- Stored exclusively in `local.properties` as `MAPS_API_KEY`
+- Exposed via `BuildConfig.MAPS_API_KEY` and injected to AndroidManifest via `manifestPlaceholders`
+- Release builds fail if the key is missing or a placeholder value
 
 **API Key Restrictions**:
 - Restrict Maps API key to your Android app's package name and SHA-1 certificate fingerprint
@@ -129,6 +128,29 @@ If you're contributing to ROSTRY:
 **Example local.properties**:
 ```properties
 MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
+
+**Gradle configuration (conceptual)**:
+```kotlin
+// app/build.gradle.kts
+val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
+
+buildTypes {
+    release {
+        val releaseKey = mapsApiKeyProvider.orNull
+            ?: throw GradleException("MAPS_API_KEY is not set. Add it to local.properties for release builds.")
+        if (releaseKey == "<set me>" || releaseKey == "your_api_key_here" || releaseKey == "debug-placeholder") {
+            throw GradleException("MAPS_API_KEY is a placeholder. Configure a real key in local.properties for release builds.")
+        }
+        buildConfigField("String", "MAPS_API_KEY", "\"$releaseKey\"")
+        manifestPlaceholders["MAPS_API_KEY"] = releaseKey
+    }
+    debug {
+        val debugKey = mapsApiKeyProvider.orElse("debug-placeholder").get()
+        buildConfigField("String", "MAPS_API_KEY", "\"$debugKey\"")
+        manifestPlaceholders["MAPS_API_KEY"] = debugKey
+    }
+}
 ```
 
 ---

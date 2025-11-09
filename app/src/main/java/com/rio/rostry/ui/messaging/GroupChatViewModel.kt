@@ -8,6 +8,7 @@ import com.rio.rostry.data.database.entity.OutboxEntity
 import com.rio.rostry.data.repository.social.MessagingRepository
 import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +29,9 @@ class GroupChatViewModel @Inject constructor(
     private val connectivityManager: AppConnectivityManager,
     private val syncManager: SyncManager,
 ) : ViewModel() {
+
+    // Track bind job to prevent memory leaks from multiple collectors
+    private var bindJob: Job? = null
 
     private val _messages = MutableStateFlow<List<MessagingRepository.MessageDTO>>(emptyList())
     val messages: StateFlow<List<MessagingRepository.MessageDTO>> = _messages.asStateFlow()
@@ -84,11 +88,20 @@ class GroupChatViewModel @Inject constructor(
     }
 
     fun bind(groupId: String) {
-        viewModelScope.launch {
+        // Cancel previous bind job to prevent memory leak
+        bindJob?.cancel()
+        
+        // Create new bind job
+        bindJob = viewModelScope.launch {
             messagingRepository.streamGroup(groupId).collect { list ->
                 _messages.value = list
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        bindJob?.cancel()
     }
 
     fun sendQueuedGroup(groupId: String, fromUserId: String, text: String) {

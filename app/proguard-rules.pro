@@ -12,13 +12,11 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep line numbers for production crash reports
+-keepattributes SourceFile,LineNumberTable
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Obfuscate source file names in stack traces
+-renamesourcefileattribute SourceFile
 
 # Kotlin Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
@@ -63,20 +61,23 @@
 -keepclassmembers @dagger.hilt.codegen.OriginatingElement class * { *; }
 -keepclassmembers @dagger.hilt.InstallIn class * { *; }
 
-# Room
--keep class androidx.room.** { *; }
+# Room - Optimized rules (keep only what's needed)
+-keep class androidx.room.RoomDatabase { *; }
+-keep class androidx.room.Room { *; }
 -keepclassmembers class * extends androidx.room.RoomDatabase {
-    public static *** createOpenHelper(...);
-    public static *** createOpenHelper(...);
     public static *** createOpenHelper(...);
 }
 -keepclassmembers public abstract class * extends androidx.room.RoomDatabase {
     public abstract *** *(...);
 }
+# Keep entity and DAO classes but allow member shrinking if unused
+-keepnames class * extends androidx.room.Entity
 -keepclassmembers class * extends androidx.room.Entity { *; }
+-keepnames class * implements androidx.room.Dao  
 -keepclassmembers class * implements androidx.room.Dao { *; }
--keepclassmembers class * extends androidx.room.TypeConverter { *; }
--keepclassmembers class * extends androidx.room.TypeConverters { *; }
+-keepclassmembers class * {
+    @androidx.room.TypeConverter <methods>;
+}
 
 # Gson (used by Room TypeConverter and potentially elsewhere)
 -keepattributes Signature
@@ -93,9 +94,13 @@
 -keep interface com.google.gson.JsonDeserializer
 -keep class * implements com.google.gson.JsonDeserializer
 
-# Firebase / Google Play Services
--keep class com.google.android.gms.common.** { *; }
--keep class com.google.firebase.** { *; }
+# Firebase / Google Play Services - More specific keeps
+-keep class com.google.android.gms.common.api.GoogleApiClient { *; }
+-keep class com.google.android.gms.common.ConnectionResult { *; }
+-keepnames class com.google.firebase.** { *; }
+-keep class com.google.firebase.auth.** { *; }
+-keep class com.google.firebase.firestore.** { *; }
+-keep class com.google.firebase.storage.** { *; }
 -keepnames class com.google.android.gms.measurement.AppMeasurementReceiver
 -keepnames class com.google.android.gms.measurement.AppMeasurementService
 -keepnames class com.google.android.gms.measurement.AppMeasurementJobService
