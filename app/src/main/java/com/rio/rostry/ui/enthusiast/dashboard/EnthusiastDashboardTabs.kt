@@ -76,7 +76,7 @@ fun EnthusiastDashboardTabs(
 private fun OverviewTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit, onOpenEggCollection: () -> Unit) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -112,7 +112,7 @@ private fun FamilyTreeTab(onOpenTraceability: (String) -> Unit, navController: N
     }
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -168,7 +168,7 @@ private fun FamilyTreeTab(onOpenTraceability: (String) -> Unit, navController: N
 private fun BreedingTab(navController: NavHostController) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -191,7 +191,7 @@ private fun AnalyticsTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit) {
     var end by rememberSaveable { mutableStateOf("") }
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -258,7 +258,7 @@ private fun AnalyticsTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit) {
 private fun DocumentsTab() {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)

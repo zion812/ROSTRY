@@ -36,8 +36,8 @@ fun EnthusiastDashboardScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { inner ->
-    Column(Modifier.fillMaxSize().padding(inner).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Enthusiast Dashboard", style = MaterialTheme.typography.titleMedium)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -126,6 +126,5 @@ fun EnthusiastDashboardScreen(
                 })
             }
         }
-    }
     }
 }
