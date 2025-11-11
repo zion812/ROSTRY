@@ -1269,25 +1269,36 @@ abstract class AppDatabase : RoomDatabase() {
         // Add performance indexes for ProductDao query optimization (39 -> 40)
         val MIGRATION_39_40 = object : Migration(39, 40) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Single-column indexes for frequently queried fields
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sellerId` ON `products` (`sellerId`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_isDeleted` ON `products` (`isDeleted`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_updatedAt` ON `products` (`updatedAt`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_createdAt` ON `products` (`createdAt`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_name` ON `products` (`name`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_breed` ON `products` (`breed`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_price` ON `products` (`price`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_birthDate` ON `products` (`birthDate`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_status` ON `products` (`status`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_category` ON `products` (`category`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_stage` ON `products` (`stage`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_lifecycleStatus` ON `products` (`lifecycleStatus`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_breederEligibleAt` ON `products` (`breederEligibleAt`)")
-                
-                // Composite indexes for common query patterns
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sellerId_isDeleted` ON `products` (`sellerId`, `isDeleted`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_isDeleted_updatedAt` ON `products` (`isDeleted`, `updatedAt` DESC)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_latitude_longitude` ON `products` (`latitude`, `longitude`)")
+                try {
+                    // Drop the existing index_products_sellerId if it exists to recreate it
+                    // (it's already defined in the Entity's @Index annotation)
+                    db.execSQL("DROP INDEX IF EXISTS `index_products_sellerId`")
+                    
+                    // Single-column indexes for frequently queried fields
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sellerId` ON `products` (`sellerId`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_isDeleted` ON `products` (`isDeleted`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_updatedAt` ON `products` (`updatedAt`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_createdAt` ON `products` (`createdAt`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_name` ON `products` (`name`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_breed` ON `products` (`breed`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_price` ON `products` (`price`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_birthDate` ON `products` (`birthDate`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_status` ON `products` (`status`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_category` ON `products` (`category`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_stage` ON `products` (`stage`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_lifecycleStatus` ON `products` (`lifecycleStatus`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_breederEligibleAt` ON `products` (`breederEligibleAt`)")
+                    
+                    // Composite indexes for common query patterns
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sellerId_isDeleted` ON `products` (`sellerId`, `isDeleted`)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_isDeleted_updatedAt` ON `products` (`isDeleted`, `updatedAt` DESC)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_latitude_longitude` ON `products` (`latitude`, `longitude`)")
+                    
+                    android.util.Log.d("Migration_39_40", "Successfully added performance indexes")
+                } catch (e: Exception) {
+                    android.util.Log.e("Migration_39_40", "Error during migration", e)
+                    throw e
+                }
             }
         }
     }

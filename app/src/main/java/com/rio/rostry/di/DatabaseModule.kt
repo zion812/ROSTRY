@@ -118,7 +118,18 @@ object DatabaseModule {
         // Optional: allow destructive migrations only for debug builds
         if (BuildConfig.DEBUG) {
             builder.fallbackToDestructiveMigration()
+        } else {
+            // In production, at least handle downgrades gracefully
+            builder.fallbackToDestructiveMigrationOnDowngrade()
         }
+        
+        // Add migration callback for debugging
+        builder.addCallback(object : RoomDatabase.Callback() {
+            override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                super.onOpen(db)
+                android.util.Log.d("DatabaseModule", "Database opened. Version: ${db.version}")
+            }
+        })
 
         return builder.build()
     }
