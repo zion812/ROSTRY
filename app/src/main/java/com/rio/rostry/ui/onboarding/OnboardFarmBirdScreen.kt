@@ -160,25 +160,42 @@ fun OnboardFarmBirdScreen(
                     coreErrors["name"]?.let { Text(it) }
                     // Birth date picker
                     val showDate = remember { mutableStateOf(false) }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showDate.value = true }, modifier = Modifier.semantics { contentDescription = "Pick birth date" }) {
-                            val d = state.coreDetails.birthDate?.let { java.text.SimpleDateFormat("dd MMM yyyy").format(java.util.Date(it)) } ?: "Pick Birth Date"
-                            Text(d)
-                        }
-                        if (showDate.value) {
-                            val now = java.util.Calendar.getInstance()
+                    
+                    // Show date picker dialog when showDate is true
+                    if (showDate.value) {
+                        val now = java.util.Calendar.getInstance()
+                        LaunchedEffect(Unit) {
                             android.app.DatePickerDialog(
                                 ctx,
                                 { _, y, m, day ->
-                                    val cal = java.util.Calendar.getInstance(); cal.set(y, m, day, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+                                    val cal = java.util.Calendar.getInstance()
+                                    cal.set(y, m, day, 0, 0, 0)
+                                    cal.set(java.util.Calendar.MILLISECOND, 0)
                                     vm.updateCoreDetails { cd -> cd.copy(birthDate = cal.timeInMillis) }
                                     showDate.value = false
                                 },
-                                now.get(java.util.Calendar.YEAR), now.get(java.util.Calendar.MONTH), now.get(java.util.Calendar.DAY_OF_MONTH)
-                            ).show()
+                                now.get(java.util.Calendar.YEAR), 
+                                now.get(java.util.Calendar.MONTH), 
+                                now.get(java.util.Calendar.DAY_OF_MONTH)
+                            ).apply {
+                                setOnCancelListener { showDate.value = false }
+                                setOnDismissListener { showDate.value = false }
+                            }.show()
                         }
                     }
-                    coreErrors["birthDate"]?.let { Text(it) }
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { showDate.value = true }, 
+                            modifier = Modifier.semantics { contentDescription = "Pick birth date" }
+                        ) {
+                            val d = state.coreDetails.birthDate?.let { 
+                                java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(it)) 
+                            } ?: "Pick Birth Date"
+                            Text(d)
+                        }
+                    }
+                    coreErrors["birthDate"]?.let { Text(it, color = androidx.compose.ui.graphics.Color.Red) }
                     // Gender quick selectors
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val selectedGender = state.coreDetails.gender

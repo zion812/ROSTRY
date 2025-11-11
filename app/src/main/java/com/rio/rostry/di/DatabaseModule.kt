@@ -2,6 +2,7 @@ package com.rio.rostry.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
 import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.data.database.dao.CoinDao
 import com.rio.rostry.data.database.dao.NotificationDao
