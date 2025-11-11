@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Button
@@ -46,9 +48,16 @@ fun EnthusiastDashboardTabs(
     val tabs = listOf("Overview", "Family Tree", "Breeding", "Analytics", "Documents")
 
     Column(Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = tabIndex) {
+        ScrollableTabRow(
+            selectedTabIndex = tabIndex,
+            edgePadding = 16.dp
+        ) {
             tabs.forEachIndexed { idx, title ->
-                Tab(selected = tabIndex == idx, onClick = { tabIndex = idx }, text = { Text(title) })
+                Tab(
+                    selected = tabIndex == idx,
+                    onClick = { tabIndex = idx },
+                    text = { Text(title) }
+                )
             }
         }
         when (tabIndex) {
@@ -65,7 +74,13 @@ fun EnthusiastDashboardTabs(
 
 @Composable
 private fun OverviewTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit, onOpenEggCollection: () -> Unit) {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
             onOpenReports = onOpenReports,
             onOpenFeed = onOpenFeed,
@@ -95,7 +110,13 @@ private fun FamilyTreeTab(onOpenTraceability: (String) -> Unit, navController: N
             }
         }
     }
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Family Tree Explorer")
@@ -145,7 +166,13 @@ private fun FamilyTreeTab(onOpenTraceability: (String) -> Unit, navController: N
 
 @Composable
 private fun BreedingTab(navController: NavHostController) {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Breeding Insights")
             Text("Use the Breeding Flow to manage pairs, eggs, and incubation.")
@@ -162,7 +189,13 @@ private fun AnalyticsTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit) {
     // Date range filters (epoch ms)
     var start by rememberSaveable { mutableStateOf("") }
     var end by rememberSaveable { mutableStateOf("") }
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Analytics Filters")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -223,7 +256,13 @@ private fun AnalyticsTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit) {
 
 @Composable
 private fun DocumentsTab() {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Documents & Certificates")
             Text("Upload, manage, and export enthusiast documents.")
