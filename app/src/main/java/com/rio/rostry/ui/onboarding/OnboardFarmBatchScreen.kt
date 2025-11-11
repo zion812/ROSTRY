@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
@@ -100,7 +102,11 @@ fun OnboardFarmBatchScreen(
   
     Scaffold(topBar = { TopAppBar(title = { Text("Onboard Batch") }) }) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             val totalSteps = if (state.isTraceable == true) 6 else 5
@@ -208,19 +214,61 @@ fun OnboardFarmBatchScreen(
                     val males by vm.availableMaleParents.collectAsState()
                     val females by vm.availableFemaleParents.collectAsState()
                     LaunchedEffect(Unit) { vm.loadAvailableParents() }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { showMale.value = true }, modifier = Modifier.semantics { contentDescription = "Select male parent" }) { Text("Select Male Parent") }
-                        Button(onClick = {
-                            if (cameraPermissionGranted) { scannerGender = "male"; showScanner = true } else permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }, modifier = Modifier.semantics { contentDescription = "Scan QR for male parent" }, enabled = cameraPermissionGranted) { Text("Scan Male QR") }
-                        Button(onClick = { showFemale.value = true }, modifier = Modifier.semantics { contentDescription = "Select female parent" }) { Text("Select Female Parent") }
-                        Button(onClick = {
-                            if (cameraPermissionGranted) { scannerGender = "female"; showScanner = true } else permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }, modifier = Modifier.semantics { contentDescription = "Scan QR for female parent" }, enabled = cameraPermissionGranted) { Text("Scan Female QR") }
-                        val male = vm.state.collectAsState().value.lineage.maleParentId
-                        val female = vm.state.collectAsState().value.lineage.femaleParentId
-                        if (!male.isNullOrBlank()) OutlinedButton(onClick = { vm.updateLineage(null, vm.state.value.lineage.femaleParentId) }, modifier = Modifier.semantics { contentDescription = "Remove male parent" }) { Text("Male: ${male.take(6)}…") }
-                        if (!female.isNullOrBlank()) OutlinedButton(onClick = { vm.updateLineage(vm.state.value.lineage.maleParentId, null) }, modifier = Modifier.semantics { contentDescription = "Remove female parent" }) { Text("Female: ${female.take(6)}…") }
+                    
+                    // Male parent selection
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { showMale.value = true }, 
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Select male parent" }
+                        ) { Text("Select Male Parent") }
+                        Button(
+                            onClick = {
+                                if (cameraPermissionGranted) { 
+                                    scannerGender = "male"
+                                    showScanner = true 
+                                } else permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }, 
+                            modifier = Modifier.semantics { contentDescription = "Scan QR for male parent" }, 
+                            enabled = cameraPermissionGranted
+                        ) { Text("Scan Male QR") }
+                    }
+                    
+                    // Female parent selection
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { showFemale.value = true }, 
+                            modifier = Modifier.weight(1f).semantics { contentDescription = "Select female parent" }
+                        ) { Text("Select Female Parent") }
+                        Button(
+                            onClick = {
+                                if (cameraPermissionGranted) { 
+                                    scannerGender = "female"
+                                    showScanner = true 
+                                } else permissionLauncher.launch(Manifest.permission.CAMERA)
+                            }, 
+                            modifier = Modifier.semantics { contentDescription = "Scan QR for female parent" }, 
+                            enabled = cameraPermissionGranted
+                        ) { Text("Scan Female QR") }
+                    }
+                    
+                    // Display selected parents
+                    val male = vm.state.collectAsState().value.lineage.maleParentId
+                    val female = vm.state.collectAsState().value.lineage.femaleParentId
+                    if (!male.isNullOrBlank() || !female.isNullOrBlank()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!male.isNullOrBlank()) {
+                                OutlinedButton(
+                                    onClick = { vm.updateLineage(null, vm.state.value.lineage.femaleParentId) }, 
+                                    modifier = Modifier.semantics { contentDescription = "Remove male parent" }
+                                ) { Text("Male: ${male.take(6)}…") }
+                            }
+                            if (!female.isNullOrBlank()) {
+                                OutlinedButton(
+                                    onClick = { vm.updateLineage(vm.state.value.lineage.maleParentId, null) }, 
+                                    modifier = Modifier.semantics { contentDescription = "Remove female parent" }
+                                ) { Text("Female: ${female.take(6)}…") }
+                            }
+                        }
                     }
                     if (showMale.value) {
                         ParentSelectorDialog(
