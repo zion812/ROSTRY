@@ -115,27 +115,37 @@ class RostryApp : Application(), Configuration.Provider {
             Timber.w("Phone Auth: App verification disabled for TESTING (debug build only)")
         }
 
-        // Defer Firebase App Check installation to background for faster startup
-        applicationScope.launch(Dispatchers.IO) {
+        // App Check installation
+        if (BuildConfig.DEBUG) {
+            // IMPORTANT: Install Debug provider synchronously in debug builds so
+            // early Firebase calls (e.g., PhoneAuth) have a valid App Check token.
             try {
                 val firebaseAppCheck = FirebaseAppCheck.getInstance()
-                firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
-                Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
-                if (!BuildConfig.DEBUG) {
+                firebaseAppCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+                Timber.i("App Check (debug) provider installed synchronously")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to install App Check debug provider")
+            }
+        } else {
+            // Defer App Check setup on release to avoid startup cost
+            applicationScope.launch(Dispatchers.IO) {
+                try {
+                    val firebaseAppCheck = FirebaseAppCheck.getInstance()
+                    firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
+                    Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
                     if (appCheckProviderFactory is PlayIntegrityAppCheckProviderFactory) {
                         Timber.i("App Check: Play Integrity is active (release build)")
                     } else {
                         Timber.w("App Check: Unexpected provider in release: %s", appCheckProviderFactory.javaClass.name)
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to initialize App Check")
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to initialize App Check")
             }
         }
 
         // Defer Places SDK initialization - will be initialized lazily when first needed
         // This saves ~200ms on app startup
-        // Places SDK will be initialized in LocationModule or first map screen
         Timber.d("Places SDK initialization deferred for startup optimization")
 
         // Coil ImageLoader from DI for centralized config (memory/disk cache, RGB_565, OkHttp cache)

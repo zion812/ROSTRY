@@ -45,6 +45,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -61,12 +62,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import com.rio.rostry.data.demo.DemoUserProfile
 import com.rio.rostry.ui.auth.AuthViewModel
-import com.rio.rostry.ui.auth.OtpScreen
-import com.rio.rostry.ui.auth.PhoneInputScreen
+import com.rio.rostry.ui.auth.AuthWelcomeScreen
+import com.rio.rostry.ui.auth.PhoneAuthScreenNew
+import com.rio.rostry.ui.auth.OtpVerificationScreenNew
 import com.rio.rostry.ui.auth.PhoneVerificationScreen
-import com.rio.rostry.ui.auth.MultiProviderAuthScreen
+import com.rio.rostry.ui.splash.SplashScreen
 import com.rio.rostry.ui.product.ProductDetailsScreen
 import com.rio.rostry.ui.profile.ProfileScreen
 import com.rio.rostry.ui.screens.HomeEnthusiastScreen
@@ -147,6 +151,9 @@ fun AppNavHost(
     val state by sessionVm.uiState.collectAsState()
     val navConfig = state.navConfig
     val context = LocalContext.current
+    
+    // Splash screen state
+    var showSplash by remember { mutableStateOf(true) }
 
     // Capture incoming deep link and store while unauthenticated
     LaunchedEffect(state.isAuthenticated) {
@@ -165,29 +172,21 @@ fun AppNavHost(
         }
     }
 
+    // Show splash screen first
+    if (showSplash) {
+        SplashScreen(
+            onSplashComplete = {
+                showSplash = false
+            }
+        )
+        return
+    }
+
     when {
         state.isAuthenticated && navConfig != null -> {
-            val user = firebaseAuth.currentUser
-            val meta = user?.metadata
-            val isNew = meta?.creationTimestamp == meta?.lastSignInTimestamp
-            val isDemo = state.authMode == com.rio.rostry.session.SessionManager.AuthMode.DEMO
-            val needsPhone = !isDemo && (isNew == true) && (user?.phoneNumber == null) && featureToggles.isPhoneVerificationRequired()
-            if (needsPhone) {
-                val activity = run {
-                    var ctx = context
-                    while (ctx is android.content.ContextWrapper) {
-                        if (ctx is Activity) break
-                        ctx = ctx.baseContext
-                    }
-                    ctx as? Activity
-                }
-                PhoneVerificationScreen(
-                    activity = activity,
-                    onVerificationComplete = { sessionVm.refresh() }
-                )
-            } else {
-                RoleNavScaffold(navConfig, sessionVm, state)
-            }
+            // Phone linking is now OPTIONAL, not forced
+            // Users can add phone later from settings if they want
+            RoleNavScaffold(navConfig, sessionVm, state)
         }
         state.isAuthenticated -> {
             LaunchedEffect("await-config") { sessionVm.refresh() }
@@ -274,10 +273,7 @@ private fun AuthFlow(
     val navController = rememberNavController()
     val authVm: AuthViewModel = hiltViewModel()
     val scope = rememberCoroutineScope()
-    var username by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var showOtp by rememberSaveable { mutableStateOf(false) }
-
+    
     val context = LocalContext.current
     val activity = remember(context) {
         var ctx = context
@@ -288,6 +284,14 @@ private fun AuthFlow(
         ctx as? Activity
     }
 
+    // FirebaseUI launcher for Google/Email
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = com.firebase.ui.auth.FirebaseAuthUIActivityResultContract()
+    ) { res ->
+        authVm.handleFirebaseUIResult(res.idpResponse, res.resultCode)
+    }
+
+    // Observe auth navigation events
     LaunchedEffect(Unit) {
         authVm.navigation.collectLatest { event ->
             when (event) {
@@ -298,96 +302,220 @@ private fun AuthFlow(
         }
     }
 
-    if (showOtp) {
-        // Render the phone auth flow full-screen to ensure visibility
-        NavHost(
-            navController = navController,
-            startDestination = Routes.AUTH_PHONE,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
+    // Main navigation host - Instagram style with slide animations
+    NavHost(
+        navController = navController,
+        startDestination = "auth/welcome",
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Welcome screen - unified entry point (fade only)
+        composable(
+            route = "auth/welcome",
+            enterTransition = { fadeIn(animationSpec = tween(300)) },
+            exitTransition = { fadeOut(animationSpec = tween(300)) }
         ) {
-            composable(Routes.AUTH_PHONE) {
-                PhoneInputScreen(activity = activity, onNavigateToOtp = { verificationId ->
+            AuthWelcomeScreen(
+                onPhoneSignInClick = {
+                    navController.navigate("auth/phone")
+                },
+                onGoogleSignInClick = {
+                    // Launch FirebaseUI for Google/Email
+                    val providers = listOf(
+                        com.firebase.ui.auth.AuthUI.IdpConfig.GoogleBuilder().build(),
+                        com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
+                    )
+                    val intent = com.firebase.ui.auth.AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setAvailableProviders(providers)
+                        .setIsSmartLockEnabled(true)
+                        .build()
+                    launcher.launch(intent)
+                },
+                onEmailSignInClick = {
+                    // Launch FirebaseUI for Email only
+                    val providers = listOf(
+                        com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
+                    )
+                    val intent = com.firebase.ui.auth.AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setAvailableProviders(providers)
+                        .setIsSmartLockEnabled(true)
+                        .build()
+                    launcher.launch(intent)
+                },
+                isLoading = state.isLoading
+            )
+        }
+        
+        // Phone authentication flow - slide from right
+        composable(
+            route = "auth/phone",
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            }
+        ) {
+            PhoneAuthScreenNew(
+                onCodeSent = { verificationId ->
                     navController.navigate("auth/otp/$verificationId")
-                })
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        // OTP verification - slide from right
+        composable(
+            route = "auth/otp/{verificationId}",
+            arguments = listOf(navArgument("verificationId") { type = NavType.StringType }),
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 3 },
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { -it / 3 },
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
             }
-            composable(
-                route = Routes.AUTH_OTP,
-                arguments = listOf(navArgument("verificationId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
-                OtpScreen(verificationId = verificationId, onNavigateHome = onAuthenticated)
+        ) {
+            OtpVerificationScreenNew(
+                onVerified = {
+                    onAuthenticated()
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        // User setup/onboarding
+        composable("onboard/user_setup") {
+            com.rio.rostry.ui.onboarding.UserSetupScreen(
+                onRoleSelected = onAuthenticated
+            )
+        }
+        
+        // Demo login screen (for testing)
+        composable("auth/demo") {
+            DemoLoginScreen(
+                state = state,
+                onDemoLogin = onDemoLogin,
+                onQuickSelect = onQuickSelect,
+                onBackToWelcome = {
+                    navController.popBackStack()
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Demo login screen - separate from main auth flow
+ */
+@Composable
+private fun DemoLoginScreen(
+    state: SessionViewModel.SessionUiState,
+    onDemoLogin: (String, String) -> Unit,
+    onQuickSelect: (String) -> Unit,
+    onBackToWelcome: () -> Unit
+) {
+    var username by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        IconButton(onClick = onBackToWelcome) {
+            Icon(Icons.Default.ArrowBack, "Back")
+        }
+        
+        Text("Demo Login", style = MaterialTheme.typography.headlineMedium)
+
+        if (state.isLoading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+        
+        state.error?.let { error ->
+            Text("Error: $error", color = MaterialTheme.colorScheme.error)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Demo username") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+            )
+            Button(
+                onClick = { scope.launch { onDemoLogin(username.trim(), password) } },
+                enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Sign in with demo credentials")
             }
-            composable(Routes.Onboarding.USER_SETUP) {
-                com.rio.rostry.ui.onboarding.UserSetupScreen(onRoleSelected = onAuthenticated)
+            state.currentDemoProfile?.let { current ->
+                Text("Active demo user: ${current.fullName} (${current.role.displayName})")
             }
         }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text("Field test demo login", modifier = Modifier.fillMaxWidth())
 
-            if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            }
-            val errorMessage = state.error
-            if (!errorMessage.isNullOrBlank()) {
-                Text("Error: $errorMessage")
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = { Text("Demo username") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                )
-                Button(
-                    onClick = { scope.launch { onDemoLogin(username.trim(), password) } },
-                    enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Sign in with demo credentials")
-                }
-                state.currentDemoProfile?.let { current ->
-                    Text("Active demo user: ${current.fullName} (${current.role.displayName})")
-                }
-            }
-
-            if (state.demoProfiles.isNotEmpty()) {
-                Divider()
-                QuickSelectDemoList(
-                    profiles = state.demoProfiles,
-                    onSelect = onQuickSelect,
-                    currentId = state.currentDemoProfile?.id
-                )
-            }
-
+        if (state.demoProfiles.isNotEmpty()) {
             Divider()
-            Text("Sign in with Google/Email/Phone")
-            MultiProviderAuthScreen(onRequestPhone = {
-                // Flip the flag; the phone NavHost will replace this content above.
-                showOtp = true
-            })
-            TextButton(onClick = { showOtp = !showOtp }) {
-                Text(if (showOtp) "Hide phone verification" else "Use phone verification")
-            }
+            QuickSelectDemoList(
+                profiles = state.demoProfiles,
+                onSelect = onQuickSelect,
+                currentId = state.currentDemoProfile?.id
+            )
         }
     }
 }
@@ -894,7 +1022,14 @@ private fun RoleNavGraph(
             }
         }
         composable(Routes.SETTINGS) {
-            com.rio.rostry.ui.settings.SettingsScreen(onBack = { navController.popBackStack() })
+            val handle = navController.currentBackStackEntry?.savedStateHandle
+            val selectedFlow = remember(handle) { handle?.getStateFlow("address_selection_result", null as String?) }
+            val lastSelected = selectedFlow?.collectAsState()?.value
+            com.rio.rostry.ui.settings.SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAddressSelection = { navController.navigate(Routes.ADDRESS_SELECTION) },
+                lastSelectedAddressJson = lastSelected
+            )
         }
         composable(Routes.VERIFY_FARMER_LOCATION) {
             FarmerLocationVerificationScreen(onDone = { navController.popBackStack() })
@@ -1257,6 +1392,20 @@ private fun RoleNavGraph(
                 onOpenOrders = { navController.navigate(Routes.TRANSFER_LIST) },
                 onBack = { navController.popBackStack() },
                 onOpenRoute = { route -> navController.navigate(route) }
+            )
+        }
+
+        // Address Selection (Web-based via WebView)
+        composable(Routes.ADDRESS_SELECTION) {
+            com.rio.rostry.ui.settings.AddressSelectionWebViewScreen(
+                onBack = { navController.popBackStack() },
+                onSubmit = { json ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set(
+                        "address_selection_result",
+                        json
+                    )
+                    navController.popBackStack()
+                }
             )
         }
 

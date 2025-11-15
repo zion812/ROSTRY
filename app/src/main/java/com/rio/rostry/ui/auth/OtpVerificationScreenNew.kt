@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.presentation.auth.otp.OtpVerificationViewModel
+import com.rio.rostry.ui.components.SuccessCheckmarkAnimation
+import com.rio.rostry.ui.components.shake
 
 /**
  * New OTP verification screen using clean architecture.
@@ -46,16 +48,32 @@ fun OtpVerificationScreenNew(
     val activity = context as? Activity
     val focusRequester = remember { FocusRequester() }
     
-    // Navigate when verified
+    // Show success animation then navigate
+    var showSuccessAnimation by remember { mutableStateOf(false) }
+    
     LaunchedEffect(state.isVerified) {
         if (state.isVerified) {
-            onVerified()
+            showSuccessAnimation = true
         }
     }
     
     // Auto-focus OTP field
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+    
+    // Show success animation overlay
+    if (showSuccessAnimation) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            SuccessCheckmarkAnimation(
+                message = "Verified!",
+                onComplete = onVerified
+            )
+        }
+        return
     }
     
     Scaffold(
@@ -148,7 +166,7 @@ fun OtpVerificationScreenNew(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // OTP input with improved styling
+            // OTP input with shake animation on error
             OutlinedTextField(
                 value = state.otp,
                 onValueChange = viewModel::onOtpChanged,
@@ -169,7 +187,8 @@ fun OtpVerificationScreenNew(
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(focusRequester),
+                    .focusRequester(focusRequester)
+                    .shake(trigger = state.error != null), // Shake on error!
                 enabled = !state.isVerifying && !state.isVerified,
                 isError = state.error != null,
                 textStyle = MaterialTheme.typography.headlineMedium.copy(

@@ -97,6 +97,7 @@ object Routes {
 
     object Settings {
         const val ROOT = "settings"
+        const val ADDRESS_SELECTION = "settings/address_selection"
     }
 
     // Developer/Showcase routes (debug-only usage recommended)
@@ -172,6 +173,7 @@ object Routes {
         accessibleRoutes = setOf(
             GeneralNav.HOME,
             Settings.ROOT,
+            Settings.ADDRESS_SELECTION,
             User.PROFILE,
             Product.DETAILS,
             Product.TRACEABILITY,
@@ -200,6 +202,7 @@ object Routes {
             Common.PROFILE,
             Common.VERIFY_FARMER_LOCATION,
             Settings.ROOT,
+            Settings.ADDRESS_SELECTION,
             User.PROFILE,
             Product.CREATE,
             Social.FEED,
@@ -250,6 +253,7 @@ object Routes {
             Common.PROFILE,
             Common.VERIFY_ENTHUSIAST_KYC,
             Settings.ROOT,
+            Settings.ADDRESS_SELECTION,
             User.PROFILE,
             Analytics.ENTHUSIAST,
             Analytics.REPORTS,
@@ -319,6 +323,7 @@ object Routes {
     const val MESSAGES_OUTBOX = Messaging.OUTBOX
     const val NOTIFICATIONS = Notifications.LIST
     const val SETTINGS = Settings.ROOT
+    const val ADDRESS_SELECTION = Settings.ADDRESS_SELECTION
     const val GROUPS = Social.GROUPS
     const val EVENTS = Social.EVENTS
     const val EXPERT_BOOKING = Social.EXPERT

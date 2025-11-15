@@ -21,10 +21,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenAddressSelection: () -> Unit,
+    lastSelectedAddressJson: String? = null
+) {
     val notifications = remember { mutableStateOf(true) }
     val lowDataMode = remember { mutableStateOf(false) }
 
@@ -63,7 +70,27 @@ fun SettingsScreen(onBack: () -> Unit) {
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
             )
+
+            Text("Location & Address", style = MaterialTheme.typography.titleMedium)
+            ListItem(
+                headlineContent = { Text("Pick address (Google Maps Web)") },
+                supportingContent = {
+                    if (!lastSelectedAddressJson.isNullOrBlank()) {
+                        Text(
+                            text = "Last: ${lastSelectedAddressJson.take(96)}" + if (lastSelectedAddressJson.length > 96) "…" else "",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        Text("Open web selector to autocomplete your address")
+                    }
+                },
+                trailingContent = {
+                    TextButton(onClick = onOpenAddressSelection) { Text("Open") }
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+            )
         }
     }
 }
+
 

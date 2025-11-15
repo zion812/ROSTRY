@@ -75,9 +75,10 @@ import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.rio.rostry.BuildConfig
 import kotlinx.coroutines.launch
 import android.annotation.SuppressLint
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextField
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -297,6 +298,7 @@ private fun AddressFormDialog(
     var lat by remember { mutableStateOf(address?.lat?.toString() ?: "") }
     var lng by remember { mutableStateOf(address?.lng?.toString() ?: "") }
     var searchAddress by remember { mutableStateOf("") }
+    var showWebSelector by remember { mutableStateOf(false) }
     var showMap by remember { mutableStateOf(false) }
     val markerState = remember { mutableStateOf<Marker?>(null) }
     val context = LocalContext.current
@@ -407,6 +409,12 @@ private fun AddressFormDialog(
                 ) {
                     Text("Pick from Google Places")
                 }
+                OutlinedButton(
+                    onClick = { showWebSelector = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Use Google Address Picker (Web)")
+                }
                 OutlinedTextField(
                     value = street,
                     onValueChange = { street = it },
@@ -511,6 +519,52 @@ private fun AddressFormDialog(
             }
         }
     )
+
+    if (showWebSelector) {
+        WebSelectorDialog(
+            onDismiss = { showWebSelector = false },
+            onSubmitJson = { json ->
+                try {
+                    val obj = JSONObject(json)
+                    val loc = obj.optString("location").trim()
+                    val locality = obj.optString("locality").trim()
+                    val admin1 = obj.optString("administrative_area_level_1").trim()
+                    val postal = obj.optString("postal_code").trim()
+                    val country = obj.optString("country").trim()
+                    val plat = obj.optString("lat").trim()
+                    val plng = obj.optString("lng").trim()
+
+                    if (loc.isNotBlank()) street = loc
+                    if (locality.isNotBlank()) city = locality
+                    if (admin1.isNotBlank()) state = admin1
+                    if (postal.isNotBlank()) pincode = postal
+                    // Optionally include country in landmark if provided
+                    if (country.isNotBlank() && !landmark.contains(country)) {
+                        landmark = listOf(landmark, country).filter { it.isNotBlank() }.joinToString(", ")
+                    }
+                    if (plat.isNotBlank()) lat = plat
+                    if (plng.isNotBlank()) lng = plng
+                } catch (_: Exception) { /* ignore malformed */ }
+                showWebSelector = false
+            }
+        )
+    }
+}
+
+// Web selector full-screen dialog to autofill fields
+@Composable
+private fun WebSelectorDialog(
+    onDismiss: () -> Unit,
+    onSubmitJson: (String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+            AddressSelectionWebViewScreen(
+                onBack = onDismiss,
+                onSubmit = onSubmitJson
+            )
+        }
+    }
 }
 
 @SuppressLint("MissingPermission")

@@ -1,5 +1,6 @@
 import java.net.URL
 import java.net.URI
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -21,8 +22,12 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-// Read Maps API key strictly from local.properties via Gradle properties
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
 val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
+    .orElse(providers.provider { localProps.getProperty("MAPS_API_KEY") ?: "" })
 
 // Pin JaCoCo tool version to avoid instrumentation incompatibilities
 jacoco {
@@ -61,6 +66,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "com.rio.rostry.HiltTestRunner"
+        // Pass App Check debug secret from CI environment for instrumentation tests
+        testInstrumentationRunnerArguments["firebaseAppCheckDebugSecret"] =
+            System.getenv("APP_CHECK_DEBUG_TOKEN_FROM_CI") ?: ""
         // Feature flags
         buildConfigField("boolean", "FEATURE_QR_CAMERA", "true")
     }
@@ -91,11 +99,9 @@ android {
             firebaseCrashlytics {
                 mappingFileUploadEnabled = true
             }
-            // Strictly require MAPS_API_KEY to be set in local.properties for release builds
-            val releaseKey = mapsApiKeyProvider.orNull
-                ?: throw GradleException("MAPS_API_KEY is not set. Add it to local.properties for release builds.")
-            if (releaseKey == "your_api_key_here" || releaseKey == "<set me>" || releaseKey == "debug-placeholder") {
-                throw GradleException("MAPS_API_KEY is a placeholder. Configure a real key in local.properties for release builds.")
+            val releaseKey = mapsApiKeyProvider.get()
+            if (releaseKey.isBlank() || releaseKey == "your_api_key_here" || releaseKey == "<set me>" || releaseKey == "debug-placeholder") {
+                throw GradleException("MAPS_API_KEY is missing or placeholder. Configure a real key in local.properties or Gradle properties for release builds.")
             }
             buildConfigField("String", "MAPS_API_KEY", "\"$releaseKey\"")
             manifestPlaceholders["MAPS_API_KEY"] = releaseKey
@@ -321,6 +327,9 @@ implementation(libs.firebase.appcheck.playintegrity)
     kspAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
     androidTestImplementation("androidx.test:rules:1.5.0")
     androidTestImplementation("androidx.test:runner:1.5.2")
+    // Firebase App Check debug testing (share debug provider library with androidTest)
+    // Use the same version catalog entry as debugImplementation to keep versions aligned
+    androidTestImplementation(libs.firebase.appcheck.debug)
     // Truth and Mockito for instrumentation tests
     androidTestImplementation("com.google.truth:truth:1.4.2")
     androidTestImplementation("org.mockito:mockito-core:5.12.0")

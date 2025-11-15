@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Background circle -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M60,10 A50,50 0 1,1 60,110 A50,50 0 1,1 60,10 Z"/>
+    
+    <!-- Rooster silhouette - stylized poultry icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M75,45 L75,42 Q75,38 72,36 Q70,34 67,34 Q64,34 62,36 L60,38 L58,36 Q56,34 53,34 Q50,34 48,36 Q45,38 45,42 L45,45 Q45,48 47,50 L47,55 Q47,58 49,60 L49,65 Q49,68 52,70 L52,75 Q52,78 55,78 L65,78 Q68,78 68,75 L68,70 Q71,68 71,65 L71,60 Q73,58 73,55 L73,50 Q75,48 75,45 Z"/>
+    
+    <!-- Comb (rooster's crown) -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M60,28 L62,32 L64,28 L66,32 L68,28 L68,34 L52,34 L52,28 L54,32 L56,28 L58,32 Z"/>
+    
+    <!-- Beak -->
+    <path
+        android:fillColor="#FFA000"
+        android:pathData="M70,48 L75,50 L70,52 Z"/>
+    
+    <!-- Eye -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M65,45 A2,2 0 1,1 65,49 A2,2 0 1,1 65,45 Z"/>
+    
+    <!-- Tail feathers -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.7"
+        android:pathData="M52,68 Q48,70 46,74 Q44,78 44,82 L46,82 Q48,78 50,76 Q52,74 54,72 Z"/>
+    
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.5"
+        android:pathData="M52,72 Q47,74 44,78 Q41,82 40,86 L42,86 Q44,82 47,80 Q50,78 53,76 Z"/>
+</vector>
