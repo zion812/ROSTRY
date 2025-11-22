@@ -42,6 +42,7 @@ import com.rio.rostry.data.database.dao.ExpertBookingsDao
 import com.rio.rostry.data.database.dao.ModerationReportsDao
 import com.rio.rostry.data.database.dao.BadgesDao
 import com.rio.rostry.data.database.dao.ReputationDao
+import com.rio.rostry.data.database.dao.StoriesDao
 import com.rio.rostry.data.database.dao.OutgoingMessageDao
 import com.rio.rostry.data.database.dao.RateLimitDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
@@ -113,7 +114,11 @@ object DatabaseModule {
             AppDatabase.MIGRATION_36_37,
             AppDatabase.MIGRATION_37_38,
             AppDatabase.MIGRATION_38_39,
-            AppDatabase.MIGRATION_39_40
+            AppDatabase.MIGRATION_39_40,
+            AppDatabase.MIGRATION_40_41,
+            AppDatabase.MIGRATION_41_42,
+            AppDatabase.MIGRATION_42_43,
+            AppDatabase.MIGRATION_43_44
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -358,6 +363,10 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideReputationDao(db: AppDatabase): ReputationDao = db.reputationDao()
+
+    @Provides
+    @Singleton
+    fun provideStoriesDao(db: AppDatabase): StoriesDao = db.storiesDao()
 
     @Provides
     @Singleton

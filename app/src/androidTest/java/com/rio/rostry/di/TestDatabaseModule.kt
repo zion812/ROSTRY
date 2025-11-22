@@ -68,6 +68,8 @@ object TestDatabaseExtraModule {
     @Provides @Singleton fun provideModerationReportsDao(db: AppDatabase): ModerationReportsDao = db.moderationReportsDao()
     @Provides @Singleton fun provideBadgesDao(db: AppDatabase): BadgesDao = db.badgesDao()
     @Provides @Singleton fun provideReputationDao(db: AppDatabase): ReputationDao = db.reputationDao()
+    @Provides @Singleton fun provideStoriesDao(db: AppDatabase): StoriesDao = db.storiesDao()
+
 
     // Gamification
     @Provides @Singleton fun provideUserProgressDao(db: AppDatabase): UserProgressDao = db.userProgressDao()
