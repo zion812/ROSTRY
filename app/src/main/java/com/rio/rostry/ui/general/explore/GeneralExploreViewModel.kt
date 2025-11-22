@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -68,6 +69,39 @@ class GeneralExploreViewModel @Inject constructor(
         val profilePreview: UserPreview? = null,
         val error: String? = null
     )
+
+    data class EducationalContent(
+        val id: String,
+        val title: String,
+        val description: String,
+        val type: String, // ARTICLE, GUIDE, TOOL
+        val imageUrl: String? = null
+    )
+
+    private val _educationalContent = MutableStateFlow(listOf(
+        EducationalContent(
+            id = "1",
+            title = "Why Native?",
+            description = "Discover the health and taste benefits of native breeds.",
+            type = "ARTICLE",
+            imageUrl = "https://example.com/native_chicken.jpg" // Placeholder
+        ),
+        EducationalContent(
+            id = "2",
+            title = "Meat Selection Guide",
+            description = "Choose the right bird for your dish based on age and sex.",
+            type = "TOOL",
+            imageUrl = "https://example.com/meat_selection.jpg"
+        ),
+        EducationalContent(
+            id = "3",
+            title = "Start Backyard Farming",
+            description = "A beginner's guide to raising your own flock.",
+            type = "GUIDE",
+            imageUrl = "https://example.com/backyard_farm.jpg"
+        )
+    ))
+    val educationalContent: StateFlow<List<EducationalContent>> = _educationalContent.asStateFlow()
 
     private val filter = MutableStateFlow(ExploreFilter.RECENT)
     private val query = MutableStateFlow("")

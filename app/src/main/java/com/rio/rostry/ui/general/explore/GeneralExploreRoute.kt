@@ -66,6 +66,7 @@ import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.ui.general.explore.GeneralExploreViewModel.ExploreFilter
 import com.rio.rostry.ui.general.explore.GeneralExploreViewModel.UserPreview
 import com.rio.rostry.ui.social.VideoPlayer
+import com.rio.rostry.ui.general.explore.EducationalContentRow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +115,36 @@ fun GeneralExploreRoute(
                 onSelected = viewModel::setFilter,
                 tokensSummary = uiState.tokens
             )
+
+            val eduContent by viewModel.educationalContent.collectAsStateWithLifecycle()
+            var selectedContentId by rememberSaveable { mutableStateOf<String?>(null) }
+
+            if (selectedContentId != null) {
+                // Simple overlay navigation for demo purposes
+                // In a real app, use NavController
+                androidx.compose.ui.window.Dialog(onDismissRequest = { selectedContentId = null }) {
+                    androidx.compose.material3.Surface(modifier = Modifier.fillMaxSize()) {
+                        if (selectedContentId == "2") {
+                            MeatSelectionToolScreen(onBack = { selectedContentId = null })
+                        } else {
+                            EducationalContentDetailScreen(
+                                contentId = selectedContentId!!,
+                                onBack = { selectedContentId = null }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (eduContent.isNotEmpty()) {
+                EducationalContentRow(
+                    content = eduContent,
+                    onItemClick = { item ->
+                        selectedContentId = item.id
+                    }
+                )
+                Spacer(Modifier.height(16.dp))
+            }
 
             if (feedItems.itemCount == 0 && feedItems.loadState.refresh is androidx.paging.LoadState.Loading) {
                 Box(Modifier.fillMaxSize()) {
