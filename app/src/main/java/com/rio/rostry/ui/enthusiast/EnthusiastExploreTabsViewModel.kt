@@ -209,7 +209,10 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
                     thumbnailUrl = null,
                     productId = linkedProductId,
                     createdAt = now,
-                    updatedAt = now
+                    updatedAt = now,
+                    hashtags = null,
+                    mentions = null,
+                    parentPostId = null
                 )
                 postsDao.upsert(post)
                 loadShowcase()
@@ -238,3 +241,4 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
         }
     }
 }
+
