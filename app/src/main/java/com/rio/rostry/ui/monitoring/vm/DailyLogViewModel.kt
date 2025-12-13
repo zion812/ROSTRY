@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -188,12 +189,12 @@ class DailyLogViewModel @Inject constructor(
         _synced.value = false
     }
 
-    fun updateWeight(grams: Double) {
+    fun updateWeight(grams: Double?) {
         updateCurrent { it.copy(weightGrams = grams) }
         debounceAutoSave()
     }
 
-    fun updateFeed(kg: Double) {
+    fun updateFeed(kg: Double?) {
         updateCurrent { it.copy(feedKg = kg) }
         debounceAutoSave()
     }
@@ -237,6 +238,27 @@ class DailyLogViewModel @Inject constructor(
         viewModelScope.launch {
             _saving.value = true
             dailyLogRepository.upsert(current.copy(author = current.author ?: uid, dirty = true, updatedAt = System.currentTimeMillis()))
+            
+            // Propagate to ProductEntity for Digital Twin
+            val productRes = productRepository.getProductById(current.productId).firstOrNull()
+            if (productRes is com.rio.rostry.utils.Resource.Success) {
+                productRes.data?.let { product ->
+                    val newHealth = if (!current.symptomsJson.isNullOrBlank()) "Sick" else "OK"
+                    val newWeight = current.weightGrams ?: product.weightGrams
+                    
+                    if (product.healthStatus != newHealth || product.weightGrams != newWeight) {
+                        productRepository.updateProduct(
+                            product.copy(
+                                healthStatus = newHealth,
+                                weightGrams = newWeight,
+                                dirty = true,
+                                lastModifiedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+            }
+
             _synced.value = false
             _saving.value = false
         }
@@ -248,7 +270,7 @@ class DailyLogViewModel @Inject constructor(
 
     private fun updateCurrent(mod: (DailyLogEntity) -> DailyLogEntity) {
         val cur = _currentLog.value ?: return
-        _currentLog.value = mod(cur)
+        _currentLog.value = mod(cur).copy(deviceTimestamp = System.currentTimeMillis())
     }
 
     fun toggleMedication(name: String) {

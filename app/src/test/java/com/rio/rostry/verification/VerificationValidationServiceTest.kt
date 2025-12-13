@@ -150,7 +150,7 @@ class VerificationValidationServiceTest {
     @Test
     fun duplicate_whenRecentSubmission_returnsTrue() = runBlocking {
         val service = VerificationValidationService(context, userRepository)
-        val user = UserEntity(userId = "u2", kycUploadedAt = System.currentTimeMillis() - 60_000)
+        val user = UserEntity(userId = "u2")
         coEvery { userRepository.getUserById("u2") } returns flowOf(Resource.Success(user))
         val dup = service.checkDuplicateSubmission("u2")
         assertEquals(true, dup)
@@ -159,7 +159,7 @@ class VerificationValidationServiceTest {
     @Test
     fun duplicate_whenOldOrNone_returnsFalse() = runBlocking {
         val service = VerificationValidationService(context, userRepository)
-        val user = UserEntity(userId = "u3", kycUploadedAt = System.currentTimeMillis() - 3L * 24 * 60 * 60 * 1000)
+        val user = UserEntity(userId = "u3")
         coEvery { userRepository.getUserById("u3") } returns flowOf(Resource.Success(user))
         val dup = service.checkDuplicateSubmission("u3")
         assertEquals(false, dup)

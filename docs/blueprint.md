@@ -1,14 +1,17 @@
 # ROSTRY Blueprint (High-Level System Overview)
 
-Version: 1.1
-Last Updated: 2025-10-29
-Audience: Stakeholders, Product Managers, Architects
+Version: 1.2
+Last Updated: 2025-11-24
+Audience: Stakeholders, Product Managers, Architects (For developers, see SYSTEM_BLUEPRINT.md)
+
+> **📘 Note:** This document provides a high-level system overview for stakeholders. For comprehensive end-to-end system documentation including complete codebase structure, all features, and detailed implementation information, see `../SYSTEM_BLUEPRINT.md` (SINF - System Information and Functionality).
 
 This document provides a high-level system overview and architecture summary for stakeholders and new team members. For detailed documentation navigation, see `docs/README-docs.md`.
 
 ---
 
 ## Quick Links
+- Complete System Reference: `../SYSTEM_BLUEPRINT.md`
 - Documentation Index (primary): `docs/README-docs.md`
 - Architecture details: `docs/architecture.md`
 
@@ -21,6 +24,8 @@ Outcomes:
 - Traceability and transparency across poultry lifecycle
 - Community engagement with secure transactions
 - Data-driven farm performance and insights
+
+For complete system documentation, refer to SYSTEM_BLUEPRINT.md.
 
 ---
 
@@ -234,5 +239,14 @@ Guidelines: `docs/images/README.md`
 - Explore each domain via navigation
 
 For step-by-step guides and detailed documentation, see `docs/README-docs.md` (primary index).
+
+## 18) Relationship to Other Documentation
+
+This blueprint provides a high-level overview suitable for stakeholders and product managers. For detailed technical documentation:
+
+- **Complete System Reference**: `../SYSTEM_BLUEPRINT.md` - Comprehensive SINF document with full codebase coverage
+- **Documentation Index**: `docs/README-docs.md` - Navigation hub for all documentation
+- **Architecture Details**: `docs/architecture.md` - Deep dive into technical architecture
+- **Developer Onboarding**: `docs/developer-onboarding.md` - Getting started guide for developers
 
 End of document.

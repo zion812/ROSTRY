@@ -46,8 +46,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import com.rio.rostry.data.database.entity.QuarantineRecordEntity
 import com.rio.rostry.ui.monitoring.vm.QuarantineViewModel
+import com.rio.rostry.ui.components.BirdSelectionSheet
+import com.rio.rostry.ui.components.BirdSelectionItem
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -59,6 +63,9 @@ fun QuarantineManagementScreen(
     viewModel: QuarantineViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.ui.collectAsStateWithLifecycle()
+    val selectedProductId = remember { mutableStateOf(productId) }
+    val showSheet = remember { mutableStateOf(false) }
+    
     val reason = remember { mutableStateOf("") }
     var showFilters by remember { mutableStateOf(false) }
     var filterStatus by remember { mutableStateOf("All") }
@@ -69,9 +76,9 @@ fun QuarantineManagementScreen(
     }
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()) }
 
-    LaunchedEffect(productId) {
-        if (productId.isNotBlank()) {
-            viewModel.observe(productId)
+    LaunchedEffect(selectedProductId.value) {
+        if (!selectedProductId.value.isNullOrBlank()) {
+            viewModel.observe(selectedProductId.value)
         }
     }
 
@@ -91,6 +98,32 @@ fun QuarantineManagementScreen(
                 ElevatedCard {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Start and manage quarantine protocols here.", style = MaterialTheme.typography.bodyMedium)
+                        
+                        // Bird Selection
+                        if (selectedProductId.value.isBlank()) {
+                            OutlinedButton(
+                                onClick = { showSheet.value = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Select Bird / Batch")
+                            }
+                        } else {
+                            val selectedProduct = uiState.products.find { it.productId == selectedProductId.value }
+                            if (selectedProduct != null) {
+                                BirdSelectionItem(
+                                    product = selectedProduct,
+                                    onClick = { showSheet.value = true }
+                                )
+                            } else {
+                                OutlinedButton(
+                                    onClick = { showSheet.value = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Selected ID: ${selectedProductId.value} (Change)")
+                                }
+                            }
+                        }
+
                         OutlinedTextField(
                             value = reason.value,
                             onValueChange = { reason.value = it },
@@ -106,12 +139,13 @@ fun QuarantineManagementScreen(
                             }
                             Button(
                                 onClick = {
-                                    if (reason.value.isNotBlank() && productId.isNotBlank()) {
-                                        viewModel.start(productId, reason.value, null)
+                                    if (reason.value.isNotBlank() && selectedProductId.value.isNotBlank()) {
+                                        viewModel.start(selectedProductId.value, reason.value, null)
                                         reason.value = ""
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                enabled = selectedProductId.value.isNotBlank()
                             ) {
                                 Text("Start Quarantine")
                             }
@@ -206,6 +240,17 @@ fun QuarantineManagementScreen(
             }
         }
     }
+
+    if (showSheet.value) {
+        BirdSelectionSheet(
+            products = uiState.products,
+            onDismiss = { showSheet.value = false },
+            onSelect = { product ->
+                selectedProductId.value = product.productId
+                showSheet.value = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -290,6 +335,21 @@ private fun QuarantineCard(
             Text("Started: ${dateFormat.format(record.startedAt)}")
             Text("Updates: ${record.updatesCount} / Required: 2+")
             
+            // Health Score
+            val scoreColor = when {
+                record.healthScore >= 80 -> Color(0xFF4CAF50) // Green
+                record.healthScore >= 50 -> Color(0xFFFFC107) // Amber
+                else -> MaterialTheme.colorScheme.error
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Health Score:", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "${record.healthScore}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = scoreColor
+                )
+            }
+
             // Countdown timer
             if (!isOverdue && timeRemaining > 0) {
                 Text(
@@ -398,7 +458,7 @@ private fun UpdateQuarantineDialog(
                 
                 Text("Health Status")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    val options = listOf("IMPROVING", "STABLE", "DECLINING")
+                    val options = listOf("IMPROVING", "STABLE", "WORSENING")
                     options.forEach { opt ->
                         FilterChip(
                             selected = healthStatus == opt,
@@ -408,11 +468,17 @@ private fun UpdateQuarantineDialog(
                     }
                 }
 
-                val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-                    photoUri = uri?.toString()
+                val context = LocalContext.current
+                val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                    uri?.let {
+                        try {
+                            context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        } catch (e: Exception) { }
+                        photoUri = it.toString()
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { imagePicker.launch("image/*") }) { Text("Add Photo") }
+                    OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }) { Text("Add Photo") }
                     Text(photoUri?.let { "1 photo attached" } ?: "No photo")
                 }
                 if (isOverdue && attempted && photoUri.isNullOrBlank()) {

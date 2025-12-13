@@ -111,6 +111,15 @@ fun NodeEventTimelineSheet(
                     Text("No growth records yet.", style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
+                if (events.growthRecords.size >= 2) {
+                    item {
+                        com.rio.rostry.ui.components.GrowthChart(
+                            records = events.growthRecords,
+                            modifier = Modifier.fillMaxWidth().height(200.dp)
+                        )
+                    }
+                }
+
                 items(items = events.growthRecords.sortedBy { it.week }, key = { it.week }) { growth ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {

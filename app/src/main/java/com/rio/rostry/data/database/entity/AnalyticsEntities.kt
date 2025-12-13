@@ -22,6 +22,7 @@ data class AnalyticsDailyEntity(
     val breedingSuccessRate: Double,
     val engagementScore: Double,
     val createdAt: Long,
+    val updatedAt: Long? = null,
 )
 
 @Entity(tableName = "reports", indices = [Index("userId"), Index("periodStart"), Index("type")])

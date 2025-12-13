@@ -133,6 +133,7 @@ class OutgoingMessageWorker @AssistedInject constructor(
             val request = PeriodicWorkRequestBuilder<OutgoingMessageWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .addTag("session_worker")
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,

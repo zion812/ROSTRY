@@ -23,6 +23,7 @@ class QuarantineViewModel @Inject constructor(
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     @ApplicationContext private val appContext: android.content.Context,
     private val productDao: com.rio.rostry.data.database.dao.ProductDao,
+    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
     private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
     private val mediaUploadManager: com.rio.rostry.utils.media.MediaUploadManager
 ) : ViewModel() {
@@ -36,7 +37,8 @@ class QuarantineViewModel @Inject constructor(
         val canDischarge: Map<String, Boolean> = emptyMap(),
         val nextUpdateDue: Map<String, Long> = emptyMap(),
         val isOverdue: Map<String, Boolean> = emptyMap(),
-        val healthyUpdatesCount: Map<String, Int> = emptyMap()
+        val healthyUpdatesCount: Map<String, Int> = emptyMap(),
+        val products: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()
     )
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -50,6 +52,7 @@ class QuarantineViewModel @Inject constructor(
     private data class PendingUpload(val quarantineId: String, val localPath: String, val at: Long)
 
     init {
+        loadProducts()
         // Observe upload events to finalize attachment URLs
         viewModelScope.launch {
             mediaUploadManager.events.collect { ev ->
@@ -70,6 +73,17 @@ class QuarantineViewModel @Inject constructor(
                         }
                     }
                     else -> {}
+                }
+            }
+        }
+    }
+
+    private fun loadProducts() {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            productRepository.getProductsBySeller(farmerId).collect { res ->
+                if (res is com.rio.rostry.utils.Resource.Success) {
+                    _ui.update { it.copy(products = res.data ?: emptyList()) }
                 }
             }
         }
@@ -244,6 +258,17 @@ class QuarantineViewModel @Inject constructor(
                 }
             }
             val newStatusHistoryJson = status?.let { appendStatusHistoryArrayJson(active.statusHistoryJson, it, now) } ?: active.statusHistoryJson
+            
+            // Adjust health score based on status
+            val currentScore = active.healthScore
+            val scoreChange = when (status?.uppercase()) {
+                "IMPROVING" -> 5
+                "STABLE" -> 0
+                "WORSENING" -> -10
+                else -> 0
+            }
+            val newHealthScore = (currentScore + scoreChange).coerceIn(0, 100)
+
             // Prepare upload if photo provided: resolve content URI to temp file and compress
             var tempLocalPath: String? = null
             if (!photoUri.isNullOrBlank()) {
@@ -271,6 +296,7 @@ class QuarantineViewModel @Inject constructor(
                 vetNotes = notes,
                 medicationScheduleJson = newMedicationJson,
                 statusHistoryJson = newStatusHistoryJson,
+                healthScore = newHealthScore,
                 lastUpdatedAt = now,
                 updatesCount = active.updatesCount + 1,
                 updatedAt = now,

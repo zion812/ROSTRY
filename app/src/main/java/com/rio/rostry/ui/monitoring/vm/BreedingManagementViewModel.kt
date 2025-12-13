@@ -2,11 +2,12 @@ package com.rio.rostry.ui.monitoring.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.database.entity.BreedingPairEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.monitoring.BreedingRepository
 import com.rio.rostry.session.SessionManager
+import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -22,7 +23,7 @@ data class BreedingPairWithProducts(
 @HiltViewModel
 class BreedingManagementViewModel @Inject constructor(
     private val breedingRepository: BreedingRepository,
-    private val productDao: ProductDao,
+    private val productRepository: ProductRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
@@ -41,6 +42,24 @@ class BreedingManagementViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    private val _products = MutableStateFlow<List<ProductEntity>>(emptyList())
+    val products: StateFlow<List<ProductEntity>> = _products.asStateFlow()
+
+    init {
+        loadProducts()
+    }
+
+    private fun loadProducts() {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            productRepository.getProductsBySeller(farmerId).collect { res ->
+                if (res is Resource.Success) {
+                    _products.value = res.data ?: emptyList()
+                }
+            }
+        }
+    }
+
     fun addPair(
         maleProductId: String,
         femaleProductId: String,
@@ -58,8 +77,8 @@ class BreedingManagementViewModel @Inject constructor(
             }
             
             // Validate products exist
-            val maleProduct = productDao.findById(maleProductId)
-            val femaleProduct = productDao.findById(femaleProductId)
+            val maleProduct = productRepository.findById(maleProductId)
+            val femaleProduct = productRepository.findById(femaleProductId)
             
             if (maleProduct == null || femaleProduct == null) {
                 _error.value = "Invalid product IDs"
@@ -98,6 +117,11 @@ class BreedingManagementViewModel @Inject constructor(
             )
 
             breedingRepository.upsert(pair)
+
+            // Promote birds to BREEDER stage
+            val now = System.currentTimeMillis()
+            productRepository.updateStage(maleProductId, com.rio.rostry.domain.model.LifecycleStage.BREEDER, now)
+            productRepository.updateStage(femaleProductId, com.rio.rostry.domain.model.LifecycleStage.BREEDER, now)
         }
     }
 
@@ -143,8 +167,14 @@ class BreedingManagementViewModel @Inject constructor(
     fun getPairDetails(pairId: String): Flow<BreedingPairWithProducts?> = flow {
         val pair = breedingRepository.getById(pairId)
         if (pair != null) {
-            val maleProduct = productDao.getProductById(pair.maleProductId).first()
-            val femaleProduct = productDao.getProductById(pair.femaleProductId).first()
+            val maleProduct = when (val maleResult = productRepository.getProductById(pair.maleProductId).first()) {
+                is com.rio.rostry.utils.Resource.Success -> maleResult.data
+                else -> null
+            }
+            val femaleProduct = when (val femaleResult = productRepository.getProductById(pair.femaleProductId).first()) {
+                is com.rio.rostry.utils.Resource.Success -> femaleResult.data
+                else -> null
+            }
             emit(BreedingPairWithProducts(pair, maleProduct, femaleProduct))
         } else {
             emit(null)

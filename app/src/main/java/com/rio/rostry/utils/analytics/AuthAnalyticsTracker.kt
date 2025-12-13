@@ -13,6 +13,7 @@ interface AuthAnalyticsTracker {
     fun trackPhoneLinkCollision(provider: String)
     fun trackAuthCancel(provider: String)
     fun trackAuthComplete(provider: String, isNewUser: Boolean)
+    fun trackPhoneVerificationDeferred(reason: String)
 }
 
 @Singleton
@@ -60,6 +61,11 @@ class AuthAnalyticsTrackerImpl @Inject constructor(
     override fun trackAuthComplete(provider: String, isNewUser: Boolean) = log("auth_complete") {
         putString("provider", provider)
         putString("user_type", if (isNewUser) "new" else "returning")
+        putLong("ts", System.currentTimeMillis())
+    }
+
+    override fun trackPhoneVerificationDeferred(reason: String) = log("auth_phone_verify_deferred") {
+        putString("reason", reason)
         putLong("ts", System.currentTimeMillis())
     }
 }

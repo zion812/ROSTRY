@@ -1,85 +1,61 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 
 package com.rio.rostry.ui.general.explore
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.NearMe
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.ui.general.explore.GeneralExploreViewModel.ExploreFilter
 import com.rio.rostry.ui.general.explore.GeneralExploreViewModel.UserPreview
 import com.rio.rostry.ui.social.VideoPlayer
-import com.rio.rostry.ui.general.explore.EducationalContentRow
+import com.rio.rostry.ui.components.SkeletonCard
+import com.rio.rostry.data.database.entity.BreedEntity
+import com.rio.rostry.data.database.entity.ProductEntity
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneralExploreRoute(
     onOpenSocialFeed: () -> Unit,
+
     onOpenMessages: (String) -> Unit,
+    onScanQr: () -> Unit = {},
     viewModel: GeneralExploreViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val feedItems = viewModel.feed.collectAsLazyPagingItems()
     val snackbarHostState = remember { SnackbarHostState() }
-    val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.error) {
@@ -94,103 +70,112 @@ fun GeneralExploreRoute(
         showProfileSheet = uiState.profilePreview != null
     }
 
+    var showWizard by rememberSaveable { mutableStateOf(false) }
+
     Scaffold(
-        topBar = {
-            ExploreTopBar(
-                query = uiState.query,
-                onQueryChange = viewModel::updateQuery,
-                onClearQuery = { viewModel.updateQuery("") },
-                onOpenSocial = onOpenSocialFeed
-            )
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f) // Slightly off-white/grey for depth
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
-                .fillMaxSize()
+                .fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            ExploreFilterRow(
-                selected = uiState.filter,
-                onSelected = viewModel::setFilter,
-                tokensSummary = uiState.tokens
-            )
+            // 1. Header & Search
+            item {
+                ExploreHeader(
+                    query = uiState.query,
+                    onQueryChange = viewModel::updateQuery,
 
-            val eduContent by viewModel.educationalContent.collectAsStateWithLifecycle()
-            var selectedContentId by rememberSaveable { mutableStateOf<String?>(null) }
+                    onClearQuery = { viewModel.updateQuery("") },
+                    onScanQr = onScanQr
+                )
+            }
 
-            if (selectedContentId != null) {
-                // Simple overlay navigation for demo purposes
-                // In a real app, use NavController
-                androidx.compose.ui.window.Dialog(onDismissRequest = { selectedContentId = null }) {
-                    androidx.compose.material3.Surface(modifier = Modifier.fillMaxSize()) {
-                        if (selectedContentId == "2") {
-                            MeatSelectionToolScreen(onBack = { selectedContentId = null })
-                        } else {
-                            EducationalContentDetailScreen(
-                                contentId = selectedContentId!!,
-                                onBack = { selectedContentId = null }
-                            )
-                        }
-                    }
+            // 2. Visual Categories
+            item {
+                CategoryRail(
+                    onCategoryClick = { cat -> viewModel.updateQuery("category:$cat") }
+                )
+            }
+
+            // 2.5 Help Me Choose Wizard Entry
+            item {
+                HelpMeChooseEntry(onClick = { showWizard = true })
+            }
+
+            // 2.6 Recommended Breeds (if any)
+            if (uiState.recommendedBreeds.isNotEmpty()) {
+                item {
+                    RecommendedBreedsSection(breeds = uiState.recommendedBreeds)
                 }
             }
 
-            if (eduContent.isNotEmpty()) {
-                EducationalContentRow(
-                    content = eduContent,
-                    onItemClick = { item ->
-                        selectedContentId = item.id
-                    }
-                )
-                Spacer(Modifier.height(16.dp))
+            // 2.7 Starter Kits (if any)
+            if (uiState.starterKits.isNotEmpty()) {
+                item {
+                    StarterKitsSection(kits = uiState.starterKits)
+                }
             }
 
-            if (feedItems.itemCount == 0 && feedItems.loadState.refresh is androidx.paging.LoadState.Loading) {
-                Box(Modifier.fillMaxSize()) {
-                    com.rio.rostry.ui.components.LoadingOverlay()
+            // 3. Featured / Trending (Horizontal Pager)
+            item {
+                FeaturedSection()
+            }
+
+            // 4. Filters (Pills)
+            item {
+                FilterRow(
+                    selected = uiState.filter,
+                    onSelected = viewModel::setFilter
+                )
+            }
+
+            // 5. Learn & Grow (Educational) - TODO: Add educationalContent to ViewModel
+            // val eduContent = remember { emptyList<com.rio.rostry.domain.model.EducationalContent>() }
+            // if (eduContent.isNotEmpty()) {
+            //     item {
+            //         LearnAndGrowSection(
+            //             content = eduContent,
+            //             onItemClick = { /* Navigate to detail */ }
+            //         )
+            //     }
+            // }
+
+            // 6. Feed Content
+            if (feedItems.itemCount == 0 && feedItems.loadState.refresh is LoadState.Loading) {
+                items(3) {
+                    SkeletonCard(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        height = 350.dp
+                    )
                 }
             } else if (feedItems.itemCount == 0) {
-                com.rio.rostry.ui.components.EmptyState(
-                    title = "No results",
-                    subtitle = "Try changing filters or search terms",
-                    modifier = Modifier.fillMaxSize().padding(24.dp)
-                )
+                item {
+                    EmptyStateView()
+                }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp)
-                ) {
-                    items(feedItems.itemCount) { index ->
-                        val post = feedItems[index]
-                        if (post != null) {
-                            ExplorePostCard(
-                                post = post,
-                                onAuthorClick = { viewModel.openProfilePreview(post.authorId) },
-                                onLikeToggle = { liked ->
-                                    if (liked) viewModel.like(post.postId) else viewModel.unlike(post.postId)
-                                },
-                                onOpenMessages = onOpenMessages,
-                                onOpenSocialFeed = onOpenSocialFeed
-                            )
-                        }
+                items(feedItems.itemCount) { index ->
+                    val post = feedItems[index]
+                    if (post != null) {
+                        ModernPostCard(
+                            post = post,
+                            onAuthorClick = { viewModel.openProfilePreview(post.authorId) },
+                            onLikeToggle = { liked ->
+                                if (liked) viewModel.like(post.postId) else viewModel.unlike(post.postId)
+                            },
+                            onOpenMessages = onOpenMessages
+                        )
                     }
-                    when (val state = feedItems.loadState.append) {
-                        is androidx.paging.LoadState.Loading -> {
-                            item {
-                                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                }
-                            }
+                }
+                
+                // Loading footer
+                if (feedItems.loadState.append is LoadState.Loading) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
-                        is androidx.paging.LoadState.Error -> {
-                            item {
-                                TextButton(onClick = { feedItems.retry() }, modifier = Modifier.padding(16.dp)) {
-                                    Text("Retry loading posts")
-                                }
-                            }
-                        }
-                        else -> Unit
                     }
                 }
             }
@@ -198,8 +183,7 @@ fun GeneralExploreRoute(
     }
 
     if (showProfileSheet) {
-        val preview = uiState.profilePreview
-        if (preview != null) {
+        uiState.profilePreview?.let { preview ->
             ModalBottomSheet(
                 onDismissRequest = {
                     showProfileSheet = false
@@ -211,359 +195,703 @@ fun GeneralExploreRoute(
             }
         }
     }
+
+    if (showWizard) {
+        ModalBottomSheet(
+            onDismissRequest = { showWizard = false },
+            sheetState = sheetState
+        ) {
+            HelpMeChooseSheet(
+                onDismiss = { showWizard = false },
+                onTasteSelected = { profile ->
+                    viewModel.filterBreedsByTaste(profile)
+                },
+                onFarmingSelected = {
+                    viewModel.fetchStarterKits()
+                }
+            )
+        }
+    }
 }
 
 @Composable
-private fun ExploreTopBar(
+private fun ExploreHeader(
     query: String,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
-    onOpenSocial: () -> Unit
+    onScanQr: () -> Unit
 ) {
-    var showSearchTips by rememberSaveable { mutableStateOf(false) }
-    
-    TopAppBar(
-        title = { Text("Explore community", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        actions = {
-            IconButton(onClick = { showSearchTips = true }) {
-                Icon(Icons.Filled.Help, contentDescription = "Search tips")
-            }
-            TextButton(onClick = onOpenSocial) {
-                Text("Go to feed")
-            }
-        }
-    )
-    Column {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
-            trailingIcon = {
-                if (query.isNotBlank()) {
-                    TextButton(onClick = onClearQuery) { Text("Clear") }
-                }
-            },
-            placeholder = { Text("Search @users, #hashtags, loc:city, breed:asil") },
-            singleLine = true
-        )
-        
-        if (query.isEmpty()) {
-            SearchHintChips(
-                onChipClick = { hint ->
-                    onQueryChange(hint)
-                }
-            )
-        }
-    }
-    
-    if (showSearchTips) {
-        SearchTipsDialog(onDismiss = { showSearchTips = false })
-    }
-}
-
-@Composable
-private fun ExploreFilterRow(
-    selected: ExploreFilter,
-    onSelected: (ExploreFilter) -> Unit,
-    tokensSummary: GeneralExploreViewModel.QueryTokens
-) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            FilterChip(
-                selected = selected == ExploreFilter.RECENT,
-                onClick = { onSelected(ExploreFilter.RECENT) },
-                label = { Text("Recent") },
-                leadingIcon = { Icon(Icons.Filled.Public, contentDescription = "Recent posts") }
-            )
-            FilterChip(
-                selected = selected == ExploreFilter.POPULAR,
-                onClick = { onSelected(ExploreFilter.POPULAR) },
-                label = { Text("Popular") },
-                leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = "Popular filter") }
-            )
-            FilterChip(
-                selected = selected == ExploreFilter.NEARBY,
-                onClick = { onSelected(ExploreFilter.NEARBY) },
-                label = { Text("Nearby") },
-                leadingIcon = { Icon(Icons.Outlined.NearMe, contentDescription = "Nearby") }
-            )
-            FilterChip(
-                selected = selected == ExploreFilter.FOLLOWING,
-                onClick = { onSelected(ExploreFilter.FOLLOWING) },
-                label = { Text("Following") },
-                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = "Following") }
-            )
-        }
-        if (!tokensSummary.isEmpty) {
-            Spacer(Modifier.height(12.dp))
-            AssistChip(
-                onClick = { /* informational only */ },
-                label = { Text("Filters applied: ${tokensSummary.keywords.size + tokensSummary.hashtags.size + tokensSummary.mentions.size}") },
-                colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-    }
-}
-
-@Composable
-private fun ExplorePostCard(
-    post: PostEntity,
-    onAuthorClick: () -> Unit,
-    onLikeToggle: (Boolean) -> Unit,
-    onOpenMessages: (String) -> Unit,
-    onOpenSocialFeed: () -> Unit
-) {
-    var liked by rememberSaveable(post.postId) { mutableStateOf(false) }
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    TextButton(onClick = onAuthorClick, contentPadding = PaddingValues(0.dp)) {
-                        Column(horizontalAlignment = Alignment.Start) {
-                            Text(text = post.authorId.take(10), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text(text = "Tap to preview profile", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-                IconButton(onClick = { onOpenMessages(post.postId) }) {
-                    Icon(Icons.Filled.Message, contentDescription = "Discuss")
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            if (!post.text.isNullOrBlank()) {
-                Text(post.text!!, style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-            }
-
-            when {
-                post.mediaUrl.isNullOrBlank() -> Unit
-                post.type.equals("video", ignoreCase = true) || post.mediaUrl!!.endsWith(".mp4", true) -> {
-                    VideoPlayer(modifier = Modifier.fillMaxWidth().height(220.dp), url = post.mediaUrl!!)
-                    Spacer(Modifier.height(8.dp))
-                }
-                else -> {
-                    AsyncImage(
-                        model = post.mediaUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilledTonalIconButton(onClick = {
-                    liked = !liked
-                    onLikeToggle(liked)
-                }) {
-                    Icon(
-                        imageVector = if (liked) Icons.Filled.Person else Icons.Filled.Public,
-                        contentDescription = "Like"
-                    )
-                }
-                TextButton(onClick = onOpenSocialFeed) { Text("View details") }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchHintChips(onChipClick: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Text(
-            "Try:",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = "Explore",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Spacer(Modifier.height(16.dp))
+
+        // Modern Search Bar
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            tonalElevation = 2.dp
         ) {
-            AssistChip(
-                onClick = { onChipClick("#poultry") },
-                label = { Text("#poultry") },
-                leadingIcon = { Icon(Icons.Filled.Public, contentDescription = "Hashtag", modifier = Modifier.size(16.dp)) }
-            )
-            AssistChip(
-                onClick = { onChipClick("breed:asil") },
-                label = { Text("breed:asil") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", modifier = Modifier.size(16.dp)) }
-            )
-            AssistChip(
-                onClick = { onChipClick("loc:bangalore") },
-                label = { Text("loc:bangalore") },
-                leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = "Location", modifier = Modifier.size(16.dp)) }
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(12.dp))
+                Box(Modifier.weight(1f)) {
+                    if (query.isEmpty()) {
+                        Text(
+                            "Search breeds, farms, tips...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = onClearQuery) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                } else {
+                    IconButton(onClick = onScanQr) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
         }
     }
 }
-
-@Composable
-private fun SearchTipsDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Search Tips") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SearchTipItem(
-                    icon = Icons.Filled.Public,
-                    title = "Hashtags",
-                    description = "#poultry, #organic, #freerange",
-                    example = "Find posts with specific topics"
-                )
-                SearchTipItem(
-                    icon = Icons.Filled.Person,
-                    title = "Mentions",
-                    description = "@username",
-                    example = "Find posts by specific users"
-                )
-                SearchTipItem(
-                    icon = Icons.Filled.LocationOn,
-                    title = "Location",
-                    description = "loc:city or loc:state",
-                    example = "loc:bangalore, loc:karnataka"
-                )
-                SearchTipItem(
-                    icon = Icons.Filled.Pets,
-                    title = "Breed",
-                    description = "breed:name",
-                    example = "breed:asil, breed:kadaknath"
-                )
-                SearchTipItem(
-                    icon = Icons.Filled.ColorLens,
-                    title = "Color",
-                    description = "color:name",
-                    example = "color:black, color:white"
-                )
-                Divider()
-                Text(
-                    "💡 Combine multiple filters:",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "\"#organic breed:asil loc:bangalore\"",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
-                        .padding(8.dp)
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Got it")
-            }
-        }
-    )
 }
 
-@Composable
-private fun SearchTipItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String,
-    example: String
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary
+    @Composable
+    private fun CategoryRail(onCategoryClick: (String) -> Unit) {
+        val categories = listOf(
+            "Poultry" to Icons.Default.Egg,
+            "Livestock" to Icons.Default.Pets,
+            "Feed" to Icons.Default.Grass,
+            "Health" to Icons.Default.MedicalServices,
+            "Equip" to Icons.Default.Build,
+            "Events" to Icons.Default.Event
         )
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(bottom = 24.dp)
+        ) {
+            items(categories) { (name, icon) ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clickable { onCategoryClick(name) }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = name,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun FeaturedSection() {
+        val pagerState = rememberPagerState(pageCount = { 3 })
+
+        Column(Modifier.padding(bottom = 24.dp)) {
+            PaddingValues(horizontal = 20.dp)
             Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                text = "Trending Now",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+
+            HorizontalPager(
+                state = pagerState,
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                pageSpacing = 16.dp
+            ) { page ->
+                FeaturedCard(page)
+            }
+        }
+    }
+
+    @Composable
+    private fun FeaturedCard(index: Int) {
+        val colors = listOf(
+            Color(0xFF1E88E5) to Color(0xFF1565C0),
+            Color(0xFF43A047) to Color(0xFF2E7D32),
+            Color(0xFFFB8C00) to Color(0xFFEF6C00)
+        )
+        val (startColor, endColor) = colors[index % colors.size]
+        val titles = listOf("Premium Asil Breeds", "Organic Feed Guide", "Upcoming Expos")
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Brush.linearGradient(listOf(startColor, endColor)))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "FEATURED",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = titles[index],
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun FilterRow(
+        selected: ExploreFilter,
+        onSelected: (ExploreFilter) -> Unit
+    ) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(bottom = 24.dp)
+        ) {
+            items(ExploreFilter.values()) { filter ->
+                val isSelected = selected == filter
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onSelected(filter) },
+                    label = { Text(filter.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun LearnAndGrowSection(
+        content: List<com.rio.rostry.domain.model.EducationalContent>,
+        onItemClick: (com.rio.rostry.domain.model.EducationalContent) -> Unit
+    ) {
+        Column(Modifier.padding(bottom = 24.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Learn & Grow",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = { /* See all */ }) {
+                    Text("See All")
+                }
+            }
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(content) { item ->
+                    Card(
+                        modifier = Modifier
+                            .width(200.dp)
+                            .height(240.dp)
+                            .clickable { onItemClick(item) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                // Placeholder for image
+                                Icon(
+                                    imageVector = Icons.Default.School,
+                                    contentDescription = null,
+                                    modifier = Modifier.align(Alignment.Center),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            Column(Modifier.padding(12.dp)) {
+                                Text(
+                                    text = item.type.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = item.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Text(
+                                    text = "5 min read",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun ModernPostCard(
+        post: PostEntity,
+        onAuthorClick: () -> Unit,
+        onLikeToggle: (Boolean) -> Unit,
+        onOpenMessages: (String) -> Unit
+    ) {
+        var liked by rememberSaveable(post.postId) { mutableStateOf(false) }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(2.dp)
+        ) {
+            Column {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp).clickable(onClick = onAuthorClick)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = post.authorId.take(1).uppercase(),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "User ${post.authorId.take(4)}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "2 hours ago", // Placeholder
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = { /* More options */ }) {
+                        Icon(Icons.Default.MoreHoriz, contentDescription = "More")
+                    }
+                }
+
+                // Media
+                if (!post.mediaUrl.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .background(Color.Black)
+                    ) {
+                        if (post.type.equals(
+                                "video",
+                                ignoreCase = true
+                            ) || post.mediaUrl!!.endsWith(".mp4", true)
+                        ) {
+                            VideoPlayer(modifier = Modifier.fillMaxSize(), url = post.mediaUrl!!)
+                        } else {
+                            AsyncImage(
+                                model = post.mediaUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
+
+                // Actions & Content
+                Column(Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            IconToggleButton(checked = liked, onCheckedChange = {
+                                liked = it
+                                onLikeToggle(it)
+                            }) {
+                                Icon(
+                                    imageVector = if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Like",
+                                    tint = if (liked) Color.Red else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            IconButton(onClick = { onOpenMessages(post.postId) }) {
+                                Icon(
+                                    Icons.Outlined.ChatBubbleOutline,
+                                    contentDescription = "Comment"
+                                )
+                            }
+                            IconButton(onClick = { /* Share */ }) {
+                                Icon(Icons.Outlined.Send, contentDescription = "Share")
+                            }
+                        }
+                        IconButton(onClick = { /* Bookmark */ }) {
+                            Icon(Icons.Outlined.BookmarkBorder, contentDescription = "Save")
+                        }
+                    }
+
+                    if (!post.text.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = post.text!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun EmptyStateView() {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(48.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.SearchOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "No results found",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = example,
-                style = MaterialTheme.typography.bodySmall,
+                text = "Try adjusting your search or filters",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
-}
 
-@Composable
-private fun ProfilePreviewSheet(preview: UserPreview) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (preview.isLoading) {
-            CircularProgressIndicator(modifier = Modifier.padding(24.dp))
-            return@Column
-        }
-        Card {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                AsyncImage(
-                    model = preview.avatarUrl,
-                    contentDescription = "User avatar",
-                    modifier = Modifier
-                        .padding(bottom = 12.dp)
-                        .height(72.dp)
+    @Composable
+    private fun ProfilePreviewSheet(preview: UserPreview) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(80.dp)
+            ) {
+                if (preview.avatarUrl != null) {
+                    AsyncImage(
+                        model = preview.avatarUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = (preview.displayName ?: "U").take(1).uppercase(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = preview.displayName ?: "Community Member",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            preview.location?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(preview.displayName ?: "Community member", style = MaterialTheme.typography.titleMedium)
-                preview.headline?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                preview.location?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Based in $it", style = MaterialTheme.typography.labelMedium)
-                }
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { /* future follow/unfollow */ }) {
+            }
+            Spacer(Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Button(
+                    onClick = { /* Follow */ },
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text("Follow")
+                }
+                OutlinedButton(
+                    onClick = { /* Message */ },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Message")
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Divider()
-        Spacer(Modifier.height(12.dp))
-        TextButton(onClick = { /* placeholder for report */ }) {
-            Text("Report user")
+    }
+
+
+@Composable
+fun HelpMeChooseEntry(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Confused? Let us help!",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                Text(
+                    text = "Find the perfect bird for your taste or farm.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+fun RecommendedBreedsSection(breeds: List<BreedEntity>) {
+    Column(Modifier.padding(vertical = 12.dp)) {
+        Text(
+            text = "Recommended for You",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(breeds) { breed ->
+                Card(
+                    modifier = Modifier
+                        .width(240.dp)
+                        .height(160.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            text = breed.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = breed.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            breed.tags.take(2).forEach { tag ->
+                                SuggestionChip(
+                                    onClick = {},
+                                    label = { Text(tag, style = MaterialTheme.typography.labelSmall) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StarterKitsSection(kits: List<ProductEntity>) {
+    Column(Modifier.padding(vertical = 12.dp)) {
+        Text(
+            text = "Farmhouse Starter Kits",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(kits) { kit ->
+                Card(
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(220.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp)
+                                .background(MaterialTheme.colorScheme.secondary)
+                        ) {
+                            // Placeholder image
+                        }
+                        Column(Modifier.padding(12.dp)) {
+                            Text(
+                                text = kit.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "₹${kit.price}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "Includes: 5 Hens, 1 Rooster...", // Placeholder, should come from description
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 2
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Remote Monitoring Reassurance
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "We've got your back!",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "ROSTRY will remind you when to water and medicate your flock.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
     }
 }

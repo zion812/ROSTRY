@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 40,
-    "identityHash": "9ed1efa857d0590c4bf54463ec6eef17",
+    "identityHash": "505c22b08b767e50fcd564815f4ae085",
     "entities": [
       {
         "tableName": "users",
@@ -128,7 +128,7 @@
       },
       {
         "tableName": "products",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `price` REAL NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT NOT NULL, `location` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `imageUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `condition` TEXT, `harvestDate` INTEGER, `expiryDate` INTEGER, `birthDate` INTEGER, `vaccinationRecordsJson` TEXT, `weightGrams` REAL, `heightCm` REAL, `gender` TEXT, `color` TEXT, `breed` TEXT, `familyTreeId` TEXT, `parentIdsJson` TEXT, `breedingStatus` TEXT, `transferHistoryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `stage` TEXT, `lifecycleStatus` TEXT, `parentMaleId` TEXT, `parentFemaleId` TEXT, `ageWeeks` INTEGER, `lastStageTransitionAt` INTEGER, `breederEligibleAt` INTEGER, `isBatch` INTEGER, `splitAt` INTEGER, `splitIntoIds` TEXT, `documentUrls` TEXT NOT NULL, `qrCodeUrl` TEXT, `debug` INTEGER NOT NULL, PRIMARY KEY(`productId`), FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `price` REAL NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT NOT NULL, `location` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `imageUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `condition` TEXT, `harvestDate` INTEGER, `expiryDate` INTEGER, `birthDate` INTEGER, `vaccinationRecordsJson` TEXT, `weightGrams` REAL, `heightCm` REAL, `gender` TEXT, `color` TEXT, `breed` TEXT, `birdCode` TEXT, `colorTag` TEXT, `familyTreeId` TEXT, `parentIdsJson` TEXT, `breedingStatus` TEXT, `transferHistoryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `stage` TEXT, `lifecycleStatus` TEXT, `parentMaleId` TEXT, `parentFemaleId` TEXT, `ageWeeks` INTEGER, `lastStageTransitionAt` INTEGER, `breederEligibleAt` INTEGER, `isBatch` INTEGER, `splitAt` INTEGER, `splitIntoIds` TEXT, `documentUrls` TEXT NOT NULL, `qrCodeUrl` TEXT, `debug` INTEGER NOT NULL, PRIMARY KEY(`productId`), FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "productId",
@@ -254,6 +254,16 @@
           {
             "fieldPath": "breed",
             "columnName": "breed",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "birdCode",
+            "columnName": "birdCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "colorTag",
+            "columnName": "colorTag",
             "affinity": "TEXT"
           },
           {
@@ -7135,7 +7145,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9ed1efa857d0590c4bf54463ec6eef17')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '505c22b08b767e50fcd564815f4ae085')"
     ]
   }
 }

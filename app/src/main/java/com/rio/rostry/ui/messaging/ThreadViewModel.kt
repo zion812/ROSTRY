@@ -16,11 +16,15 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
+import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.data.database.entity.OrderEntity
+
 @HiltViewModel
 class ThreadViewModel @Inject constructor(
     private val messagingRepository: MessagingRepository,
     private val outgoingDao: OutgoingMessageDao,
     private val currentUserProvider: CurrentUserProvider,
+    private val orderRepository: OrderRepository
 ) : ViewModel() {
 
     // Track bind job to prevent memory leaks from multiple collectors
@@ -31,6 +35,9 @@ class ThreadViewModel @Inject constructor(
 
     private val _threadMetadata = MutableStateFlow<MessagingRepository.ThreadMetadata?>(null)
     val threadMetadata: StateFlow<MessagingRepository.ThreadMetadata?> = _threadMetadata.asStateFlow()
+
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
 
     fun bind(threadId: String) {
         // Cancel previous bind job to prevent memory leak
@@ -50,6 +57,7 @@ class ThreadViewModel @Inject constructor(
             }
             launch {
                 val uid = currentUserProvider.userIdOrNull() ?: return@launch
+                _currentUserId.value = uid
                 messagingRepository.markThreadSeen(threadId, uid)
             }
         }
@@ -104,6 +112,75 @@ class ThreadViewModel @Inject constructor(
                 createdAt = System.currentTimeMillis()
             )
             outgoingDao.upsert(msg)
+        }
+    }
+
+    fun acceptOffer(message: MessagingRepository.MessageDTO) {
+        val currentUser = _currentUserId.value ?: return
+        val metadata = _threadMetadata.value ?: return
+        
+        // Ensure this is a product inquiry
+        if (metadata.context?.type != "PRODUCT_INQUIRY") return
+        val productId = metadata.context.relatedEntityId ?: return
+
+        viewModelScope.launch {
+            try {
+                val offerDetails = org.json.JSONObject(message.metadata ?: "{}")
+                val price = offerDetails.optDouble("price", 0.0)
+                val quantity = offerDetails.optDouble("quantity", 0.0)
+                
+                // Create Order
+                val orderId = UUID.randomUUID().toString()
+                val now = System.currentTimeMillis()
+                
+                // If I am accepting, I am the seller (assuming buyer sent the offer)
+                // The message.fromUserId is the one who made the offer (Buyer)
+                // The message.toUserId is me (Seller)
+                
+                val order = OrderEntity(
+                    orderId = orderId,
+                    buyerId = message.fromUserId,
+                    sellerId = currentUser,
+                    totalAmount = price, // Assuming price is total for now, or calculate based on unit? Let's assume price is Total Offer Price.
+                    status = "PENDING_PAYMENT", // Waiting for payment/bill
+                    negotiationStatus = "AGREED",
+                    negotiatedPrice = price,
+                    originalPrice = price, // We don't have original price handy, maybe fetch product? For now use offer price.
+                    createdAt = now,
+                    updatedAt = now,
+                    dirty = true
+                    // TODO: Populate delivery details if available in offer or default
+                )
+                
+                orderRepository.upsert(order)
+                
+                // Send confirmation message
+                val threadId = metadata.threadId
+                sendQueuedDm(
+                    threadId = threadId,
+                    fromUserId = currentUser,
+                    toUserId = message.fromUserId,
+                    text = "Offer Accepted! Order created. Please wait for the bill."
+                )
+
+            } catch (e: Exception) {
+                // Handle error
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun rejectOffer(message: MessagingRepository.MessageDTO) {
+        val currentUser = _currentUserId.value ?: return
+        val metadata = _threadMetadata.value ?: return
+        
+        viewModelScope.launch {
+            sendQueuedDm(
+                threadId = metadata.threadId,
+                fromUserId = currentUser,
+                toUserId = message.fromUserId,
+                text = "Offer Rejected."
+            )
         }
     }
 }

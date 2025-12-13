@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
@@ -36,6 +37,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -142,6 +144,12 @@ fun GeneralMarketRoute(
                 it.copy(selectedAgeGroup = if (same) null else group)
             }
         },
+        onSelectCulinaryProfile = { profile ->
+            viewModel.updateFilters {
+                val same = it.selectedCulinaryProfile == profile
+                it.copy(selectedCulinaryProfile = if (same) null else profile)
+            }
+        },
         onOpenProductDetails = onOpenProductDetails,
         onOpenTraceability = onOpenTraceability,
         onAddToCart = viewModel::addToCart,
@@ -164,6 +172,7 @@ private fun GeneralMarketScreen(
     onClearFilters: () -> Unit,
     onSelectBreed: (String) -> Unit,
     onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit,
+    onSelectCulinaryProfile: (String) -> Unit,
     onOpenProductDetails: (String) -> Unit,
     onOpenTraceability: (String) -> Unit,
     onAddToCart: (ProductEntity, Double) -> Unit,
@@ -221,7 +230,9 @@ private fun GeneralMarketScreen(
                 onToggleVerified = onToggleVerified,
                 onClearFilters = onClearFilters,
                 onSelectBreed = onSelectBreed,
-                onSelectAgeGroup = onSelectAgeGroup
+                onSelectAgeGroup = onSelectAgeGroup,
+                onSelectCulinaryProfile = onSelectCulinaryProfile,
+                selectedCulinaryProfile = state.filters.selectedCulinaryProfile
             )
 
             if (state.products.isEmpty() && !state.isLoading) {
@@ -364,7 +375,9 @@ private fun CompactFilterBar(
     onToggleVerified: () -> Unit,
     onClearFilters: () -> Unit,
     onSelectBreed: (String) -> Unit,
-    onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit
+    onSelectAgeGroup: (ValidationUtils.AgeGroup) -> Unit,
+    onSelectCulinaryProfile: (String) -> Unit,
+    selectedCulinaryProfile: String?
 ) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(
@@ -420,6 +433,50 @@ private fun CompactFilterBar(
                             }
                             .testTag("preset_${preset.id}")
                     )
+                }
+
+                // Taste Profile Filter
+                item {
+                    var showTasteMenu by remember { mutableStateOf(false) }
+                    Box {
+                        FilterChip(
+                            selected = selectedCulinaryProfile != null,
+                            onClick = { showTasteMenu = true },
+                            label = { Text(selectedCulinaryProfile ?: "Taste") },
+                            trailingIcon = { 
+                                Icon(
+                                    androidx.compose.material.icons.Icons.Default.ArrowDropDown, 
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                ) 
+                            },
+                            modifier = Modifier.testTag("filter_taste")
+                        )
+                        DropdownMenu(
+                            expanded = showTasteMenu,
+                            onDismissRequest = { showTasteMenu = false }
+                        ) {
+                            listOf("Soft", "Textured", "Medicinal").forEach { profile ->
+                                DropdownMenuItem(
+                                    text = { Text(profile) },
+                                    onClick = { 
+                                        onSelectCulinaryProfile(profile)
+                                        showTasteMenu = false
+                                    }
+                                )
+                            }
+                            if (selectedCulinaryProfile != null) {
+                                androidx.compose.material3.HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("Clear") },
+                                    onClick = { 
+                                        onSelectCulinaryProfile(selectedCulinaryProfile) // Toggles off
+                                        showTasteMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -6,6 +6,7 @@ import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.ProductTraitDao
 import com.rio.rostry.data.database.dao.TransferVerificationDao
 import com.rio.rostry.data.database.dao.DisputeDao
+import com.rio.rostry.data.database.dao.FamilyTreeDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.GrowthRecordDao
@@ -38,6 +39,7 @@ class LineageVerificationTest {
     private lateinit var dailyLogDao: DailyLogDao
     private lateinit var growthDao: GrowthRecordDao
     private lateinit var quarantineDao: QuarantineRecordDao
+    private lateinit var familyTreeDao: FamilyTreeDao
 
     private lateinit var repo: TraceabilityRepository
 
@@ -55,6 +57,7 @@ class LineageVerificationTest {
         dailyLogDao = mockk()
         growthDao = mockk()
         quarantineDao = mockk()
+        familyTreeDao = mockk()
         val userRepository = mockk<com.rio.rostry.data.repository.UserRepository>()
         repo = TraceabilityRepositoryImpl(
             breedingDao,
@@ -69,7 +72,8 @@ class LineageVerificationTest {
             dailyLogDao,
             growthDao,
             quarantineDao,
-            userRepository
+            userRepository,
+            familyTreeDao  // Add this line
         )
     }
 

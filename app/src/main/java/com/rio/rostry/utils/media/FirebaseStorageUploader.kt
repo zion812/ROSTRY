@@ -32,7 +32,7 @@ class FirebaseStorageUploader(
         localUriString: String,
         remotePath: String,
         compress: Boolean = true,
-        sizeLimitBytes: Long = 5_000_000L,
+        sizeLimitBytes: Long = 10_000_000L, // 10MB to match Firebase Storage rules
         onProgress: (percent: Int) -> Unit = {},
     ): UploadResult = withContext(Dispatchers.IO) {
         if (!connectivityManager.isOnline()) throw IllegalStateException("Offline")
@@ -73,7 +73,7 @@ class FirebaseStorageUploader(
 
     suspend fun uploadBatch(
         tasks: List<Triple<String, String, Boolean>>, // (localUri, remotePath, compress)
-        sizeLimitBytes: Long = 5_000_000L,
+        sizeLimitBytes: Long = 10_000_000L, // 10MB to match Firebase Storage rules
         onItemProgress: (index: Int, percent: Int) -> Unit = { _, _ -> },
     ): List<Result<UploadResult>> {
         val results = mutableListOf<Result<UploadResult>>()

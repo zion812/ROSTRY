@@ -2,6 +2,7 @@ package com.rio.rostry.di
 
 import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.data.database.dao.*
+import com.rio.rostry.data.database.dao.BreedDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.components.SingletonComponent
@@ -40,6 +41,7 @@ object TestDatabaseExtraModule {
     @Provides @Singleton fun provideTransferVerificationDao(db: AppDatabase): TransferVerificationDao = db.transferVerificationDao()
     @Provides @Singleton fun provideDisputeDao(db: AppDatabase): DisputeDao = db.disputeDao()
     @Provides @Singleton fun provideAuditLogDao(db: AppDatabase): AuditLogDao = db.auditLogDao()
+    @Provides @Singleton fun provideBreedDao(db: AppDatabase): BreedDao = db.breedDao()
 
     // Farm monitoring
     @Provides @Singleton fun provideGrowthRecordDao(db: AppDatabase): GrowthRecordDao = db.growthRecordDao()

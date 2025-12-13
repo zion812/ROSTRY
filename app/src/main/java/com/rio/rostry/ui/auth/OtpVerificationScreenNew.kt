@@ -39,24 +39,37 @@ import com.rio.rostry.ui.components.shake
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtpVerificationScreenNew(
-    viewModel: OtpVerificationViewModel = hiltViewModel(),
+    verificationId: String = "",
+    fromGuest: Boolean = false,
     onVerified: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: OtpVerificationViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val activity = context as? Activity
     val focusRequester = remember { FocusRequester() }
-    
+
+    // Initialize the fromGuest flag in the ViewModel
+    LaunchedEffect(fromGuest) {
+        // We'll need to add a method to set fromGuest in the ViewModel,
+        // but for now we can pass it through other means
+    }
+
+    // Get AuthViewModel to set fromGuest flag
+    val authVm: AuthViewModel = hiltViewModel()
+
     // Show success animation then navigate
     var showSuccessAnimation by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(state.isVerified) {
         if (state.isVerified) {
+            // Set the fromGuest flag when verification succeeds
+            authVm.setFromGuest(fromGuest)
             showSuccessAnimation = true
         }
     }
-    
+
     // Auto-focus OTP field
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()

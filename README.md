@@ -1,6 +1,7 @@
 # ROSTRY Android Application
 
 ## ⚡ Quick Links
+- 📘 [Complete System Blueprint](SYSTEM_BLUEPRINT.md)
 - 🚀 [5-Minute Quick Start](QUICK_START.md)
 - 🛠️ [Developer Cheat Sheet](CHEAT_SHEET.md)
 - 📚 [Documentation Index](docs/README-docs.md)
@@ -76,6 +77,65 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 
 ---
 
+## Firestore Index Management
+
+Firestore composite indexes are required for efficient querying of collections with multiple filter conditions. The app defines these indexes in `firebase/firestore.indexes.json`.
+
+### Index Configuration
+
+- **Location**: `firebase/firestore.indexes.json` contains all composite index definitions
+- **Structure**: Each index specifies collection, query scope, field paths, sort order, and density
+- **Required Indexes**: The `orders` collection requires two composite indexes for efficient user-specific queries:
+  - Buyer orders: `(buyerId ASC, updatedAt ASC, __name__ ASC)`
+  - Seller orders: `(sellerId ASC, updatedAt ASC, __name__ ASC)`
+
+### Deployment Methods
+
+Deploy indexes using either of these methods:
+
+#### Automatic Deployment
+```bash
+firebase deploy --only firestore:indexes
+```
+
+#### Manual Deployment
+- Check Firebase Console for FAILED_PRECONDITION error messages with index creation URLs
+- Follow the URLs to create missing indexes directly in the Firebase Console
+- Monitor index build status in Firestore indexes tab
+
+### Index Build Time
+
+- Firestore indexes are built incrementally and can take several minutes to complete
+- Large collections may require longer build times
+- Monitor index status in Firebase Console before testing queries
+
+### Troubleshooting Sync Failures
+
+When experiencing sync issues, check for these common index-related problems:
+
+1. **FAILED_PRECONDITION Errors**: Look for index creation URLs in logcat
+   - Search for "Firestore" or "FAILED_PRECONDITION" in Android Studio Logcat
+   - Follow provided Firebase Console URLs to create missing indexes
+
+2. **Index Status Verification**:
+   - Navigate to Firestore indexes in Firebase Console
+   - Verify required indexes are in "Enabled" state (not "Building" or "Error")
+   - Check that `firestore.indexes.json` matches deployed indexes
+
+3. **Query Structure Changes**:
+   - Any changes to query filters or ordering may require new indexes
+   - Update `firebase/firestore.indexes.json` when modifying Firestore queries
+   - Deploy updated indexes to Firebase before releasing query changes
+
+### Common Pitfalls
+
+- **Forgotten Index Deployment**: Modifying queries without deploying corresponding indexes
+- **Incomplete Index Builds**: Testing queries before indexes finish building
+- **Data Constraints**: Index build failures due to existing data that violates new index constraints
+- **Sync Failures**: OutboxSyncWorker failing indefinitely due to missing indexes, resulting in offline indicators in the UI
+
+---
+
 ## Screenshots
 
 Temporarily hidden until assets are added. Target path: `docs/images/screenshots/`.
@@ -89,6 +149,8 @@ Temporarily hidden until assets are added. Target path: `docs/images/screenshots
 - Commands and patterns: see [CHEAT_SHEET.md](CHEAT_SHEET.md).
 
 ## Documentation
+
+📘 **Complete System Reference**: For comprehensive end-to-end system documentation, see `SYSTEM_BLUEPRINT.md` - the master SINF (System Information and Functionality) document covering the entire codebase, all features, data flows, and architecture.
 
 📚 **Comprehensive documentation available.** See `docs/README-docs.md` for the complete index including architecture guides, feature documentation, and operational procedures.
 
@@ -144,7 +206,7 @@ Output is under `app/build/dokka/html`.
 
 ## Project Status
 
-- Version: 1.0.0 (stable)
+- Version: 1.0.0 (80% production-ready)
 - Active development; see [CHANGELOG.md](CHANGELOG.md)
 - Future plans: see [ROADMAP.md](ROADMAP.md)
 

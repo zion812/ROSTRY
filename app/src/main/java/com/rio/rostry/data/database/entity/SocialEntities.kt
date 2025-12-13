@@ -13,6 +13,9 @@ data class PostEntity(
     val mediaUrl: String?,
     val thumbnailUrl: String?,
     val productId: String?,
+    val hashtags: List<String>?,
+    val mentions: List<String>?,
+    val parentPostId: String?,
     val createdAt: Long,
     val updatedAt: Long,
 )
@@ -49,6 +52,7 @@ data class GroupEntity(
     val description: String?,
     val ownerId: String,
     val category: String?, // breed, region, etc
+    val isMarketplace: Boolean = false,
     val createdAt: Long,
 )
 
@@ -124,4 +128,13 @@ data class OutgoingMessageEntity(
     val fileName: String?,
     val status: String, // PENDING, SENT, FAILED
     val createdAt: Long,
+)
+
+@Entity(tableName = "stories", indices = [Index("authorId"), Index("expiresAt")])
+data class StoryEntity(
+    @PrimaryKey val storyId: String,
+    val authorId: String,
+    val mediaUrl: String,
+    val createdAt: Long,
+    val expiresAt: Long,
 )

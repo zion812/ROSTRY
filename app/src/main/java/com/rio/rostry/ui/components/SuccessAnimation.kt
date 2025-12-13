@@ -83,7 +83,7 @@ fun SuccessCheckmarkAnimation(
     LaunchedEffect(Unit) {
         delay(100)
         startAnimation = true
-        delay(1500) // Show success for 1.5 seconds
+        delay(1000) // Show success for 1 second
         onComplete()
     }
     

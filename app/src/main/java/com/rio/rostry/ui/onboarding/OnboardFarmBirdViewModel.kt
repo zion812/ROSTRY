@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
@@ -31,6 +32,9 @@ import com.rio.rostry.utils.notif.FarmNotifier
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.data.sync.SyncManager
+import com.rio.rostry.utils.BirdIdGenerator
+import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.data.repository.UserRepository
 
 @HiltViewModel
 class OnboardFarmBirdViewModel @Inject constructor(
@@ -43,7 +47,9 @@ class OnboardFarmBirdViewModel @Inject constructor(
     private val securityManager: SecurityManager,
     @ApplicationContext private val context: Context,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val currentUserProvider: CurrentUserProvider,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -67,7 +73,8 @@ class OnboardFarmBirdViewModel @Inject constructor(
         val vaccinationRecords: String = "",
         val healthStatus: String = "OK",
         val breedingHistory: String = "",
-        val awards: String = ""
+        val awards: String = "",
+        val location: String = ""
     )
 
     data class LineageState(
@@ -95,7 +102,8 @@ class OnboardFarmBirdViewModel @Inject constructor(
         val error: String? = null,
         val savedId: String? = null,
         val uploadProgress: Map<String, Int> = emptyMap(),
-        val uploadStatus: Map<String, String> = emptyMap()
+        val uploadStatus: Map<String, String> = emptyMap(),
+        val warning: String? = null
     )
 
     private val _state = MutableStateFlow(WizardState())
@@ -106,6 +114,19 @@ class OnboardFarmBirdViewModel @Inject constructor(
         isEnthusiast = role.equals("enthusiast", ignoreCase = true)
         if (isEnthusiast && _state.value.isTraceable == null) {
             _state.value = _state.value.copy(isTraceable = true)
+        }
+        checkBirdCountLimit()
+    }
+
+    private fun checkBirdCountLimit() {
+        if (isEnthusiast) return // Enthusiasts have no limit
+        
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            val count = productRepository.countActiveByOwnerId(uid)
+            if (count >= 50) {
+                _state.value = _state.value.copy(warning = "You have reached 50 birds. Upgrade to Enthusiast for advanced tracking.")
+            }
         }
     }
 
@@ -201,7 +222,8 @@ class OnboardFarmBirdViewModel @Inject constructor(
             vaccinationRecords = d.vaccinationRecords,
             healthStatus = d.healthStatus,
             breedingHistory = d.breedingHistory,
-            awards = d.awards
+            awards = d.awards,
+            location = d.location
         )
         fun toValidatorLineage(l: LineageState) = OnboardingValidator.LineageState(
             maleParentId = l.maleParentId,
@@ -253,21 +275,28 @@ class OnboardFarmBirdViewModel @Inject constructor(
             return
         }
         val now = System.currentTimeMillis()
-        val tentativeId = "bird_${now}_${UUID.randomUUID()}"
+        val productId = "bird_${now}_${UUID.randomUUID()}"
+        val birdCode = BirdIdGenerator.generate(color = s.coreDetails.colors.ifBlank { null }, breed = s.coreDetails.breed.ifBlank { null }, sellerId = uid, productId = productId)
+        val colorTag = BirdIdGenerator.colorTag(s.coreDetails.colors.ifBlank { null })
         val entity = ProductEntity(
-            productId = tentativeId,
+            productId = productId,
             sellerId = uid,
             name = s.coreDetails.name,
-            description = s.coreDetails.breed.ifBlank { "" },
+            description = buildString {
+                append(s.coreDetails.breed.ifBlank { "" })
+                if (s.coreDetails.breedingHistory.isNotBlank()) append("\nBreeding History: ${s.coreDetails.breedingHistory}")
+                if (s.coreDetails.awards.isNotBlank()) append("\nAwards: ${s.coreDetails.awards}")
+            },
             category = "BIRD",
             price = 0.0,
             quantity = 1.0,
             unit = "unit",
-            location = "",
+            location = s.coreDetails.location,
             isBatch = false,
             status = "private",
             stage = mapAgeGroupToStage(s.ageGroup),
             lifecycleStatus = "ACTIVE",
+            createdAt = now,
             updatedAt = now,
             lastModifiedAt = now,
             dirty = true,
@@ -276,19 +305,26 @@ class OnboardFarmBirdViewModel @Inject constructor(
             heightCm = s.coreDetails.heightCm.toDoubleOrNull(),
             breed = s.coreDetails.breed,
             color = s.coreDetails.colors,
+            birdCode = birdCode,
+            colorTag = colorTag,
             parentMaleId = s.lineage.maleParentId,
-            parentFemaleId = s.lineage.femaleParentId
+            parentFemaleId = s.lineage.femaleParentId,
+            imageUrls = s.media.photoUris,
+            documentUrls = s.media.documentUris,
+            vaccinationRecordsJson = if (s.coreDetails.vaccinationRecords.isNotBlank()) {
+                com.google.gson.Gson().toJson(listOf(mapOf("note" to s.coreDetails.vaccinationRecords, "date" to now)))
+            } else null
         )
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {
             when (val res = productRepository.addProduct(entity)) {
                 is Resource.Success -> {
-                    val newId = res.data ?: tentativeId
+                    val newId = res.data ?: productId
                     // Enqueue uploads with correct id
                     s.media.photoUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/photos/$idx") }
                     s.media.documentUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/documents/$idx") }
                     // Initialize monitoring seeds
-                    farmOnboardingRepository.addProductToFarmMonitoring(newId, uid)
+                    farmOnboardingRepository.addProductToFarmMonitoring(newId, uid, s.coreDetails.healthStatus)
                     // Family tree linkages
                     if (!s.lineage.maleParentId.isNullOrBlank()) {
                         val node = FamilyTreeEntity(
@@ -388,11 +424,45 @@ class OnboardFarmBirdViewModel @Inject constructor(
                     _state.value = _state.value.copy(saving = false, savedId = newId)
                     FarmNotifier.notifyBirdOnboarded(context, s.coreDetails.name, newId)
                     // Trigger a background sync so dashboards refresh promptly
-                    runCatching { syncManager.syncAll() }
-                    _navigationEvent.emit(Routes.Builders.dailyLog(newId))
+                    com.rio.rostry.workers.OutboxSyncWorker.scheduleImmediateSync(context)
+                    _navigationEvent.emit(Routes.HOME_FARMER)
                     _refreshEvent.emit(Unit)
                 }
-                is Resource.Error -> _state.value = _state.value.copy(saving = false, error = res.message)
+                is Resource.Error -> {
+                    // Audit verification errors for private products as potential bugs.
+                    // Private products should never require verification, so this indicates
+                    // a logic error in ProductRepositoryImpl.addProduct() or RbacGuard.
+                    if (res.message?.contains("Complete KYC verification", ignoreCase = true) == true) {
+                        // Get current user to capture verification status
+                        val currentUserId = currentUserProvider.userIdOrNull()
+                        val userEntity = if (currentUserId != null) {
+                            when (val userResult = userRepository.getUserById(currentUserId).firstOrNull()) {
+                                is Resource.Success -> userResult.data
+                                else -> null
+                            }
+                        } else null
+
+                        securityManager.audit("PRIVATE_PRODUCT_ADD_VERIFICATION_ERROR", mapOf(
+                            "error" to (res.message ?: "Unknown error"),
+                            "productStatus" to "private",
+                            "sellerId" to (currentUserId ?: "unknown"),
+                            "verificationStatus" to (userEntity?.verificationStatus?.name ?: "unknown"),
+                            "productId" to productId,
+                            "ageGroup" to (s.ageGroup?.name ?: "unknown"),
+                            "isTraceable" to (s.isTraceable ?: false).toString(),
+                            "timestamp" to System.currentTimeMillis().toString()
+                        ))
+                    }
+
+                    _state.value = _state.value.copy(
+                        saving = false,
+                        error = if (res.message?.contains("Complete KYC verification") == true) {
+                            "Unexpected error: Private birds shouldn't require verification. Please contact support with error code: PRIV_VERIFY_ERR"
+                        } else {
+                            res.message
+                        }
+                    )
+                }
                 is Resource.Loading -> {}
             }
         }

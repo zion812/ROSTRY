@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.monitoring.HatchingRepository
 import com.rio.rostry.data.repository.monitoring.VaccinationRepository
 import com.rio.rostry.data.repository.monitoring.TaskRepository
-import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.database.dao.HatchingBatchDao
 import com.rio.rostry.data.database.dao.EggCollectionDao
 import com.rio.rostry.data.database.dao.BreedingPairDao
@@ -17,6 +17,7 @@ import com.rio.rostry.data.database.entity.VaccinationRecordEntity
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
 import com.rio.rostry.data.database.entity.HatchingLogEntity
 import com.rio.rostry.data.database.entity.BreedingRecordEntity
+import com.rio.rostry.utils.BirdIdGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +33,7 @@ import javax.inject.Inject
 class HatchingViewModel @Inject constructor(
     private val hatchingRepository: HatchingRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val productDao: ProductDao,
+    private val productRepository: ProductRepository,
     private val vaccinationRepository: VaccinationRepository,
     private val taskRepository: TaskRepository,
     private val hatchingBatchDao: HatchingBatchDao,
@@ -48,7 +49,8 @@ class HatchingViewModel @Inject constructor(
         val logs: List<HatchingLogEntity> = emptyList(),
         val isLoading: Boolean = false,
         val error: String? = null,
-        val successMessage: String? = null
+        val successMessage: String? = null,
+        val products: List<ProductEntity> = emptyList()
     )
 
     private val _ui = MutableStateFlow(UiState())
@@ -57,6 +59,7 @@ class HatchingViewModel @Inject constructor(
     private val _selectedBatchId = MutableStateFlow<String?>(null)
 
     init {
+        loadProducts()
         viewModelScope.launch {
             hatchingRepository.observeBatches().collect { batches ->
                 _ui.update { it.copy(batches = batches) }
@@ -73,6 +76,17 @@ class HatchingViewModel @Inject constructor(
                 }
             }.collect { logs ->
                 _ui.update { it.copy(logs = logs) }
+            }
+        }
+    }
+
+    private fun loadProducts() {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            productRepository.getProductsBySeller(farmerId).collect { res ->
+                if (res is com.rio.rostry.utils.Resource.Success) {
+                    _ui.update { it.copy(products = res.data ?: emptyList()) }
+                }
             }
         }
     }
@@ -179,6 +193,16 @@ class HatchingViewModel @Inject constructor(
 
                 repeat(count) { idx ->
                     val chickId = "chick_${now}_${idx}_${UUID.randomUUID().toString().take(6)}"
+                    // Fetch parent products to extract color and breed
+                    val maleProduct = resolvedMale?.let { productRepository.findById(it) }
+                    val femaleProduct = resolvedFemale?.let { productRepository.findById(it) }
+                    // Derive color and breed from parent products; fallback to "Mixed" and "Unknown Breed" if parents are not available or lack these fields
+                    val derivedColor = (femaleProduct?.color ?: maleProduct?.color)?.ifBlank { null }
+                    val derivedBreed = (femaleProduct?.breed ?: maleProduct?.breed)?.ifBlank { null }
+                    val color = derivedColor ?: "Mixed"
+                    val breed = derivedBreed ?: "Unknown Breed"
+                    val birdCode = BirdIdGenerator.generate(derivedColor, derivedBreed, farmerId, chickId)
+                    val colorTag = BirdIdGenerator.colorTag(derivedColor)
                     val product = ProductEntity(
                         productId = chickId,
                         sellerId = farmerId,
@@ -199,8 +223,10 @@ class HatchingViewModel @Inject constructor(
                         weightGrams = null,
                         heightCm = null,
                         gender = null,
-                        color = null,
-                        breed = null,
+                        color = color,
+                        breed = breed,
+                        birdCode = birdCode,
+                        colorTag = colorTag,
                         familyTreeId = null,
                         parentIdsJson = null,
                         breedingStatus = null,
@@ -220,7 +246,7 @@ class HatchingViewModel @Inject constructor(
                         breederEligibleAt = null,
                         isBatch = false
                     )
-                    productDao.upsert(product)
+                    productRepository.upsert(product)
 
                     // Insert breeding lineage record for this chick
                     if (!resolvedMale.isNullOrBlank() && !resolvedFemale.isNullOrBlank()) {

@@ -71,9 +71,9 @@ class TransferVerificationViewModelTest {
             dirty = true
         )
         every { tDao.getTransferById(transferId) } returns flowOf(transfer)
-        every { vDao.streamByTransfer(transferId) } returns flowOf(emptyList())
+        every { vDao.observeByTransferId(transferId) } returns flowOf(emptyList())
         every { aDao.streamByRef(transferId) } returns flowOf(emptyList())
-        every { dDao.streamByTransfer(transferId) } returns flowOf(emptyList())
+        every { dDao.observeByTransferId(transferId) } returns flowOf(emptyList())
         coEvery { workflow.computeTrustScore(transferId) } returns Resource.Success(40)
         every { uploadMgr.events } returns MutableSharedFlow()
 
@@ -126,9 +126,9 @@ class TransferVerificationViewModelTest {
             dirty = true
         )
         every { tDao.getTransferById(transferId) } returns flowOf(transfer)
-        every { vDao.streamByTransfer(transferId) } returns flowOf(emptyList())
+        every { vDao.observeByTransferId(transferId) } returns flowOf(emptyList())
         every { aDao.streamByRef(transferId) } returns flowOf(emptyList())
-        every { dDao.streamByTransfer(transferId) } returns flowOf(emptyList())
+        every { dDao.observeByTransferId(transferId) } returns flowOf(emptyList())
         every { uploadMgr.events } returns MutableSharedFlow()
 
         val vm = TransferVerificationViewModel(
@@ -180,9 +180,9 @@ class TransferVerificationViewModelTest {
             dirty = true
         )
         every { tDao.getTransferById(transferId) } returns flowOf(transfer)
-        every { vDao.streamByTransfer(transferId) } returns flowOf(emptyList())
+        every { vDao.observeByTransferId(transferId) } returns flowOf(emptyList())
         every { aDao.streamByRef(transferId) } returns flowOf(emptyList())
-        every { dDao.streamByTransfer(transferId) } returns flowOf(emptyList())
+        every { dDao.observeByTransferId(transferId) } returns flowOf(emptyList())
         coEvery { workflow.computeTrustScore(transferId) } returns Resource.Success(40)
         val events = MutableSharedFlow<MediaUploadManager.UploadEvent>(replay = 0)
         every { uploadMgr.events } returns events

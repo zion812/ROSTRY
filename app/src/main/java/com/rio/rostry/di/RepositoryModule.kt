@@ -4,6 +4,8 @@ import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.ProductRepositoryImpl
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.UserRepositoryImpl
+import com.rio.rostry.data.repository.LikesRepository
+import com.rio.rostry.data.repository.LikesRepositoryImpl
 import com.rio.rostry.data.repository.EnthusiastBreedingRepository
 import com.rio.rostry.data.repository.EnthusiastBreedingRepositoryImpl
 // Import your other repository interfaces and implementations here
@@ -225,6 +227,18 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTaskRepository(impl: TaskRepositoryImpl): TaskRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBreedRepository(impl: com.rio.rostry.data.repository.BreedRepositoryImpl): com.rio.rostry.data.repository.BreedRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLikesRepository(impl: LikesRepositoryImpl): LikesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFeedbackRepository(impl: com.rio.rostry.data.repository.FeedbackRepositoryImpl): com.rio.rostry.data.repository.FeedbackRepository
 
 }
 

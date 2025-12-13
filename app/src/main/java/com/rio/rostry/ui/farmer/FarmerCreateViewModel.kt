@@ -34,6 +34,7 @@ import com.rio.rostry.domain.rbac.RbacGuard
 import com.rio.rostry.domain.model.VerificationStatus
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import com.rio.rostry.utils.BirdIdGenerator
 
 @HiltViewModel
 class FarmerCreateViewModel @Inject constructor(
@@ -104,26 +105,31 @@ class FarmerCreateViewModel @Inject constructor(
 
     data class BasicInfoState(
         val category: Category = Category.Meat,
-        val traceability: Traceability = Traceability.Traceable,
-        val ageGroup: AgeGroup = AgeGroup.Grower,
+        val traceability: Traceability = Traceability.NonTraceable,
+        val ageGroup: AgeGroup = AgeGroup.Chick,
         val title: String = "",
         val priceType: PriceType = PriceType.Fixed,
-        val price: String = "",
-        val auctionStartPrice: String = "",
+        val price: Double? = null,
+        val auctionStartPrice: Double? = null,
         val availableFrom: String = "",
-        val availableTo: String = ""
+        val availableTo: String = "",
+        val deliveryOptions: List<String> = emptyList(),
+        val deliveryCost: Double? = null,
+        val leadTimeDays: Int? = null,
+        val quantity: Int = 1,
+        val isBatch: Boolean = false
     )
 
     data class DetailsInfoState(
-        val birthPlace: String = "",
         val birthDateMillis: Long? = null,
+        val birthPlace: String = "",
         val vaccination: String = "",
+        val healthRecordDateMillis: Long? = null,
         val parentInfo: String = "",
         val weightText: String = "",
-        val heightCm: Double? = null,
         val healthUri: String = "",
         val genderText: String = "",
-        val sizeText: String = "",
+        val heightCm: Double? = null,
         val colorPattern: String = "",
         val specialChars: String = "",
         val breedingHistory: String = "",
@@ -131,9 +137,13 @@ class FarmerCreateViewModel @Inject constructor(
         val geneticTraits: String = "",
         val awards: String = "",
         val lineageDoc: String = "",
-        val healthRecordDateMillis: Long? = null,
+        val sizeText: String = "",
         val latitude: Double? = null,
-        val longitude: Double? = null
+        val longitude: Double? = null,
+        val breed: String = "",
+        val deliveryOptions: List<String> = emptyList(),
+        val deliveryCost: Double? = null,
+        val leadTimeDays: Int? = null
     )
 
     data class MediaInfoState(
@@ -321,7 +331,7 @@ class FarmerCreateViewModel @Inject constructor(
                 val prefilled = _ui.value.wizardState.copy(
                     basicInfo = _ui.value.wizardState.basicInfo.copy(
                         title = product.name,
-                        price = product.price.toString(),
+                        price = product.price,
                         ageGroup = ageGroup,
                         category = category,
                         traceability = if (product.familyTreeId != null) Traceability.Traceable else Traceability.NonTraceable
@@ -333,6 +343,7 @@ class FarmerCreateViewModel @Inject constructor(
                         vaccination = vaccinationSummary,
                         genderText = product.gender ?: "",
                         colorPattern = product.color ?: "",
+                        breed = product.breed ?: "",
                         latitude = product.latitude,
                         longitude = product.longitude
                     ),
@@ -347,7 +358,7 @@ class FarmerCreateViewModel @Inject constructor(
                 if (farmerId == null) return@launch
                 val fieldsCount = listOf(
                     prefilled.basicInfo.title.isNotBlank(),
-                    prefilled.basicInfo.price.isNotBlank(),
+                    prefilled.basicInfo.price != null,
                     prefilled.detailsInfo.birthDateMillis != null,
                     prefilled.detailsInfo.weightText.isNotBlank(),
                     prefilled.detailsInfo.vaccination.isNotBlank(),
@@ -542,16 +553,20 @@ class FarmerCreateViewModel @Inject constructor(
         return when (step) {
             WizardStep.BASICS -> buildMap {
                 if (state.basicInfo.title.isBlank()) put("title", "Title is required")
-                val price = state.basicInfo.price.toDoubleOrNull()
-                if (state.basicInfo.priceType == PriceType.Fixed && price == null) {
+                if (state.basicInfo.priceType == PriceType.Fixed && state.basicInfo.price == null) {
                     put("price", "Enter valid price")
                 }
-                val auction = state.basicInfo.auctionStartPrice.toDoubleOrNull()
-                if (state.basicInfo.priceType == PriceType.Auction && auction == null) {
+                if (state.basicInfo.priceType == PriceType.Auction && state.basicInfo.auctionStartPrice == null) {
                     put("auctionStartPrice", "Enter valid start price")
                 }
                 if (state.basicInfo.availableFrom.isBlank()) put("availableFrom", "Start date required")
                 if (state.basicInfo.availableTo.isBlank()) put("availableTo", "End date required")
+                if (state.basicInfo.quantity < 1) {
+                    put("quantity", "Quantity must be at least 1")
+                }
+                if (state.basicInfo.isBatch && state.basicInfo.quantity <= 1) {
+                    put("quantity", "Batch size must be greater than 1")
+                }
             }
             WizardStep.DETAILS -> buildMap {
                 val category = when (state.basicInfo.category) {
@@ -589,8 +604,8 @@ class FarmerCreateViewModel @Inject constructor(
                     videosCount = state.mediaInfo.videoUris.size,
                     audioCount = state.mediaInfo.audioUris.size,
                     documentsCount = state.mediaInfo.documentUris.size,
-                    price = state.basicInfo.price.toDoubleOrNull(),
-                    startPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
+                    price = state.basicInfo.price,
+                    startPrice = state.basicInfo.auctionStartPrice,
                     latitude = state.detailsInfo.latitude,
                     longitude = state.detailsInfo.longitude,
                     hasRecentVaccination = _ui.value.validationStatus["recentVaccination"] as? Boolean,
@@ -599,7 +614,7 @@ class FarmerCreateViewModel @Inject constructor(
                 )
                 val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
                 if (!result.valid) {
-                    result.errors.forEachIndexed { index, err -> put("details.$index", err) }
+                    result.errors.forEachIndexed { index: Int, err: String -> put("details.$index", err) }
                 }
                 // Non-blocking GPS hint when not required (non-traceable)
                 val gpsMissing = state.detailsInfo.latitude == null || state.detailsInfo.longitude == null
@@ -680,8 +695,8 @@ class FarmerCreateViewModel @Inject constructor(
                     videosCount = state.mediaInfo.videoUris.size,
                     audioCount = state.mediaInfo.audioUris.size,
                     documentsCount = state.mediaInfo.documentUris.size,
-                    price = state.basicInfo.price.toDoubleOrNull(),
-                    startPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
+                    price = state.basicInfo.price,
+                    startPrice = state.basicInfo.auctionStartPrice,
                     latitude = state.detailsInfo.latitude,
                     longitude = state.detailsInfo.longitude,
                     hasRecentVaccination = _ui.value.validationStatus["recentVaccination"] as? Boolean,
@@ -690,7 +705,7 @@ class FarmerCreateViewModel @Inject constructor(
                 )
                 val result = com.rio.rostry.marketplace.form.DynamicListingValidator.validate(input)
                 if (!result.valid) {
-                    result.errors.forEachIndexed { index, err -> put("review.$index", err) }
+                    result.errors.forEachIndexed { index: Int, err: String -> put("review.$index", err) }
                 }
                 // Non-blocking GPS hint at review step as well
                 val gpsMissing = state.detailsInfo.latitude == null || state.detailsInfo.longitude == null
@@ -710,8 +725,8 @@ class FarmerCreateViewModel @Inject constructor(
             ageGroup = state.basicInfo.ageGroup,
             title = state.basicInfo.title,
             priceType = state.basicInfo.priceType,
-            price = state.basicInfo.price.toDoubleOrNull(),
-            auctionStartPrice = state.basicInfo.auctionStartPrice.toDoubleOrNull(),
+            price = state.basicInfo.price,
+            auctionStartPrice = state.basicInfo.auctionStartPrice,
             availableFrom = state.basicInfo.availableFrom,
             availableTo = state.basicInfo.availableTo,
             healthRecordUri = state.detailsInfo.healthUri.ifBlank { null },
@@ -719,16 +734,16 @@ class FarmerCreateViewModel @Inject constructor(
             birthPlace = state.detailsInfo.birthPlace.ifBlank { null },
             vaccinationRecords = state.detailsInfo.vaccination.ifBlank { null },
             parentInfo = state.detailsInfo.parentInfo.ifBlank { null },
-            weightGrams = state.detailsInfo.weightText.toDoubleOrNull(),
             photoUris = state.mediaInfo.photoUris,
             videoUris = state.mediaInfo.videoUris,
             latitude = state.detailsInfo.latitude,
-            longitude = state.detailsInfo.longitude
+            longitude = state.detailsInfo.longitude,
+            deliveryOptions = state.detailsInfo.deliveryOptions,
+            deliveryCost = state.detailsInfo.deliveryCost,
+            leadTimeDays = state.detailsInfo.leadTimeDays,
+            quantity = state.basicInfo.quantity,
+            isBatch = state.basicInfo.isBatch
         )
-        submitListing(form)
-    }
-
-    fun submitListing(form: ListingForm) {
         if (_ui.value.isSubmitting) return
         viewModelScope.launch {
             _ui.value = UiState(isSubmitting = true)
@@ -741,13 +756,13 @@ class FarmerCreateViewModel @Inject constructor(
 
             // Check verification status
             if (currentUser.verificationStatus != VerificationStatus.VERIFIED) {
-                _ui.value = _ui.value.copy(isSubmitting = false, error = "Complete KYC verification to list products. Go to Profile → Verification.", verificationRequired = true)
+                _ui.value = UiState(isSubmitting = false, error = "Complete KYC verification to list products. Go to Profile → Verification.", verificationRequired = true)
                 return@launch
             }
 
             // Check RBAC permission
             if (!rbacGuard.canListProduct()) {
-                _ui.value = _ui.value.copy(isSubmitting = false, error = "You don't have permission to list products")
+                _ui.value = UiState(isSubmitting = false, error = "You don't have permission to list products")
                 return@launch
             }
 
@@ -809,6 +824,29 @@ class FarmerCreateViewModel @Inject constructor(
                     return@launch
                 }
 
+                // Construct form from wizardState for image processing
+                val form = with(_ui.value.wizardState) {
+                    ListingForm(
+                        category = basicInfo.category,
+                        traceability = basicInfo.traceability,
+                        title = basicInfo.title,
+                        price = basicInfo.price,
+                        auctionStartPrice = basicInfo.auctionStartPrice,
+                        quantity = basicInfo.quantity,
+                        ageGroup = basicInfo.ageGroup,
+                        birthDateMillis = detailsInfo.birthDateMillis,
+                        healthRecordUri = detailsInfo.healthUri,
+                        photoUris = mediaInfo.photoUris,
+                        videoUris = mediaInfo.videoUris,
+                        deliveryOptions = basicInfo.deliveryOptions,
+                        deliveryCost = basicInfo.deliveryCost,
+                        leadTimeDays = basicInfo.leadTimeDays,
+                        isBatch = basicInfo.isBatch,
+                        priceType = basicInfo.priceType,
+                        availableFrom = basicInfo.availableFrom,
+                        availableTo = basicInfo.availableTo
+                    )
+                }
                 val imageBytes = resolveAndCompress(form.photoUris)
                 val baseProduct = if (imageBytes.isNotEmpty()) candidate.copy(imageUrls = emptyList()) else candidate
                 when (val res = marketplace.createProduct(baseProduct, imageBytes)) {
@@ -862,14 +900,20 @@ class FarmerCreateViewModel @Inject constructor(
             AgeGroup.Senior -> now - 400L * dayMs
         }
         val status = "available"
+        val color = _ui.value.wizardState.detailsInfo.colorPattern.ifBlank { null }
+        val breed = _ui.value.wizardState.detailsInfo.breed.ifBlank { null }
+        val productId = prefillProductId ?: UUID.randomUUID().toString()
+        // productId must be non-empty for BirdIdGenerator to work correctly
+        val birdCode = BirdIdGenerator.generate(color, breed, user.userId, productId)
+        val colorTag = BirdIdGenerator.colorTag(color)
         return ProductEntity(
-            productId = prefillProductId ?: "",
+            productId = productId,
             sellerId = user.userId,
             name = name,
             description = "",
             category = categoryText,
             price = price,
-            quantity = 1.0,
+            quantity = form.quantity.toDouble(),
             unit = "piece",
             location = user.address ?: "",
             latitude = user.farmLocationLat,
@@ -885,8 +929,10 @@ class FarmerCreateViewModel @Inject constructor(
             weightGrams = null,
             heightCm = null,
             gender = null,
-            color = null,
-            breed = null,
+            color = color,
+            breed = breed,
+            birdCode = birdCode,
+            colorTag = colorTag,
             familyTreeId = if (traceable) _ui.value.wizardState.detailsInfo.lineageDoc.ifBlank { null } else null,
             parentIdsJson = _ui.value.wizardState.detailsInfo.parentInfo.ifBlank { null },
             breedingStatus = null,
@@ -896,12 +942,29 @@ class FarmerCreateViewModel @Inject constructor(
             lastModifiedAt = now,
             isDeleted = false,
             deletedAt = null,
-            dirty = true
+            dirty = true,
+            stage = null,
+            lifecycleStatus = null,
+            parentMaleId = null,
+            parentFemaleId = null,
+            ageWeeks = null,
+            lastStageTransitionAt = null,
+            breederEligibleAt = null,
+            isBatch = form.isBatch,
+            splitAt = null,
+            splitIntoIds = null,
+            documentUrls = emptyList(),
+            qrCodeUrl = null,
+            customStatus = null,
+            debug = false,
+            // Delivery & Logistics fields from the form
+            deliveryOptions = form.deliveryOptions,
+            deliveryCost = form.deliveryCost,
+            leadTimeDays = form.leadTimeDays
         )
     }
 
     private fun resolveAndCompress(uris: List<String>): List<ByteArray> {
-        if (uris.isEmpty()) return emptyList()
         val cr = appContext.contentResolver
         val list = mutableListOf<ByteArray>()
         for (s in uris) {

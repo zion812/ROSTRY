@@ -38,16 +38,26 @@ class QuarantineReminderWorker @AssistedInject constructor(
             active.filter { it.lastUpdatedAt + twelveHours < now }
                 .forEach {
                     val overdueHours = (now - it.lastUpdatedAt) / (1000 * 60 * 60)
+                    
+                    // Degrade health score for overdue items
+                    // Decrease by 2 points every time the worker runs (approx every 3 hours) while overdue
+                    val newScore = (it.healthScore - 2).coerceAtLeast(0)
+                    if (newScore != it.healthScore) {
+                        val updated = it.copy(healthScore = newScore, dirty = true)
+                        quarantineRecordDao.update(updated)
+                    }
+
                     val metadata = mapOf(
                         "quarantineId" to it.quarantineId,
                         "lastUpdatedAt" to it.lastUpdatedAt,
-                        "overdueHours" to overdueHours
+                        "overdueHours" to overdueHours,
+                        "healthScore" to newScore
                     )
                     intelligentNotificationService.notifyFarmEvent(
                         FarmEventType.QUARANTINE_OVERDUE,
                         it.productId,
                         "Quarantine Update Required",
-                        "Update overdue by $overdueHours hours for ${it.productId}",
+                        "Update overdue by $overdueHours hours. Health score dropped to $newScore%.",
                         metadata
                     )
                     val existingTasks = taskRepository.findPendingByTypeProduct(farmerId, it.productId, "QUARANTINE_CHECK")

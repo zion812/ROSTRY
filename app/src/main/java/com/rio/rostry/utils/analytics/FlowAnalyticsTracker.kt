@@ -21,6 +21,18 @@ interface FlowAnalyticsTracker {
     fun trackOnboardingRoleSelected(role: String)
     fun trackOnboardingChecklistProgress(item: String, completed: Boolean)
     fun trackOnboardingCompleted()
+    fun trackOnboardingFunnelStep(step: String, role: String)
+    fun trackTimeToFirstValue(durationSeconds: Long, role: String, valueType: String)
+    fun trackOnboardingDropOff(step: String, role: String, reason: String?)
+    
+    // Guest mode events
+    fun trackGuestModeStarted(role: String)
+    fun trackGuestModeUpgraded(role: String, durationSeconds: Long)
+    fun trackGuestModeAbandoned(role: String, durationSeconds: Long)
+    
+    // Feature adoption events
+    fun trackFeatureFirstUse(feature: String, daysSinceInstall: Int)
+    fun trackFeatureAdoption(feature: String, adopted: Boolean, daysSinceInstall: Int)
     
     // Profile flow events
     fun trackProfileViewed()
@@ -177,6 +189,53 @@ class FlowAnalyticsTrackerImpl @Inject constructor(
     }
 
     override fun trackOnboardingCompleted() = log("flow_onboarding_completed") {}
+
+    override fun trackOnboardingFunnelStep(step: String, role: String) = log("flow_onboarding_funnel_step") {
+        putString("step", step)
+        putString("role", role)
+    }
+
+    override fun trackTimeToFirstValue(durationSeconds: Long, role: String, valueType: String) = log("flow_time_to_first_value") {
+        putLong("duration_seconds", durationSeconds)
+        putString("role", role)
+        putString("value_type", valueType)
+    }
+
+    override fun trackOnboardingDropOff(step: String, role: String, reason: String?) = log("flow_onboarding_drop_off") {
+        putString("step", step)
+        putString("role", role)
+        reason?.let { putString("reason", it) }
+    }
+
+    // Guest mode events
+    override fun trackGuestModeStarted(role: String) = log("flow_guest_mode_started") {
+        putString("role", role)
+    }
+
+    override fun trackGuestModeUpgraded(role: String, durationSeconds: Long) = log("flow_guest_mode_upgraded") {
+        putString("role", role)
+        putLong("duration_seconds", durationSeconds)
+    }
+
+    override fun trackGuestModeAbandoned(role: String, durationSeconds: Long) = log("flow_guest_mode_abandoned") {
+        putString("role", role)
+        putLong("duration_seconds", durationSeconds)
+    }
+
+    // Feature adoption events
+    override fun trackFeatureFirstUse(feature: String, daysSinceInstall: Int) = log("flow_feature_first_use") {
+        putString("feature", feature)
+        putInt("days_since_install", daysSinceInstall)
+    }
+
+    override fun trackFeatureAdoption(feature: String, adopted: Boolean, daysSinceInstall: Int) {
+        log("flow_feature_adoption") {
+            putString("feature", feature)
+            putBoolean("adopted", adopted)
+            putInt("days_since_install", daysSinceInstall)
+        }
+        setUserProperty("feature_${feature}_adopted", adopted.toString())
+    }
 
     // Profile flow events
     override fun trackProfileViewed() = log("flow_profile_viewed") {}

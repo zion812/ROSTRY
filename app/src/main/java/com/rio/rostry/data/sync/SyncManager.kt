@@ -14,6 +14,9 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.rio.rostry.data.repository.TraceabilityRepository
+import com.rio.rostry.session.SessionManager
+import com.rio.rostry.domain.model.UserType
+import kotlinx.coroutines.flow.first
 
 /**
  * SyncManager coordinates incremental, offline-first sync across entities.
@@ -50,7 +53,8 @@ class SyncManager @Inject constructor(
     private val eggCollectionDao: com.rio.rostry.data.database.dao.EggCollectionDao,
     private val enthusiastDashboardSnapshotDao: com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val traceabilityRepository: TraceabilityRepository
+    private val traceabilityRepository: TraceabilityRepository,
+    private val sessionManager: SessionManager
 ) {
     companion object {
         // Overall sync timeout to prevent indefinite operations
@@ -262,14 +266,18 @@ class SyncManager @Inject constructor(
             val state = syncStateDao.get() ?: SyncStateEntity()
             var pushes = 0
             var pulls = 0
+            val syncErrors = mutableListOf<String>()
+
+            val userId = firebaseAuth.currentUser?.uid
+            val role = sessionManager.sessionRole().first()
 
             // ==============================
             // Product Tracking (incremental)
             // ==============================
-            run {
+            try {
                 // Pull newer remote changes since lastTrackingSyncAt
                 val remoteTrackingUpdated: List<ProductTrackingEntity> = withRetry {
-                    firestoreService.fetchUpdatedTrackings(state.lastTrackingSyncAt)
+                    firestoreService.fetchUpdatedTrackings(userId, state.lastTrackingSyncAt)
                 }
                 if (remoteTrackingUpdated.isNotEmpty()) {
                     productTrackingDao.upsertAll(remoteTrackingUpdated)
@@ -287,14 +295,16 @@ class SyncManager @Inject constructor(
                     productTrackingDao.upsertAll(cleaned)
                     pushes += cleaned.size
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Product Tracking sync failed")
+                syncErrors.add("Tracking: ${e.message}")
             }
 
             // ============================
             // Enthusiast Entity Sync (UID)
             // ============================
-            run {
-                val userId = firebaseAuth.currentUser?.uid
-                if (userId != null) {
+            if (role == UserType.ENTHUSIAST && userId != null) {
+                try {
                     // Mating Logs (use enthusiast-specific window)
                     run {
                         val remote = withRetry {
@@ -362,28 +372,34 @@ class SyncManager @Inject constructor(
                             pushes += localDirty.size
                         }
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Enthusiast sync failed")
+                    syncErrors.add("Enthusiast Data: ${e.message}")
                 }
             }
 
             // =====
             // Users
             // =====
-            run {
+            try {
                 // Pull updated users to ensure sellers exist before product sync
                 val remoteUsersUpdated: List<UserEntity> = withRetry {
                     firestoreService.fetchUpdatedUsers(state.lastUserSyncAt)
                 }
                 if (remoteUsersUpdated.isNotEmpty()) {
-                    userDao.insertUsers(remoteUsersUpdated)
+                    userDao.upsertUsers(remoteUsersUpdated)
                     pulls += remoteUsersUpdated.size
                 }
                 // Users are not pushed as dirty in this context; handled elsewhere if needed
+            } catch (e: Exception) {
+                Timber.e(e, "Users sync failed")
+                syncErrors.add("Users: ${e.message}")
             }
 
             // ==========
             // Products
             // ==========
-            run {
+            try {
                 var remoteProductsUpdated: List<ProductEntity> = emptyList()
                 var processedWithMissingUsers = false
                 try {
@@ -522,6 +538,7 @@ class SyncManager @Inject constructor(
                 } catch (e: TimeoutCancellationException) {
                     Timber.e(e, "Products sync timed out after ${PRODUCTS_SYNC_TIMEOUT_MS}ms")
                     timedOutDomains.add("products")
+                    syncErrors.add("Products: Timeout")
                 }
 
                 // Push (dirty only)
@@ -548,20 +565,25 @@ class SyncManager @Inject constructor(
                 val fourteenDaysMillis = 14L * 24 * 60 * 60 * 1000
                 val threshold = now - fourteenDaysMillis
                 productDao.purgeStaleMarketplace(threshold)
+            } catch (e: Exception) {
+                Timber.e(e, "Products sync failed")
+                syncErrors.add("Products: ${e.message}")
             }
 
             // =======
             // Orders
             // =======
-            run {
+            try {
                 // Pull
-                val remoteOrdersUpdated: List<OrderEntity> = withRetry {
-                    firestoreService.fetchUpdatedOrders(state.lastOrderSyncAt)
-                }
-                if (remoteOrdersUpdated.isNotEmpty()) {
-                    // Upsert each; OrderDao has insertOrUpdate
-                    remoteOrdersUpdated.forEach { orderDao.insertOrUpdate(it) }
-                    pulls += remoteOrdersUpdated.size
+                if (userId != null) {
+                    val remoteOrdersUpdated: List<OrderEntity> = withRetry {
+                        firestoreService.fetchUpdatedOrders(userId, state.lastOrderSyncAt)
+                    }
+                    if (remoteOrdersUpdated.isNotEmpty()) {
+                        // Upsert each; OrderDao has insertOrUpdate
+                        remoteOrdersUpdated.forEach { orderDao.insertOrUpdate(it) }
+                        pulls += remoteOrdersUpdated.size
+                    }
                 }
 
                 // Push dirties
@@ -576,15 +598,18 @@ class SyncManager @Inject constructor(
 
                 // Purge soft-deleted
                 orderDao.purgeDeleted()
+            } catch (e: Exception) {
+                Timber.e(e, "Orders sync failed")
+                syncErrors.add("Orders: ${e.message}")
             }
 
             // =========
             // Transfers
             // =========
-            run {
+            try {
                 // Pull
                 val remoteTransfersUpdated: List<TransferEntity> = withRetry {
-                    firestoreService.fetchUpdatedTransfers(state.lastTransferSyncAt)
+                    firestoreService.fetchUpdatedTransfers(userId, state.lastTransferSyncAt)
                 }
                 if (remoteTransfersUpdated.isNotEmpty()) {
                     remoteTransfersUpdated.forEach { transferDao.upsert(it) }
@@ -630,15 +655,18 @@ class SyncManager @Inject constructor(
 
                 // Purge soft-deleted
                 transferDao.purgeDeleted()
+            } catch (e: Exception) {
+                Timber.e(e, "Transfers sync failed")
+                syncErrors.add("Transfers: ${e.message}")
             }
 
             // =====
             // Chat
             // =====
-            run {
+            try {
                 // Pull only (no dirty flag by design here); could push by updatedAt window if needed
                 val remoteMessagesUpdated: List<ChatMessageEntity> = withRetry {
-                    firestoreService.fetchUpdatedChats(state.lastChatSyncAt)
+                    firestoreService.fetchUpdatedChats(userId, state.lastChatSyncAt)
                 }
                 if (remoteMessagesUpdated.isNotEmpty()) {
                     // Emit conflicts where remote overwrote different local fields by recency
@@ -668,6 +696,9 @@ class SyncManager @Inject constructor(
 
                 // Purge soft-deleted
                 chatMessageDao.purgeDeleted()
+            } catch (e: Exception) {
+                Timber.e(e, "Chat sync failed")
+                syncErrors.add("Chat: ${e.message}")
             }
 
             // ================
@@ -678,7 +709,7 @@ class SyncManager @Inject constructor(
                 val pendingEntries = outboxDao.getPendingPrioritized(limit = 50)
                 val totalPending = pendingEntries.size
                 var processed = 0
-                val errors = mutableListOf<String>()
+                // Use global syncErrors list
 
                 // Group by entity type for batch processing
                 val groupedEntries = pendingEntries.groupBy { it.entityType }
@@ -689,7 +720,7 @@ class SyncManager @Inject constructor(
                             totalPending,
                             processed,
                             entityType,
-                            errors.toList()
+                            syncErrors.toList()
                         )
                     )
 
@@ -724,7 +755,7 @@ class SyncManager @Inject constructor(
                                         if (willRetry) "PENDING" else "FAILED",
                                         now
                                     )
-                                    errors.add("DailyLog push failed for ${log.logId}: ${t.message}")
+                                    syncErrors.add("DailyLog push failed: ${t.message}")
                                 }
                                 processed++
                             }
@@ -751,50 +782,21 @@ class SyncManager @Inject constructor(
                                         if (willRetry) "PENDING" else "FAILED",
                                         now
                                     )
-                                    errors.add("Transfer push failed for ${transfer.transferId}: ${t.message}")
+                                    syncErrors.add("Transfer push failed for ${transfer.transferId}: ${t.message}")
                                 }
                                 processed++
                             }
                         }
 
-                        OutboxEntity.TYPE_LISTING -> {
+                        OutboxEntity.TYPE_PRODUCT_TRACKING -> {
+                            val userId = firebaseAuth.currentUser?.uid ?: ""
                             for (e in entries) {
-                                val product =
-                                    gson.fromJson(e.payloadJson, ProductEntity::class.java)
+                                val tracking =
+                                    gson.fromJson(e.payloadJson, ProductTrackingEntity::class.java)
                                 try {
-                                    withRetry { firestoreService.pushProducts(listOf(product)) }
-                                    val cleaned = product.copy(dirty = false, updatedAt = now)
-                                    try {
-                                        productDao.insertProducts(listOf(cleaned))
-                                        outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                    } catch (t: Throwable) {
-                                        if (isForeignKeyConstraintFailure(t)) {
-                                            Timber.w(
-                                                t,
-                                                "Foreign key violation inserting product ${product.productId}, sellerId ${product.sellerId}"
-                                            )
-                                            // Attempt to fetch missing seller
-                                            val missingUser = withRetry {
-                                                firestoreService.fetchUsersByIds(
-                                                    listOf(product.sellerId)
-                                                ).firstOrNull()
-                                            }
-                                            if (missingUser != null) {
-                                                userDao.insertUser(missingUser)
-                                                Timber.d("Fetched and inserted missing seller ${product.sellerId} for product ${product.productId}")
-                                                // Retry insert
-                                                productDao.insertProducts(listOf(cleaned))
-                                                outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                            } else {
-                                                Timber.e("Failed to fetch seller ${product.sellerId} for product ${product.productId}")
-                                                outboxDao.incrementRetry(e.outboxId, now)
-                                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
-                                                errors.add("Listing push failed for ${product.productId}: missing seller ${product.sellerId}")
-                                            }
-                                        } else {
-                                            throw t
-                                        }
-                                    }
+                                    withRetry { firestoreService.pushTrackings(listOf(tracking)) }
+                                    productTrackingDao.clearDirtyCustom(tracking.trackingId, now)
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
                                 } catch (t: Throwable) {
                                     outboxDao.incrementRetry(e.outboxId, now)
                                     val willRetry = (e.retryCount + 1) < e.maxRetries
@@ -803,7 +805,61 @@ class SyncManager @Inject constructor(
                                         if (willRetry) "PENDING" else "FAILED",
                                         now
                                     )
-                                    errors.add("Listing push failed for ${product.productId}: ${t.message}")
+                                    syncErrors.add("Tracking push failed: ${t.message}")
+                                }
+                                processed++
+                            }
+                        }
+
+                        OutboxEntity.TYPE_LISTING -> {
+                            for (e in entries) {
+                                val product = gson.fromJson(e.payloadJson, ProductEntity::class.java)
+                                try {
+                                    withRetry { firestoreService.pushProducts(listOf(product)) }
+                                    productDao.insertProducts(
+                                        listOf(
+                                            product.copy(
+                                                dirty = false,
+                                                updatedAt = now
+                                            )
+                                        )
+                                    )
+                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                } catch (t: Throwable) {
+                                    // Check if it's the "missing seller" error
+                                    if (t.message?.contains("seller") == true) {
+                                        if (product.sellerId.isNotBlank()) {
+                                            // Attempt to fetch missing seller
+                                            val missingUser = withRetry {
+                                                firestoreService.fetchUsersByIds(
+                                                    listOf(product.sellerId)
+                                                ).firstOrNull()
+                                            }
+                                            if (missingUser != null) {
+                                                userDao.upsertUser(missingUser)
+                                                Timber.d("Fetched and inserted missing seller ${product.sellerId} for product ${product.productId}")
+                                                // Retry insert
+                                                productDao.insertProducts(listOf(product.copy(dirty = false, updatedAt = now)))
+                                                outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
+                                            } else {
+                                                Timber.e("Failed to fetch seller ${product.sellerId} for product ${product.productId}")
+                                                outboxDao.incrementRetry(e.outboxId, now)
+                                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
+                                                syncErrors.add("Listing push failed for ${product.productId}: missing seller ${product.sellerId}")
+                                            }
+                                        } else {
+                                            throw t
+                                        }
+                                    } else {
+                                        outboxDao.incrementRetry(e.outboxId, now)
+                                        val willRetry = (e.retryCount + 1) < e.maxRetries
+                                        outboxDao.updateStatus(
+                                            e.outboxId,
+                                            if (willRetry) "PENDING" else "FAILED",
+                                            now
+                                        )
+                                        syncErrors.add("Listing push failed for ${product.productId}: ${t.message}")
+                                    }
                                 }
                                 processed++
                             }
@@ -825,7 +881,7 @@ class SyncManager @Inject constructor(
                                         if (willRetry) "PENDING" else "FAILED",
                                         now
                                     )
-                                    errors.add("Chat message push failed for ${message.messageId}: ${t.message}")
+                                    syncErrors.add("Chat message push failed for ${message.messageId}: ${t.message}")
                                 }
                                 processed++
                             }
@@ -835,7 +891,7 @@ class SyncManager @Inject constructor(
                             for (e in entries) {
                                 // No remote API defined for group messages; mark as FAILED to surface
                                 outboxDao.updateStatus(e.outboxId, "FAILED", now)
-                                errors.add("No remote API for group messages; marked FAILED for ${e.entityId}")
+                                syncErrors.add("No remote API for group messages; marked FAILED for ${e.entityId}")
                                 processed++
                             }
                         }
@@ -856,7 +912,7 @@ class SyncManager @Inject constructor(
                                         if (willRetry) "PENDING" else "FAILED",
                                         now
                                     )
-                                    errors.add("Task push failed for ${task.taskId}: ${t.message}")
+                                    syncErrors.add("Task push failed for ${task.taskId}: ${t.message}")
                                 }
                                 processed++
                             }
@@ -882,7 +938,7 @@ class SyncManager @Inject constructor(
                                         if (willRetry) "PENDING" else "FAILED",
                                         now
                                     )
-                                    errors.add("Order push failed for ${order.orderId}: ${t.message}")
+                                    syncErrors.add("Order push failed for ${order.orderId}: ${t.message}")
                                 }
                                 processed++
                             }
@@ -892,14 +948,14 @@ class SyncManager @Inject constructor(
                             for (e in entries) {
                                 // No remote API defined in SyncRemote; mark as FAILED to surface
                                 outboxDao.updateStatus(e.outboxId, "FAILED", now)
-                                errors.add("No remote API for posts; marked FAILED for ${e.entityId}")
+                                syncErrors.add("No remote API for posts; marked FAILED for ${e.entityId}")
                                 processed++
                             }
                         }
 
                         else -> {
                             Timber.w("Unknown outbox entity type: $entityType")
-                            errors.add("Unknown type: $entityType")
+                            syncErrors.add("Unknown type: $entityType")
                         }
                     }
 
@@ -909,7 +965,7 @@ class SyncManager @Inject constructor(
                             totalPending,
                             processed,
                             entityType,
-                            errors.toList()
+                            syncErrors.toList()
                         )
                     )
                 }
@@ -924,10 +980,10 @@ class SyncManager @Inject constructor(
             // =============================
             // Farm Monitoring Entity Sync
             // =============================
-            val farmerId = firebaseAuth.currentUser?.uid
-            if (farmerId != null) {
+            if (role == UserType.FARMER && userId != null) {
+                val farmerId = userId
                 // Breeding Pairs
-                run {
+                try {
                     val remotePairs = withRetry {
                         firestoreService.fetchUpdatedBreedingPairs(
                             farmerId,
@@ -945,10 +1001,13 @@ class SyncManager @Inject constructor(
                         breedingPairDao.clearDirty(localDirty.map { it.pairId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Breeding Pairs sync failed")
+                    syncErrors.add("Breeding Pairs: ${e.message}")
                 }
 
                 // Farm Alerts
-                run {
+                try {
                     val remoteAlerts = withRetry {
                         firestoreService.fetchUpdatedAlerts(farmerId, state.lastAlertSyncAt)
                     }
@@ -966,10 +1025,13 @@ class SyncManager @Inject constructor(
 
                     // Clean up expired alerts
                     farmAlertDao.deleteExpired(now)
+                } catch (e: Exception) {
+                    Timber.e(e, "Farm Alerts sync failed")
+                    syncErrors.add("Alerts: ${e.message}")
                 }
 
                 // Dashboard Snapshots
-                run {
+                try {
                     val remoteSnapshots = withRetry {
                         firestoreService.fetchUpdatedDashboardSnapshots(
                             farmerId,
@@ -987,10 +1049,13 @@ class SyncManager @Inject constructor(
                         farmerDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Dashboard Snapshots sync failed")
+                    syncErrors.add("Dashboard: ${e.message}")
                 }
 
                 // Vaccination Records
-                run {
+                try {
                     val remoteVaccinations = withRetry {
                         firestoreService.fetchUpdatedVaccinations(
                             farmerId,
@@ -1008,10 +1073,13 @@ class SyncManager @Inject constructor(
                         vaccinationRecordDao.clearDirty(localDirty.map { it.vaccinationId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Vaccination sync failed")
+                    syncErrors.add("Vaccinations: ${e.message}")
                 }
 
                 // Growth Records
-                run {
+                try {
                     val remoteGrowth = withRetry {
                         firestoreService.fetchUpdatedGrowthRecords(farmerId, state.lastGrowthSyncAt)
                     }
@@ -1026,10 +1094,13 @@ class SyncManager @Inject constructor(
                         growthRecordDao.clearDirty(localDirty.map { it.recordId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Growth sync failed")
+                    syncErrors.add("Growth: ${e.message}")
                 }
 
                 // Quarantine Records
-                run {
+                try {
                     val remoteQuarantine = withRetry {
                         firestoreService.fetchUpdatedQuarantineRecords(
                             farmerId,
@@ -1044,13 +1115,16 @@ class SyncManager @Inject constructor(
                     val localDirty = quarantineRecordDao.getDirty()
                     if (localDirty.isNotEmpty()) {
                         withRetry { firestoreService.pushQuarantineRecords(farmerId, localDirty) }
-                        quarantineRecordDao.clearDirty(localDirty.map { it.quarantineId }, now)
+                        quarantineRecordDao.clearDirty(localDirty.map { it.quarantineId })
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Quarantine sync failed")
+                    syncErrors.add("Quarantine: ${e.message}")
                 }
 
                 // Mortality Records
-                run {
+                try {
                     val remoteMortality = withRetry {
                         firestoreService.fetchUpdatedMortalityRecords(
                             farmerId,
@@ -1068,10 +1142,13 @@ class SyncManager @Inject constructor(
                         mortalityRecordDao.clearDirty(localDirty.map { it.deathId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Mortality sync failed")
+                    syncErrors.add("Mortality: ${e.message}")
                 }
 
                 // Hatching Batches
-                run {
+                try {
                     val remoteHatching = withRetry {
                         firestoreService.fetchUpdatedHatchingBatches(
                             farmerId,
@@ -1089,10 +1166,13 @@ class SyncManager @Inject constructor(
                         hatchingBatchDao.clearDirty(localDirty.map { it.batchId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Hatching Batches sync failed")
+                    syncErrors.add("Hatching: ${e.message}")
                 }
 
                 // Hatching Logs
-                run {
+                try {
                     val remoteLogs = withRetry {
                         firestoreService.fetchUpdatedHatchingLogs(
                             farmerId,
@@ -1110,15 +1190,17 @@ class SyncManager @Inject constructor(
                         hatchingLogDao.clearDirty(localDirty.map { it.logId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Hatching Logs sync failed")
+                    syncErrors.add("Hatching Logs: ${e.message}")
                 }
             }
 
             // ===================
             // Daily Logs (Sprint 1)
             // ===================
-            run {
-                val userId = firebaseAuth.currentUser?.uid
-                if (userId != null) {
+            if (role == UserType.FARMER && userId != null) {
+                try {
                     val remoteLogs: List<DailyLogEntity> = withRetry {
                         firestoreService.fetchUpdatedDailyLogs(userId, state.lastDailyLogSyncAt)
                     }
@@ -1134,15 +1216,17 @@ class SyncManager @Inject constructor(
                         dailyLogDao.clearDirty(localDirty.map { it.logId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Daily Logs sync failed")
+                    syncErrors.add("Daily Logs: ${e.message}")
                 }
             }
 
             // ============
             // Tasks (Sprint 1)
             // ============
-            run {
-                val userId = firebaseAuth.currentUser?.uid
-                if (userId != null) {
+            if (role == UserType.FARMER && userId != null) {
+                try {
                     val remoteTasks: List<TaskEntity> = withRetry {
                         firestoreService.fetchUpdatedTasks(userId, state.lastTaskSyncAt)
                     }
@@ -1158,6 +1242,9 @@ class SyncManager @Inject constructor(
                         taskDao.clearDirty(localDirty.map { it.taskId }, now)
                         pushes += localDirty.size
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Tasks sync failed")
+                    syncErrors.add("Tasks: ${e.message}")
                 }
             }
 
@@ -1183,6 +1270,16 @@ class SyncManager @Inject constructor(
                     lastEnthusiastBreedingSyncAt = now,
                     lastEnthusiastDashboardSyncAt = now
                 )
+            )
+
+            // Final emission to report any errors collected during partial failures
+            syncProgressFlow.emit(
+                 SyncProgress(
+                     0,
+                     0,
+                     "COMPLETED",
+                     syncErrors.toList()
+                 )
             )
 
             val stats =

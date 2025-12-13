@@ -24,11 +24,16 @@ sealed class ProductCategory {
     @SerialName("ADOPTION_NON_TRACEABLE")
     data object AdoptionNonTraceable : ProductCategory()
 
+    @Serializable
+    @SerialName("STARTER_KIT")
+    data object StarterKit : ProductCategory()
+
     companion object {
         fun fromString(value: String?): ProductCategory? = when (value?.uppercase()) {
             "MEAT" -> Meat
             "ADOPTION_TRACEABLE", "ADOPTION-TRACEABLE", "TRACEABLE" -> AdoptionTraceable
             "ADOPTION_NON_TRACEABLE", "ADOPTION-NON-TRACEABLE", "NON_TRACEABLE", "NON-TRACEABLE" -> AdoptionNonTraceable
+            "STARTER_KIT", "STARTER-KIT", "KIT" -> StarterKit
             else -> null
         }
 
@@ -36,6 +41,7 @@ sealed class ProductCategory {
             is Meat -> "MEAT"
             is AdoptionTraceable -> "ADOPTION_TRACEABLE"
             is AdoptionNonTraceable -> "ADOPTION_NON_TRACEABLE"
+            is StarterKit -> "STARTER_KIT"
             null -> null
         }
     }

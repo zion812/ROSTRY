@@ -50,6 +50,9 @@ abstract class BaseRepository {
             val result = call()
             emit(Resource.Success<T>(result))
         } catch (e: Exception) {
+            // Don't log or wrap cancellation exceptions (including AbortFlowException from first())
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            
             Timber.e(e, "Data operation exception")
             emit(Resource.Error<T>("Operation failed: ${e.message}", null))
         }

@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.ui.monitoring.vm.MortalityViewModel
+import com.rio.rostry.ui.components.BirdSelectionSheet
+import com.rio.rostry.ui.components.BirdSelectionItem
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -42,6 +44,10 @@ fun MortalityTrackingScreen(
     viewModel: MortalityViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.ui.collectAsStateWithLifecycle()
+    val selectedProductId = remember { mutableStateOf(productId) }
+    val showSheet = remember { mutableStateOf(false) }
+    
+    val quantity = remember { mutableStateOf("1") }
     val causeCategory = remember { mutableStateOf("") }
     val circumstances = remember { mutableStateOf("") }
     val ageWeeks = remember { mutableStateOf("") }
@@ -68,6 +74,39 @@ fun MortalityTrackingScreen(
                 ElevatedCard {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Log mortality events and review trends here.", style = MaterialTheme.typography.bodyMedium)
+                        
+                        // Bird Selection
+                        if (selectedProductId.value.isNullOrBlank()) {
+                            OutlinedButton(
+                                onClick = { showSheet.value = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Select Bird / Batch (Optional)")
+                            }
+                        } else {
+                            val selectedProduct = uiState.products.find { it.productId == selectedProductId.value }
+                            if (selectedProduct != null) {
+                                BirdSelectionItem(
+                                    product = selectedProduct,
+                                    onClick = { showSheet.value = true }
+                                )
+                            } else {
+                                OutlinedButton(
+                                    onClick = { showSheet.value = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Selected ID: ${selectedProductId.value} (Change)")
+                                }
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = quantity.value,
+                            onValueChange = { quantity.value = it },
+                            label = { Text("Quantity (Birds)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
                         OutlinedTextField(
                             value = causeCategory.value,
                             onValueChange = { causeCategory.value = it },
@@ -127,14 +166,16 @@ fun MortalityTrackingScreen(
                                 onClick = {
                                     if (causeCategory.value.isNotBlank()) {
                                         viewModel.record(
-                                            productId = productId,
+                                            productId = selectedProductId.value,
                                             causeCategory = causeCategory.value,
                                             circumstances = circumstances.value.ifBlank { null },
                                             ageWeeks = ageWeeks.value.toIntOrNull(),
                                             disposalMethod = selectedDisposalMethod,
+                                            quantity = quantity.value.toIntOrNull() ?: 1,
                                             financialImpactInr = financialImpact.value.toDoubleOrNull()
                                         )
                                         // Clear fields
+                                        quantity.value = "1"
                                         causeCategory.value = ""
                                         circumstances.value = ""
                                         ageWeeks.value = ""
@@ -222,6 +263,7 @@ fun MortalityTrackingScreen(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Date: ${dateFormat.format(record.occurredAt)}", style = MaterialTheme.typography.titleMedium)
+                        Text("Quantity: ${record.quantity}")
                         Text("Cause: ${record.causeCategory}")
                         record.circumstances?.let { Text("Circumstances: $it") }
                         record.ageWeeks?.let { Text("Age: $it weeks") }
@@ -231,5 +273,17 @@ fun MortalityTrackingScreen(
                 }
             }
         }
+
+    }
+
+    if (showSheet.value) {
+        BirdSelectionSheet(
+            products = uiState.products,
+            onDismiss = { showSheet.value = false },
+            onSelect = { product ->
+                selectedProductId.value = product.productId
+                showSheet.value = false
+            }
+        )
     }
 }

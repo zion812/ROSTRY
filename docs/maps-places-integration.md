@@ -7,8 +7,9 @@ This document describes the integration of Google Maps SDK for Android, the Plac
 - Obtain a Google Maps Platform API key with the following APIs enabled:
   - Maps SDK for Android
   - Places API (New)
-- Put your key in `local.properties` as `MAPS_API_KEY=YOUR_KEY` or set it in `gradle.properties` and override locally. The build uses `BuildConfig.MAPS_API_KEY`.
-- Dependencies are declared in `gradle/libs.versions.toml` and added in `app/build.gradle.kts`.
+- Put your key in `local.properties` as `MAPS_API_KEY=YOUR_KEY` or `MAPS_JS_API_KEY=YOUR_JS_KEY`. The build uses `BuildConfig.MAPS_API_KEY` (or `MAPS_JS_API_KEY` for WebViews).
+- `app/build.gradle.kts` handles reading these properties and injecting them into `BuildConfig` and Manifest.
+- Ensure `MAPS_API_KEY` is configured for both debug and release builds to avoid build errors.
 
 ## Firebase App Check (Debug Provider)
 

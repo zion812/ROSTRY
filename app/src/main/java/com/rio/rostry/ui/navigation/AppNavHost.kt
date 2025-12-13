@@ -26,7 +26,11 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,11 +41,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -64,8 +69,8 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import com.rio.rostry.data.demo.DemoUserProfile
 import com.rio.rostry.ui.auth.AuthViewModel
+import com.rio.rostry.ui.auth.AuthWelcomeViewModel
 import com.rio.rostry.ui.auth.AuthWelcomeScreen
 import com.rio.rostry.ui.auth.PhoneAuthScreenNew
 import com.rio.rostry.ui.auth.OtpVerificationScreenNew
@@ -83,6 +88,7 @@ import com.rio.rostry.ui.screens.HomeGeneralScreen
 import com.rio.rostry.ui.screens.PlaceholderScreen
 import com.rio.rostry.ui.session.SessionViewModel
 import com.rio.rostry.ui.traceability.FamilyTreeView
+import com.rio.rostry.ui.traceability.TraceabilityScreen
 import com.rio.rostry.ui.traceability.TraceabilityViewModel
 import com.rio.rostry.ui.transfer.TransferDetailsViewModel
 import com.rio.rostry.ui.transfer.TransferVerificationScreen
@@ -105,6 +111,14 @@ import com.rio.rostry.ui.enthusiast.breeding.BreedingFlowScreen
 import com.rio.rostry.ui.social.LiveBroadcastScreen
 import com.rio.rostry.ui.analytics.EnthusiastDashboardScreen
 import com.rio.rostry.ui.monitoring.FarmPerformanceScreen
+import com.rio.rostry.ui.components.OfflineBanner
+import com.rio.rostry.ui.components.SyncStatusIndicator
+import com.rio.rostry.ui.components.SyncStatusViewModel
+import com.rio.rostry.ui.sync.SyncIssuesScreen
+import com.rio.rostry.ui.social.profile.SocialProfileScreen
+import com.rio.rostry.ui.social.stories.StoryViewerScreen
+import com.rio.rostry.ui.social.stories.StoryCreatorScreen
+import com.rio.rostry.ui.social.discussion.DiscussionDetailScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -113,10 +127,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.rio.rostry.session.SessionManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import com.rio.rostry.ui.showcase.ComponentGalleryScreen
 import com.rio.rostry.BuildConfig
 import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
@@ -148,6 +164,7 @@ fun AppNavHost(
     firebaseAuth: FirebaseAuth
 ) {
     val sessionVm: SessionViewModel = hiltViewModel()
+    val syncViewModel: SyncStatusViewModel = hiltViewModel()
     val state by sessionVm.uiState.collectAsState()
     val navConfig = state.navConfig
     val context = LocalContext.current
@@ -186,20 +203,52 @@ fun AppNavHost(
         state.isAuthenticated && navConfig != null -> {
             // Phone linking is now OPTIONAL, not forced
             // Users can add phone later from settings if they want
-            RoleNavScaffold(navConfig, sessionVm, state)
+            val isGuestMode = state.authMode == SessionManager.AuthMode.GUEST
+            RoleNavScaffold(navConfig, sessionVm, state, syncViewModel = syncViewModel, isGuestMode = isGuestMode)
         }
         state.isAuthenticated -> {
-            LaunchedEffect("await-config") { sessionVm.refresh() }
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            if (state.error != null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            text = "Error loading profile",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = state.error ?: "Unknown error",
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(onClick = { sessionVm.signOut() }) {
+                            Text("Sign Out")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = { sessionVm.refresh() }) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            } else {
+                LaunchedEffect("await-config") { sessionVm.refresh() }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
-        else -> AuthFlow(
-            state = state,
-            onAuthenticated = { sessionVm.refresh() },
-            onDemoLogin = { u, p -> sessionVm.signInDemo(u, p) },
-            onQuickSelect = { sessionVm.activateDemoProfile(it) }
-        )
+        else -> {
+            val fromGuest = state.authMode == SessionManager.AuthMode.GUEST
+            AuthFlow(
+                state = state,
+                onAuthenticated = { sessionVm.refresh() },
+                fromGuest = fromGuest
+            )
+        }
     }
 }
 
@@ -261,19 +310,20 @@ internal fun roleGraphRegisteredRoutesBasic(): Set<String> = setOf(
     Routes.ANALYTICS_FARMER,
     Routes.ANALYTICS_ENTHUSIAST,
     Routes.REPORTS,
-    Routes.PRODUCT_SANDBOX)
+    Routes.PRODUCT_SANDBOX,
+    Routes.SYNC_ISSUES)
 
 @Composable
 private fun AuthFlow(
     state: SessionViewModel.SessionUiState,
     onAuthenticated: () -> Unit,
-    onDemoLogin: (String, String) -> Unit,
-    onQuickSelect: (String) -> Unit
+    fromGuest: Boolean = false
 ) {
     val navController = rememberNavController()
     val authVm: AuthViewModel = hiltViewModel()
+    val welcomeVm: AuthWelcomeViewModel = hiltViewModel()
     val scope = rememberCoroutineScope()
-    
+
     val context = LocalContext.current
     val activity = remember(context) {
         var ctx = context
@@ -283,11 +333,25 @@ private fun AuthFlow(
         }
         ctx as? Activity
     }
+    
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Show error if present
+    LaunchedEffect(state.error) {
+        state.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Long
+            )
+        }
+    }
 
     // FirebaseUI launcher for Google/Email
     val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = com.firebase.ui.auth.FirebaseAuthUIActivityResultContract()
     ) { res ->
+        // Set the fromGuest flag in the AuthViewModel before handling the result
+        authVm.setFromGuest(fromGuest)
         authVm.handleFirebaseUIResult(res.idpResponse, res.resultCode)
     }
 
@@ -302,48 +366,45 @@ private fun AuthFlow(
         }
     }
 
-    // Main navigation host - Instagram style with slide animations
-    NavHost(
-        navController = navController,
-        startDestination = "auth/welcome",
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Welcome screen - unified entry point (fade only)
+    // Observe welcome screen navigation events for guest mode
+    LaunchedEffect(Unit) {
+        welcomeVm.navigationEvent.collectLatest { event ->
+            when (event) {
+                is AuthWelcomeViewModel.NavigationEvent.ToGuestHome -> {
+                    onAuthenticated()
+                }
+                is AuthWelcomeViewModel.NavigationEvent.ToAuth -> {
+                    // Navigate to phone auth with role context
+                    navController.navigate("auth/phone")
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        // Main navigation host - Instagram style with slide animations
+        NavHost(
+            navController = navController,
+            startDestination = "auth/welcome",
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+        // Welcome screen - role-first entry point (fade only)
         composable(
             route = "auth/welcome",
             enterTransition = { fadeIn(animationSpec = tween(300)) },
             exitTransition = { fadeOut(animationSpec = tween(300)) }
         ) {
+            val isLoading by welcomeVm.isLoading.collectAsState()
             AuthWelcomeScreen(
-                onPhoneSignInClick = {
-                    navController.navigate("auth/phone")
+                onPreviewAsRole = { role ->
+                    welcomeVm.startGuestMode(role)
                 },
-                onGoogleSignInClick = {
-                    // Launch FirebaseUI for Google/Email
-                    val providers = listOf(
-                        com.firebase.ui.auth.AuthUI.IdpConfig.GoogleBuilder().build(),
-                        com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
-                    )
-                    val intent = com.firebase.ui.auth.AuthUI.getInstance()
-                        .createSignInIntentBuilder()
-                        .setAvailableProviders(providers)
-                        .setIsSmartLockEnabled(true)
-                        .build()
-                    launcher.launch(intent)
+                onSignInAsRole = { role ->
+                    welcomeVm.startAuthentication(role)
                 },
-                onEmailSignInClick = {
-                    // Launch FirebaseUI for Email only
-                    val providers = listOf(
-                        com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
-                    )
-                    val intent = com.firebase.ui.auth.AuthUI.getInstance()
-                        .createSignInIntentBuilder()
-                        .setAvailableProviders(providers)
-                        .setIsSmartLockEnabled(true)
-                        .build()
-                    launcher.launch(intent)
-                },
-                isLoading = state.isLoading
+                isLoading = isLoading
             )
         }
         
@@ -377,7 +438,9 @@ private fun AuthFlow(
         ) {
             PhoneAuthScreenNew(
                 onCodeSent = { verificationId ->
-                    navController.navigate("auth/otp/$verificationId")
+                    // Check if this is a guest upgrade to pass the fromGuest flag
+                    val isGuest = fromGuest
+                    navController.navigate("auth/otp/$verificationId?fromGuest=$isGuest")
                 },
                 onNavigateBack = {
                     navController.popBackStack()
@@ -387,8 +450,14 @@ private fun AuthFlow(
         
         // OTP verification - slide from right
         composable(
-            route = "auth/otp/{verificationId}",
-            arguments = listOf(navArgument("verificationId") { type = NavType.StringType }),
+            route = "auth/otp/{verificationId}?fromGuest={fromGuest}",
+            arguments = listOf(
+                navArgument("verificationId") { type = NavType.StringType },
+                navArgument("fromGuest") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            ),
             enterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { it },
@@ -413,8 +482,19 @@ private fun AuthFlow(
                     animationSpec = tween(400)
                 ) + fadeOut(animationSpec = tween(400))
             }
-        ) {
+        ) { backStackEntry ->
+            val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
+            val isFromGuest = backStackEntry.arguments?.getBoolean("fromGuest") ?: false
+
+            // Set the fromGuest flag in the AuthViewModel before navigating
+            val authVm: AuthViewModel = hiltViewModel()
+            LaunchedEffect(isFromGuest) {
+                authVm.setFromGuest(isFromGuest)
+            }
+
             OtpVerificationScreenNew(
+                verificationId = verificationId,
+                fromGuest = isFromGuest,
                 onVerified = {
                     onAuthenticated()
                 },
@@ -431,157 +511,77 @@ private fun AuthFlow(
             )
         }
         
-        // Demo login screen (for testing)
-        composable("auth/demo") {
-            DemoLoginScreen(
-                state = state,
-                onDemoLogin = onDemoLogin,
-                onQuickSelect = onQuickSelect,
-                onBackToWelcome = {
-                    navController.popBackStack()
-                }
+        // Onboarding tour - role-specific feature walkthrough
+        composable(
+            route = "onboard/tour/{role}",
+            arguments = listOf(
+                navArgument("role") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val roleStr = backStackEntry.arguments?.getString("role") ?: "GENERAL"
+            val role = try {
+                com.rio.rostry.domain.model.UserType.valueOf(roleStr.uppercase())
+            } catch (e: Exception) {
+                com.rio.rostry.domain.model.UserType.GENERAL
+            }
+            
+            com.rio.rostry.ui.onboarding.UserOnboardingTourScreen(
+                userRole = role,
+                onComplete = { onAuthenticated() },
+                onSkip = { onAuthenticated() }
             )
         }
     }
-}
-
-/**
- * Demo login screen - separate from main auth flow
- */
-@Composable
-private fun DemoLoginScreen(
-    state: SessionViewModel.SessionUiState,
-    onDemoLogin: (String, String) -> Unit,
-    onQuickSelect: (String) -> Unit,
-    onBackToWelcome: () -> Unit
-) {
-    var username by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        IconButton(onClick = onBackToWelcome) {
-            Icon(Icons.Default.ArrowBack, "Back")
-        }
-        
-        Text("Demo Login", style = MaterialTheme.typography.headlineMedium)
-
-        if (state.isLoading) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-        }
-        
-        state.error?.let { error ->
-            Text("Error: $error", color = MaterialTheme.colorScheme.error)
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Demo username") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-            Button(
-                onClick = { scope.launch { onDemoLogin(username.trim(), password) } },
-                enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Sign in with demo credentials")
-            }
-            state.currentDemoProfile?.let { current ->
-                Text("Active demo user: ${current.fullName} (${current.role.displayName})")
-            }
-        }
-
-        if (state.demoProfiles.isNotEmpty()) {
-            Divider()
-            QuickSelectDemoList(
-                profiles = state.demoProfiles,
-                onSelect = onQuickSelect,
-                currentId = state.currentDemoProfile?.id
-            )
-        }
     }
 }
 
-@Composable
-private fun QuickSelectDemoList(
-    profiles: List<DemoUserProfile>,
-    onSelect: (String) -> Unit,
-    currentId: String?
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Quick select demo profiles")
-        profiles.groupBy { it.role }.forEach { (role, roleProfiles) ->
-            Text(role.displayName, modifier = Modifier.padding(top = 4.dp))
-            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
-                LazyColumn(
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(items = roleProfiles, key = { it.id }) { profile ->
-                        OutlinedButton(onClick = { onSelect(profile.id) }, modifier = Modifier.fillMaxWidth()) {
-                            val suffix = if (profile.id == currentId) " (active)" else ""
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("${profile.fullName}$suffix")
-                                Text(profile.headline)
-                                Text(profile.location)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RoleNavScaffold(
     navConfig: RoleNavigationConfig,
     sessionVm: SessionViewModel,
-    state: SessionViewModel.SessionUiState
+    state: SessionViewModel.SessionUiState,
+    syncViewModel: SyncStatusViewModel,
+    isGuestMode: Boolean = false
 ) {
     val navController = rememberNavController()
+    val syncState by syncViewModel.syncState.collectAsState()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    var showSwitcher by remember { mutableStateOf(false) }
+    val authViewModel: AuthViewModel = hiltViewModel()
+    var showSignInDialog by remember { mutableStateOf(false) }
+    var pendingGuestAction by remember { mutableStateOf<String?>(null) }
 
     // Consume and replay pending deep link once role is available
     LaunchedEffect(navConfig.role) {
         val pending = sessionVm.consumePendingDeepLink()
         if (!pending.isNullOrBlank()) {
-            val isDemo = state.authMode == SessionManager.AuthMode.DEMO
-            if (isDemo) {
-                navController.navigate(pending)
+            if (isGuestMode) {
+                // In guest mode, show sign-in dialog for restricted deep links
+                if (isWriteAction(pending)) {
+                    pendingGuestAction = pending
+                    showSignInDialog = true
+                } else {
+                    navController.navigate(pending)
+                }
             } else {
                 val allowed = navConfig.accessibleRoutes
                 if (Routes.isRouteAccessible(allowed, pending)) {
                     navController.navigate(pending)
+                } else {
+                    // Store deep link for after authentication
+                    pendingGuestAction = pending
+                    showSignInDialog = true
                 }
             }
         }
     }
 
-    // Role-based route guard: bypass in DEMO mode
-    if (state.authMode != SessionManager.AuthMode.DEMO) {
-        DisposableEffect(navController, navConfig.role) {
+    // Role-based route guard: bypass in GUEST mode
+    if (!isGuestMode) {
+        DisposableEffect(navController, authViewModel) {
             val allowed = navConfig.accessibleRoutes
             val listener: (androidx.navigation.NavController, androidx.navigation.NavDestination, android.os.Bundle?) -> Unit =
                 { controller, destination, _ ->
@@ -601,6 +601,10 @@ private fun RoleNavScaffold(
                             launchSingleTop = true
                             popUpTo(controller.graph.startDestinationId) { inclusive = false }
                         }
+                    } else if (concreteLike.isNotBlank() && isWriteAction(concreteLike) && authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+                        // If this is a write action and phone verification is deferred, show verification dialog
+                        pendingGuestAction = concreteLike // Store the intended action
+                        showSignInDialog = true // Reuse the existing dialog functionality by showing it as a verification prompt
                     }
                 }
             navController.addOnDestinationChangedListener(listener)
@@ -608,123 +612,199 @@ private fun RoleNavScaffold(
         }
     }
 
-    // Wrap Scaffold in a Box to overlay a draggable FAB above all content
+    LaunchedEffect(syncViewModel) {
+        syncViewModel.events.collectLatest { event ->
+            when (event) {
+                SyncStatusViewModel.SyncEvent.ViewSyncDetails -> {
+                    navController.navigate(Routes.SYNC_ISSUES)
+                }
+            }
+        }
+    }
+
+    // Wrap Scaffold in a Box to overlay guest banner above all content
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text("ROSTRY") },
                     actions = {
+                        // Show "Sign In" button in guest mode
+                        if (isGuestMode) {
+                            Button(
+                                onClick = { 
+                                    pendingGuestAction = null
+                                    sessionVm.signOut() 
+                                },
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Text("Sign In")
+                            }
+                        }
+                        SyncStatusIndicator(
+                            syncState = syncState,
+                            onClick = { syncViewModel.viewSyncDetails() }
+                        )
                         AccountMenuAction(
                             navController = navController,
-                            onSignOut = { sessionVm.signOut() }
+                            onSignOut = { sessionVm.signOut() },
+                            isGuestMode = isGuestMode
                         )
-                        NotificationsAction(navController = navController)
+                        if (!isGuestMode) {
+                            NotificationsAction(navController = navController)
+                        }
                     }
                 )
+            },
+            floatingActionButton = {
+                val isFarmer = navConfig.role == UserType.FARMER
+                val isEnthusiast = navConfig.role == UserType.ENTHUSIAST
+                
+                val showCreateFab = when {
+                    isFarmer -> false
+                    isEnthusiast -> currentRoute in setOf(
+                        Routes.EnthusiastNav.HOME,
+                        Routes.EnthusiastNav.EXPLORE,
+                        Routes.Social.FEED,
+                        Routes.EnthusiastNav.DASHBOARD
+                    )
+                    else -> false
+                }
+
+                if (showCreateFab && !isGuestMode) {
+                    FloatingActionButton(
+                        onClick = {
+                            val route = if (isFarmer) Routes.FarmerNav.CREATE else Routes.EnthusiastNav.CREATE
+                            navController.navigate(route)
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Create")
+                    }
+                }
             },
             bottomBar = {
                 RoleBottomBar(
                     navController = navController,
                     navConfig = navConfig,
-                    currentRoute = currentRoute
+                    currentRoute = currentRoute,
+                    isGuestMode = isGuestMode,
+                    onGuestActionAttempt = { action ->
+                        pendingGuestAction = action
+                        showSignInDialog = true
+                    }
                 )
             }
         ) { padding ->
-            RoleNavGraph(navController = navController, navConfig = navConfig, sessionVm = sessionVm, modifier = Modifier.padding(padding))
-        }
-
-        if (state.authMode == SessionManager.AuthMode.DEMO) {
-            DraggableDemoFab(onClick = { showSwitcher = true })
-        }
-    }
-
-    if (showSwitcher && state.authMode == SessionManager.AuthMode.DEMO) {
-        DemoProfilePickerDialog(
-            profiles = state.demoProfiles,
-            currentId = state.currentDemoProfile?.id,
-            onSelect = {
-                sessionVm.activateDemoProfile(it)
-                showSwitcher = false
-            },
-            onSignOut = {
-                sessionVm.signOut()
-                showSwitcher = false
-            },
-            onDismiss = { showSwitcher = false }
-        )
-    }
-}
-
-@Composable
-private fun DraggableDemoFab(onClick: () -> Unit) {
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val density = LocalDensity.current
-        val maxW = with(density) { maxWidth.toPx() }
-        val maxH = with(density) { maxHeight.toPx() }
-        val fabSizePx = with(density) { 56.dp.toPx() }
-        val paddingPx = with(density) { 16.dp.toPx() }
-
-        var offsetX by rememberSaveable { mutableStateOf(maxW - fabSizePx - paddingPx) }
-        var offsetY by rememberSaveable { mutableStateOf(maxH - fabSizePx - paddingPx) }
-
-        fun clampX(x: Float) = x.coerceIn(0f, maxW - fabSizePx)
-        fun clampY(y: Float) = y.coerceIn(0f, maxH - fabSizePx)
-
-        FloatingActionButton(
-            onClick = onClick,
-            modifier = Modifier
-                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                .pointerInput(Unit) {
-                    detectDragGestures(onDrag = { change, drag ->
-                        change.consume()
-                        offsetX = clampX(offsetX + drag.x)
-                        offsetY = clampY(offsetY + drag.y)
-                    })
+            Column(modifier = Modifier.padding(padding)) {
+                // Guest mode banner
+                if (isGuestMode) {
+                    GuestModeBanner(
+                        onSignInClick = {
+                            // Set fromGuest flag for the auth flow
+                            authViewModel.setFromGuest(true)
+                            pendingGuestAction = null
+                            sessionVm.signOut()
+                        }
+                    )
                 }
-                .semantics { contentDescription = "Switch demo profile" }
-        ) {
-            Text("Demo")
-        }
-    }
-}
-
-@Composable
-private fun DemoProfilePickerDialog(
-    profiles: List<DemoUserProfile>,
-    currentId: String?,
-    onSelect: (String) -> Unit,
-    onSignOut: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Switch demo profile") },
-        text = {
-            LazyColumn(
-                contentPadding = PaddingValues(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(items = profiles, key = { it.id }) { profile ->
-                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        val suffix = if (profile.id == currentId) " (active)" else ""
-                        Text("${profile.fullName}$suffix")
-                        Text(profile.headline)
-                        Text(profile.location)
-                        TextButton(onClick = { onSelect(profile.id) }) {
-                            Text("Activate")
+                OfflineBanner(
+                    onViewPending = { navController.navigate(Routes.SYNC_ISSUES) }
+                )
+                // Show verification banner when phone verification is deferred
+                if (authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Verify phone to unlock transfers and listings",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            Button(
+                                onClick = { navController.navigate(Routes.PROFILE) } // Navigate to profile to verify phone
+                            ) {
+                                Text("Verify")
+                            }
                         }
                     }
                 }
+                RoleNavGraph(
+                    navController = navController,
+                    navConfig = navConfig,
+                    sessionVm = sessionVm,
+                    isGuestMode = isGuestMode,
+                    onGuestActionAttempt = { action ->
+                        pendingGuestAction = action
+                        showSignInDialog = true
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onSignOut) { Text("Sign out") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
         }
-    )
+    }
+
+    // Guest mode "Sign in to continue" dialog
+    if (showSignInDialog && isGuestMode) {
+        GuestSignInDialog(
+            onSignIn = {
+                // Set fromGuest flag for the auth flow
+                authViewModel.setFromGuest(true)
+                // Store pending action and sign out to trigger auth flow
+                pendingGuestAction?.let { sessionVm.setPendingDeepLink(it) }
+                sessionVm.signOut()
+                showSignInDialog = false
+            },
+            onDismiss = {
+                pendingGuestAction = null
+                showSignInDialog = false
+            }
+        )
+    }
+
+    // Phone verification required dialog for authenticated users with deferred verification
+    if (showSignInDialog && !isGuestMode && authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+        AlertDialog(
+            onDismissRequest = {
+                pendingGuestAction = null
+                showSignInDialog = false
+            },
+            title = { Text("Verify Phone Number") },
+            text = { Text("Please verify your phone number to access this feature.") },
+            confirmButton = {
+                Button(onClick = {
+                    // Navigate to phone verification
+                    navController.navigate(Routes.PROFILE)
+                    showSignInDialog = false
+                    pendingGuestAction = null
+                }) {
+                    Text("Verify Phone")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    pendingGuestAction = null
+                    showSignInDialog = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -732,6 +812,8 @@ private fun RoleNavGraph(
     navController: NavHostController,
     navConfig: RoleNavigationConfig,
     sessionVm: SessionViewModel,
+    isGuestMode: Boolean = false,
+    onGuestActionAttempt: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -742,11 +824,16 @@ private fun RoleNavGraph(
         // General navigation destinations
         composable(Routes.HOME_GENERAL) {
             com.rio.rostry.ui.general.GeneralUserScreen(
+
                 onOpenProductDetails = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
                 onOpenTraceability = { productId -> navController.navigate(Routes.Builders.traceability(productId)) },
                 onOpenSocialFeed = { navController.navigate(Routes.SOCIAL_FEED) },
-                onOpenMessages = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) }
+                onOpenMessages = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
+                onScanQr = { navController.navigate(Routes.Builders.scanQr("product_details")) }
             )
+        }
+        composable(Routes.SYNC_ISSUES) {
+            SyncIssuesScreen(navController = navController)
         }
         composable(Routes.HOME_FARMER) {
             val viewModel: com.rio.rostry.ui.farmer.FarmerHomeViewModel = hiltViewModel()
@@ -756,6 +843,14 @@ private fun RoleNavGraph(
                 onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird("farmer")) },
                 onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("farmer")) },
                 onNavigateRoute = { route -> navController.navigate(route) }
+            )
+        }
+        composable(Routes.FarmerNav.DIGITAL_FARM) {
+            com.rio.rostry.ui.farmer.DigitalFarmScreen(
+                onBack = { navController.popBackStack() },
+                onManageBird = { id -> navController.navigate(Routes.Builders.dailyLog(id)) },
+                onViewLineage = { id -> navController.navigate(Routes.Builders.traceability(id)) },
+                onListForSale = { id -> navController.navigate(Routes.Builders.farmerCreateWithPrefill(id)) }
             )
         }
         composable(Routes.FarmerNav.MARKET) {
@@ -768,7 +863,9 @@ private fun RoleNavGraph(
                     price = e.price,
                     views = 0,
                     inquiries = 0,
-                    orders = 0
+                    orders = 0,
+                    isBatch = e.isBatch ?: false,
+                    quantity = e.quantity.toInt()
                 )
             FarmerMarketScreen(
                 onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
@@ -799,7 +896,9 @@ private fun RoleNavGraph(
                 categoryMeatSelected = state.categoryFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Meat,
                 categoryAdoptionSelected = state.categoryFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Adoption,
                 traceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.Traceable,
-                nonTraceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable
+                nonTraceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable,
+                onScanQr = { navController.navigate(Routes.Builders.scanQr("product_details")) },
+                verificationStatus = state.verificationStatus
             )
         }
         // Farmer Create route with optional prefill arguments
@@ -844,11 +943,19 @@ private fun RoleNavGraph(
         }
         // Explicit base route without query to avoid matching issues
         composable(Routes.FarmerNav.CREATE) {
-            FarmerCreateScreen(
-                onNavigateBack = { navController.popBackStack() },
-                prefillProductId = null,
-                pairId = null
-            )
+            if (isGuestMode) {
+                // Block write action in guest mode
+                LaunchedEffect(Unit) {
+                    onGuestActionAttempt(Routes.FarmerNav.CREATE)
+                    navController.popBackStack()
+                }
+            } else {
+                FarmerCreateScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    prefillProductId = null,
+                    pairId = null
+                )
+            }
         }
         composable(Routes.FarmerNav.COMMUNITY) {
             FarmerCommunityScreen(
@@ -927,7 +1034,6 @@ private fun RoleNavGraph(
             }
         }
 
-        // Tasks
         composable(
             route = Routes.MONITORING_TASKS,
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/tasks" })
@@ -935,6 +1041,11 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.monitoring.TasksScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        composable(Routes.COMPLIANCE) {
+            com.rio.rostry.ui.farmer.ComplianceScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.HOME_ENTHUSIAST) {
@@ -967,14 +1078,22 @@ private fun RoleNavGraph(
         }
 
         composable(Routes.EnthusiastNav.CREATE) {
-            EnthusiastCreateScreen(
-                onScheduleContent = { _ -> navController.navigate(Routes.SOCIAL_FEED) },
-                onStartLive = {
-                    if (BuildConfig.DEBUG) navController.navigate(Routes.LIVE_BROADCAST)
-                    else navController.navigate(Routes.SOCIAL_FEED)
-                },
-                onCreateShowcase = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
-            )
+            if (isGuestMode) {
+                // Block write action in guest mode
+                LaunchedEffect(Unit) {
+                    onGuestActionAttempt(Routes.EnthusiastNav.CREATE)
+                    navController.popBackStack()
+                }
+            } else {
+                EnthusiastCreateScreen(
+                    onScheduleContent = { _ -> navController.navigate(Routes.SOCIAL_FEED) },
+                    onStartLive = {
+                        if (BuildConfig.DEBUG) navController.navigate(Routes.LIVE_BROADCAST)
+                        else navController.navigate(Routes.SOCIAL_FEED)
+                    },
+                    onCreateShowcase = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
+                )
+            }
         }
 
         composable(Routes.EnthusiastNav.DASHBOARD) {
@@ -1005,8 +1124,78 @@ private fun RoleNavGraph(
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
-                onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) }
+                onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
+                onNavigateToAnalytics = { navController.navigate(Routes.ANALYTICS_FARMER) },
+                onUpgradeClick = { targetRole ->
+                    navController.navigate(Routes.Builders.upgradeWizard(targetRole))
+                }
             )
+        }
+
+        // Upgrade Wizard Route (Comment 6 & 7)
+        composable(
+            route = Routes.UPGRADE_WIZARD,
+            arguments = listOf(navArgument("targetRole") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val targetRoleStr = backStackEntry.arguments?.getString("targetRole") ?: ""
+            val targetRole = try {
+                UserType.valueOf(targetRoleStr.uppercase())
+            } catch (e: Exception) {
+                null
+            }
+
+            if (targetRole == null) {
+                ErrorScreen(
+                    message = "Invalid target role: $targetRoleStr",
+                    onBack = { navController.popBackStack() }
+                )
+            } else {
+                com.rio.rostry.ui.upgrade.RoleUpgradeScreen(
+                    targetRole = targetRole,
+                    onNavigateBack = { navController.popBackStack() },
+                    onUpgradeComplete = {
+                        navController.navigate(Routes.Builders.upgradePostOnboarding(targetRole)) {
+                            popUpTo(Routes.UPGRADE_WIZARD) { inclusive = true }
+                        }
+                    },
+                    onNavigateToVerification = { upgradeType ->
+                        navController.navigate(Routes.Builders.verificationWithType(upgradeType))
+                    }
+                )
+            }
+        }
+
+        // Post-Onboarding Route (Comment 6 & 7)
+        composable(
+            route = Routes.UPGRADE_POST_ONBOARDING,
+            arguments = listOf(navArgument("newRole") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val newRoleStr = backStackEntry.arguments?.getString("newRole") ?: ""
+            val newRole = try {
+                UserType.valueOf(newRoleStr.uppercase())
+            } catch (e: Exception) {
+                null
+            }
+
+            if (newRole == null) {
+                ErrorScreen(
+                    message = "Invalid role: $newRoleStr",
+                    onBack = { navController.popBackStack() }
+                )
+            } else {
+                com.rio.rostry.ui.upgrade.RoleUpgradePostOnboardingScreen(
+                    newRole = newRole,
+                    onComplete = {
+                        val roleConfig = Routes.configFor(newRole)
+                        navController.navigate(roleConfig.startDestination) {
+                            popUpTo(Routes.ROOT) { inclusive = false }
+                        }
+                    },
+                    onNavigateToFeature = { route ->
+                        navController.navigate(route)
+                    }
+                )
+            }
         }
         composable(
             route = Routes.USER_PROFILE,
@@ -1018,7 +1207,11 @@ private fun RoleNavGraph(
                 android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.USER_PROFILE}")
                 ErrorScreen(message = "Invalid user ID", onBack = { navController.popBackStack() })
             } else {
-                com.rio.rostry.ui.profile.UserProfileScreen(userId = uid, onBack = { navController.popBackStack() })
+                SocialProfileScreen(
+                    userId = uid,
+                    onBack = { navController.popBackStack() },
+                    onPostClick = { postId -> navController.navigate(Routes.Builders.discussionDetail(postId)) }
+                )
             }
         }
         composable(Routes.SETTINGS) {
@@ -1036,6 +1229,41 @@ private fun RoleNavGraph(
         }
         composable(Routes.VERIFY_ENTHUSIAST_KYC) {
             EnthusiastKycScreen(onDone = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Routes.Common.VERIFICATION_WITH_TYPE,
+            arguments = listOf(navArgument("upgradeType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val typeStr = backStackEntry.arguments?.getString("upgradeType") ?: ""
+            val upgradeType = try {
+                com.rio.rostry.domain.model.UpgradeType.valueOf(typeStr)
+            } catch (e: Exception) {
+                null
+            }
+
+            if (upgradeType == null) {
+                ErrorScreen(message = "Invalid upgrade type", onBack = { navController.popBackStack() })
+            } else {
+                // Dispatch to correct screen based on type
+                when (upgradeType) {
+                    com.rio.rostry.domain.model.UpgradeType.GENERAL_TO_FARMER,
+                    com.rio.rostry.domain.model.UpgradeType.FARMER_VERIFICATION -> {
+                        val vm: VerificationViewModel = hiltViewModel()
+                        LaunchedEffect(upgradeType) {
+                            vm.setUpgradeType(upgradeType)
+                        }
+                        FarmerLocationVerificationScreen(onDone = { navController.popBackStack() })
+                    }
+                    com.rio.rostry.domain.model.UpgradeType.FARMER_TO_ENTHUSIAST -> {
+                         val vm: VerificationViewModel = hiltViewModel()
+                        LaunchedEffect(upgradeType) {
+                             vm.setUpgradeType(upgradeType)
+                        }
+                        EnthusiastKycScreen(onDone = { navController.popBackStack() })
+                    }
+                }
+            }
         }
 
         
@@ -1088,11 +1316,25 @@ private fun RoleNavGraph(
                 ProductDetailsScreen(
                     productId = productId,
                     onOpenTraceability = { navController.navigate(Routes.Builders.traceability(productId)) },
-                    onOpenSellerProfile = { userId -> navController.navigate(Routes.USER_PROFILE.replace("{userId}", userId)) }
+                    onOpenSellerProfile = { userId -> navController.navigate(Routes.USER_PROFILE.replace("{userId}", userId)) },
+                    onChatWithSeller = { sellerId -> navController.navigate(Routes.Builders.messagesThread(sellerId)) },
+                    onNavigateToAuction = { auctionId -> navController.navigate(Routes.Builders.auction(auctionId)) }
                 )
             }
         }
 
+        composable(
+            route = Routes.Product.AUCTION,
+            arguments = listOf(navArgument("auctionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val auctionId = backStackEntry.arguments?.getString("auctionId") ?: ""
+            com.rio.rostry.ui.auction.AuctionScreen(
+                auctionId = auctionId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Canonical deep-link format for lineage QR codes: rostry://traceability/{productId}
         composable(
             route = Routes.TRACEABILITY,
             arguments = listOf(navArgument("productId") { type = NavType.StringType }),
@@ -1183,6 +1425,9 @@ private fun RoleNavGraph(
                             "traceability" -> {
                                 navController.navigate(Routes.Builders.traceability(productId))
                             }
+                            "product_details" -> {
+                                navController.navigate(Routes.Builders.productDetails(productId))
+                            }
                             else -> {
                                 scope.launch { snackbarHostState.showSnackbar("Invalid scan context") }
                             }
@@ -1251,26 +1496,39 @@ private fun RoleNavGraph(
                 android.util.Log.w("AppNavHost", "Invalid argument for route: ${Routes.ORDER_DETAILS}")
                 ErrorScreen(message = "Invalid order ID", onBack = { navController.popBackStack() })
             } else {
-                // Placeholder for order details screen - navigate to order tracking/status view
-                PlaceholderScreen(title = "Order Details: $orderId")
+                com.rio.rostry.ui.order.OrderTrackingScreen(
+                    orderId = orderId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onOrderCancelled = { navController.popBackStack() },
+                    onRateOrder = { _ -> /* Rating handled in screen */ },
+                    onContactSupport = { /* Navigate to support */ }
+                )
             }
         }
 
         // Create transfer route
         composable(Routes.TRANSFER_CREATE) {
-            val vm: TransferCreateViewModel = hiltViewModel()
-            val state by vm.state.collectAsState()
-            // Navigate to details when created
-            LaunchedEffect(state.successTransferId) {
-                if (!state.successTransferId.isNullOrBlank()) {
-                    navController.navigate(Routes.Builders.transferDetails(state.successTransferId!!)) {
-                        launchSingleTop = true
+            if (isGuestMode) {
+                // Block write action in guest mode
+                LaunchedEffect(Unit) {
+                    onGuestActionAttempt(Routes.TRANSFER_CREATE)
+                    navController.popBackStack()
+                }
+            } else {
+                val vm: TransferCreateViewModel = hiltViewModel()
+                val state by vm.state.collectAsState()
+                // Navigate to details when created
+                LaunchedEffect(state.successTransferId) {
+                    if (!state.successTransferId.isNullOrBlank()) {
+                        navController.navigate(Routes.Builders.transferDetails(state.successTransferId!!)) {
+                            launchSingleTop = true
+                        }
                     }
                 }
+                TransferCreateScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
-            TransferCreateScreen(
-                onBack = { navController.popBackStack() }
-            )
         }
 
         composable(
@@ -1283,13 +1541,45 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getString("postId")
             com.rio.rostry.ui.social.SocialFeedScreen(
-                onOpenThread = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
+                onOpenThread = { threadId -> navController.navigate(Routes.Builders.discussionDetail(threadId)) },
                 onOpenGroups = {
                     if (BuildConfig.DEBUG) navController.navigate(Routes.GROUPS)
                     else navController.navigate(Routes.LEADERBOARD)
                 },
                 onOpenEvents = { navController.navigate(Routes.EVENTS) },
-                onOpenExpert = { navController.navigate(Routes.EXPERT_BOOKING) }
+                onOpenExpert = { navController.navigate(Routes.EXPERT_BOOKING) },
+                onOpenProfile = { userId -> navController.navigate(Routes.Builders.userProfile(userId)) },
+                onOpenStoryViewer = { index -> navController.navigate(Routes.Builders.storyViewer(index)) },
+                onOpenStoryCreator = { navController.navigate(Routes.Builders.storyCreator()) }
+            )
+        }
+
+        composable(
+            route = Routes.Social.STORY_VIEWER,
+            arguments = listOf(navArgument("initialIndex") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val index = backStackEntry.arguments?.getInt("initialIndex") ?: 0
+            StoryViewerScreen(
+                initialIndex = index,
+                onFinished = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Social.STORY_CREATOR) {
+            StoryCreatorScreen(onBack = { navController.popBackStack() })
+        }
+
+
+
+        composable(
+            route = Routes.Social.DISCUSSION_DETAIL,
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId") ?: ""
+            DiscussionDetailScreen(
+                postId = postId,
+                onBack = { navController.popBackStack() },
+                onProfileClick = { userId -> navController.navigate(Routes.Builders.userProfile(userId)) }
             )
         }
 
@@ -1333,7 +1623,18 @@ private fun RoleNavGraph(
         }
         composable(Routes.EVENTS) { com.rio.rostry.ui.events.EventsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
-        composable(Routes.MODERATION) { com.rio.rostry.ui.moderation.ModerationScreen() }
+        composable(Routes.MODERATION) { 
+            com.rio.rostry.ui.moderation.ModerationScreen(
+                onOpenVerifications = { navController.navigate(Routes.Social.MODERATION_VERIFICATIONS) }
+            ) 
+        }
+        composable(Routes.Social.MODERATION_VERIFICATIONS) {
+             // Re-use ModerationScreen or a specific sub-screen if available. 
+             // For now, assuming ModerationScreen handles tabs or we pass a flag.
+             // Or if ModerationScreen IS the list, we might just need to ensure it fetches verifications.
+             // Let's assume ModerationScreen has a tab for verifications.
+             com.rio.rostry.ui.moderation.ModerationScreen(initialTab = 1) // Assuming 1 is verifications
+        }
         composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
         composable(Routes.LIVE_BROADCAST) {
             if (BuildConfig.DEBUG) {
@@ -1539,11 +1840,11 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.ENTHUSIAST, onComplete = { navController.popBackStack() })
         }
 
-        // Dev/Showcase: Component Gallery (available only in debug builds)
-        if (BuildConfig.DEBUG) {
-            composable(Routes.COMPONENT_GALLERY) {
-                ComponentGalleryScreen()
-            }
+
+
+        // Sync issues screen
+        composable(Routes.SYNC_ISSUES) {
+            SyncIssuesScreen(navController = navController)
         }
     }
 }
@@ -1560,7 +1861,9 @@ private fun ErrorScreen(message: String, onBack: () -> Unit) {
 private fun RoleBottomBar(
     navController: NavHostController,
     navConfig: RoleNavigationConfig,
-    currentRoute: String?
+    currentRoute: String?,
+    isGuestMode: Boolean = false,
+    onGuestActionAttempt: (String) -> Unit = {}
 ) {
     if (navConfig.bottomNav.isNotEmpty()) {
         val notifVm: com.rio.rostry.ui.notifications.NotificationsViewModel = hiltViewModel()
@@ -1585,11 +1888,16 @@ private fun RoleBottomBar(
                     selected = selected,
                     onClick = {
                         val isCreate = destination.route.endsWith("/create")
-                        navController.navigate(destination.route) {
-                            launchSingleTop = true
-                            restoreState = true
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
+                        // Block write actions in guest mode
+                        if (isGuestMode && isCreate) {
+                            onGuestActionAttempt(destination.route)
+                        } else {
+                            navController.navigate(destination.route) {
+                                launchSingleTop = true
+                                restoreState = true
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
                             }
                         }
                     },
@@ -1647,10 +1955,12 @@ private fun NotificationsAction(navController: NavHostController) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AccountMenuAction(
     navController: NavHostController,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    isGuestMode: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
     Row(
@@ -1667,20 +1977,91 @@ private fun AccountMenuAction(
             Icon(imageVector = Icons.Filled.ArrowDropDown, contentDescription = "Account menu")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(text = { Text("Profile") }, onClick = {
-                expanded = false
-                navController.navigate(Routes.PROFILE)
-            })
-            DropdownMenuItem(text = { Text("Settings") }, onClick = {
-                expanded = false
-                navController.navigate(Routes.SETTINGS)
-            })
-            DropdownMenuItem(text = { Text("Sign out") }, onClick = {
+            if (!isGuestMode) {
+                DropdownMenuItem(text = { Text("Profile") }, onClick = {
+                    expanded = false
+                    navController.navigate(Routes.PROFILE)
+                })
+                DropdownMenuItem(text = { Text("Settings") }, onClick = {
+                    expanded = false
+                    navController.navigate(Routes.SETTINGS)
+                })
+            }
+            DropdownMenuItem(text = { Text(if (isGuestMode) "Exit Guest Mode" else "Sign out") }, onClick = {
                 expanded = false
                 onSignOut()
             })
         }
     }
+}
+
+/**
+ * Guest mode banner shown at top of screen
+ */
+@Composable
+private fun GuestModeBanner(onSignInClick: () -> Unit) {
+    androidx.compose.material3.Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "You're browsing as a guest. Sign in to unlock all features.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onSignInClick) {
+                Text("Sign In")
+            }
+        }
+    }
+}
+
+/**
+ * Dialog shown when guest user attempts write action
+ */
+@Composable
+private fun GuestSignInDialog(
+    onSignIn: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Sign in to continue") },
+        text = { Text("This feature requires an account. Sign in to unlock all features and save your progress.") },
+        confirmButton = {
+            Button(onClick = onSignIn) {
+                Text("Sign In")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/**
+ * Helper to determine if a route is a write action (create, edit, delete)
+ */
+private fun isWriteAction(route: String): Boolean {
+    val writeRoutes = setOf(
+        Routes.FarmerNav.CREATE,
+        Routes.EnthusiastNav.CREATE,
+        Routes.TRANSFER_CREATE,
+        Routes.PRODUCT_CREATE
+    )
+    val baseRoute = route.substringBefore("?")
+    return writeRoutes.any { baseRoute.contains(it) } || route.contains("/create")
 }
 
 @Composable

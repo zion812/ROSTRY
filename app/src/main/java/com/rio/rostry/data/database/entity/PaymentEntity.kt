@@ -1,6 +1,7 @@
 package com.rio.rostry.data.database.entity
 
 import androidx.room.Entity
+import com.rio.rostry.domain.model.PaymentStatus
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -30,10 +31,17 @@ data class PaymentEntity(
     val method: String, // UPI, CARD, WALLET, COD, COINS, ADVANCE
     val amount: Double,
     val currency: String = "INR",
-    val status: String, // PENDING, SUCCESS, FAILED, REFUNDED
+    /**
+     * Allowed values: "PENDING", "SUCCESS", "FAILED", "REFUNDED". Legacy values like "Paid", "PAID", "PAID_SUCCESS" are supported and automatically normalized to canonical enum values when accessed via the [statusEnum()] extension function. Use [PaymentStatus] enum for type-safe access.
+     */
+    val status: String,
     val providerRef: String? = null,
     val upiUri: String? = null,
     val idempotencyKey: String,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
+
+fun PaymentEntity.statusEnum(): PaymentStatus = PaymentStatus.fromString(this.status)
+
+fun PaymentEntity.withStatus(newStatus: PaymentStatus): PaymentEntity = this.copy(status = newStatus.toStoredString())

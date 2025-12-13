@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.product
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.ui.components.LoadingScreen
+import com.rio.rostry.ui.order.NegotiationDialog
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
@@ -38,9 +41,12 @@ fun ProductDetailsScreen(
     onOpenTraceability: () -> Unit,
     onNavigateToProduct: (String) -> Unit = {},
     onOpenSellerProfile: (String) -> Unit = {},
+    onChatWithSeller: (String) -> Unit = {},
+    onNavigateToAuction: (String) -> Unit = {},
     viewModel: ProductDetailsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showNegotiationDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -89,6 +95,12 @@ fun ProductDetailsScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.navigateToChat.collect { threadId ->
+            onChatWithSeller(threadId)
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
@@ -98,11 +110,27 @@ fun ProductDetailsScreen(
                     isInWishlist = uiState.isInWishlist,
                     onToggleWishlist = { viewModel.toggleWishlist() },
                     onAddToCart = { viewModel.addToCart(1.0) },
-                    onBuyNow = { viewModel.buyNow(1.0) }
+                    onBuyNow = { viewModel.buyNow(1.0) },
+                    onChat = { viewModel.startChatWithSeller() },
+                    auctionId = uiState.auctionId,
+                    onEnterAuction = { id -> onNavigateToAuction(id) },
+                    onMakeOffer = { showNegotiationDialog = true }
                 )
             }
         }
     ) { paddingValues ->
+        if (showNegotiationDialog && uiState.product != null) {
+            NegotiationDialog(
+                currentPrice = uiState.product!!.price,
+                currentQuantity = uiState.product!!.quantity,
+                unit = uiState.product!!.unit,
+                onDismiss = { showNegotiationDialog = false },
+                onSubmitOffer = { price, quantity ->
+                    viewModel.submitOffer(price, quantity)
+                    showNegotiationDialog = false
+                }
+            )
+        }
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier
@@ -122,6 +150,8 @@ fun ProductDetailsScreen(
                 onOpenSellerProfile = onOpenSellerProfile,
                 onToggleWishlist = { viewModel.toggleWishlist() },
                 onGenerateProductQr = { viewModel.generateAndStoreProductQr() },
+                seller = uiState.seller,
+                lineage = uiState.lineage,
                 modifier = Modifier.padding(paddingValues)
             )
         } else {
@@ -151,6 +181,8 @@ private fun ProductDetailsContent(
     onOpenSellerProfile: (String) -> Unit,
     onToggleWishlist: () -> Unit,
     onGenerateProductQr: () -> Unit,
+    seller: com.rio.rostry.data.database.entity.UserEntity?,
+    lineage: com.rio.rostry.data.database.entity.FamilyTreeEntity?,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -168,13 +200,14 @@ private fun ProductDetailsContent(
             ProductInfoSection(
                 product = product,
                 isInWishlist = isInWishlist,
-                onToggleWishlist = onToggleWishlist
+                onToggleWishlist = onToggleWishlist,
+                seller = seller
             )
         }
 
         // Seller Info
         item {
-            SellerInfoCard(product = product, onOpenSellerProfile = onOpenSellerProfile)
+            SellerInfoCard(product = product, seller = seller, onOpenSellerProfile = onOpenSellerProfile)
         }
 
         // Description
@@ -190,7 +223,7 @@ private fun ProductDetailsContent(
         // Traceability
         if (product.familyTreeId != null) {
             item {
-                TraceabilityCard(onOpenTraceability = onOpenTraceability)
+                TraceabilityCard(onOpenTraceability = onOpenTraceability, lineage = lineage)
             }
             // Export Lineage (link/QR entry)
             item { ExportLineageCard(product, onGenerateProductQr) }
@@ -320,7 +353,8 @@ private fun ImageGallery(images: List<String>) {
 private fun ProductInfoSection(
     product: ProductEntity,
     isInWishlist: Boolean,
-    onToggleWishlist: () -> Unit
+    onToggleWishlist: () -> Unit,
+    seller: com.rio.rostry.data.database.entity.UserEntity?
 ) {
     Column(
         modifier = Modifier
@@ -339,11 +373,15 @@ private fun ProductInfoSection(
                     leadingIcon = { Icon(Icons.Filled.Verified, null, modifier = Modifier.size(16.dp)) }
                 )
             }
-            if (!product.sellerId.isBlank()) {
+            if (seller?.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
                 AssistChip(
                     onClick = {},
                     label = { Text("✓ Verified seller") },
-                    leadingIcon = { Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(16.dp)) }
+                    leadingIcon = { Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(16.dp)) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 )
             }
         }
@@ -434,7 +472,11 @@ private fun ProductInfoSection(
 }
 
 @Composable
-private fun SellerInfoCard(product: ProductEntity, onOpenSellerProfile: (String) -> Unit) {
+private fun SellerInfoCard(
+    product: ProductEntity,
+    seller: com.rio.rostry.data.database.entity.UserEntity?,
+    onOpenSellerProfile: (String) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -465,10 +507,17 @@ private fun SellerInfoCard(product: ProductEntity, onOpenSellerProfile: (String)
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = if (product.sellerId.isNotBlank()) "Verified Seller" else "Unknown",
+                    text = seller?.fullName ?: "Unknown Seller",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
+                if (seller?.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
+                    Text(
+                        text = "✓ Verified Farm",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.Star,
@@ -547,7 +596,71 @@ private fun KeyAttributesSection(product: ProductEntity) {
             AttributeRow("Category", product.category)
             AttributeRow("Location", product.location)
             AttributeRow("Unit", product.unit)
+            AttributeRow("Unit", product.unit)
             AttributeRow("Quantity Available", product.quantity.toString())
+            if (product.isBatch == true) {
+                AttributeRow("Batch Size", "${product.quantity.toInt()} birds")
+            }
+            
+            // Delivery Info
+            if (product.deliveryOptions.isNotEmpty()) {
+                AttributeRow("Delivery", product.deliveryOptions.joinToString(", ") { it.replace("_", " ").lowercase().capitalize() })
+            }
+            product.deliveryCost?.let { cost ->
+                AttributeRow("Delivery Cost", "₹${"%.2f".format(cost)}")
+            }
+            product.leadTimeDays?.let { days ->
+                AttributeRow("Lead Time", "$days days")
+            }
+            
+            // Add bird code row with optional color tag badge
+            product.birdCode?.let { code ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Bird ID",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        product.colorTag?.let { tag ->
+                            val badgeColor = when (tag) {
+                                "BLACK" -> Color.Black
+                                "WHITE" -> Color.White
+                                "BROWN" -> Color(0xFFA52A2A) // Brown color
+                                "YELLOW" -> Color.Yellow
+                                else -> Color.Gray
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(badgeColor, CircleShape)
+                                    .border(1.dp, Color.Black, CircleShape)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = code,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            // Add technical product ID in smaller font for debugging
+            Text(
+                text = "Technical ID: ${product.productId}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 6.dp)
+            )
         }
     }
 }
@@ -574,7 +687,7 @@ private fun AttributeRow(label: String, value: String) {
 }
 
 @Composable
-private fun TraceabilityCard(onOpenTraceability: () -> Unit) {
+private fun TraceabilityCard(onOpenTraceability: () -> Unit, lineage: com.rio.rostry.data.database.entity.FamilyTreeEntity?) {
     Card(
         onClick = onOpenTraceability,
         modifier = Modifier
@@ -597,7 +710,7 @@ private fun TraceabilityCard(onOpenTraceability: () -> Unit) {
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = "Explore complete lineage and breeding history",
+                    text = if (lineage?.parentProductId != null) "Parents recorded • Explore complete lineage" else "Explore complete lineage and breeding history",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -750,7 +863,11 @@ private fun ProductActionBar(
     isInWishlist: Boolean,
     onToggleWishlist: () -> Unit,
     onAddToCart: () -> Unit,
-    onBuyNow: () -> Unit
+    onBuyNow: () -> Unit,
+    onChat: () -> Unit,
+    auctionId: String? = null,
+    onEnterAuction: (String) -> Unit = {},
+    onMakeOffer: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -763,6 +880,22 @@ private fun ProductActionBar(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            IconButton(
+                onClick = onChat,
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(12.dp)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Chat,
+                    contentDescription = "Chat with seller",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
             IconButton(
                 onClick = onToggleWishlist,
                 modifier = Modifier
@@ -779,22 +912,30 @@ private fun ProductActionBar(
                 )
             }
             
-            OutlinedButton(
-                onClick = onAddToCart,
-                modifier = Modifier.weight(1f).height(48.dp),
-                enabled = product.quantity > 0
-            ) {
-                Icon(Icons.Filled.ShoppingCart, contentDescription = "Add to cart")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add to Cart")
-            }
-            
-            Button(
-                onClick = onBuyNow,
-                modifier = Modifier.weight(1f).height(48.dp),
-                enabled = product.quantity > 0
-            ) {
-                Text("Buy Now")
+            if (auctionId != null) {
+                Button(
+                    onClick = { onEnterAuction(auctionId) },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                ) {
+                    Text("Enter Auction")
+                }
+            } else {
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onMakeOffer,
+                        modifier = Modifier.weight(1f).height(48.dp)
+                    ) {
+                        Text("Make Offer")
+                    }
+                    Button(
+                        onClick = onBuyNow,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        enabled = product.quantity > 0
+                    ) {
+                        Text("Buy Now")
+                    }
+                }
             }
         }
     }

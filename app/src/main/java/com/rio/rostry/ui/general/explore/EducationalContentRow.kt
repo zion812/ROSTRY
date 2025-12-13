@@ -11,7 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.rio.rostry.ui.general.explore.GeneralExploreViewModel.EducationalContent
+import com.rio.rostry.domain.model.EducationalContent
 
 @Composable
 fun EducationalContentRow(
@@ -57,7 +57,7 @@ fun EducationalCard(
         ) {
             Column {
                 Text(
-                    text = item.type,
+                    text = item.type.name,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )

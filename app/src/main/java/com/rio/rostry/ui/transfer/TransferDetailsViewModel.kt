@@ -46,8 +46,8 @@ class TransferDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val transferFlow = transferDao.getTransferById(transferId)
-                val verFlow = verificationDao.streamByTransfer(transferId)
-                val dspFlow = disputeDao.streamByTransfer(transferId)
+                val verFlow = verificationDao.observeByTransferId(transferId)
+                val dspFlow = disputeDao.observeByTransferId(transferId)
                 val logsFlow = auditLogDao.streamByRef(transferId)
                 combine(transferFlow, verFlow, dspFlow, logsFlow) { t, v, d, l ->
                     _state.value.copy(loading = false, transfer = t, verifications = v, disputes = d, logs = l)

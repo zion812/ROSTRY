@@ -14,12 +14,16 @@ import javax.inject.Singleton
 
 /**
  * Extension for DataStore
+ * Note: This DataStore specifically handles phone verification state (verification ID, phone number, linking mode).
+ * See AuthRepositoryImpl.kt for session-related auth preferences ("auth_prefs").
  */
-private val Context.authDataStore by preferencesDataStore(name = "auth_state")
+private val Context.authVerificationDataStore by preferencesDataStore(name = "auth_state")
 
 /**
  * Manages authentication state persistence using DataStore.
  * Handles storing/retrieving verification state for process death recovery.
+ * This is specifically for phone verification state (verification ID, phone number, linking mode).
+ * Session-related auth preferences are managed in AuthRepositoryImpl using "auth_prefs".
  */
 @Singleton
 class AuthStateManager @Inject constructor(
@@ -45,7 +49,7 @@ class AuthStateManager @Inject constructor(
         isLinkingMode: Boolean = false
     ) {
         try {
-            context.authDataStore.edit { prefs ->
+            context.authVerificationDataStore.edit { prefs ->
                 prefs[KEY_VERIFICATION_ID] = verificationId.value
                 prefs[KEY_PHONE_NUMBER] = phoneNumber.value
                 prefs[KEY_IS_LINKING_MODE] = isLinkingMode.toString()
@@ -58,12 +62,12 @@ class AuthStateManager @Inject constructor(
     
     /**
      * Get saved verification ID
-     * 
+     *
      * @return VerificationId if exists, null otherwise
      */
     suspend fun getVerificationId(): VerificationId? {
         return try {
-            context.authDataStore.data
+            context.authVerificationDataStore.data
                 .map { prefs -> prefs[KEY_VERIFICATION_ID] }
                 .first()
                 ?.let { VerificationId(it) }
@@ -75,15 +79,15 @@ class AuthStateManager @Inject constructor(
     
     /**
      * Get saved phone number
-     * 
+     *
      * @return PhoneNumber if exists and valid, null otherwise
      */
     suspend fun getPhoneNumber(): PhoneNumber? {
         return try {
-            context.authDataStore.data
+            context.authVerificationDataStore.data
                 .map { prefs -> prefs[KEY_PHONE_NUMBER] }
                 .first()
-                ?.let { 
+                ?.let {
                     runCatching { PhoneNumber(it) }.getOrNull()
                 }
         } catch (e: Exception) {
@@ -94,12 +98,12 @@ class AuthStateManager @Inject constructor(
     
     /**
      * Check if current flow is phone linking mode
-     * 
+     *
      * @return true if linking mode, false otherwise
      */
     suspend fun isLinkingMode(): Boolean {
         return try {
-            context.authDataStore.data
+            context.authVerificationDataStore.data
                 .map { prefs -> prefs[KEY_IS_LINKING_MODE] }
                 .first()
                 ?.toBoolean() ?: false
@@ -114,7 +118,7 @@ class AuthStateManager @Inject constructor(
      */
     suspend fun clearVerificationState() {
         try {
-            context.authDataStore.edit { prefs ->
+            context.authVerificationDataStore.edit { prefs ->
                 prefs.remove(KEY_VERIFICATION_ID)
                 prefs.remove(KEY_PHONE_NUMBER)
                 prefs.remove(KEY_IS_LINKING_MODE)

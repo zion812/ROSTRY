@@ -4,26 +4,28 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductMarketplaceRepository
-import com.rio.rostry.marketplace.payment.DemoPaymentService
 import com.rio.rostry.marketplace.validation.ProductValidator
+import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 @HiltViewModel
 class MarketplaceSandboxViewModel @Inject constructor(
     private val productRepo: ProductMarketplaceRepository,
-    private val demoPayments: DemoPaymentService,
-    private val productValidator: ProductValidator
+    private val productValidator: ProductValidator,
+    private val currentUserProvider: CurrentUserProvider,
+    private val userRepository: com.rio.rostry.data.repository.UserRepository
 ) : ViewModel() {
 
     data class UiState(
         val lastValidationResult: ProductValidator.ValidationResult? = null,
         val lastCreateResult: Resource<String>? = null,
-        val lastPaymentResult: Resource<com.rio.rostry.marketplace.payment.MockPaymentManager.MockResult>? = null,
         val isLoading: Boolean = false,
         val message: String? = null
     )
@@ -44,40 +46,37 @@ class MarketplaceSandboxViewModel @Inject constructor(
     fun createSample(product: ProductEntity) {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = true, message = null)
+
+            // Check verification status
+            val currentUser = getCurrentUserOrNull()
+            if (currentUser == null) {
+                _ui.value = _ui.value.copy(
+                    isLoading = false,
+                    lastCreateResult = Resource.Error("User not authenticated"),
+                    message = "Authentication required"
+                )
+                return@launch
+            }
+
+            if (currentUser.verificationStatus != VerificationStatus.VERIFIED) {
+                _ui.value = _ui.value.copy(
+                    isLoading = false,
+                    lastCreateResult = Resource.Error("Complete KYC verification to list products"),
+                    message = "User not verified"
+                )
+                return@launch
+            }
+
             val result = productRepo.createProduct(product, imageBytes = emptyList())
             _ui.value = _ui.value.copy(isLoading = false, lastCreateResult = result, message = (result as? Resource.Error)?.message)
         }
     }
 
-    fun payFixed(orderId: String, userId: String, amount: Double, failNext: Boolean = false) {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            val res = demoPayments.payFixedPrice(orderId, userId, amount, failNext)
-            _ui.value = _ui.value.copy(isLoading = false, lastPaymentResult = res, message = (res as? Resource.Error)?.message)
-        }
-    }
-
-    fun payAuction(orderId: String, userId: String, amount: Double, failNext: Boolean = false) {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            val res = demoPayments.payAuctionBid(orderId, userId, amount, failNext)
-            _ui.value = _ui.value.copy(isLoading = false, lastPaymentResult = res, message = (res as? Resource.Error)?.message)
-        }
-    }
-
-    fun payCod(orderId: String, userId: String, amount: Double) {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            val res = demoPayments.payCashOnDelivery(orderId, userId, amount)
-            _ui.value = _ui.value.copy(isLoading = false, lastPaymentResult = res, message = (res as? Resource.Error)?.message)
-        }
-    }
-
-    fun payAdvance(orderId: String, userId: String, amount: Double, failNext: Boolean = false) {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            val res = demoPayments.payAdvance(orderId, userId, amount, failNext)
-            _ui.value = _ui.value.copy(isLoading = false, lastPaymentResult = res, message = (res as? Resource.Error)?.message)
+    private suspend fun getCurrentUserOrNull(): com.rio.rostry.data.database.entity.UserEntity? {
+        return when (val res = userRepository.getCurrentUser().first()) {
+            is com.rio.rostry.utils.Resource.Success -> res.data
+            else -> null
         }
     }
 }
+

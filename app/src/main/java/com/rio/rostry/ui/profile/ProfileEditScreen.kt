@@ -53,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import android.content.Intent
 import java.io.File
 import java.util.UUID
 import coil.compose.AsyncImage
@@ -72,8 +73,13 @@ fun ProfileEditScreen(
     var showUnsavedDialog by remember { mutableStateOf(false) }
     var showPhotoSourceDialog by remember { mutableStateOf(false) }
 
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { viewModel.uploadProfilePhoto(it.toString()) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+            viewModel.uploadProfilePhoto(it.toString())
+        }
     }
 
     var pendingCameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -270,7 +276,7 @@ fun ProfileEditScreen(
             )
 
             // Role-specific sections
-            when (uiState.user?.userType) {
+            when (uiState.user?.role) {
                 UserType.FARMER -> {
                     ProfileTextField(
                         value = uiState.farmLocation,
@@ -341,7 +347,7 @@ fun ProfileEditScreen(
             },
             dismissButton = {
                 TextButton(onClick = {
-                    photoPicker.launch("image/*")
+                    photoPicker.launch(arrayOf("image/*"))
                     showPhotoSourceDialog = false
                 }) { Text("Gallery") }
             }

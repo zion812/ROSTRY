@@ -24,8 +24,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import com.rio.rostry.domain.rbac.RbacGuard
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.domain.model.VerificationStatus
+import com.rio.rostry.domain.model.Permission
 import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.notifications.IntelligentNotificationService
 import com.rio.rostry.notifications.TransferEventType
@@ -108,7 +107,6 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     private val productDao: ProductDao,
     private val quarantineDao: QuarantineRecordDao,
     private val rbacGuard: RbacGuard,
-    private val userRepository: UserRepository,
     private val outboxDao: OutboxDao? = null,
     private val gson: Gson = Gson(),
     private val currentUserProvider: CurrentUserProvider,
@@ -125,9 +123,10 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         toUserId: String?,
         logOnFailure: Boolean
     ): Resource<Unit> {
-        // Enforce that the current session user is the transfer actor
+        // Enforce that the current session user is the transfer actor, unless they have admin privileges
         val currentUserId = currentUserProvider.userIdOrNull()
-        if (currentUserId != null && currentUserId != fromUserId) {
+        val isAdmin = currentUserId?.let { rbacGuard.canAsync(Permission.ADMIN_VERIFICATION) } ?: false
+        if (currentUserId != null && currentUserId != fromUserId && !isAdmin) {
             val msg = "You are not authorized to initiate transfers for other users"
             if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
             return Resource.Error(msg)
@@ -172,22 +171,6 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             }
         }
 
-        val userResource = userRepository.getUserById(fromUserId).first()
-        val user = when (userResource) {
-            is Resource.Success -> userResource.data
-            else -> null
-        }
-        if (user?.verificationStatus != VerificationStatus.VERIFIED) {
-            val msg = "Complete KYC verification to initiate transfers. Go to Profile → Verification."
-            if (logOnFailure) logValidationFailure(productId, "TRANSFER_BLOCKED", fromUserId, listOf(msg))
-            intelligentNotificationService.notifyFarmEvent(
-                com.rio.rostry.notifications.FarmEventType.KYC_REQUIRED,
-                productId,
-                "KYC Required",
-                msg
-            )
-            return Resource.Error(msg)
-        }
 
         // Use traceability report for freshness and related checks
         when (val report = traceabilityRepository.getTransferEligibilityReport(productId)) {
@@ -409,6 +392,19 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     ): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
             val transfer = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
+            // Add buyer authorization check
+            val currentUserId = currentUserProvider.userIdOrNull()
+            val isAuthorized = currentUserId == transfer.toUserId || rbacGuard.canAsync(Permission.ADMIN_VERIFICATION)
+            if (!isAuthorized) {
+                val auditLog = AuditLogEntity.createValidationFailureLog(
+                    refId = transferId,
+                    action = "BUYER_VERIFY_UNAUTHORIZED",
+                    actorUserId = currentUserId,
+                    reasons = listOf("Unauthorized verification attempt")
+                )
+                auditLogDao.insert(auditLog)
+                return@withContext Resource.Error("You are not authorized to verify this transfer")
+            }
             // GPS within 100m if both coordinates present
             val gpsOk = if (transfer.gpsLat != null && transfer.gpsLng != null && buyerGpsLat != null && buyerGpsLng != null) {
                 VerificationUtils.withinRadius(transfer.gpsLat, transfer.gpsLng, buyerGpsLat, buyerGpsLng, 100.0)
@@ -530,20 +526,52 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             // Final validation: ensure product is still eligible
             val pid = transfer.productId ?: return@withContext Resource.Error("Transfer missing product reference")
             val from = transfer.fromUserId ?: return@withContext Resource.Error("Transfer missing seller reference")
-            val eligibility = validateTransferEligibility(pid, from, transfer.toUserId)
+            val eligibility = validateTransferEligibility(pid, from, transfer.toUserId, logOnFailure = false)
             if (eligibility is Resource.Error) {
                 // Cancel transfer instead of completing
                 transferDao.updateStatusAndTimestamps(transferId, "CANCELLED", now(), completedAt = null)
-                logValidationFailure(transfer.productId, "TRANSFER_CANCELLED_ON_COMPLETE", null, listOf(eligibility.message ?: "Unknown error"))
+                logValidationFailure(transfer.productId, "TRANSFER_COMPLETE_VALIDATION_FAILED", null, listOf(eligibility.message ?: "Unknown error"))
                 auditLogDao.insert(
-                    AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "CANCEL", null, "Validation failed during completion", now())
+                    AuditLogEntity(UUID.randomUUID().toString(), "TRANSFER", transferId, "TRANSFER_COMPLETE_VALIDATION_FAILED", null, eligibility.message ?: "Validation failed during completion", now())
                 )
-                return@withContext Resource.Error("Transfer cancelled due to validation failure: ${eligibility.message}")
+                return@withContext Resource.Error(eligibility.message ?: "Transfer cancelled due to validation failure")
             }
 
+            // 1. Update Transfer Status
             transferDao.updateStatusAndTimestamps(transferId, "COMPLETED", now(), completedAt = now())
 
-            // Queue completion to outbox for sync
+            // 2. Update Product Ownership (The Core "Digital Asset" Handover)
+            val product = productDao.findById(pid)
+            if (product != null && transfer.toUserId != null) {
+                val updatedProduct = product.copy(
+                    sellerId = transfer.toUserId, // Handover ownership
+                    status = "private", // Reset to private for the new owner
+                    updatedAt = now(),
+                    lastModifiedAt = now(),
+                    dirty = true
+                )
+                productDao.upsert(updatedProduct)
+
+                // Queue product update to outbox
+                val productOutboxEntry = OutboxEntity(
+                    outboxId = UUID.randomUUID().toString(),
+                    userId = transfer.toUserId, // New owner context
+                    entityType = OutboxEntity.TYPE_PRODUCT,
+                    entityId = pid,
+                    operation = "UPDATE",
+                    payloadJson = gson.toJson(updatedProduct),
+                    createdAt = now(),
+                    priority = "CRITICAL"
+                )
+                outboxDao?.insert(productOutboxEntry)
+                
+                // Log ownership change
+                auditLogDao.insert(
+                    AuditLogEntity(UUID.randomUUID().toString(), "PRODUCT", pid, "OWNERSHIP_TRANSFER", transfer.toUserId, "Transferred from ${transfer.fromUserId}", now())
+                )
+            }
+
+            // 3. Queue Transfer completion to outbox for sync
             val outboxEntry = OutboxEntity(
                 outboxId = UUID.randomUUID().toString(),
                 userId = transfer.fromUserId ?: transfer.toUserId ?: "",
@@ -639,8 +667,8 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
 
     override suspend fun computeTrustScore(transferId: String): Resource<Int> = withContext(Dispatchers.IO) {
         try {
-            val verifications = verificationDao.getByTransfer(transferId)
-            val disputes = disputeDao.getByTransfer(transferId)
+            val verifications = verificationDao.getByTransferId(transferId)
+            val disputes = disputeDao.getByTransferId(transferId)
             var score = 50
             if (verifications.any { it.step == "SELLER_INIT" && it.status == "APPROVED" }) score += 10
             if (verifications.any { it.step == "BUYER_VERIFY" && it.status == "APPROVED" }) score += 15
@@ -656,8 +684,8 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
     override suspend fun generateDocumentation(transferId: String): Resource<String> = withContext(Dispatchers.IO) {
         try {
             val t = transferDao.getById(transferId) ?: return@withContext Resource.Error("Transfer not found")
-            val ver = verificationDao.getByTransfer(transferId)
-            val dsp = disputeDao.getByTransfer(transferId)
+            val ver = verificationDao.getByTransferId(transferId)
+            val dsp = disputeDao.getByTransferId(transferId)
             val logs = auditLogDao.getByRef(transferId)
             val payload = mapOf(
                 "transfer" to t,

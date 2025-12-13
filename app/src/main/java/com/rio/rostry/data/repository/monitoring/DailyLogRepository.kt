@@ -153,6 +153,10 @@ class DailyLogRepositoryImpl @Inject constructor(
             base.notes.isNullOrBlank() -> incoming.notes
             incoming.notes.isNullOrBlank() -> base.notes
             base.notes == incoming.notes -> base.notes
+            // If authors are same, overwrite
+            base.author == incoming.author -> incoming.notes
+             // If incoming is clearly newer, overwrite
+            incoming.deviceTimestamp > base.deviceTimestamp -> incoming.notes
             else -> "${base.notes}\n--- Merged at ${System.currentTimeMillis()} ---\n${incoming.notes}"
         }
         val now = System.currentTimeMillis()

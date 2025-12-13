@@ -2,6 +2,7 @@ package com.rio.rostry.ui.social
 
 import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.session.CurrentUserProvider
 import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
@@ -10,6 +11,7 @@ import android.net.Uri
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import io.mockk.mockk
 
 private class FakeSocialRepo : SocialRepository {
     var lastLike: Pair<String, String>? = null
@@ -18,16 +20,24 @@ private class FakeSocialRepo : SocialRepository {
 
     override fun feed(pageSize: Int): Flow<PagingData<PostEntity>> = flowOf(PagingData.empty())
     override fun feedRanked(pageSize: Int): Flow<PagingData<PostEntity>> = flowOf(PagingData.empty())
+    override fun getUserPosts(userId: String, pageSize: Int): Flow<PagingData<PostEntity>> = flowOf(PagingData.empty())
     override suspend fun createPost(
         authorId: String,
         type: String,
         text: String?,
         mediaUrl: String?,
         thumbnailUrl: String?,
-        productId: String?
+        productId: String?,
+        hashtags: List<String>?,
+        mentions: List<String>?,
+        parentPostId: String?
     ): String = ""
     override suspend fun createPostWithMedia(authorId: String, type: String, text: String?, mediaUri: Uri, isVideo: Boolean): String = ""
     override fun streamComments(postId: String): Flow<List<com.rio.rostry.data.database.entity.CommentEntity>> = flowOf(emptyList())
+    override fun getReplies(postId: String): Flow<List<PostEntity>> = flowOf(emptyList())
+    override suspend fun createStory(authorId: String, mediaUri: Uri, isVideo: Boolean): String = ""
+    override fun getReputation(userId: String): Flow<com.rio.rostry.data.database.entity.ReputationEntity?> = flowOf(null)
+    override fun streamActiveStories(): Flow<List<com.rio.rostry.data.database.entity.StoryEntity>> = flowOf(emptyList())
     override suspend fun like(postId: String, userId: String) { lastLike = postId to userId }
     override suspend fun unlike(postId: String, userId: String) { lastUnlike = postId to userId }
     override suspend fun addComment(postId: String, userId: String, text: String) { lastComment = Triple(postId, userId, text) }
@@ -52,7 +62,8 @@ class SocialFeedViewModelTest {
     fun usesCurrentUserProviderForActions() = runBlocking {
         val repo = FakeSocialRepo()
         val provider = FakeUserProvider("u_123")
-        val vm = SocialFeedViewModel(repo, provider)
+        val userRepository: UserRepository = mockk(relaxed = true)
+        val vm = SocialFeedViewModel(repo, provider, userRepository)
 
         vm.like("p1")
         vm.unlike("p2")

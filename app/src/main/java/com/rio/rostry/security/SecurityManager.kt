@@ -144,6 +144,29 @@ object SecurityManager {
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val IV_SIZE = 12
     private const val TAG_SIZE_BITS = 128
+
+    fun processRootDetectionResult(context: android.content.Context, isRooted: Boolean, detectionMethods: List<String>) {
+        if (isRooted) {
+            audit("ROOT_DETECTED", mapOf("methods" to detectionMethods))
+            // Store root detection result
+            context.getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("device_rooted", true)
+                .putString("root_methods", detectionMethods.joinToString(", "))
+                .apply()
+        } else {
+             context.getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("device_rooted", false)
+                .remove("root_methods")
+                .apply()
+        }
+    }
+
+    fun isDeviceCompromised(context: android.content.Context): Boolean {
+        return context.getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("device_rooted", false)
+    }
 }
 
 enum class AuditEventType {

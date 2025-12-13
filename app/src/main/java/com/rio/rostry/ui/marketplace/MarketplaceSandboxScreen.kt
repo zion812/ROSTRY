@@ -28,9 +28,6 @@ fun MarketplaceSandboxScreen() {
     val ui by vm.ui.collectAsState()
 
     val (price, setPrice) = remember { mutableStateOf("1200.0") }
-    val (orderId, setOrderId) = remember { mutableStateOf("demo-order") }
-    val (userId, setUserId) = remember { mutableStateOf("demo-user") }
-    val (failNext, setFailNext) = remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -56,29 +53,12 @@ fun MarketplaceSandboxScreen() {
         }
 
         Spacer(Modifier.height(8.dp))
-        Text("Payments (Demo)")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(value = orderId, onValueChange = setOrderId, modifier = Modifier.weight(1f), label = { Text("Order ID") })
-            OutlinedTextField(value = userId, onValueChange = setUserId, modifier = Modifier.weight(1f), label = { Text("User ID") })
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { vm.payFixed(orderId, userId, price.toDoubleOrNull() ?: 1200.0, failNext) }) { Text("Pay FIXED") }
-            Button(onClick = { vm.payAuction(orderId, userId, price.toDoubleOrNull() ?: 1200.0, failNext) }) { Text("Pay AUCTION") }
-            Button(onClick = { vm.payCod(orderId, userId, price.toDoubleOrNull() ?: 1200.0) }) { Text("COD Reserve") }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { vm.payAdvance(orderId, userId, price.toDoubleOrNull() ?: 1200.0, failNext) }) { Text("Pay ADVANCE") }
-            TextButton(onClick = { setFailNext(!failNext) }) { Text(if (failNext) "Fail Next: ON" else "Fail Next: OFF") }
-        }
 
         ui.lastValidationResult?.let { r ->
             Text("Validation: ${if (r.valid) "OK" else r.reasons.joinToString("; ")}")
         }
         ui.lastCreateResult?.let { r ->
             Text("Create: ${r::class.simpleName} ${(r.message ?: r.data?.toString()).orEmpty()}")
-        }
-        ui.lastPaymentResult?.let { r ->
-            Text("Payment: ${r::class.simpleName} ${(r.message ?: r.data?.message).orEmpty()}")
         }
     }
 }

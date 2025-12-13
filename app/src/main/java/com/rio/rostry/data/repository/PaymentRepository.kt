@@ -6,19 +6,17 @@ import com.rio.rostry.data.database.dao.InvoiceDao
 import com.rio.rostry.data.database.dao.RefundDao
 import com.rio.rostry.data.database.entity.PaymentEntity
 import com.rio.rostry.data.database.entity.RefundEntity
+import com.rio.rostry.domain.model.PaymentStatus
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.UpiUtils
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.rio.rostry.demo.DemoModeManager
-import com.rio.rostry.demo.MockPaymentSystem
 
 interface PaymentRepository {
     fun observePaymentsByOrder(orderId: String): Flow<List<PaymentEntity>>
     suspend fun initiateUpiPayment(orderId: String, userId: String, amount: Double, vpa: String, name: String, note: String?): Resource<PaymentEntity>
     suspend fun codReservation(orderId: String, userId: String, amount: Double): Resource<PaymentEntity>
-    suspend fun cardWalletDemo(orderId: String, userId: String, amount: Double, idempotencyKey: String): Resource<PaymentEntity>
     suspend fun markPaymentResult(idempotencyKey: String, success: Boolean, providerRef: String? = null): Resource<Unit>
     suspend fun refundPayment(paymentId: String, reason: String?): Resource<Unit>
 }
@@ -29,23 +27,13 @@ class PaymentRepositoryImpl @Inject constructor(
     private val orderDao: OrderDao,
     private val invoiceDao: InvoiceDao,
     private val refundDao: RefundDao,
-    private val demoMode: DemoModeManager,
-    private val mockPayments: MockPaymentSystem
+    private val orderManagementRepository: OrderManagementRepository
 ) : PaymentRepository {
 
     override fun observePaymentsByOrder(orderId: String): Flow<List<PaymentEntity>> = paymentDao.observeByOrder(orderId)
 
     override suspend fun initiateUpiPayment(orderId: String, userId: String, amount: Double, vpa: String, name: String, note: String?): Resource<PaymentEntity> {
         val idempotencyKey = "UPI-$orderId-$amount"
-        if (demoMode.isEnabled()) {
-            return mockPayments.initiate(
-                orderId = orderId,
-                userId = userId,
-                amount = amount,
-                method = MockPaymentSystem.Method.UPI,
-                idempotencyKey = idempotencyKey
-            )
-        }
         return try {
             require(amount > 0) { "Amount must be positive" }
             val existing = paymentDao.findByIdempotencyKey(idempotencyKey)
@@ -58,7 +46,7 @@ class PaymentRepositoryImpl @Inject constructor(
                 userId = userId,
                 method = "UPI",
                 amount = amount,
-                status = "PENDING",
+                status = PaymentStatus.PENDING.toStoredString(),
                 providerRef = null,
                 upiUri = uri,
                 idempotencyKey = idempotencyKey,
@@ -73,16 +61,7 @@ class PaymentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun codReservation(orderId: String, userId: String, amount: Double): Resource<PaymentEntity> {
-        if (demoMode.isEnabled()) {
-            val idempotencyKey = "COD-$orderId"
-            return mockPayments.initiate(
-                orderId = orderId,
-                userId = userId,
-                amount = amount,
-                method = MockPaymentSystem.Method.COD,
-                idempotencyKey = idempotencyKey
-            )
-        }
+        require(amount > 0) { "Amount must be positive" }
         return try {
             val idempotencyKey = "COD-$orderId"
             val existing = paymentDao.findByIdempotencyKey(idempotencyKey)
@@ -94,7 +73,7 @@ class PaymentRepositoryImpl @Inject constructor(
                 userId = userId,
                 method = "COD",
                 amount = amount,
-                status = "PENDING",
+                status = PaymentStatus.PENDING.toStoredString(),
                 providerRef = null,
                 upiUri = null,
                 idempotencyKey = idempotencyKey,
@@ -108,46 +87,19 @@ class PaymentRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun cardWalletDemo(orderId: String, userId: String, amount: Double, idempotencyKey: String): Resource<PaymentEntity> {
-        if (demoMode.isEnabled()) {
-            return mockPayments.initiate(
-                orderId = orderId,
-                userId = userId,
-                amount = amount,
-                method = MockPaymentSystem.Method.CARD,
-                idempotencyKey = idempotencyKey
-            )
-        }
-        return try {
-            val exist = paymentDao.findByIdempotencyKey(idempotencyKey)
-            if (exist != null) return Resource.Success(exist)
-            val now = System.currentTimeMillis()
-            val entity = PaymentEntity(
-                paymentId = java.util.UUID.randomUUID().toString(),
-                orderId = orderId,
-                userId = userId,
-                method = "CARD",
-                amount = amount,
-                status = "PENDING",
-                providerRef = null,
-                upiUri = null,
-                idempotencyKey = idempotencyKey,
-                createdAt = now,
-                updatedAt = now
-            )
-            paymentDao.insert(entity)
-            Resource.Success(entity)
-        } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to start demo card payment")
-        }
-    }
-
     override suspend fun markPaymentResult(idempotencyKey: String, success: Boolean, providerRef: String?): Resource<Unit> {
         return try {
             val current = paymentDao.findByIdempotencyKey(idempotencyKey) ?: return Resource.Error("Payment not found")
             val now = System.currentTimeMillis()
-            val updated = current.copy(status = if (success) "SUCCESS" else "FAILED", providerRef = providerRef, updatedAt = now)
+            val newStatus = if (success) PaymentStatus.SUCCESS else PaymentStatus.FAILED
+            val updated = current.copy(status = newStatus.toStoredString(), providerRef = providerRef, updatedAt = now)
             paymentDao.update(updated)
+            // Notify order management to sync order state
+            try {
+                orderManagementRepository.onPaymentStatusChanged(idempotencyKey, if (success) "SUCCESS" else "FAILED")
+            } catch (e: Exception) {
+                // Log orchestration error, but don't fail payment update
+            }
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to update payment result")
@@ -195,8 +147,16 @@ class PaymentRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val totalAfter = refundDao.totalRefundedForPayment(paymentId)
             val fullyRefunded = totalAfter >= invoice.total - 0.01 // epsilon
-            val updated = current.copy(status = if (fullyRefunded) "REFUNDED" else current.status, updatedAt = now)
+            val updated = current.copy(status = if (fullyRefunded) PaymentStatus.REFUNDED.toStoredString() else current.status, updatedAt = now)
             paymentDao.update(updated)
+            // Notify order management if fully refunded
+            if (fullyRefunded) {
+                try {
+                    orderManagementRepository.onRefundCompleted(paymentId, totalAfter) // Pass cumulative refund amount
+                } catch (e: Exception) {
+                    // Log orchestration error, but don't fail refund
+                }
+            }
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Refund failed")

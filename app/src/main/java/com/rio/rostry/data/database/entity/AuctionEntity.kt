@@ -26,6 +26,9 @@ data class AuctionEntity(
     val endsAt: Long = 0L,
     val minPrice: Double = 0.0,
     val currentPrice: Double = 0.0,
+    val bidIncrement: Double = 10.0,
+    val status: String = "UPCOMING", // UPCOMING, ACTIVE, ENDED, CANCELLED
+    val winnerId: String? = null,
     val isActive: Boolean = true,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L

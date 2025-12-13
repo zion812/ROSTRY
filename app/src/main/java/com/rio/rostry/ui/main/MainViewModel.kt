@@ -21,7 +21,8 @@ data class UserProfileUiState(
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val sessionManager: com.rio.rostry.session.SessionManager
 ) : BaseViewModel() {
 
     private val _userProfileState = MutableStateFlow(UserProfileUiState())
@@ -45,6 +46,13 @@ class MainViewModel @Inject constructor(
                             userName = user?.fullName,
                             email = user?.email
                         )
+                        // Sync role to SessionManager to ensure persistence
+                        user?.userType?.let { typeStr ->
+                            val type = runCatching { com.rio.rostry.domain.model.UserType.valueOf(typeStr) }.getOrNull()
+                            if (type != null) {
+                                sessionManager.updateRole(type)
+                            }
+                        }
                     }
                     is Resource.Error -> {
                         _userProfileState.value = UserProfileUiState(

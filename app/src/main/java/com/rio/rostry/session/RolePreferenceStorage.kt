@@ -5,9 +5,12 @@ import com.rio.rostry.domain.model.UserType
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 interface RolePreferenceDataSource {
     val role: StateFlow<UserType?>
@@ -25,9 +28,19 @@ class RolePreferenceStorage @Inject constructor(
         const val ROLE_PREFS_NAME = "role_prefs"
     }
 
-    private val mutableRole = MutableStateFlow(sharedPreferences.readRole())
+    private val mutableRole = MutableStateFlow<UserType?>(null)
 
     override val role: StateFlow<UserType?> = mutableRole.asStateFlow()
+
+    private val scope = CoroutineScope(Dispatchers.IO)
+
+    init {
+        // Load role asynchronously to avoid blocking initialization
+        scope.launch {
+            val role = sharedPreferences.readRole()
+            mutableRole.value = role
+        }
+    }
 
     override fun persist(role: UserType) {
         sharedPreferences.edit().putString(KEY_ROLE, role.name).apply()

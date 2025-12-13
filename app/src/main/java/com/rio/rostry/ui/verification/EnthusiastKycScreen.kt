@@ -2,6 +2,9 @@ package com.rio.rostry.ui.verification
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,22 +15,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.rio.rostry.domain.model.UpgradeType
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun EnthusiastKycScreen(
@@ -46,16 +56,32 @@ fun EnthusiastKycScreen(
     viewModel: VerificationViewModel = hiltViewModel()
 ) {
     val ui by viewModel.ui.collectAsState()
+    
+    LaunchedEffect(Unit) {
+        viewModel.setUpgradeType(UpgradeType.FARMER_TO_ENTHUSIAST)
+    }
+
     val levelState = remember { mutableStateOf("") }
     var selectedDocType by remember { mutableStateOf("AADHAAR") }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { viewModel.uploadDocument(it.toString(), selectedDocType) }
+    val context = LocalContext.current
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+            viewModel.uploadDocument(it.toString(), selectedDocType, viewModel.ui.value.upgradeType ?: UpgradeType.FARMER_TO_ENTHUSIAST)
+        }
     }
 
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { viewModel.uploadImage(it.toString(), "SELFIE") }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+            viewModel.uploadImage(it.toString(), "SELFIE", viewModel.ui.value.upgradeType ?: UpgradeType.FARMER_TO_ENTHUSIAST)
+        }
     }
 
     LazyColumn(
@@ -97,13 +123,13 @@ fun EnthusiastKycScreen(
                     }
                 }
                 OutlinedButton(
-                    onClick = { documentPicker.launch("*/*") },
+                    onClick = { documentPicker.launch(arrayOf("*/*")) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Upload Selected Document")
                 }
                 OutlinedButton(
-                    onClick = { imagePicker.launch("image/*") },
+                    onClick = { imagePicker.launch(arrayOf("image/*")) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Upload Selfie")
@@ -172,11 +198,27 @@ fun EnthusiastKycScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        AsyncImage(
-                            model = img,
-                            contentDescription = "Uploaded image",
-                            modifier = Modifier.size(64.dp)
-                        )
+                        var imageLoadError by remember { mutableStateOf(false) }
+
+                        if (!imageLoadError) {
+                            AsyncImage(
+                                model = img,
+                                contentDescription = "Uploaded image",
+                                modifier = Modifier.size(64.dp),
+                                onError = { imageLoadError = true },
+                                onSuccess = { imageLoadError = false }
+                            )
+                        } else {
+                            // Fallback when image fails to load
+                            Column(
+                                modifier = Modifier.size(64.dp).clickable { imageLoadError = false }, // Retry when clicked
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(Icons.Default.BrokenImage, contentDescription = "Image failed to load", modifier = Modifier.size(32.dp))
+                                Text("Failed", style = MaterialTheme.typography.bodySmall, fontSize = 8.sp)
+                            }
+                        }
                         Text(img.substringAfterLast("/"), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
                         IconButton(onClick = { viewModel.removeUploadedFile(img, false) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete")
@@ -224,7 +266,7 @@ fun EnthusiastKycScreen(
                     if (hasIdDoc && hasAddress && hasSelfie) {
                         val level = levelState.value.toIntOrNull()
                         viewModel.submitEnthusiastKyc(level)
-                        viewModel.submitKycWithDocuments()
+                        viewModel.submitKycWithDocuments(viewModel.ui.value.upgradeType ?: UpgradeType.FARMER_TO_ENTHUSIAST)
                     }
                 },
                 enabled = !ui.isSubmitting && run {
@@ -253,9 +295,32 @@ fun EnthusiastKycScreen(
             }
         }
 
-        ui.error?.let {
+        ui.error?.let { error ->
             item {
-                Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                            Text("Submission Failed", color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
+                        }
+                        Text(error, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
+                        Button(
+                            onClick = { viewModel.retryKycSubmission() },
+                            enabled = !ui.isSubmitting,
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            if (ui.isSubmitting) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                Text("  Retrying...")
+                            } else {
+                                Text("Retry Submission")
+                            }
+                        }
+                    }
+                }
             }
         }
         ui.message?.let {

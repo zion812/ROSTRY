@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.ui.monitoring.vm.BreedingManagementViewModel
+import com.rio.rostry.ui.components.BirdSelectionSheet
+import com.rio.rostry.ui.components.BirdSelectionItem
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,6 +25,7 @@ fun BreedingManagementScreen(
     onListProduct: (productId: String, pairId: String) -> Unit = { _, _ -> }
 ) {
     val breedingPairs by viewModel.breedingPairs.collectAsState()
+    val products by viewModel.products.collectAsState()
     val error by viewModel.error.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedPairId by remember { mutableStateOf<String?>(null) }
@@ -81,6 +84,7 @@ fun BreedingManagementScreen(
 
     if (showAddDialog) {
         AddPairDialog(
+            products = products,
             onDismiss = { showAddDialog = false },
             onAdd = { maleId, femaleId, notes ->
                 viewModel.addPair(
@@ -191,30 +195,66 @@ private fun BreedingPairCard(
 
 @Composable
 private fun AddPairDialog(
+    products: List<com.rio.rostry.data.database.entity.ProductEntity>,
     onDismiss: () -> Unit,
     onAdd: (String, String, String?) -> Unit
 ) {
     var maleId by remember { mutableStateOf("") }
     var femaleId by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    
+    var showMaleSheet by remember { mutableStateOf(false) }
+    var showFemaleSheet by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Breeding Pair") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = maleId,
-                    onValueChange = { maleId = it },
-                    label = { Text("Male Product ID") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = femaleId,
-                    onValueChange = { femaleId = it },
-                    label = { Text("Female Product ID") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Male Selection
+                if (maleId.isBlank()) {
+                    OutlinedButton(
+                        onClick = { showMaleSheet = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Select Male")
+                    }
+                } else {
+                    val male = products.find { it.productId == maleId }
+                    if (male != null) {
+                        BirdSelectionItem(product = male, onClick = { showMaleSheet = true })
+                    } else {
+                        OutlinedButton(
+                            onClick = { showMaleSheet = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Male ID: $maleId (Change)")
+                        }
+                    }
+                }
+
+                // Female Selection
+                if (femaleId.isBlank()) {
+                    OutlinedButton(
+                        onClick = { showFemaleSheet = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Select Female")
+                    }
+                } else {
+                    val female = products.find { it.productId == femaleId }
+                    if (female != null) {
+                        BirdSelectionItem(product = female, onClick = { showFemaleSheet = true })
+                    } else {
+                        OutlinedButton(
+                            onClick = { showFemaleSheet = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Female ID: $femaleId (Change)")
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
@@ -242,4 +282,28 @@ private fun AddPairDialog(
             }
         }
     )
+
+    if (showMaleSheet) {
+        val males = products.filter { it.gender.equals("Male", ignoreCase = true) }
+        BirdSelectionSheet(
+            products = if (males.isNotEmpty()) males else products, // Fallback to all if no gender info
+            onDismiss = { showMaleSheet = false },
+            onSelect = { 
+                maleId = it.productId 
+                showMaleSheet = false
+            }
+        )
+    }
+
+    if (showFemaleSheet) {
+        val females = products.filter { it.gender.equals("Female", ignoreCase = true) }
+        BirdSelectionSheet(
+            products = if (females.isNotEmpty()) females else products, // Fallback to all if no gender info
+            onDismiss = { showFemaleSheet = false },
+            onSelect = { 
+                femaleId = it.productId 
+                showFemaleSheet = false
+            }
+        )
+    }
 }

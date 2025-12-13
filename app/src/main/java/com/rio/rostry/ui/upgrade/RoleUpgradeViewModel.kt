@@ -2,16 +2,13 @@ package com.rio.rostry.ui.upgrade
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.dao.AuditLogDao
-import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.UserType
+import com.rio.rostry.domain.model.UpgradeType
+import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.domain.rbac.RbacGuard
-import com.rio.rostry.session.CurrentUserProvider
-import com.rio.rostry.session.RolePreferenceStorage
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.notifications.VerificationNotificationService
 import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,17 +19,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class RoleUpgradeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val rbacGuard: RbacGuard,
-    private val currentUserProvider: CurrentUserProvider,
-    private val rolePreferenceStorage: RolePreferenceStorage,
-    private val auditLogDao: AuditLogDao,
-    private val verificationNotificationService: VerificationNotificationService,
     private val flowAnalyticsTracker: FlowAnalyticsTracker
 ) : ViewModel() {
 
@@ -45,7 +37,7 @@ class RoleUpgradeViewModel @Inject constructor(
 
     sealed class UiEvent {
         data class NavigateToProfileEdit(val field: String) : UiEvent()
-        object NavigateToVerification : UiEvent()
+        data class NavigateToVerification(val upgradeType: UpgradeType) : UiEvent()
         data class ShowUpgradeSuggestion(val role: UserType, val missingPrerequisites: List<String>) : UiEvent()
     }
 
@@ -53,14 +45,14 @@ class RoleUpgradeViewModel @Inject constructor(
         val currentStep: WizardStep = WizardStep.CURRENT_ROLE,
         val currentRole: UserType? = null,
         val targetRole: UserType? = null,
+        val upgradeType: UpgradeType? = null,
         val user: UserEntity? = null,
         val isLoading: Boolean = false,
         val error: String? = null,
         val validationErrors: Map<String, String> = emptyMap(),
         val canProceed: Boolean = false,
         val isUpgrading: Boolean = false,
-        val eligibleUpgrades: List<UserType> = emptyList(),
-        val upgradeSuggestions: Map<UserType, List<String>> = emptyMap()
+        val eligibleUpgrades: List<UserType> = emptyList()
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -68,8 +60,6 @@ class RoleUpgradeViewModel @Inject constructor(
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
-
-    private var cachedValidations: MutableMap<UserType, Map<String, String>> = mutableMapOf()
 
     init {
         viewModelScope.launch {
@@ -79,10 +69,9 @@ class RoleUpgradeViewModel @Inject constructor(
                         val user = resource.data
                         _uiState.value = _uiState.value.copy(
                             user = user,
-                            currentRole = user?.userType,
+                            currentRole = user?.role,
                             isLoading = false
                         )
-                        // Auto-check for eligible upgrades on profile load
                         checkEligibleUpgrades()
                         updateCanProceed()
                     }
@@ -101,13 +90,23 @@ class RoleUpgradeViewModel @Inject constructor(
     }
 
     fun setTargetRole(role: UserType) {
-        _uiState.value = _uiState.value.copy(targetRole = role, error = null)
-        // Validate immediately on target selection (same-role guard and prereqs known so far)
+        val currentRole = _uiState.value.currentRole
+        val upgradeType = when {
+            currentRole == UserType.GENERAL && role == UserType.FARMER -> UpgradeType.GENERAL_TO_FARMER
+            currentRole == UserType.FARMER && role == UserType.ENTHUSIAST -> UpgradeType.FARMER_TO_ENTHUSIAST
+            else -> null
+        }
+
+        _uiState.value = _uiState.value.copy(
+            targetRole = role, 
+            upgradeType = upgradeType,
+            error = null
+        )
+        
         viewModelScope.launch {
             val errors = validatePrerequisitesInternal()
             _uiState.value = _uiState.value.copy(validationErrors = errors)
             updateCanProceed()
-            // Track prerequisite check analytics
             flowAnalyticsTracker.trackRoleUpgradePrerequisiteCheck(role.name, errors.isEmpty(), errors.keys)
         }
     }
@@ -120,17 +119,16 @@ class RoleUpgradeViewModel @Inject constructor(
             WizardStep.CURRENT_ROLE -> WizardStep.BENEFITS
             WizardStep.BENEFITS -> WizardStep.PREREQUISITES
             WizardStep.PREREQUISITES -> WizardStep.CONFIRMATION
-            WizardStep.CONFIRMATION -> return // Already at last step
+            WizardStep.CONFIRMATION -> return
         }
 
         _uiState.value = currentState.copy(
             currentStep = nextStep,
-            // keep existing errors when entering PREREQUISITES; clear on other steps
             validationErrors = if (nextStep == WizardStep.PREREQUISITES) currentState.validationErrors else emptyMap(),
             error = null
         )
+        
         if (nextStep == WizardStep.PREREQUISITES) {
-            // Recompute validations on entering prerequisites step
             viewModelScope.launch {
                 val errors = validatePrerequisitesInternal()
                 _uiState.value = _uiState.value.copy(validationErrors = errors)
@@ -144,7 +142,7 @@ class RoleUpgradeViewModel @Inject constructor(
     fun previousStep() {
         val currentState = _uiState.value
         val previousStep = when (currentState.currentStep) {
-            WizardStep.CURRENT_ROLE -> return // Already at first step
+            WizardStep.CURRENT_ROLE -> return
             WizardStep.BENEFITS -> WizardStep.CURRENT_ROLE
             WizardStep.PREREQUISITES -> WizardStep.BENEFITS
             WizardStep.CONFIRMATION -> WizardStep.PREREQUISITES
@@ -162,161 +160,71 @@ class RoleUpgradeViewModel @Inject constructor(
         val state = _uiState.value
         val user = state.user ?: return mapOf("user" to "User not found")
         val targetRole = state.targetRole ?: return mapOf("targetRole" to "Target role not set")
-
-        // Check cache first
-        cachedValidations[targetRole]?.let { return it }
+        val upgradeType = state.upgradeType
 
         val errors = mutableMapOf<String, String>()
 
-        // Same-role guard
         if (state.currentRole == targetRole) {
             errors["sameRole"] = "You are already on the selected role"
         }
 
-        // Allowed transition guard: only permit next-level upgrades
-        val allowedNext = state.currentRole?.nextLevel()
-        if (state.currentRole != null) {
-            if (allowedNext == null) {
-                errors["transition"] = "You are already at the highest role"
-            } else if (targetRole != allowedNext) {
-                errors["transition"] = "You can only upgrade to ${allowedNext.displayName} from ${state.currentRole.displayName}"
-            }
-        }
-
-        // Profile completeness with detailed messages
         if (user.fullName.isNullOrBlank()) {
-            errors["fullName"] = "Complete your full name to upgrade to ${targetRole.name.lowercase()}"
+            errors["fullName"] = "Complete your full name"
         }
         if (user.email.isNullOrBlank()) {
-            errors["email"] = "Add your email address to upgrade to ${targetRole.name.lowercase()}"
+            errors["email"] = "Add your email address"
         }
         if (user.phoneNumber.isNullOrBlank()) {
-            errors["phoneNumber"] = "Verify your phone number to upgrade to ${targetRole.name.lowercase()}"
+            errors["phoneNumber"] = "Verify your phone number"
         }
 
-        // Verification required only for ENTHUSIAST
-        if (targetRole == UserType.ENTHUSIAST) {
-            val isVerified = rbacGuard.isVerified()
-            if (!isVerified) {
-                errors["verification"] = "Complete KYC verification to become an Enthusiast. Go to Profile → Verification."
-            }
+        // For upgrades that require verification, we don't block here unless they are ALREADY rejected or something?
+        // Actually, the "Prerequisites" step should probably check if they have basic profile info.
+        // The "Verification" step comes AFTER Confirmation.
+        
+        // If they are already pending, maybe warn them?
+        if (user.verificationStatus == VerificationStatus.PENDING) {
+             // errors["pending"] = "You have a pending verification request."
+             // Or maybe we allow them to continue to check status?
         }
 
-        // Cache the result
-        cachedValidations[targetRole] = errors
         return errors
     }
 
-    private suspend fun checkEligibleUpgrades() {
+    private fun checkEligibleUpgrades() {
         val user = _uiState.value.user ?: return
-        val currentRole = user.userType
+        val currentRole = user.role
         val eligible = mutableListOf<UserType>()
-        val suggestions = mutableMapOf<UserType, List<String>>()
 
-        // Check for each possible upgrade
-        UserType.values().filter { it != currentRole }.forEach { targetRole ->
-            _uiState.value = _uiState.value.copy(targetRole = targetRole)
-            val errors = validatePrerequisitesInternal()
-            if (errors.isEmpty()) {
-                eligible.add(targetRole)
-            } else {
-                suggestions[targetRole] = errors.values.toList()
-            }
+        // Simple logic: Can always try to upgrade to next level if not there yet
+        val next = currentRole.nextLevel()
+        if (next != null) {
+            eligible.add(next)
         }
-
-        _uiState.value = _uiState.value.copy(
-            eligibleUpgrades = eligible,
-            upgradeSuggestions = suggestions,
-            targetRole = null // Reset
-        )
-
-        // Emit proactive suggestions if any
-        eligible.forEach { role ->
-            _uiEvent.emit(UiEvent.ShowUpgradeSuggestion(role, emptyList()))
-        }
-        suggestions.forEach { (role, missing) ->
-            _uiEvent.emit(UiEvent.ShowUpgradeSuggestion(role, missing))
-        }
+        
+        _uiState.value = _uiState.value.copy(eligibleUpgrades = eligible)
     }
 
     fun fixPrerequisite(field: String) {
         viewModelScope.launch {
-            when (field) {
-                "fullName", "email", "phoneNumber" -> {
-                    _uiEvent.emit(UiEvent.NavigateToProfileEdit(field))
-                }
-                "verification" -> {
-                    _uiEvent.emit(UiEvent.NavigateToVerification)
-                }
-            }
-            // Track fix action analytics
+            _uiEvent.emit(UiEvent.NavigateToProfileEdit(field))
             flowAnalyticsTracker.trackRoleUpgradeFixAction(field)
         }
     }
 
     fun performUpgrade() {
         val currentState = _uiState.value
-        if (currentState.isUpgrading || currentState.targetRole == null || currentState.user == null) return
-
-        _uiState.value = currentState.copy(isUpgrading = true, error = null)
-
+        val upgradeType = currentState.upgradeType ?: return
+        
         viewModelScope.launch {
-            try {
-                val userId = currentState.user.userId
-                val newRole = currentState.targetRole
-
-                // Track upgrade start analytics
-                flowAnalyticsTracker.trackRoleUpgradeStarted(
-                    currentState.currentRole?.name ?: "UNKNOWN",
-                    newRole.name
-                )
-
-                // Update user type in repository
-                val updateResult = userRepository.updateUserType(userId, newRole)
-                if (updateResult is Resource.Error) {
-                    _uiState.value = _uiState.value.copy(
-                        isUpgrading = false,
-                        error = updateResult.message ?: "Failed to update user type"
-                    )
-                    flowAnalyticsTracker.trackRoleUpgradeFailed(newRole.name, updateResult.message ?: "Unknown error")
-                    return@launch
-                }
-
-                // Update role preference storage
-                rolePreferenceStorage.persist(newRole)
-
-                // Create audit log
-                val auditLog = AuditLogEntity(
-                    logId = UUID.randomUUID().toString(),
-                    type = "ROLE_UPGRADE",
-                    refId = userId,
-                    action = "UPGRADE_TO_${newRole.name}",
-                    actorUserId = userId,
-                    detailsJson = """{"from":"${currentState.currentRole?.name}","to":"${newRole.name}"}""",
-                    createdAt = System.currentTimeMillis()
-                )
-                auditLogDao.insert(auditLog)
-
-                // Emit success - perhaps navigate or show success message
-                _uiState.value = _uiState.value.copy(
-                    isUpgrading = false,
-                    currentRole = newRole,
-                    error = null
-                )
-
-                // Track successful upgrade analytics
-                flowAnalyticsTracker.trackRoleUpgradeCompleted(newRole.name)
-
-                // Clear cache after upgrade
-                cachedValidations.clear()
-
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isUpgrading = false,
-                    error = e.message ?: "Unknown error occurred"
-                )
-                flowAnalyticsTracker.trackRoleUpgradeFailed(currentState.targetRole?.name ?: "UNKNOWN", e.message ?: "Unknown error")
+            // Check RBAC
+            if (!rbacGuard.canRequestUpgrade(upgradeType)) {
+                 _uiState.value = currentState.copy(error = "Complete farmer verification before upgrading to Enthusiast")
+                 return@launch
             }
+            
+            // Navigate to verification flow
+            _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
         }
     }
 

@@ -24,6 +24,8 @@ import com.rio.rostry.domain.model.VerificationStatus
 fun ProfileScreen(
     onVerifyFarmerLocation: () -> Unit,
     onVerifyEnthusiastKyc: () -> Unit,
+    onNavigateToAnalytics: () -> Unit = {},
+    onUpgradeClick: (UserType) -> Unit = {}, // Navigate to upgrade wizard (Comment 6)
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val ui by viewModel.ui.collectAsState()
@@ -63,7 +65,7 @@ fun ProfileScreen(
             when (user.verificationStatus) {
                 VerificationStatus.UNVERIFIED, null -> {
                     Text("Not Verified", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
-                    when (user.userType) {
+                    when (user.role) {
                         UserType.FARMER -> Button(onClick = onVerifyFarmerLocation, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Start Location Verification") }
                         UserType.ENTHUSIAST -> Button(onClick = onVerifyEnthusiastKyc, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("Start KYC Verification") }
                         else -> {}
@@ -75,10 +77,10 @@ fun ProfileScreen(
                 }
                 VerificationStatus.VERIFIED -> {
                     Text("Verified", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
-                    if (user.userType == UserType.FARMER) {
+                    if (user.role == UserType.FARMER) {
                         Text("Farm Location Verified: ${user.farmLocationLat}, ${user.farmLocationLng}")
                     }
-                    if (user.userType == UserType.ENTHUSIAST) {
+                    if (user.role == UserType.ENTHUSIAST) {
                         Text("KYC Level: ${user.kycLevel ?: "-"}")
                     }
                 }
@@ -92,32 +94,27 @@ fun ProfileScreen(
                             // Reset verification fields locally and request update
                             val reset = user.copy(
                                 verificationStatus = VerificationStatus.UNVERIFIED,
-                                kycDocumentUrls = null,
-                                kycImageUrls = null,
-                                kycDocumentTypes = null,
-                                kycUploadStatus = null,
-                                kycUploadedAt = null,
                                 kycRejectionReason = null,
                                 updatedAt = System.currentTimeMillis()
                             )
                             viewModel.updateUser(reset)
                             // Navigate to appropriate flow
-                            if (user.userType == UserType.FARMER) onVerifyFarmerLocation() else if (user.userType == UserType.ENTHUSIAST) onVerifyEnthusiastKyc()
+                            if (user.role == UserType.FARMER) onVerifyFarmerLocation() else if (user.role == UserType.ENTHUSIAST) onVerifyEnthusiastKyc()
                         },
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     ) { Text("Resubmit Verification") }
                 }
             }
 
-            // Role upgrades
-            when (user.userType) {
+            // Role upgrades - Navigate to wizard instead of direct upgrade (Comment 6)
+            when (user.role) {
                 UserType.GENERAL -> {
-                    Button(onClick = { viewModel.requestUpgrade(UserType.FARMER) }, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { onUpgradeClick(UserType.FARMER) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Upgrade to Farmer")
                     }
                 }
                 UserType.FARMER -> {
-                    Button(onClick = { viewModel.requestUpgrade(UserType.ENTHUSIAST) }, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { onUpgradeClick(UserType.ENTHUSIAST) }, modifier = Modifier.fillMaxWidth()) {
                         Text("Upgrade to Enthusiast")
                     }
                 }
@@ -127,10 +124,16 @@ fun ProfileScreen(
             }
 
             // Verification actions
-            when (user.userType) {
+            when (user.role) {
                 UserType.FARMER -> {
                     Button(onClick = onVerifyFarmerLocation, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         Text("Verify Location")
+                    }
+                    Button(
+                        onClick = onNavigateToAnalytics,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    ) {
+                        Text("Farm Analytics")
                     }
                 }
                 UserType.ENTHUSIAST -> {

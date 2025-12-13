@@ -35,11 +35,13 @@ import androidx.compose.material.icons.filled.Close
 import com.rio.rostry.domain.model.UserType
 
 @OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun RoleUpgradeScreen(
     targetRole: UserType,
     onNavigateBack: () -> Unit,
     onUpgradeComplete: () -> Unit,
+    onNavigateToVerification: (com.rio.rostry.domain.model.UpgradeType) -> Unit,
     viewModel: RoleUpgradeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -48,6 +50,19 @@ fun RoleUpgradeScreen(
         viewModel.setTargetRole(targetRole)
     }
     val lastRole = remember { mutableStateOf(uiState.currentRole) }
+    
+    // Handle UI events (Navigation)
+    LaunchedEffect(viewModel.uiEvent) {
+        viewModel.uiEvent.collect { event ->
+            when (event) {
+                is RoleUpgradeViewModel.UiEvent.NavigateToVerification -> {
+                    onNavigateToVerification(event.upgradeType)
+                }
+                else -> {}
+            }
+        }
+    }
+
     LaunchedEffect(uiState.currentRole, uiState.isUpgrading) {
         val prev = lastRole.value
         val now = uiState.currentRole
@@ -140,7 +155,10 @@ fun RoleUpgradeScreen(
                         }
                     }
                     if (targetRole == UserType.ENTHUSIAST) {
-                        val verified = uiState.user?.verificationStatus?.name == "VERIFIED"
+                        // Use validation errors for verification status (Comment 5)
+                        // This ensures consistency with ViewModel's authoritative check
+                        val verificationError = validationErrors["verification"]
+                        val verified = verificationError == null
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)

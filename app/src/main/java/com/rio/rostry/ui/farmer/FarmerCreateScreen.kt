@@ -15,39 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.ui.components.SyncStatusBadge
 import com.rio.rostry.ui.components.ConflictNotification
 
-// Legacy data classes for compatibility
-data class ListingForm(
-    val category: Category,
-    val traceability: Traceability,
-    val ageGroup: AgeGroup,
-    val title: String,
-    val priceType: PriceType,
-    val price: Double?,
-    val auctionStartPrice: Double?,
-    val availableFrom: String,
-    val availableTo: String,
-    val healthRecordUri: String?,
-    val birthDateMillis: Long? = null,
-    val birthPlace: String? = null,
-    val vaccinationRecords: String? = null,
-    val parentInfo: String? = null,
-    val weightGrams: Double? = null,
-    val photoUris: List<String> = emptyList(),
-    val videoUris: List<String> = emptyList(),
-    val latitude: Double? = null,
-    val longitude: Double? = null
-)
-
-enum class Category { Meat, Adoption }
-enum class Traceability { Traceable, NonTraceable }
-enum class AgeGroup { Chick, Grower, Adult, Senior }
-enum class PriceType { Fixed, Auction }
 
 @Composable
 fun FarmerCreateScreen(
@@ -61,21 +36,54 @@ fun FarmerCreateScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     
     // Media pickers
+    val context = LocalContext.current
+
+    // Media pickers - Use OpenMultipleDocuments to avoid Photo Picker crashes and allow persistent access
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris -> viewModel.addMedia("photo", uris.map { it.toString() }) }
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                // Ignore failure to take persistable permission
+            }
+        }
+        viewModel.addMedia("photo", uris.map { it.toString() }) 
+    }
     
     val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris -> viewModel.addMedia("video", uris.map { it.toString() }) }
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+        }
+        viewModel.addMedia("video", uris.map { it.toString() }) 
+    }
     
     val audioPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris -> viewModel.addMedia("audio", uris.map { it.toString() }) }
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+        }
+        viewModel.addMedia("audio", uris.map { it.toString() }) 
+    }
     
     val documentPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris -> viewModel.addMedia("document", uris.map { it.toString() }) }
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+        }
+        viewModel.addMedia("document", uris.map { it.toString() }) 
+    }
     
     // Load farm monitoring data if prefillProductId is provided
     LaunchedEffect(prefillProductId) {
@@ -368,6 +376,33 @@ private fun BasicInfoStep(
             supportingText = errors["title"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             modifier = Modifier.fillMaxWidth()
         )
+
+        // Batch / Quantity
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Sell as Batch/Flock?", style = MaterialTheme.typography.titleMedium)
+            Switch(
+                checked = state.isBatch,
+                onCheckedChange = { isBatch -> onUpdate { it.copy(isBatch = isBatch, quantity = if (isBatch) it.quantity else 1) } }
+            )
+        }
+
+        if (state.isBatch) {
+            OutlinedTextField(
+                value = state.quantity.toString(),
+                onValueChange = { 
+                    val qty = it.toIntOrNull() ?: 1
+                    onUpdate { s -> s.copy(quantity = qty) } 
+                },
+                label = { Text("Quantity (Birds in Flock)") },
+                isError = errors.containsKey("quantity"),
+                supportingText = errors["quantity"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         
         // Price Type
         Text("Price Type", style = MaterialTheme.typography.titleSmall)
@@ -387,8 +422,8 @@ private fun BasicInfoStep(
         // Price
         if (state.priceType == PriceType.Fixed) {
             OutlinedTextField(
-                value = state.price,
-                onValueChange = { newPrice -> onUpdate { it.copy(price = newPrice) } },
+                value = state.price?.toString() ?: "",
+                onValueChange = { newPrice -> onUpdate { it.copy(price = newPrice.toDoubleOrNull()) } },
                 label = { Text("Price (₹) *") },
                 isError = errors.containsKey("price"),
                 supportingText = errors["price"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -396,8 +431,8 @@ private fun BasicInfoStep(
             )
         } else {
             OutlinedTextField(
-                value = state.auctionStartPrice,
-                onValueChange = { newPrice -> onUpdate { it.copy(auctionStartPrice = newPrice) } },
+                value = state.auctionStartPrice?.toString() ?: "",
+                onValueChange = { newPrice -> onUpdate { it.copy(auctionStartPrice = newPrice.toDoubleOrNull()) } },
                 label = { Text("Starting Price (₹) *") },
                 isError = errors.containsKey("auctionStartPrice"),
                 supportingText = errors["auctionStartPrice"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -467,7 +502,7 @@ private fun BasicInfoStep(
                 DatePicker(state = datePickerState)
             }
         }
-        
+
         if (showToDatePicker) {
             val datePickerState = rememberDatePickerState(
                 initialSelectedDateMillis = System.currentTimeMillis()
@@ -495,6 +530,51 @@ private fun BasicInfoStep(
                 DatePicker(state = datePickerState)
             }
         }
+
+        // Delivery Options
+        Divider(modifier = Modifier.padding(top = 16.dp))
+        Text("Delivery Options", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
+
+        // Delivery options chips
+        val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            allDeliveryOptions.forEach { option ->
+                FilterChip(
+                    selected = state.deliveryOptions.contains(option),
+                    onClick = {
+                        val updatedOptions = if (state.deliveryOptions.contains(option)) {
+                            state.deliveryOptions - option
+                        } else {
+                            state.deliveryOptions + option
+                        }
+                        onUpdate { it.copy(deliveryOptions = updatedOptions) }
+                    },
+                    label = { Text(option.replace("_", " ")) }
+                )
+            }
+        }
+
+        // Delivery cost
+        OutlinedTextField(
+            value = state.deliveryCost?.toString() ?: "",
+            onValueChange = { value ->
+                onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
+            },
+            label = { Text("Delivery Cost (₹)") },
+            placeholder = { Text("0.00") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Lead time days
+        OutlinedTextField(
+            value = state.leadTimeDays?.toString() ?: "",
+            onValueChange = { value ->
+                onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
+            },
+            label = { Text("Lead Time (days)") },
+            placeholder = { Text("Number of days notice required") },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -635,6 +715,51 @@ private fun DetailsStep(
                 }
             }
         }
+
+        // Delivery Options
+        Divider(modifier = Modifier.padding(top = 16.dp))
+        Text("Delivery Options", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
+
+        // Delivery options chips
+        val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            allDeliveryOptions.forEach { option ->
+                FilterChip(
+                    selected = state.deliveryOptions.contains(option),
+                    onClick = {
+                        val updatedOptions = if (state.deliveryOptions.contains(option)) {
+                            state.deliveryOptions - option
+                        } else {
+                            state.deliveryOptions + option
+                        }
+                        onUpdate { it.copy(deliveryOptions = updatedOptions) }
+                    },
+                    label = { Text(option.replace("_", " ")) }
+                )
+            }
+        }
+
+        // Delivery cost
+        OutlinedTextField(
+            value = state.deliveryCost?.toString() ?: "",
+            onValueChange = { value ->
+                onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
+            },
+            label = { Text("Delivery Cost (₹)") },
+            placeholder = { Text("0.00") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Lead time days
+        OutlinedTextField(
+            value = state.leadTimeDays?.toString() ?: "",
+            onValueChange = { value ->
+                onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
+            },
+            label = { Text("Lead Time (days)") },
+            placeholder = { Text("Number of days notice required") },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -643,18 +768,18 @@ private fun MediaStep(
     state: FarmerCreateViewModel.MediaInfoState,
     onAddMedia: (String, List<String>) -> Unit,
     onRemoveMedia: (String, Int) -> Unit,
-    photoPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
-    videoPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
-    audioPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
-    documentPickerLauncher: androidx.activity.result.ActivityResultLauncher<String>
+    photoPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    videoPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    audioPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    documentPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Media Upload", style = MaterialTheme.typography.titleLarge)
         
-        MediaSection("Photos", state.photoUris.size, 12, { photoPickerLauncher.launch("image/*") }, onRemoveMedia, "photo")
-        MediaSection("Videos", state.videoUris.size, 2, { videoPickerLauncher.launch("video/*") }, onRemoveMedia, "video")
-        MediaSection("Audio", state.audioUris.size, 5, { audioPickerLauncher.launch("audio/*") }, onRemoveMedia, "audio")
-        MediaSection("Documents", state.documentUris.size, 10, { documentPickerLauncher.launch("*/*") }, onRemoveMedia, "document")
+        MediaSection("Photos", state.photoUris.size, 12, { photoPickerLauncher.launch(arrayOf("image/*")) }, onRemoveMedia, "photo")
+        MediaSection("Videos", state.videoUris.size, 2, { videoPickerLauncher.launch(arrayOf("video/*")) }, onRemoveMedia, "video")
+        MediaSection("Audio", state.audioUris.size, 5, { audioPickerLauncher.launch(arrayOf("audio/*")) }, onRemoveMedia, "audio")
+        MediaSection("Documents", state.documentUris.size, 10, { documentPickerLauncher.launch(arrayOf("*/*")) }, onRemoveMedia, "document")
     }
 }
 

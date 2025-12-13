@@ -774,6 +774,18 @@ firebase functions:log
 1. Click the index creation link in Logcat
 2. Wait 5-10 minutes for index to build
 3. Or add index manually to `firestore.indexes.json`
+4. For farm-specific indexes, update `firebase/firestore_farm_indexes.json` and run:
+   ```bash
+   firebase deploy --only firestore:indexes
+   ```
+
+#### "Certificate Pinning Failure (SSLPeerUnverifiedException)"
+
+**Solution**:
+1. Firebase Storage uses Google's CDN which serves from multiple domains (e.g., `upload.video.google.com`)
+2. Certificate pinning is **disabled** for Firebase Storage domains in `HttpModule.kt` to prevent these errors
+3. Firestore API endpoints (`firestore.googleapis.com`) are still pinned for security
+4. If you encounter this error, ensure you are not manually pinning `firebasestorage.googleapis.com`
 
 #### "Storage CORS errors"
 

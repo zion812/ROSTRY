@@ -29,6 +29,7 @@ import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.security.SecurityManager
 import kotlinx.coroutines.delay
+import com.rio.rostry.utils.BirdIdGenerator
 
 @HiltViewModel
 class OnboardFarmBatchViewModel @Inject constructor(
@@ -211,6 +212,12 @@ class OnboardFarmBatchViewModel @Inject constructor(
         val now = System.currentTimeMillis()
         val productId = "batch_${now}_${UUID.randomUUID()}"
         val count = s.batchDetails.count.toIntOrNull() ?: 0
+        // Generate birdCode and colorTag for batch products
+        val color = null // Color not captured in batch details; defaults to "UNK" in BirdIdGenerator
+        val breed = s.batchDetails.breed.ifBlank { null }
+        // Null color and breed are acceptable; BirdIdGenerator handles defaults ("UNK" for color, "XX" for breed)
+        val birdCode = BirdIdGenerator.generate(color, breed, uid, productId)
+        val colorTag = BirdIdGenerator.colorTag(color)
         val entity = ProductEntity(
             productId = productId,
             sellerId = uid,
@@ -231,7 +238,9 @@ class OnboardFarmBatchViewModel @Inject constructor(
             birthDate = s.batchDetails.hatchDate,
             breed = s.batchDetails.breed,
             parentMaleId = s.lineage.maleParentId,
-            parentFemaleId = s.lineage.femaleParentId
+            parentFemaleId = s.lineage.femaleParentId,
+            birdCode = birdCode,
+            colorTag = colorTag
         )
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {

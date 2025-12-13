@@ -4,32 +4,7 @@ import androidx.room.*
 import com.rio.rostry.data.database.entity.*
 import kotlinx.coroutines.flow.Flow
 
-@Dao
-interface BreedingPairDao {
-    @Upsert
-    suspend fun upsert(pair: BreedingPairEntity)
 
-    @Query("SELECT * FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE' ORDER BY pairedAt DESC")
-    fun observeActive(farmerId: String): Flow<List<BreedingPairEntity>>
-
-    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE'")
-    suspend fun countActive(farmerId: String): Int
-
-    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE' AND maleProductId = :maleProductId")
-    suspend fun countActiveByMale(farmerId: String, maleProductId: String): Int
-
-    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId AND status = 'ACTIVE' AND femaleProductId = :femaleProductId")
-    suspend fun countActiveByFemale(farmerId: String, femaleProductId: String): Int
-
-    @Query("SELECT * FROM breeding_pairs WHERE pairId = :pairId")
-    suspend fun getById(pairId: String): BreedingPairEntity?
-
-    @Query("SELECT * FROM breeding_pairs WHERE dirty = 1")
-    suspend fun getDirty(): List<BreedingPairEntity>
-
-    @Query("UPDATE breeding_pairs SET dirty = 0, syncedAt = :syncedAt WHERE pairId IN (:pairIds)")
-    suspend fun clearDirty(pairIds: List<String>, syncedAt: Long)
-}
 
 @Dao
 interface FarmAlertDao {
@@ -59,6 +34,9 @@ interface FarmAlertDao {
 
     @Query("UPDATE farm_alerts SET dirty = 0, syncedAt = :syncedAt WHERE alertId IN (:alertIds)")
     suspend fun clearDirty(alertIds: List<String>, syncedAt: Long)
+
+    @Query("DELETE FROM farm_alerts WHERE farmerId = :farmerId AND isRead = 1")
+    suspend fun deleteReadAlerts(farmerId: String)
 }
 
 @Dao

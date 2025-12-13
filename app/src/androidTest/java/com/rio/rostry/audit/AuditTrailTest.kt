@@ -57,9 +57,10 @@ class AuditTrailTest {
             // Insert test user
             val testUser = UserEntity(
                 userId = testUserId,
+                phoneNumber = null,
                 email = "test@example.com",
                 fullName = "Test User",
-                userType = UserType.FARMER,
+                userType = UserType.FARMER.name,
                 verificationStatus = VerificationStatus.VERIFIED,
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis()

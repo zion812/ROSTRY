@@ -111,7 +111,7 @@ fun SplashScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Image(
-                        painter = painterResource(id = R.drawable.ic_rostry_logo),
+                        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
                         contentDescription = "ROSTRY Logo",
                         modifier = Modifier.size(140.dp)
                     )

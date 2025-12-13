@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.rio.rostry.ui.order.OrderTrackingViewModel.OrderStatus
+import com.rio.rostry.domain.model.OrderStatus
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
@@ -25,15 +25,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.rio.rostry.domain.model.PaymentStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderTrackingScreen(
     orderId: String,
     onNavigateBack: () -> Unit,
-    onCancelOrder: (String) -> Unit,
+    onOrderCancelled: () -> Unit = {},
     onRateOrder: (String) -> Unit,
-    onDownloadInvoice: (String) -> Unit,
     onContactSupport: () -> Unit,
     viewModel: OrderTrackingViewModel = hiltViewModel()
 ) {
@@ -43,12 +45,34 @@ fun OrderTrackingScreen(
     var showRateDialog by remember { mutableStateOf(false) }
     var rating by remember { mutableStateOf(0) }
     var review by remember { mutableStateOf("") }
+    var showSubmitBillDialog by remember { mutableStateOf(false) }
+    var showUploadSlipDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(orderId) {
         viewModel.loadOrder(orderId)
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is OrderTrackingEvent.OrderCancelled -> {
+                    snackbarHostState.showSnackbar("Order cancelled successfully")
+                    onOrderCancelled()
+                }
+                is OrderTrackingEvent.Error -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+                is OrderTrackingEvent.InvoiceDownloaded -> {
+                    // Handle invoice download (e.g. open intent)
+                    snackbarHostState.showSnackbar("Invoice downloaded")
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Order Tracking") },
@@ -124,7 +148,9 @@ fun OrderTrackingScreen(
                             Text(order.paymentMethod)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Payment Status", fontWeight = FontWeight.Bold)
-                            Text(order.paymentStatus, color = if (order.paymentStatus == "Paid") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            val paymentStatusEnum = PaymentStatus.fromString(order.paymentStatus)
+                            val isPaid = paymentStatusEnum.isPaid
+                            Text(order.paymentStatus, color = if (isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -157,17 +183,45 @@ fun OrderTrackingScreen(
                     Text("Actions", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Seller Actions
+                        if (order.isSeller) {
+                            if (order.negotiationStatus == "REQUESTED") {
+                                Button(onClick = { viewModel.acceptOrder(orderId) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Accept Order Request")
+                                }
+                            }
+                            if (order.status == OrderTrackingViewModel.UiOrderStatus.PLACED || order.paymentStatus == "pending") {
+                                Button(onClick = { showSubmitBillDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Submit Bill")
+                                }
+                            }
+                            if (order.paymentStatus == "submitted") {
+                                Button(onClick = { viewModel.confirmPayment(orderId) }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Confirm Payment")
+                                }
+                            }
+                        }
+
+                        // Buyer Actions
+                        if (order.isBuyer) {
+                            if (order.paymentStatus == "pending" && order.total > 0) {
+                                Button(onClick = { showUploadSlipDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Upload Payment Slip")
+                                }
+                            }
+                        }
+
                         if (order.canCancel) {
                             OutlinedButton(onClick = { showCancelDialog = true }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Cancel Order")
                             }
                         }
-                        if (order.status == OrderStatus.DELIVERED) {
+                        if (order.status == OrderTrackingViewModel.UiOrderStatus.DELIVERED) {
                             Button(onClick = { showRateDialog = true }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Rate & Review")
                             }
                         }
-                        OutlinedButton(onClick = { onDownloadInvoice(orderId) }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { viewModel.downloadInvoice() }, modifier = Modifier.fillMaxWidth()) {
                             Text("Download Invoice")
                         }
                         OutlinedButton(onClick = onContactSupport, modifier = Modifier.fillMaxWidth()) {
@@ -190,7 +244,7 @@ fun OrderTrackingScreen(
             text = { Text("Are you sure you want to cancel this order?") },
             confirmButton = {
                 TextButton(onClick = {
-                    onCancelOrder(orderId)
+                    viewModel.cancelOrder("User requested")
                     showCancelDialog = false
                 }) {
                     Text("Yes")
@@ -248,16 +302,37 @@ fun OrderTrackingScreen(
             }
         )
     }
+
+    if (showSubmitBillDialog) {
+        SubmitBillDialog(
+            initialAmount = uiState.order?.total ?: 0.0,
+            onDismiss = { showSubmitBillDialog = false },
+            onSubmit = { amount, uri ->
+                viewModel.submitBill(orderId, amount, uri)
+                showSubmitBillDialog = false
+            }
+        )
+    }
+
+    if (showUploadSlipDialog) {
+        UploadSlipDialog(
+            onDismiss = { showUploadSlipDialog = false },
+            onSubmit = { uri ->
+                viewModel.uploadPaymentSlip(orderId, uri)
+                showUploadSlipDialog = false
+            }
+        )
+    }
 }
 
 @Composable
-fun OrderTimeline(currentStatus: OrderStatus, events: List<OrderTrackingViewModel.TimelineEvent>) {
+fun OrderTimeline(currentStatus: OrderTrackingViewModel.UiOrderStatus, events: List<OrderTrackingViewModel.TimelineEvent>) {
     val statuses = listOf(
-        OrderStatus.PLACED to "Order Placed",
-        OrderStatus.CONFIRMED to "Order Confirmed",
-        OrderStatus.PROCESSING to "Processing",
-        OrderStatus.OUT_FOR_DELIVERY to "Out for Delivery",
-        OrderStatus.DELIVERED to "Delivered"
+        OrderTrackingViewModel.UiOrderStatus.PLACED to "Order Placed",
+        OrderTrackingViewModel.UiOrderStatus.CONFIRMED to "Order Confirmed",
+        OrderTrackingViewModel.UiOrderStatus.PROCESSING to "Processing",
+        OrderTrackingViewModel.UiOrderStatus.OUT_FOR_DELIVERY to "Out for Delivery",
+        OrderTrackingViewModel.UiOrderStatus.DELIVERED to "Delivered"
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -270,11 +345,13 @@ fun OrderTimeline(currentStatus: OrderStatus, events: List<OrderTrackingViewMode
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             val icon = when (status) {
-                OrderStatus.PLACED -> Icons.Default.ShoppingCart
-                OrderStatus.CONFIRMED -> Icons.Default.Check
-                OrderStatus.PROCESSING -> Icons.Default.Build
-                OrderStatus.OUT_FOR_DELIVERY -> Icons.Default.LocalShipping
-                OrderStatus.DELIVERED -> Icons.Default.CheckCircle
+                OrderTrackingViewModel.UiOrderStatus.PLACED -> Icons.Default.ShoppingCart
+                OrderTrackingViewModel.UiOrderStatus.CONFIRMED -> Icons.Default.Check
+                OrderTrackingViewModel.UiOrderStatus.PROCESSING -> Icons.Default.Build
+                OrderTrackingViewModel.UiOrderStatus.OUT_FOR_DELIVERY -> Icons.Default.LocalShipping
+                OrderTrackingViewModel.UiOrderStatus.DELIVERED -> Icons.Default.CheckCircle
+                OrderTrackingViewModel.UiOrderStatus.CANCELLED -> Icons.Default.Cancel
+                OrderTrackingViewModel.UiOrderStatus.REFUNDED -> Icons.Default.Receipt
             }
             TimelineItem(
                 title = label,
@@ -327,4 +404,104 @@ fun OrderItemRow(item: OrderTrackingViewModel.OrderItem) {
         }
         Text("₹${"%.2f".format(item.price)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+fun SubmitBillDialog(
+    initialAmount: Double,
+    onDismiss: () -> Unit,
+    onSubmit: (Double, String?) -> Unit
+) {
+    var amount by remember { mutableStateOf(initialAmount.toString()) }
+    var imageUri by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            imageUri = it.toString()
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Submit Bill") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = it },
+                    label = { Text("Total Amount") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { launcher.launch(arrayOf("image/*")) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (imageUri != null) "Bill Image Selected" else "Select Bill Image")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val amt = amount.toDoubleOrNull() ?: 0.0
+                onSubmit(amt, imageUri)
+            }) {
+                Text("Submit")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun UploadSlipDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit
+) {
+    var imageUri by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            imageUri = it.toString()
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Upload Payment Slip") },
+        text = {
+            Column {
+                Text("Please upload a screenshot of your payment.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = { launcher.launch(arrayOf("image/*")) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (imageUri != null) "Slip Image Selected" else "Select Image")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (imageUri != null) onSubmit(imageUri!!)
+                },
+                enabled = imageUri != null
+            ) {
+                Text("Upload")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

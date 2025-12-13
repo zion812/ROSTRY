@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.general
 
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.data.repository.BreedRepository
 import com.rio.rostry.data.repository.CartRepository
 import com.rio.rostry.data.repository.ProductMarketplaceRepository
 import com.rio.rostry.data.repository.ProductRepository
@@ -33,6 +34,7 @@ class GeneralMarketViewModelTest {
     private lateinit var recommendationEngine: RecommendationEngine
     private lateinit var currentUserProvider: CurrentUserProvider
     private lateinit var analytics: GeneralAnalyticsTracker
+    private lateinit var breedRepository: com.rio.rostry.data.repository.BreedRepository
     
     private lateinit var viewModel: GeneralMarketViewModel
 
@@ -47,11 +49,13 @@ class GeneralMarketViewModelTest {
         recommendationEngine = mockk(relaxed = true)
         currentUserProvider = mockk(relaxed = true)
         analytics = mockk(relaxed = true)
+        breedRepository = mockk(relaxed = true)
         
         // Default mock behaviors
         every { currentUserProvider.userIdOrNull() } returns "test-user-123"
         coEvery { productRepository.getAllProducts() } returns flowOf(Resource.Success(emptyList()))
         coEvery { wishlistRepository.observe(any()) } returns flowOf(emptyList())
+        coEvery { breedRepository.getAllBreeds() } returns flowOf(emptyList())
     }
 
     @After
@@ -98,7 +102,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         
         val state = viewModel.uiState.value
@@ -121,7 +126,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -145,7 +151,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -175,7 +182,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -204,7 +212,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -231,7 +240,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -256,7 +266,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -282,7 +293,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -307,7 +319,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -331,7 +344,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -353,7 +367,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -382,7 +397,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         
@@ -413,7 +429,8 @@ class GeneralMarketViewModelTest {
             wishlistRepository,
             recommendationEngine,
             currentUserProvider,
-            analytics
+            analytics,
+            breedRepository
         )
         advanceUntilIdle()
         

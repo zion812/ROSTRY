@@ -35,13 +35,11 @@ import dagger.hilt.components.SingletonComponent
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.rio.rostry.data.session.UserSessionManager
 import javax.inject.Inject
 import com.google.android.libraries.places.api.Places
 import com.google.firebase.analytics.FirebaseAnalytics
-import com.rio.rostry.data.demo.DemoProductSeeder
+
 import com.rio.rostry.security.RootDetection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,7 +82,7 @@ class RostryApp : Application(), Configuration.Provider {
         super.onCreate()
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
-            // Enable StrictMode to surface hidden API and other bad practices in debug builds
+            // Enable StrictMode to surface bad practices in debug builds, but avoid noisy Google Play Services violations
             try {
                 val threadPolicy = android.os.StrictMode.ThreadPolicy.Builder()
                     .detectAll()
@@ -93,12 +91,19 @@ class RostryApp : Application(), Configuration.Provider {
                 android.os.StrictMode.setThreadPolicy(threadPolicy)
 
                 val vmBuilder = android.os.StrictMode.VmPolicy.Builder()
-                    .detectAll()
+                    // Keep important VM checks but remove noisy NonSdkApiUsage detection
+                    .detectActivityLeaks()
+                    .detectFileUriExposure()
+                    .detectLeakedClosableObjects()
+                    .detectLeakedRegistrationObjects()
+                    .detectLeakedSqlLiteObjects()
                     .penaltyLog()
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    vmBuilder.detectNonSdkApiUsage()
-                }
+                // Do not enable detectNonSdkApiUsage() in debug builds to avoid overwhelming logs with Google Play Services internal API uses
+                // Only enable it on targeted test builds or when specifically debugging for non-SDK API usage
                 android.os.StrictMode.setVmPolicy(vmBuilder.build())
+
+                // Add a short documentation comment about the StrictMode configuration
+                Timber.d("StrictMode configured: ThreadPolicy=detectAll, VmPolicy=withoutNonSdkApiUsage (to avoid Google Play Services noise)")
             } catch (t: Throwable) {
                 Timber.w(t, "Failed to enable StrictMode")
             }
@@ -107,46 +112,44 @@ class RostryApp : Application(), Configuration.Provider {
         // Initialize Firebase explicitly
         FirebaseApp.initializeApp(this)
 
+        // Initialize Crashlytics explicitly with error handling
+        try {
+            val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+            crashlytics.setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+            Timber.d("Firebase Crashlytics initialized successfully")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to initialize Firebase Crashlytics")
+            // Don't crash the app if Crashlytics fails to initialize
+        }
+
         // Disable Phone Auth app verification in debug builds to bypass reCAPTCHA/Play Integrity
-        if (BuildConfig.DEBUG) {
-            FirebaseAuth.getInstance()
-                .firebaseAuthSettings
-                .setAppVerificationDisabledForTesting(true)
-            Timber.w("Phone Auth: App verification disabled for TESTING (debug build only)")
+        if (BuildConfig.PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING) {
+            FirebaseAuth.getInstance().apply {
+                firebaseAuthSettings.setAppVerificationDisabledForTesting(true)
+                useAppLanguage()
+            }
+            Timber.w("Phone Auth: App verification disabled for TESTING (configured via buildConfig)")
+        } else {
+            // Ensure app language is used for production too
+            FirebaseAuth.getInstance().useAppLanguage()
         }
 
         // App Check installation
-        if (BuildConfig.DEBUG) {
-            // IMPORTANT: Install Debug provider synchronously in debug builds so
-            // early Firebase calls (e.g., PhoneAuth) have a valid App Check token.
+        applicationScope.launch(Dispatchers.IO) {
             try {
                 val firebaseAppCheck = FirebaseAppCheck.getInstance()
-                firebaseAppCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
-                Timber.i("App Check (debug) provider installed synchronously")
+                firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
+                Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
             } catch (e: Exception) {
-                Timber.e(e, "Failed to install App Check debug provider")
-            }
-        } else {
-            // Defer App Check setup on release to avoid startup cost
-            applicationScope.launch(Dispatchers.IO) {
-                try {
-                    val firebaseAppCheck = FirebaseAppCheck.getInstance()
-                    firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
-                    Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
-                    if (appCheckProviderFactory is PlayIntegrityAppCheckProviderFactory) {
-                        Timber.i("App Check: Play Integrity is active (release build)")
-                    } else {
-                        Timber.w("App Check: Unexpected provider in release: %s", appCheckProviderFactory.javaClass.name)
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to initialize App Check")
-                }
+                Timber.e(e, "Failed to initialize App Check")
             }
         }
 
-        // Defer Places SDK initialization - will be initialized lazily when first needed
-        // This saves ~200ms on app startup
-        Timber.d("Places SDK initialization deferred for startup optimization")
+        // Initialize Places SDK
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, BuildConfig.MAPS_API_KEY)
+            Timber.d("Places SDK initialized")
+        }
 
         // Coil ImageLoader from DI for centralized config (memory/disk cache, RGB_565, OkHttp cache)
         val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
@@ -171,24 +174,11 @@ class RostryApp : Application(), Configuration.Provider {
         applicationScope.launch(Dispatchers.IO) {
             try {
                 val rootResult = RootDetection.isDeviceRooted(this@RostryApp)
-                if (rootResult.isRooted) {
-                    Timber.w("Root detected: ${rootResult.detectionMethods.joinToString(", ")}")
-                    // Log to Firebase Analytics for monitoring
-                    FirebaseAnalytics.getInstance(this@RostryApp).logEvent("root_detected", null)
-                    
-                    // Show non-blocking warning dialog on main thread
-                    launch(Dispatchers.Main) {
-                        // Dialog will be shown when activity is created
-                        // Store root detection result for later display
-                        getSharedPreferences("security_prefs", MODE_PRIVATE)
-                            .edit()
-                            .putBoolean("device_rooted", true)
-                            .putString("root_methods", rootResult.detectionMethods.joinToString(", "))
-                            .apply()
-                    }
-                } else {
-                    Timber.d("Root detection: Device not rooted")
-                }
+                com.rio.rostry.security.SecurityManager.processRootDetectionResult(
+                    this@RostryApp,
+                    rootResult.isRooted,
+                    rootResult.detectionMethods
+                )
             } catch (e: Exception) {
                 Timber.e(e, "Root detection failed")
             }
@@ -217,7 +207,7 @@ class RostryApp : Application(), Configuration.Provider {
                 } catch (e: Exception) {
                     Timber.e(e, "Failed to validate database on startup")
                 }
-                seedDemoData()
+
             }
         }
     }
@@ -230,8 +220,12 @@ class RostryApp : Application(), Configuration.Provider {
                     Timber.i("User is logged in, scheduling background workers.")
                     scheduleAllWorkers(workManager)
                 } else {
-                    Timber.i("User is logged out, cancelling all background workers.")
-                    workManager.cancelAllWork()
+                    Timber.i("User is logged out, cancelling session workers.")
+                    // Cancel only session-specific work
+                    workManager.cancelAllWorkByTag("session_worker")
+                    // Fallback for workers that might not have the tag yet or use unique names
+                    workManager.cancelUniqueWork(SyncWorker.WORK_NAME)
+                    // Note: System-level workers (e.g. AnalyticsAggregation if system-wide) should remain.
                 }
             }
         }
@@ -242,8 +236,10 @@ class RostryApp : Application(), Configuration.Provider {
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
+        // SyncWorker - Session Bound
         val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
             .setConstraints(constraints)
+            .addTag("session_worker")
             .build()
         workManager.enqueueUniquePeriodicWork(
             SyncWorker.WORK_NAME,
@@ -251,11 +247,12 @@ class RostryApp : Application(), Configuration.Provider {
             syncRequest
         )
 
+        // Schedule others (Assumption: They should eventually be updated to include tags or be system wide)
         LifecycleWorker.schedule(this)
         TransferTimeoutWorker.schedule(this)
         ModerationWorker.schedule(this)
         OutgoingMessageWorker.schedule(this)
-        AnalyticsAggregationWorker.schedule(this)
+        AnalyticsAggregationWorker.schedule(this) // System wide? Keeping it running or scheduling it.
         ReportingWorker.schedule(this)
         VaccinationReminderWorker.schedule(this)
         FarmPerformanceWorker.schedule(this)
@@ -270,7 +267,15 @@ class RostryApp : Application(), Configuration.Provider {
         com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
     }
     
+    private var isConnectivityCallbackRegistered = false
+
+    /**
+     * Registers a network callback to trigger expedited syncs on reconnection.
+     * This callback is intended to live for the entire process lifetime.
+     */
     private fun setupConnectivityListener() {
+        if (isConnectivityCallbackRegistered) return
+        
         val connectivityManager = getSystemService(ConnectivityManager::class.java)
         val networkRequest = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -298,21 +303,8 @@ class RostryApp : Application(), Configuration.Provider {
                 Timber.d("Network lost")
             }
         })
+        isConnectivityCallbackRegistered = true
     }
     
-    private fun seedDemoData() {
-        applicationScope.launch {
-            try {
-                val entryPoint = EntryPointAccessors.fromApplication(
-                    this@RostryApp, 
-                    com.rio.rostry.di.AppEntryPoints::class.java
-                )
-                val seeder: DemoProductSeeder = entryPoint.demoProductSeeder()
-                seeder.seedProducts()
-                Timber.i("RostryApp: Demo data seeding initiated")
-            } catch (e: Exception) {
-                Timber.e(e, "RostryApp: Failed to seed demo data")
-            }
-        }
-    }
+
 }

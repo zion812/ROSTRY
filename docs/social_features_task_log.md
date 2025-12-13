@@ -1,0 +1,27 @@
+# Task: Investigate and Implement Social Features
+
+- [x] Research existing social features <!-- id: 0 -->
+    - [x] Explore data layer (Repositories, DAOs) for social data <!-- id: 1 -->
+    - [x] Explore UI layer for social screens (Feed, Profile, etc.) <!-- id: 2 -->
+    - [x] Identify gaps compared to Instagram/Facebook/Twitter <!-- id: 3 -->
+- [x] Plan enhancements <!-- id: 4 -->
+    - [x] Draft implementation plan for new features <!-- id: 5 -->
+    - [x] Review plan with user <!-- id: 6 -->
+- [x] Implement features <!-- id: 7 -->
+    - [x] Social Profile <!-- id: 8 -->
+        - [x] Update SocialRepository <!-- id: 9 -->
+        - [x] Create SocialProfileViewModel <!-- id: 10 -->
+        - [x] Create SocialProfileScreen <!-- id: 11 -->
+    - [x] Stories <!-- id: 12 -->
+        - [x] Create StoryViewerScreen <!-- id: 15 -->
+        - [x] Create StoryCreatorScreen <!-- id: 16 -->
+    - [x] Discussions <!-- id: 13 -->
+        - [x] Create DiscussionDetailScreen <!-- id: 17 -->
+    - [x] Feed Enhancements <!-- id: 14 -->
+        - [x] Update SocialFeedScreen navigation <!-- id: 18 -->
+        - [x] Update AppNavHost <!-- id: 19 -->
+- [x] Cleanup & Documentation <!-- id: 20 -->
+    - [x] Remove duplicate imports in AppNavHost.kt <!-- id: 21 -->
+    - [x] Remove obsolete UserProfileScreen.kt <!-- id: 22 -->
+    - [x] Remove obsolete compilation fix plans <!-- id: 23 -->
+    - [x] Update social-platform.md and implementation_progress.md <!-- id: 24 -->

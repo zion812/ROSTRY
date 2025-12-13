@@ -28,7 +28,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.rio.rostry.data.repository.analytics.DailyGoal
+import com.rio.rostry.data.repository.analytics.ActionableInsight
 import androidx.compose.ui.text.style.TextAlign
+import com.rio.rostry.ui.components.OnboardingChecklistCard
+import com.rio.rostry.ui.onboarding.OnboardingChecklistViewModel
 
 data class FetcherCard(
     val title: String,
@@ -37,7 +40,8 @@ data class FetcherCard(
     val badgeColor: Color = Color.Transparent,
     val icon: ImageVector,
     val action: String,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    val isLocked: Boolean = false
 )
 
 @Composable
@@ -56,6 +60,21 @@ fun FarmerHomeScreen(
     val colorScheme = MaterialTheme.colorScheme
 
     var showAddDialog by remember { mutableStateOf(false) }
+    val onboardingViewModel: OnboardingChecklistViewModel = hiltViewModel()
+    val checklistState by onboardingViewModel.uiState.collectAsState()
+    var showCelebrationDialog by remember { mutableStateOf(false) }
+    var showVerificationPendingDialog by remember { mutableStateOf(false) }
+
+    // Check if user is new (< 7 days since registration) and checklist is incomplete
+    val isNewUser = remember(checklistState.isChecklistRelevant) {
+        checklistState.isChecklistRelevant
+    }
+
+    LaunchedEffect(checklistState.showCelebration) {
+        if (checklistState.showCelebration) {
+            showCelebrationDialog = true
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -73,6 +92,40 @@ fun FarmerHomeScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+            // Verification Pending Banner
+            if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                        onClick = { showVerificationPendingDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Timer, contentDescription = "Pending icon")
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        "Verification Pending",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        "You can add birds, track growth, manage breeding, and use all farm features. Market listing will be enabled once your farm location is verified (24-48 hours).",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                            Icon(Icons.Filled.ChevronRight, contentDescription = "Expand")
+                        }
+                    }
+                }
+            }
             // Compliance Banner
             if (!uiState.kycVerified || uiState.complianceAlertsCount > 0) {
                 item {
@@ -99,6 +152,17 @@ fun FarmerHomeScreen(
                             Icon(Icons.Filled.ChevronRight, contentDescription = "View compliance")
                         }
                     }
+                }
+            }
+            // Onboarding Checklist Card
+            if (isNewUser && checklistState.items.isNotEmpty() && checklistState.completionPercentage < 100) {
+                item {
+                    OnboardingChecklistCard(
+                        items = checklistState.items,
+                        completionPercentage = checklistState.completionPercentage,
+                        onNavigate = { route -> onNavigateRoute(route) },
+                        onDismiss = { onboardingViewModel.dismissChecklist() }
+                    )
                 }
             }
             // Weekly KPI Cards
@@ -138,108 +202,83 @@ fun FarmerHomeScreen(
                 Spacer(Modifier.height(12.dp))
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Recently added: ${uiState.recentlyAddedBirdsCount} birds, ${uiState.recentlyAddedBatchesCount} batches")
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = { /* TODO: navigate to recent activity */ }) {
-                            Text("View All")
+                        if (uiState.recentActivity.isNotEmpty()) {
+                            Text("Recently Onboarded", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(12.dp))
+                            uiState.recentActivity.take(5).forEach { activity ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = activity.productName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = if (activity.isBatch) "Batch • ${java.text.SimpleDateFormat("MMM dd", java.util.Locale.getDefault()).format(java.util.Date(activity.addedAt))}" 
+                                                  else "Bird • ${java.text.SimpleDateFormat("MMM dd", java.util.Locale.getDefault()).format(java.util.Date(activity.addedAt))}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (activity.tasksCreated > 0) {
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                shape = RoundedCornerShape(4.dp),
+                                                modifier = Modifier.padding(end = 4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${activity.tasksCreated} tasks",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
+                                        }
+                                        if (activity.vaccinationsScheduled > 0) {
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "${activity.vaccinationsScheduled} vax",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                if (uiState.recentActivity.last() != activity) {
+                                    androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                }
+                            }
+                            if (uiState.recentActivity.size > 5) {
+                                TextButton(
+                                    onClick = { viewModel.navigateToModule(Routes.Builders.productsWithFilter("recent")) },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text("View All")
+                                }
+                            }
+                        } else {
+                            Text("Recently added: ${uiState.recentlyAddedBirdsCount} birds, ${uiState.recentlyAddedBatchesCount} batches")
+                            Spacer(Modifier.height(8.dp))
+                            Button(onClick = { viewModel.navigateToModule(Routes.Builders.productsWithFilter("recent")) }) {
+                                Text("View All")
+                            }
                         }
                     }
                 }
             }
 
-            // Urgent KPIs Section
-            item {
-            val colorScheme = MaterialTheme.colorScheme
-            val urgentKpiCards = listOf(
-                FetcherCard(
-                    title = "Overdue Tasks",
-                    count = uiState.tasksOverdueCount,
-                    badgeCount = uiState.tasksOverdueCount,
-                    badgeColor = colorScheme.error,
-                    icon = Icons.Filled.Task,
-                    action = "View Tasks",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_TASKS) }
-                ),
-                FetcherCard(
-                    title = "Overdue Vaccinations",
-                    count = uiState.vaccinationOverdueCount,
-                    badgeCount = uiState.vaccinationOverdueCount,
-                    badgeColor = colorScheme.error,
-                    icon = Icons.Filled.Vaccines,
-                    action = "View Schedule",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_VACCINATION) }
-                ),
-                FetcherCard(
-                    title = "Quarantine Updates Due",
-                    count = uiState.quarantineUpdatesDue,
-                    badgeCount = uiState.quarantineUpdatesDue,
-                    badgeColor = colorScheme.tertiary,
-                    icon = Icons.Filled.LocalHospital,
-                    action = "Update Now",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_QUARANTINE) }
-                ),
-                FetcherCard(
-                    title = "Batches Ready to Split",
-                    count = uiState.batchesDueForSplit,
-                    badgeCount = uiState.batchesDueForSplit,
-                    badgeColor = colorScheme.primary,
-                    icon = Icons.Filled.CallSplit,
-                    action = "View Growth",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) }
-                )
-            )
-
-            Column {
-                Text(
-                    "Urgent KPIs",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(Modifier.height(12.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(
-                        items = urgentKpiCards,
-                        key = { it.title },
-                        contentType = { "urgent_kpi" }
-                    ) { card ->
-                        UrgentKpiCard(card)
-                    }
-                }
-            }
-            }
-            // Transfer Activity Section
-            item {
-                Text(
-                    "Transfer Activity",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(Modifier.height(12.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    item {
-                        TransferActivityCard(
-                            title = "Pending Transfers",
-                            count = uiState.transfersPendingCount,
-                            icon = Icons.Filled.Schedule,
-                            action = "View Pending",
-                            onClick = { viewModel.navigateToTransfers() }
-                        )
-                    }
-                    item {
-                        TransferActivityCard(
-                            title = "Awaiting Verification",
-                            count = uiState.transfersAwaitingVerificationCount,
-                            icon = Icons.Filled.Verified,
-                            action = "Verify Now",
-                            onClick = { viewModel.navigateToTransfers() }
-                        )
-                    }
-                }
-            }
 
             // Alerts Banner
             if (uiState.unreadAlerts.isNotEmpty()) {
@@ -278,111 +317,81 @@ fun FarmerHomeScreen(
                 )
             }
 
-            val fetcherCards = listOf(
-                // Daily Log (first priority)
+            val fetcherCards = uiState.widgets.map { widget ->
+                val (icon, onClick) = when (widget.type) {
+                    WidgetType.DAILY_LOG -> Icons.Filled.EditNote to { viewModel.navigateToModule(Routes.Builders.monitoringDailyLog()) }
+                    WidgetType.TASKS -> Icons.Filled.Task to { viewModel.navigateToModule(Routes.Builders.monitoringTasks("due")) }
+                    WidgetType.VACCINATION -> Icons.Filled.Vaccines to { viewModel.navigateToModule(Routes.Builders.monitoringVaccinationWithFilter("today")) }
+                    WidgetType.GROWTH -> Icons.Filled.TrendingUp to { viewModel.navigateToModule(Routes.Builders.monitoringGrowthWithFilter("growth_record")) }
+                    WidgetType.QUARANTINE -> Icons.Filled.LocalHospital to { viewModel.navigateToModule(Routes.Builders.monitoringQuarantine("quarantine_12h")) }
+                    WidgetType.HATCHING -> Icons.Filled.EggAlt to { viewModel.navigateToModule(Routes.Builders.monitoringHatching()) }
+                    WidgetType.MORTALITY -> Icons.Filled.Warning to { viewModel.navigateToModule(Routes.Builders.monitoringMortality()) }
+                    WidgetType.BREEDING -> Icons.Filled.Favorite to { viewModel.navigateToModule(Routes.Builders.monitoringBreeding()) }
+                    WidgetType.READY_TO_LIST -> Icons.Filled.Storefront to { 
+                        if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
+                            viewModel.navigateToModule(Routes.Builders.productsWithFilter("ready_to_list")) 
+                        } else {
+                            showVerificationPendingDialog = true
+                        }
+                    }
+                    WidgetType.NEW_LISTING -> Icons.Filled.AddCircle to { 
+                        if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
+                            viewModel.navigateToModule(Routes.FarmerNav.CREATE)
+                        } else {
+                            showVerificationPendingDialog = true
+                        }
+                    }
+                    WidgetType.TRANSFERS -> Icons.Filled.Send to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("ELIGIBLE")) }
+                    WidgetType.TRANSFERS_PENDING -> Icons.Filled.PendingActions to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("PENDING")) }
+                    WidgetType.TRANSFERS_VERIFICATION -> Icons.Filled.VerifiedUser to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("AWAITING_VERIFICATION")) }
+                    WidgetType.TRANSFERS_VERIFICATION -> Icons.Filled.VerifiedUser to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("AWAITING_VERIFICATION")) }
+                    WidgetType.COMPLIANCE -> Icons.Filled.Warning to { viewModel.navigateToCompliance() }
+                }
+                
+                // Add Digital Farm Card manually if not in widgets list (or assume it's a static addition for now)
+                // Since widgets come from API/ViewModel, I should probably add it to the list or hardcode it as a special item.
+                // For now, I'll add it as a separate item in the grid construction or just append it to the list if possible.
+                // But `uiState.widgets` is a list.
+                // I'll add a static card to `fetcherCards` list.
+
+
+                val badgeColor = when (widget.alertLevel) {
+                    AlertLevel.CRITICAL -> colorScheme.error
+                    AlertLevel.WARNING -> colorScheme.tertiary
+                    AlertLevel.INFO -> colorScheme.primary
+                    AlertLevel.NORMAL -> Color.Transparent
+                }
+
+                val isLocked = (widget.type == WidgetType.READY_TO_LIST || widget.type == WidgetType.NEW_LISTING) && 
+                               uiState.verificationStatus != com.rio.rostry.domain.model.VerificationStatus.VERIFIED
+
                 FetcherCard(
-                    title = "Daily Log",
-                    count = uiState.dailyLogsThisWeek,
-                    icon = Icons.Filled.EditNote,
-                    action = "Log Today",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_DAILY_LOG) }
-                ),
-                // Tasks Due (top priority)
-                FetcherCard(
-                    title = "Tasks Due",
-                    count = uiState.tasksDueCount,
-                    badgeCount = uiState.tasksOverdueCount,
-                    badgeColor = Color.Red,
-                    icon = Icons.Filled.Task,
-                    action = "View Tasks",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_TASKS) }
-                ),
-                // Vaccination Today (top priority)
-                FetcherCard(
-                    title = "Vaccination Today",
-                    count = uiState.vaccinationDueCount,
-                    badgeCount = uiState.vaccinationOverdueCount,
-                    badgeColor = Color.Red,
-                    icon = Icons.Filled.Vaccines,
-                    action = "View Schedule",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_VACCINATION) }
-                ),
-                // Group related: vaccination, quarantine, growth
-                FetcherCard(
-                    title = "Growth Updates",
-                    count = uiState.growthRecordsThisWeek,
-                    icon = Icons.Filled.TrendingUp,
-                    action = "Record Growth",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) }
-                ),
-                FetcherCard(
-                    title = "Quarantine 12h",
-                    count = uiState.quarantineActiveCount,
-                    badgeCount = uiState.quarantineUpdatesDue,
-                    badgeColor = colorScheme.tertiary,
-                    icon = Icons.Filled.LocalHospital,
-                    action = "Update Now",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_QUARANTINE) }
-                ),
-                FetcherCard(
-                    title = "Hatching Batches",
-                    count = uiState.hatchingBatchesActive,
-                    badgeCount = uiState.hatchingDueThisWeek,
-                    badgeColor = colorScheme.secondary,
-                    icon = Icons.Filled.EggAlt,
-                    action = "View Batches",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_HATCHING) }
-                ),
-                FetcherCard(
-                    title = "Mortality Log",
-                    count = uiState.mortalityLast7Days,
-                    icon = Icons.Filled.Warning,
-                    action = "Report Mortality",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_MORTALITY) }
-                ),
-                FetcherCard(
-                    title = "Breeding Pairs",
-                    count = uiState.breedingPairsActive,
-                    icon = Icons.Filled.Favorite,
-                    action = "Manage Pairs",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_BREEDING) }
-                ),
-                FetcherCard(
-                    title = "Ready to List",
-                    count = uiState.productsReadyToListCount,
-                    badgeCount = if (uiState.productsReadyToListCount > 0) uiState.productsReadyToListCount else 0,
-                    badgeColor = colorScheme.primaryContainer,
-                    icon = Icons.Filled.Storefront,
-                    action = "Quick List",
-                    onClick = { viewModel.navigateToModule(Routes.MONITORING_GROWTH) } // Navigate to growth tracking to see products
-                ),
-                FetcherCard(
-                    title = "New Listing",
-                    count = 0,
-                    icon = Icons.Filled.AddCircle,
-                    action = "Create Listing",
-                    onClick = { viewModel.navigateToModule(Routes.PRODUCT_CREATE) }
-                ),
-                FetcherCard(
-                    title = "Eligible for Transfer",
-                    count = uiState.productsEligibleForTransferCount,
-                    icon = Icons.Filled.Send,
-                    action = "View Eligible",
-                    onClick = { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("PENDING")) }
-                ),
-                FetcherCard(
-                    title = "Compliance Alerts",
-                    count = uiState.complianceAlertsCount,
-                    badgeCount = uiState.complianceAlertsCount,
-                    badgeColor = colorScheme.error,
-                    icon = Icons.Filled.Warning,
-                    action = "View Details",
-                    onClick = { viewModel.navigateToCompliance() }
+                    title = widget.title,
+                    count = widget.count,
+                    badgeCount = widget.alertCount,
+                    badgeColor = badgeColor,
+                    icon = icon,
+                    action = if (isLocked) "Locked" else widget.actionLabel,
+                    onClick = onClick,
+                    isLocked = isLocked
                 )
+            }
+            
+            // Add Digital Farm Card
+            val digitalFarmCard = FetcherCard(
+                title = "Digital Farm",
+                count = 0, // Dynamic count not needed for entry point
+                badgeCount = 0,
+                icon = Icons.Filled.Landscape, // Use a relevant icon
+                action = "View Farm",
+                onClick = { viewModel.navigateToModule(Routes.FarmerNav.DIGITAL_FARM) },
+                isLocked = false
             )
+            
+            val allFetcherCards = listOf(digitalFarmCard) + fetcherCards
 
             // Convert grid to rows to avoid nested lazy layout with stable keys
-            val fetcherRows = fetcherCards.chunked(2)
+            val fetcherRows = allFetcherCards.chunked(2)
             items(
                 items = fetcherRows,
                 key = { row -> row.joinToString(separator = "|") { it.title } },
@@ -423,25 +432,8 @@ fun FarmerHomeScreen(
                     }
                 }
             }
-            // Analytics Insights Section
-            item {
-                Text(
-                    "Analytics Insights",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(Modifier.height(12.dp))
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    uiState.analyticsInsights.forEach { insight ->
-                        InsightCard(
-                            insight = insight,
-                            onClick = { /* TODO: handle insight click */ },
-                            onDismiss = { /* TODO: dismiss insight */ }
-                        )
-                    }
-                }
-            }
+            // Analytics Insights Section Removed
+
             }
         }
     }
@@ -482,6 +474,56 @@ fun FarmerHomeScreen(
             }
         )
     }
+
+    if (showCelebrationDialog) {
+        AlertDialog(
+            onDismissRequest = { showCelebrationDialog = false },
+            title = { Text("Congratulations!") },
+            text = { Text("You've completed your onboarding checklist. Welcome to ROSTRY!") },
+            confirmButton = {
+                Button(onClick = { showCelebrationDialog = false }) {
+                    Text("Continue")
+                }
+            }
+        )
+    }
+
+    if (showVerificationPendingDialog) {
+        val isPending = uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING
+        val titleText = if (isPending) "Verification Pending" else "Verification Required"
+        val bodyText = if (isPending) 
+            "Your documents are under review. You can add birds and manage your farm, but market listing will be enabled once your location is verified (24-48 hours)."
+        else 
+            "To list items in the market, you need to verify your farm location. You can still manage your farm and inventory without verification."
+        
+        AlertDialog(
+            onDismissRequest = { showVerificationPendingDialog = false },
+            icon = { Icon(Icons.Filled.Lock, contentDescription = null) },
+            title = { Text(titleText) },
+            text = { Text(bodyText) },
+            confirmButton = {
+                Button(onClick = { 
+                    showVerificationPendingDialog = false
+                    if (!isPending) {
+                        onNavigateRoute(com.rio.rostry.ui.navigation.Routes.VERIFY_FARMER_LOCATION)
+                    }
+                }) {
+                    Text(if (isPending) "Got it" else "Verify Now")
+                }
+            },
+            dismissButton = {
+                if (isPending) {
+                    TextButton(onClick = { onNavigateRoute(com.rio.rostry.ui.navigation.Routes.VERIFY_FARMER_LOCATION) }) {
+                        Text("Check Status")
+                    }
+                } else {
+                     TextButton(onClick = { showVerificationPendingDialog = false }) {
+                        Text("Later")
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -504,73 +546,7 @@ private fun KpiCard(title: String, value: String) {
     }
 }
 
-@Composable
-private fun UrgentKpiCard(card: FetcherCard) {
-    Card(
-        modifier = Modifier
-            .width(140.dp)
-            .height(100.dp)
-            .border(
-                width = 4.dp,
-                color = card.badgeColor,
-                shape = RoundedCornerShape(12.dp)
-            )
-            .semantics { contentDescription = "${card.title}: ${card.count}. ${card.action}" },
-        onClick = card.onClick
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    card.icon,
-                    contentDescription = "${card.title} icon",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                if (card.badgeCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = card.badgeColor,
-                                shape = RoundedCornerShape(50)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = card.badgeCount.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
-            }
 
-            Column {
-                Text(
-                    card.title,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    card.count.toString(),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    card.action,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun FetcherCardItem(card: FetcherCard) {
@@ -579,7 +555,8 @@ private fun FetcherCardItem(card: FetcherCard) {
             .fillMaxWidth()
             .height(140.dp)
             .semantics { contentDescription = "${card.title}: ${card.count}. ${card.action}" },
-        onClick = card.onClick
+        onClick = card.onClick,
+        colors = if (card.isLocked) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) else CardDefaults.cardColors()
     ) {
         Column(
             modifier = Modifier
@@ -593,11 +570,11 @@ private fun FetcherCardItem(card: FetcherCard) {
                 verticalAlignment = Alignment.Top
             ) {
                 Icon(
-                    card.icon,
+                    if (card.isLocked) Icons.Filled.Lock else card.icon,
                     contentDescription = "${card.title} icon",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (card.isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
                 )
-                if (card.badgeCount > 0) {
+                if (card.badgeCount > 0 && !card.isLocked) {
                     Badge(
                         containerColor = card.badgeColor
                     ) {
@@ -609,12 +586,13 @@ private fun FetcherCardItem(card: FetcherCard) {
             Column {
                 Text(
                     card.title,
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (card.isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    card.count.toString(),
+                    if (card.isLocked) "--" else card.count.toString(),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = if (card.isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
                 )
                 Text(
                     card.action,
@@ -626,63 +604,7 @@ private fun FetcherCardItem(card: FetcherCard) {
     }
 }
 
-@Composable
-private fun TransferActivityCard(
-    title: String,
-    count: Int,
-    icon: ImageVector,
-    action: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .width(140.dp)
-            .height(100.dp)
-            .semantics { contentDescription = "$title: $count. $action" },
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = "$title icon",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                if (count > 0) {
-                    Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                        Text(count.toString())
-                    }
-                }
-            }
 
-            Column {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    count.toString(),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    action,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun GoalCard(
@@ -706,8 +628,14 @@ private fun GoalCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                val icon = when (goal.iconName) {
+                    "task_icon" -> Icons.Filled.Task
+                    "log_icon" -> Icons.Filled.EditNote
+                    "vaccination_icon" -> Icons.Filled.Vaccines
+                    else -> Icons.Filled.Star
+                }
                 Icon(
-                    Icons.Filled.Star, // TODO: use goal.iconName
+                    icon,
                     contentDescription = goal.title
                 )
                 IconButton(onClick = onDismiss) {
@@ -749,7 +677,7 @@ private fun GoalCard(
 
 @Composable
 private fun InsightCard(
-    insight: String,
+    insight: ActionableInsight,
     onClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -764,7 +692,7 @@ private fun InsightCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(insight)
+            Text(insight.description)
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Filled.Close, contentDescription = "Dismiss")
             }

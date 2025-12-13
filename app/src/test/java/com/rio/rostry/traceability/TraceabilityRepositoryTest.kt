@@ -1,6 +1,7 @@
 package com.rio.rostry.traceability
 
 import com.rio.rostry.data.database.dao.BreedingRecordDao
+import com.rio.rostry.data.database.dao.FamilyTreeDao
 import com.rio.rostry.data.database.dao.LifecycleEventDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.ProductTraitDao
@@ -40,6 +41,7 @@ class TraceabilityRepositoryTest {
     private lateinit var dailyLogDao: DailyLogDao
     private lateinit var growthDao: GrowthRecordDao
     private lateinit var quarantineDao: QuarantineRecordDao
+    private lateinit var familyTreeDao: FamilyTreeDao
 
     private lateinit var repo: TraceabilityRepository
 
@@ -57,6 +59,7 @@ class TraceabilityRepositoryTest {
         dailyLogDao = mockk()
         growthDao = mockk()
         quarantineDao = mockk()
+        familyTreeDao = mockk()
         val userRepository = mockk<com.rio.rostry.data.repository.UserRepository>()
         repo = TraceabilityRepositoryImpl(
             breedingDao,
@@ -71,7 +74,8 @@ class TraceabilityRepositoryTest {
             dailyLogDao,
             growthDao,
             quarantineDao,
-            userRepository
+            userRepository,
+            familyTreeDao
         )
     }
 
@@ -96,12 +100,12 @@ class TraceabilityRepositoryTest {
         coEvery { breedingDao.recordsByParent("D") } returns listOf(rec2)
         coEvery { breedingDao.recordsByParent("E") } returns emptyList()
 
-        // ancestors of E up to 3 levels should include C at 1, and A,B,D at 2
+        // ancestors of E up to 3 levels should include C, D at 1, and A, B at 2
         val anc = repo.ancestors("E", maxDepth = 3)
         assertTrue(anc is Resource.Success)
         val aData = requireNotNull((anc as Resource.Success).data)
-        assertEquals(setOf("C"), aData[1]?.toSet())
-        assertEquals(setOf("A","B","D"), aData[2]?.toSet())
+        assertEquals(setOf("C", "D"), aData[1]?.toSet())
+        assertEquals(setOf("A", "B"), aData[2]?.toSet())
 
         // descendants of A should include C at 1, E at 2
         val desc = repo.descendants("A", maxDepth = 3)
@@ -136,12 +140,29 @@ class TraceabilityRepositoryTest {
             trackingId = "t2", productId = "P", ownerId = "owner", status = "MOVED", metadataJson = null,
             timestamp = 200L, createdAt = 200L, updatedAt = 200L, isDeleted = false, deletedAt = null, dirty = false
         )
-        coEvery { productTrackingDao.getByProduct("P") } returns flowOf(listOf(t2, t1))
+        coEvery { productTrackingDao.observeByProduct("P") } returns flowOf(listOf(t2, t1))
+        coEvery { transferDao.getTransfersByProduct("P") } returns emptyList()
+        
         val chainRes = repo.getTransferChain("P")
         assertTrue(chainRes is Resource.Success)
         val chain = requireNotNull((chainRes as Resource.Success).data)
         // Only tracking present; sorted ascending by timestamp
         val times = chain.filterIsInstance<ProductTrackingEntity>().map { it.timestamp }
         assertEquals(listOf(100L, 200L), times)
+    }
+
+    @Test
+    fun createFamilyTree_interpolates_ids_correctly() {
+        // Test with male and female IDs
+        val result1 = repo.createFamilyTree(maleId = "male-123", femaleId = "female-456", pairId = null)
+        assertEquals("FT_male-123_female-456", result1)
+
+        // Test with pair ID
+        val result2 = repo.createFamilyTree(maleId = null, femaleId = null, pairId = "pair-789")
+        assertEquals("FT_PAIR_pair-789", result2)
+
+        // Test with all null
+        val result3 = repo.createFamilyTree(maleId = null, femaleId = null, pairId = null)
+        assertEquals(null, result3)
     }
 }

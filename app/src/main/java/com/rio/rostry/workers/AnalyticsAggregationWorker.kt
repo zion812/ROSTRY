@@ -51,7 +51,7 @@ class AnalyticsAggregationWorker @AssistedInject constructor(
         // Determine role
         val role = run {
             val u = userDao.getUserById(userId).first()
-            (u?.userType ?: UserType.GENERAL).name
+            (u?.role ?: UserType.GENERAL).name
         }
 
         // Time windows

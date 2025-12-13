@@ -93,6 +93,9 @@ interface ProductDao {
     @Query("SELECT COUNT(*) FROM products WHERE sellerId = :ownerId AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
     suspend fun countActiveByOwnerId(ownerId: String): Int
 
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :ownerId AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
+    fun observeActiveCountByOwnerId(ownerId: String): Flow<Int>
+
     @Query("SELECT * FROM products WHERE sellerId = :farmerId AND stage = :stage AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
     fun observeByStage(farmerId: String, stage: LifecycleStage): Flow<List<ProductEntity>>
 
@@ -143,4 +146,10 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE sellerId = :farmerId AND isBatch = 1 AND status = 'ACTIVE' AND isDeleted = 0 AND birthDate IS NOT NULL AND birthDate <= :minBirthDate")
     suspend fun getBatchesReadyToSplit(farmerId: String, minBirthDate: Long): List<ProductEntity>
+
+    @Query("SELECT * FROM products WHERE birdCode IS NULL OR colorTag IS NULL")
+    suspend fun getProductsWithMissingBirdCodes(): List<ProductEntity>
+
+    @Query("UPDATE products SET quantity = quantity - :amount, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId AND quantity >= :amount")
+    suspend fun decrementQuantity(productId: String, amount: Int, updatedAt: Long)
 }

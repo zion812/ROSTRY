@@ -83,7 +83,7 @@ object FarmNotifier {
 
     fun notifyVaccinationDue(context: Context, productId: String, vaccineType: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://${Routes.Builders.monitoringVaccination(productId)}").toUri()
+        val deepLink = ("rostry://${Routes.Builders.monitoringVaccinationWithProductId(productId)}").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             productId.hashCode(),

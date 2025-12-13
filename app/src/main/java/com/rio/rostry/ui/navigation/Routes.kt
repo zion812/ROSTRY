@@ -19,6 +19,7 @@ object Routes {
     const val ROOT = "root"
 
     object Auth {
+        const val WELCOME = "auth/welcome"
         const val PHONE = "auth/phone"
         const val OTP = "auth/otp/{verificationId}"
         const val PHONE_VERIFY = "auth/phone_verify"
@@ -31,7 +32,9 @@ object Routes {
     object Common {
         const val PROFILE = "profile"
         const val VERIFY_FARMER_LOCATION = "verify/farmer/location"
+
         const val VERIFY_ENTHUSIAST_KYC = "verify/enthusiast/kyc"
+        const val VERIFICATION_WITH_TYPE = "verification/{upgradeType}"
     }
 
     object User {
@@ -57,6 +60,7 @@ object Routes {
         const val MARKET = "product/market"
         const val CART = "product/cart"
         const val SANDBOX = "product/sandbox"
+        const val AUCTION = "auction/{auctionId}"
     }
 
     /**
@@ -80,9 +84,14 @@ object Routes {
         const val GROUPS = "social/groups"
         const val EVENTS = "social/events"
         const val EXPERT = "social/expert"
+
         const val MODERATION = "social/moderation"
+        const val MODERATION_VERIFICATIONS = "moderation/verifications"
         const val LEADERBOARD = "social/leaderboard"
         const val LIVE = "social/live"
+        const val STORY_VIEWER = "social/story/viewer/{initialIndex}"
+        const val STORY_CREATOR = "social/story/creator"
+        const val DISCUSSION_DETAIL = "social/discussion/{postId}"
     }
 
     object Messaging {
@@ -155,6 +164,7 @@ object Routes {
         const val CREATE_WITH_PREFILL = "farmer/create?prefillProductId={prefillProductId}"
         const val COMMUNITY = "farmer/community"
         const val PROFILE = "farmer/profile"
+        const val DIGITAL_FARM = "farmer/digital_farm"
     }
 
     object EnthusiastNav {
@@ -164,6 +174,16 @@ object Routes {
         const val DASHBOARD = "enthusiast/dashboard"
         const val TRANSFERS = "enthusiast/transfers"
         const val EGG_COLLECTION = "enthusiast/egg_collection"
+    }
+
+    object Sync {
+        const val ISSUES = "sync/issues"
+        const val STATUS = "sync/status"
+    }
+
+    object Upgrade {
+        const val WIZARD = "upgrade/wizard/{targetRole}"
+        const val POST_ONBOARDING = "upgrade/post_onboarding/{newRole}"
     }
 
     private val generalConfig = RoleNavigationConfig(
@@ -179,7 +199,10 @@ object Routes {
             Product.TRACEABILITY,
             Social.FEED,
             Messaging.THREAD,
-            Order.DETAILS
+            Order.DETAILS,
+            Sync.ISSUES,
+            Upgrade.WIZARD,
+            Upgrade.POST_ONBOARDING
         )
     )
 
@@ -189,8 +212,8 @@ object Routes {
         bottomNav = listOf(
             BottomNavDestination(FarmerNav.HOME, "Home"),
             BottomNavDestination(FarmerNav.MARKET, "Market"),
-            BottomNavDestination(FarmerNav.CREATE, "Create"),
             BottomNavDestination(FarmerNav.COMMUNITY, "Community"),
+            BottomNavDestination(Analytics.FARMER, "Analytics"), // Replaces Create (moved to FAB)
             BottomNavDestination(FarmerNav.PROFILE, "Profile")
         ),
         accessibleRoutes = setOf(
@@ -212,13 +235,11 @@ object Routes {
             Transfers.DETAILS,
             Transfers.FARMER_TRANSFERS,
             Transfers.COMPLIANCE_DETAILS,
-            // General compliance landing route
             "compliance",
             Analytics.FARMER,
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,
-            // Enable all monitoring modules used by Farmer cards
             Monitoring.VACCINATION,
             Monitoring.MORTALITY,
             Monitoring.QUARANTINE,
@@ -230,7 +251,11 @@ object Routes {
             Monitoring.PERFORMANCE,
             Onboarding.FARM_BIRD,
             Onboarding.FARM_BATCH,
-            Order.DETAILS
+            Order.DETAILS,
+            Sync.ISSUES,
+            Upgrade.WIZARD,
+            Upgrade.POST_ONBOARDING,
+            FarmerNav.DIGITAL_FARM
         )
     )
 
@@ -240,9 +265,9 @@ object Routes {
         bottomNav = listOf(
             BottomNavDestination(EnthusiastNav.HOME, "Home"),
             BottomNavDestination(EnthusiastNav.EXPLORE, "Explore"),
-            BottomNavDestination(EnthusiastNav.CREATE, "Create"),
+            BottomNavDestination(Social.FEED, "Community"), // Explicit Community tab
             BottomNavDestination(EnthusiastNav.DASHBOARD, "Dashboard"),
-            BottomNavDestination(EnthusiastNav.TRANSFERS, "Transfers")
+            BottomNavDestination(Common.PROFILE, "Profile") // Use Common Profile or specific if exists
         ),
         accessibleRoutes = setOf(
             EnthusiastNav.HOME,
@@ -262,10 +287,10 @@ object Routes {
             Product.TRACEABILITY,
             Scan.QR,
             Messaging.THREAD,
+            Social.FEED, // Ensure accessible
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,
-            // Enable monitoring dashboard and modules for Enthusiast flows
             Monitoring.DASHBOARD,
             Monitoring.VACCINATION,
             Monitoring.MORTALITY,
@@ -277,10 +302,12 @@ object Routes {
             Monitoring.PERFORMANCE,
             Product.FAMILY_TREE,
             EnthusiastNav.EGG_COLLECTION,
-            // Allow Add-to-Farm onboarding flows for Enthusiast
             Onboarding.FARM_BIRD,
             Onboarding.FARM_BATCH,
-            Order.DETAILS
+            Order.DETAILS,
+            Sync.ISSUES,
+            Upgrade.WIZARD,
+            Upgrade.POST_ONBOARDING
         )
     )
 
@@ -290,6 +317,7 @@ object Routes {
         UserType.ENTHUSIAST -> enthusiastConfig
     }
 
+    const val AUTH_WELCOME = Auth.WELCOME
     const val AUTH_PHONE = Auth.PHONE
     const val AUTH_OTP = Auth.OTP
     const val AUTH_PHONE_VERIFY = Auth.PHONE_VERIFY
@@ -352,6 +380,10 @@ object Routes {
     const val FARMER_TRANSFERS = Transfers.FARMER_TRANSFERS
     const val COMPLIANCE_DETAILS = Transfers.COMPLIANCE_DETAILS
     const val COMPLIANCE = "compliance"
+    const val SYNC_ISSUES = Sync.ISSUES
+    const val SYNC_STATUS = Sync.STATUS
+    const val UPGRADE_WIZARD = Upgrade.WIZARD
+    const val UPGRADE_POST_ONBOARDING = Upgrade.POST_ONBOARDING
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS
@@ -380,14 +412,28 @@ object Routes {
     // Consolidated base for traceability-related routes
     const val TRACEABILITY_BASE = "traceability"
 
-    // Whitelist of allowed query parameters per base route
+    /**
+     * Whitelist of allowed query parameters per base route.
+     * Whenever a Builder introduces a new query parameter, it must be added here to pass validation.
+     */
     private val routeQueryWhitelist: Map<String, Set<String>> = mapOf(
         Auth.PHONE to emptySet(),
         Auth.OTP to emptySet(),
         FarmerNav.CREATE to setOf("prefillProductId", "pairId"),
         Onboarding.FARM_BIRD to setOf("role"),
         Onboarding.FARM_BATCH to setOf("role"),
-        SCAN_QR to setOf("context", "transferId")
+        SCAN_QR to setOf("context", "transferId"),
+        Monitoring.TASKS to setOf("filter"),
+        Monitoring.VACCINATION to setOf("filter", "productId"),
+        Monitoring.GROWTH to setOf("filter", "productId"),
+        Monitoring.HATCHING to setOf("filter"),
+        Monitoring.MORTALITY to setOf("filter"),
+        Monitoring.BREEDING to setOf("filter"),
+        Monitoring.QUARANTINE to setOf("filter"),
+        Monitoring.DAILY_LOG to setOf("filter"),
+        Product.MARKET to setOf("filter"),
+        Transfers.LIST to setOf("status"),
+        Social.FEED to setOf("postId")
     )
 
     // Helper to extract the base route (before '?')
@@ -433,6 +479,7 @@ object Routes {
 
     object Builders {
         fun productDetails(id: String): String = "product/${URLEncoder.encode(id, "UTF-8")}"
+        fun auction(id: String): String = "auction/${URLEncoder.encode(id, "UTF-8")}"
         /**
          * Builds the route for the traceability screen, showing the family tree and lineage information.
          * This route displays the TraceabilityScreen with the product as root.
@@ -485,10 +532,10 @@ object Routes {
         fun dailyLog(productId: String): String =
             "${Monitoring.DAILY_LOG}/${URLEncoder.encode(productId, "UTF-8")}"
 
-        fun monitoringVaccination(productId: String): String =
+        fun monitoringVaccinationWithProductId(productId: String): String =
             "${Monitoring.VACCINATION}?productId=${URLEncoder.encode(productId, "UTF-8")}"
 
-        fun monitoringGrowth(productId: String): String =
+        fun monitoringGrowthWithProductId(productId: String): String =
             "${Monitoring.GROWTH}?productId=${URLEncoder.encode(productId, "UTF-8")}"
 
         /**
@@ -501,11 +548,51 @@ object Routes {
          */
         fun socialPost(postId: String): String = "social/feed?postId=${URLEncoder.encode(postId, "UTF-8")}"
 
+        fun storyViewer(initialIndex: Int): String = "social/story/viewer/$initialIndex"
+        fun storyCreator(): String = Social.STORY_CREATOR
+        fun discussionDetail(postId: String): String = "social/discussion/${URLEncoder.encode(postId, "UTF-8")}"
+
         fun farmerTransfers(): String = Transfers.FARMER_TRANSFERS
 
         fun complianceDetails(productId: String): String = "compliance/${URLEncoder.encode(productId, "UTF-8")}"
 
         fun transfersWithFilter(status: String): String = "${Transfers.LIST}?status=${URLEncoder.encode(status, "UTF-8")}"
+
+        fun productsWithFilter(filter: String): String = "${Product.MARKET}?filter=${URLEncoder.encode(filter, "UTF-8")}"
+
+        fun monitoringTasks(filter: String? = null): String =
+            if (filter != null) "${Monitoring.TASKS}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.TASKS
+
+        fun monitoringVaccinationWithFilter(filter: String? = null): String =
+            if (filter != null) "${Monitoring.VACCINATION}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.VACCINATION
+
+        fun monitoringQuarantine(filter: String? = null): String =
+            if (filter != null) "${Monitoring.QUARANTINE}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.QUARANTINE
+
+        fun monitoringGrowthWithFilter(filter: String? = null): String =
+            if (filter != null) "${Monitoring.GROWTH}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.GROWTH
+
+        fun monitoringDailyLog(filter: String? = null): String =
+            if (filter != null) "${Monitoring.DAILY_LOG}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.DAILY_LOG
+
+        fun monitoringHatching(filter: String? = null): String =
+            if (filter != null) "${Monitoring.HATCHING}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.HATCHING
+
+        fun monitoringMortality(filter: String? = null): String =
+            if (filter != null) "${Monitoring.MORTALITY}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.MORTALITY
+
+        fun monitoringBreeding(filter: String? = null): String =
+            if (filter != null) "${Monitoring.BREEDING}?filter=${URLEncoder.encode(filter, "UTF-8")}" else Monitoring.BREEDING
+
+        fun syncIssues() = SYNC_ISSUES
+
+        fun syncStatus() = SYNC_STATUS
+
+        fun upgradeWizard(targetRole: UserType): String = "upgrade/wizard/${targetRole.name}"
+        
+        fun upgradePostOnboarding(newRole: UserType): String = "upgrade/post_onboarding/${newRole.name}"
+
+        fun verificationWithType(upgradeType: com.rio.rostry.domain.model.UpgradeType): String = "verification/${upgradeType.name}"
     }
 
 } // Closing brace for object Routes

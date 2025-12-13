@@ -61,6 +61,7 @@ data class QuarantineRecordEntity(
     val updatesCount: Int = 0,
     val endedAt: Long? = null,
     val status: String = "ACTIVE", // ACTIVE, RECOVERED, TRANSFERRED
+    val healthScore: Int = 100,
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
     val syncedAt: Long? = null
@@ -87,6 +88,7 @@ data class MortalityRecordEntity(
     val circumstances: String? = null,
     val ageWeeks: Int? = null,
     val disposalMethod: String? = null,
+    val quantity: Int = 1,
     val financialImpactInr: Double? = null,
     val occurredAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),

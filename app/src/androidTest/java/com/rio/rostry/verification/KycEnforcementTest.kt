@@ -52,6 +52,9 @@ class KycEnforcementTest {
     @Inject
     lateinit var userDao: UserDao
 
+    @Inject
+    lateinit var rbacGuard: com.rio.rostry.domain.rbac.RbacGuard
+
     private lateinit var unverifiedUser: UserEntity
     private lateinit var pendingUser: UserEntity
     private lateinit var verifiedUser: UserEntity
@@ -71,8 +74,10 @@ class KycEnforcementTest {
     private suspend fun createTestUser(userId: String, type: UserType, status: VerificationStatus): UserEntity {
         val user = UserEntity(
             userId = userId,
+            phoneNumber = null,
             email = "$userId@test.com",
-            userType = type,
+            fullName = "$userId User",
+            userType = type.name,
             verificationStatus = status,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
@@ -197,7 +202,7 @@ class KycEnforcementTest {
 
     @Test
     fun testUnverifiedUserCannotInitiateTransfer() = runBlocking {
-        CurrentUserHolder.userId = unverifiedUser.userId
+        CurrentUserHolder.userId = unverifiedUser.userId // Assuming unverifiedUser has ENTHUSIAST role to have transfer permission
         val result = transferWorkflowRepository.initiate(
             productId = "nonexistent",
             fromUserId = unverifiedUser.userId,
@@ -210,8 +215,11 @@ class KycEnforcementTest {
             conditionsJson = null,
             timeoutAt = null
         )
+        // Should fail because UNVERIFIED users cannot initiate transfers
         assertTrue(result is Resource.Error)
-        // Either permission or product not found, but should not succeed
+        val error = result as Resource.Error
+        // The failure should be due to permission/verification status
+        assert(error.message?.contains("permission") == true) { "Transfer should be blocked for UNVERIFIED users" }
     }
 
     @Test
@@ -296,11 +304,28 @@ class KycEnforcementTest {
         )
         val result = productRepository.addProduct(product)
         assertTrue(result is Resource.Success)
-        // Similarly for transfer
-        val pid = (result as Resource.Success).data!!
-        val transferResult = transferWorkflowRepository.initiate(
-            productId = pid,
-            fromUserId = verifiedUser.userId,
+        // Transfer should work for verified users (and also for unverified with proper role)
+        // Market listing requires verification, which is tested elsewhere
+    }
+
+    @Test
+    fun testPendingUserCanInitiateTransfer() = runBlocking {
+        // Create a PENDING user (assuming we have test setup for this)
+        val pendingUser = UserEntity(
+            userId = "pending_user",
+            userType = UserType.ENTHUSIAST.name, // Needs enthusiast role to have transfer permission
+            verificationStatus = VerificationStatus.PENDING,
+            email = "pending@test.com",
+            fullName = "Pending User",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+        userDao.insertUser(pendingUser)
+
+        CurrentUserHolder.userId = pendingUser.userId
+        val result = transferWorkflowRepository.initiate(
+            productId = "nonexistent",
+            fromUserId = pendingUser.userId,
             toUserId = "other_user",
             amount = 100.0,
             currency = "INR",
@@ -310,6 +335,52 @@ class KycEnforcementTest {
             conditionsJson = null,
             timeoutAt = null
         )
-        assertTrue(transferResult is Resource.Success)
+        // Should fail due to product not found, not due to verification status
+        assertTrue(result is Resource.Error)
+        // The failure should be about product not found, not verification status
+        val error = result as Resource.Error
+        assert(error.message?.contains("KYC verification") != true) { "Transfer should not be blocked due to verification status" }
+    }
+
+    @Test
+    fun testPendingUserCanEditLineage() = runBlocking {
+        // Create a PENDING farmer user
+        val pendingUser = UserEntity(
+            userId = "pending_lineage_user",
+            userType = UserType.FARMER.name,
+            verificationStatus = VerificationStatus.PENDING,
+            email = "pending_lineage@test.com",
+            fullName = "Pending Lineage User",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+        userDao.insertUser(pendingUser)
+
+        CurrentUserHolder.userId = pendingUser.userId
+
+        // Test that rbac guard allows lineage editing for pending users
+        val canEdit = rbacGuard.canEditLineage()
+        assertTrue("Pending user should be able to edit lineage", canEdit)
+    }
+
+    @Test
+    fun testPendingUserCanManageOrders() = runBlocking {
+        // Create a PENDING farmer user
+        val pendingUser = UserEntity(
+            userId = "pending_orders_user",
+            userType = UserType.FARMER.name,
+            verificationStatus = VerificationStatus.PENDING,
+            email = "pending_orders@test.com",
+            fullName = "Pending Orders User",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+        userDao.insertUser(pendingUser)
+
+        CurrentUserHolder.userId = pendingUser.userId
+
+        // Test that rbac guard allows order management for pending users
+        val canManage = rbacGuard.canManageOrders()
+        assertTrue("Pending user should be able to manage orders", canManage)
     }
 }

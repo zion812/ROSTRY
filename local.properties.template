@@ -10,6 +10,8 @@
 # This key is used for Google Maps SDK and Places API
 # IMPORTANT: Keep real keys ONLY in local.properties (never in gradle.properties)
 MAPS_API_KEY=<set me>
+# Optional: Separate key with browser restrictions for WebViews/JS
+# MAPS_JS_API_KEY=<set me>
 
 # Optional: Firebase Project ID (for multi-project setups)
 # FIREBASE_PROJECT_ID=rostry-72

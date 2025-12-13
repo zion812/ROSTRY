@@ -42,4 +42,7 @@ interface UploadTaskDao {
 
     @Query("SELECT * FROM upload_tasks WHERE status = 'FAILED' AND retries < 3 ORDER BY createdAt ASC LIMIT :limit")
     suspend fun getFailedTasks(limit: Int): List<UploadTaskEntity>
+
+    @Query("SELECT * FROM upload_tasks WHERE remotePath = :remotePath LIMIT 1")
+    fun observeByRemotePath(remotePath: String): Flow<UploadTaskEntity?>
 }

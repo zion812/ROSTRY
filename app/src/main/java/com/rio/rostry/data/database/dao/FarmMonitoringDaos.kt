@@ -17,6 +17,9 @@ interface GrowthRecordDao {
     @Query("SELECT * FROM growth_records WHERE productId = :productId ORDER BY week ASC")
     fun observeForProduct(productId: String): Flow<List<GrowthRecordEntity>>
 
+    @Query("SELECT * FROM growth_records WHERE productId = :productId ORDER BY week ASC")
+    suspend fun getAllByProduct(productId: String): List<GrowthRecordEntity>
+
     @Query("SELECT * FROM growth_records WHERE productId = :productId AND week = :week LIMIT 1")
     suspend fun findByWeek(productId: String, week: Int): GrowthRecordEntity?
 
@@ -37,49 +40,12 @@ interface GrowthRecordDao {
 
     @Query("UPDATE growth_records SET dirty = 0, syncedAt = :syncedAt WHERE recordId IN (:recordIds)")
     suspend fun clearDirty(recordIds: List<String>, syncedAt: Long)
+
+    @Query("SELECT COUNT(*) FROM growth_records WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end")
+    suspend fun countByFarmerInRange(farmerId: String, start: Long, end: Long): Int
 }
 
-@Dao
-interface QuarantineRecordDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(record: QuarantineRecordEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(record: QuarantineRecordEntity)
-
-    @Update
-    suspend fun update(record: QuarantineRecordEntity)
-
-    @Query("SELECT * FROM quarantine_records WHERE productId = :productId ORDER BY startedAt DESC")
-    fun observeForProduct(productId: String): Flow<List<QuarantineRecordEntity>>
-
-    @Query("SELECT * FROM quarantine_records WHERE status = :status ORDER BY startedAt DESC")
-    fun observeByStatus(status: String): Flow<List<QuarantineRecordEntity>>
-
-    @Query("SELECT COUNT(*) FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE'")
-    suspend fun countActiveForFarmer(farmerId: String): Int
-
-    @Query("SELECT COUNT(*) FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE' AND lastUpdatedAt < :cutoff")
-    suspend fun countUpdatesOverdueForFarmer(farmerId: String, cutoff: Long): Int
-
-    @Query("SELECT * FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE' AND lastUpdatedAt < :cutoff")
-    suspend fun getUpdatesOverdueForFarmer(farmerId: String, cutoff: Long): List<QuarantineRecordEntity>
-
-    @Query("SELECT COUNT(*) FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE'")
-    fun observeActiveForFarmer(farmerId: String): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE' AND lastUpdatedAt < :cutoff")
-    fun observeUpdatesOverdueForFarmer(farmerId: String, cutoff: Long): Flow<Int>
-    
-    @Query("SELECT * FROM quarantine_records WHERE farmerId = :farmerId AND status = 'ACTIVE'")
-    suspend fun getAllActiveForFarmer(farmerId: String): List<QuarantineRecordEntity>
-
-    @Query("SELECT * FROM quarantine_records WHERE dirty = 1")
-    suspend fun getDirty(): List<QuarantineRecordEntity>
-
-    @Query("UPDATE quarantine_records SET dirty = 0, syncedAt = :syncedAt WHERE quarantineId IN (:quarantineIds)")
-    suspend fun clearDirty(quarantineIds: List<String>, syncedAt: Long)
-}
 
 @Dao
 interface MortalityRecordDao {
@@ -109,6 +75,9 @@ interface MortalityRecordDao {
 
     @Query("UPDATE mortality_records SET dirty = 0, syncedAt = :syncedAt WHERE deathId IN (:deathIds)")
     suspend fun clearDirty(deathIds: List<String>, syncedAt: Long)
+
+    @Query("SELECT COUNT(*) FROM mortality_records WHERE farmerId = :farmerId AND occurredAt BETWEEN :start AND :end")
+    suspend fun countByFarmerInRange(farmerId: String, start: Long, end: Long): Int
 }
 
 @Dao
@@ -140,6 +109,9 @@ interface VaccinationRecordDao {
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NOT NULL AND administeredAt BETWEEN :start AND :end")
     suspend fun countAdministeredBetweenForFarmer(farmerId: String, start: Long, end: Long): Int
 
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NOT NULL AND administeredAt BETWEEN :start AND :end")
+    fun observeAdministeredCountForFarmerBetween(farmerId: String, start: Long, end: Long): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NULL AND scheduledAt BETWEEN :start AND :end")
     fun observeDueForFarmer(farmerId: String, start: Long, end: Long): Flow<Int>
 
@@ -154,6 +126,12 @@ interface VaccinationRecordDao {
 
     @Query("UPDATE vaccination_records SET dirty = 0, syncedAt = :syncedAt WHERE vaccinationId IN (:vaccinationIds)")
     suspend fun clearDirty(vaccinationIds: List<String>, syncedAt: Long)
+
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId")
+    suspend fun countByFarmer(farmerId: String): Int
+
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NOT NULL")
+    suspend fun countCompletedByFarmer(farmerId: String): Int
 }
 
 @Dao

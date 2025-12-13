@@ -127,9 +127,9 @@ class TransferVerificationViewModel @Inject constructor(
             try {
                 _state.value = _state.value.copy(loading = true, error = null)
                 val tFlow = transferDao.getTransferById(transferId)
-                val vFlow = verificationDao.streamByTransfer(transferId)
+                val vFlow = verificationDao.observeByTransferId(transferId)
                 val aFlow = auditLogDao.streamByRef(transferId)
-                val dFlow = disputeDao.streamByTransfer(transferId)
+                val dFlow = disputeDao.observeByTransferId(transferId)
                 combine(tFlow, vFlow, aFlow, dFlow) { t, v, a, d -> arrayOf(t, v, a, d) }.collect { arr ->
                     val t = arr[0] as TransferEntity?
                     val v = arr[1] as List<TransferVerificationEntity>

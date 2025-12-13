@@ -9,13 +9,14 @@ import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
 import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
-import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.data.repository.TransferRepository
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.analytics.DailyGoal
+import com.rio.rostry.data.repository.analytics.ActionableInsight
 import timber.log.Timber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -66,8 +67,28 @@ data class FarmerHomeUiState(
     val complianceAlertsCount: Int = 0,
     val kycVerified: Boolean = false,
     val dailyGoals: List<DailyGoal> = emptyList(),
-    val analyticsInsights: List<String> = emptyList()
+    val analyticsInsights: List<ActionableInsight> = emptyList(),
+    val verificationStatus: com.rio.rostry.domain.model.VerificationStatus = com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
+    val recentActivity: List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> = emptyList(),
+    val widgets: List<DashboardWidget> = emptyList()
 )
+
+data class DashboardWidget(
+    val type: WidgetType,
+    val title: String,
+    val count: Int,
+    val alertCount: Int = 0,
+    val alertLevel: AlertLevel = AlertLevel.NORMAL,
+    val actionLabel: String
+)
+
+enum class AlertLevel { NORMAL, INFO, WARNING, CRITICAL }
+
+enum class WidgetType {
+    DAILY_LOG, TASKS, VACCINATION, GROWTH, QUARANTINE, HATCHING, 
+    MORTALITY, BREEDING, READY_TO_LIST, NEW_LISTING, TRANSFERS, COMPLIANCE,
+    TRANSFERS_PENDING, TRANSFERS_VERIFICATION
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -82,13 +103,14 @@ class FarmerHomeViewModel @Inject constructor(
     private val farmerDashboardRepository: FarmerDashboardRepository,
     private val taskDao: TaskDao,
     private val dailyLogDao: DailyLogDao,
-    private val productDao: ProductDao,
+    private val productRepository: ProductRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val syncManager: SyncManager,
     private val transferRepository: TransferRepository,
     private val traceabilityRepository: TraceabilityRepository,
     private val analyticsRepository: AnalyticsRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val farmOnboardingRepository: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -148,18 +170,22 @@ class FarmerHomeViewModel @Inject constructor(
                 taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
                 taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
                 dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
-                productDao.observeActiveWithBirth().map { products ->
+                productRepository.observeActiveWithBirth().map { products ->
                     products.count { it.sellerId == id && it.isBatch == true && ((it.ageWeeks ?: 0) >= 12) && it.splitAt == null }
                 }.orDefault(0),
                 transferRepository.observePendingCountForFarmer(id).orDefault(0),
                 transferRepository.observeAwaitingVerificationCountForFarmer(id).orDefault(0),
-                productDao.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch != true } }.orDefault(0),
-                productDao.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch == true } }.orDefault(0),
-                productDao.observeEligibleForTransferCountForFarmer(id).orDefault(0),
+                productRepository.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch != true } }.orDefault(0),
+                productRepository.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch == true } }.orDefault(0),
+                productRepository.observeEligibleForTransferCountForFarmer(id).orDefault(0),
                 traceabilityRepository.observeComplianceAlertsCount(id).orDefault(0),
                 traceabilityRepository.observeKycStatus(id).orDefault(false),
                 analyticsRepository.observeDailyGoals(id).orDefault(emptyList()),
-                analyticsRepository.getActionableInsights(id).map { it.map { it.description } }.orDefault(emptyList())
+                analyticsRepository.getActionableInsights(id).orDefault(emptyList()),
+                userRepository.getCurrentUser().map { res ->
+                    (res as? com.rio.rostry.utils.Resource.Success)?.data?.verificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED
+                }.orDefault(com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED),
+                farmOnboardingRepository.observeRecentOnboardingActivity(id, 7).orDefault(emptyList())
             ) { values: Array<Any?> ->
                 val vacDue = values[0] as? Int ?: 0
                 val vacOverdue = values[1] as? Int ?: 0
@@ -188,14 +214,17 @@ class FarmerHomeViewModel @Inject constructor(
                 @Suppress("UNCHECKED_CAST")
                 val dailyGoals = values[22] as? List<DailyGoal> ?: emptyList()
                 @Suppress("UNCHECKED_CAST")
-                val analyticsInsights = values[23] as? List<String> ?: emptyList()
+                val analyticsInsights = values[23] as? List<ActionableInsight> ?: emptyList()
+                val verStatus = values[24] as? com.rio.rostry.domain.model.VerificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED
+                @Suppress("UNCHECKED_CAST")
+                val recentActivityList = values[25] as? List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> ?: emptyList()
 
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
                 if (elapsedMs > 3000) {
                     Timber.w("FarmerHome combine slow: %d ms", elapsedMs)
                 }
 
-                FarmerHomeUiState(
+                val baseState = FarmerHomeUiState(
                     vaccinationDueCount = vacDue,
                     vaccinationOverdueCount = vacOverdue,
                     growthRecordsThisWeek = growth,
@@ -222,8 +251,13 @@ class FarmerHomeViewModel @Inject constructor(
                     complianceAlertsCount = complianceAlerts,
                     kycVerified = kycVerified,
                     dailyGoals = dailyGoals,
-                    analyticsInsights = analyticsInsights
+                    analyticsInsights = analyticsInsights,
+                    verificationStatus = verStatus,
+                    recentActivity = recentActivityList
                 )
+                
+                // Generate dynamic widgets based on the computed state
+                baseState.copy(widgets = generateWidgets(baseState))
             }
         }
     }.stateIn(
@@ -288,6 +322,77 @@ class FarmerHomeViewModel @Inject constructor(
             } catch (t: Throwable) {
                 Timber.e(t, "Analytics refresh failed")
                 _errorEvents.emit("Failed to refresh analytics")
+            }
+        }
+    }
+
+    private fun generateWidgets(state: FarmerHomeUiState): List<DashboardWidget> {
+        val list = mutableListOf<DashboardWidget>()
+
+        // 1. Daily Log (Always present, high utility)
+        list.add(DashboardWidget(WidgetType.DAILY_LOG, "Daily Log", state.dailyLogsThisWeek, 0, AlertLevel.NORMAL, "Log Today"))
+
+        // 2. Tasks
+        val taskAlertLevel = if (state.tasksOverdueCount > 0) AlertLevel.CRITICAL else if (state.tasksDueCount > 0) AlertLevel.INFO else AlertLevel.NORMAL
+        list.add(DashboardWidget(WidgetType.TASKS, "Tasks Due", state.tasksDueCount, state.tasksOverdueCount, taskAlertLevel, "View Tasks"))
+
+        // 3. Vaccination
+        val vaxAlertLevel = if (state.vaccinationOverdueCount > 0) AlertLevel.CRITICAL else if (state.vaccinationDueCount > 0) AlertLevel.INFO else AlertLevel.NORMAL
+        list.add(DashboardWidget(WidgetType.VACCINATION, "Vaccination", state.vaccinationDueCount, state.vaccinationOverdueCount, vaxAlertLevel, "View Schedule"))
+
+        // 4. Quarantine (Only if active or history exists)
+        if (state.quarantineActiveCount > 0 || state.quarantineUpdatesDue > 0) {
+            val qAlert = if (state.quarantineUpdatesDue > 0) AlertLevel.WARNING else AlertLevel.NORMAL
+            list.add(DashboardWidget(WidgetType.QUARANTINE, "Quarantine", state.quarantineActiveCount, state.quarantineUpdatesDue, qAlert, "Update"))
+        }
+
+        // 5. Hatching
+        if (state.hatchingBatchesActive > 0 || state.hatchingDueThisWeek > 0) {
+            val hAlert = if (state.hatchingDueThisWeek > 0) AlertLevel.INFO else AlertLevel.NORMAL
+            list.add(DashboardWidget(WidgetType.HATCHING, "Hatching", state.hatchingBatchesActive, state.hatchingDueThisWeek, hAlert, "View Batches"))
+        }
+
+        // 6. Growth
+        list.add(DashboardWidget(WidgetType.GROWTH, "Growth Updates", state.growthRecordsThisWeek, 0, AlertLevel.NORMAL, "Record"))
+
+        // 7. Mortality (Highlight if high)
+        val mAlert = if (state.mortalityLast7Days > 0) AlertLevel.WARNING else AlertLevel.NORMAL
+        list.add(DashboardWidget(WidgetType.MORTALITY, "Mortality", state.mortalityLast7Days, 0, mAlert, "Report"))
+
+        // 8. Breeding
+        if (state.breedingPairsActive > 0) {
+            list.add(DashboardWidget(WidgetType.BREEDING, "Breeding Pairs", state.breedingPairsActive, 0, AlertLevel.NORMAL, "Manage"))
+        }
+
+        // 9. Commerce
+        if (state.productsReadyToListCount > 0) {
+            list.add(DashboardWidget(WidgetType.READY_TO_LIST, "Ready to List", state.productsReadyToListCount, state.productsReadyToListCount, AlertLevel.INFO, "List Now"))
+        }
+        list.add(DashboardWidget(WidgetType.NEW_LISTING, "New Listing", 0, 0, AlertLevel.NORMAL, "Create"))
+
+        // 10. Transfers
+        if (state.productsEligibleForTransferCount > 0) {
+            list.add(DashboardWidget(WidgetType.TRANSFERS, "Eligible for Transfer", state.productsEligibleForTransferCount, 0, AlertLevel.NORMAL, "Transfer"))
+        }
+        if (state.transfersPendingCount > 0) {
+            list.add(DashboardWidget(WidgetType.TRANSFERS_PENDING, "Pending Transfers", state.transfersPendingCount, 0, AlertLevel.INFO, "View"))
+        }
+        if (state.transfersAwaitingVerificationCount > 0) {
+            list.add(DashboardWidget(WidgetType.TRANSFERS_VERIFICATION, "Verify Transfers", state.transfersAwaitingVerificationCount, state.transfersAwaitingVerificationCount, AlertLevel.WARNING, "Verify"))
+        }
+
+        // 11. Compliance
+        if (state.complianceAlertsCount > 0) {
+            list.add(DashboardWidget(WidgetType.COMPLIANCE, "Compliance", state.complianceAlertsCount, state.complianceAlertsCount, AlertLevel.CRITICAL, "Resolve"))
+        }
+
+        // Sort by urgency: Critical first, then Warning, then Info, then Normal
+        return list.sortedBy { 
+            when (it.alertLevel) {
+                AlertLevel.CRITICAL -> 0
+                AlertLevel.WARNING -> 1
+                AlertLevel.INFO -> 2
+                AlertLevel.NORMAL -> 3
             }
         }
     }

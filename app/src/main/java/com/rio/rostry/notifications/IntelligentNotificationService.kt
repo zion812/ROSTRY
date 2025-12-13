@@ -342,10 +342,10 @@ class IntelligentNotificationService @Inject constructor(
     private fun generateDeepLink(domain: String, refId: String, subRoute: String? = null): String {
         return when (domain) {
             "FARM" -> when (subRoute) {
-                "VACCINATION_DUE" -> "rostry://${Routes.Builders.monitoringVaccination(refId)}"
+                "VACCINATION_DUE" -> "rostry://${Routes.Builders.monitoringVaccinationWithProductId(refId)}"
                 "QUARANTINE_OVERDUE" -> "rostry://${Routes.MONITORING_QUARANTINE}"
-                "GROWTH_CHECK" -> "rostry://${Routes.Builders.monitoringGrowth(refId)}"
-                "BATCH_SPLIT" -> "rostry://${Routes.Builders.monitoringGrowth(refId)}"
+                "GROWTH_CHECK" -> "rostry://${Routes.Builders.monitoringGrowthWithProductId(refId)}"
+                "BATCH_SPLIT" -> "rostry://${Routes.Builders.monitoringGrowthWithProductId(refId)}"
                 "HATCHING_DUE" -> "rostry://${Routes.MONITORING_HATCHING}"
                 "MORTALITY_SPIKE" -> "rostry://${Routes.MONITORING_MORTALITY}"
                 "BIRD_ADDED" -> "rostry://${Routes.MONITORING_DAILY_LOG}"

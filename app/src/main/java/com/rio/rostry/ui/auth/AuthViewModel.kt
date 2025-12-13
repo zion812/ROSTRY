@@ -17,6 +17,7 @@ import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.normalizeToE164
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
+import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
 import com.rio.rostry.utils.network.FeatureToggles
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -37,6 +38,7 @@ class AuthViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val featureToggles: FeatureToggles,
     private val authAnalytics: AuthAnalyticsTracker,
+    private val flowAnalyticsTracker: FlowAnalyticsTracker,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -50,7 +52,8 @@ class AuthViewModel @Inject constructor(
         val resendCooldownSec: Int = 0,
         val needsPhoneLink: Boolean = false,
         val authProvider: String? = null,
-        val isNewUser: Boolean = false
+        val isNewUser: Boolean = false,
+        val pendingPhoneVerificationReason: String? = null
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -113,6 +116,22 @@ class AuthViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    private fun decidePendingPhoneVerification(
+        isNewUser: Boolean,
+        hasPhone: Boolean,
+        fromGuest: Boolean,
+        provider: String
+    ): String? {
+        val requirePhone = featureToggles.isPhoneVerificationRequired()
+        if (!requirePhone || hasPhone) return null
+
+        return when {
+            fromGuest -> "guest_upgrade"
+            isNewUser && provider != "phone" -> "new_user_${provider}"
+            else -> null
         }
     }
 
@@ -210,10 +229,20 @@ class AuthViewModel @Inject constructor(
             val isNew = meta?.creationTimestamp == meta?.lastSignInTimestamp
             val hasPhone = user?.phoneNumber != null
             val provider = response?.providerType ?: "unknown"
-            val requirePhone = featureToggles.isPhoneVerificationRequired()
-            if (isNew == true && !hasPhone && requirePhone) {
-                authAnalytics.trackPhoneVerifyStart(true)
-                _uiState.value = _uiState.value.copy(needsPhoneLink = true, authProvider = provider, isNewUser = true)
+            val fromGuest = savedStateHandle.get<Boolean>("fromGuest") ?: false
+            val reason = decidePendingPhoneVerification(isNew == true, hasPhone, fromGuest, provider)
+            if (reason != null) {
+                _uiState.value = _uiState.value.copy(pendingPhoneVerificationReason = reason)
+                if (fromGuest) {
+                    authAnalytics.trackAuthComplete(provider, true)
+                    postAuthBootstrapAndNavigate()
+                } else {
+                    authAnalytics.trackPhoneVerifyStart(true)
+                    _uiState.value = _uiState.value.copy(needsPhoneLink = true, authProvider = provider, isNewUser = true)
+                }
+                if (reason != null) {
+                    authAnalytics.trackPhoneVerificationDeferred(reason)
+                }
                 return
             }
             authAnalytics.trackAuthComplete(provider, isNew == true)
@@ -281,17 +310,58 @@ class AuthViewModel @Inject constructor(
 
     private fun postAuthBootstrapAndNavigate() {
         viewModelScope.launch {
+            // Force refresh user profile from server to ensure latest role
+            val uid = firebaseAuth.currentUser?.uid
+            if (uid != null) {
+                userRepository.refreshCurrentUser(uid)
+            }
+
             // Try to hydrate user profile quickly; don't block navigation forever
             val resource = withTimeoutOrNull(5000) { userRepository.getCurrentUser().first() }
             when (resource) {
                 is Resource.Success -> {
                     val user = resource.data
                     if (user != null) {
-                        sessionManager.markAuthenticated(System.currentTimeMillis(), user.userType)
-                        if (user.userType == UserType.GENERAL) {
+                        // Check if this is a guest upgrade
+                        val isGuest = sessionManager.isGuestSession().first()
+                        val fromGuest = savedStateHandle.get<Boolean>("fromGuest") ?: false
+
+                        if (isGuest) {
+                            // This is a guest session being upgraded
+                            val guestStartedAt = sessionManager.getGuestSessionStartedAt()
+                            val now = System.currentTimeMillis()
+                            sessionManager.upgradeGuestToAuthenticated(user.role, now)
+                            if (guestStartedAt != null) {
+                                val duration = (now - guestStartedAt) / 1000 // in seconds
+                                flowAnalyticsTracker.trackGuestModeUpgraded(user.role.name, duration)
+                            }
+
+                            // Check if this was a guest upgrade that should defer phone verification
+                            val fromGuestForDefer = savedStateHandle.get<Boolean>("fromGuest") ?: false
+                            if (fromGuestForDefer) {
+                                // Clear the fromGuest flag after processing
+                                savedStateHandle["fromGuest"] = null
+
+                                val reason = decidePendingPhoneVerification(
+                                    isNewUser = false, // Not a new user in Firebase terms, but upgrading guest
+                                    hasPhone = !user.phoneNumber.isNullOrBlank(),
+                                    fromGuest = true,
+                                    provider = "guest_upgrade" // Use a placeholder since provider isn't directly available here
+                                )
+                                if (reason != null) {
+                                    _uiState.value = _uiState.value.copy(pendingPhoneVerificationReason = reason)
+                                    authAnalytics.trackPhoneVerificationDeferred(reason)
+                                }
+                            }
+                        } else {
+                            // Regular authentication
+                            sessionManager.markAuthenticated(System.currentTimeMillis(), user.role)
+                        }
+
+                        if (user.role == UserType.GENERAL) {
                             _navigation.tryEmit(NavAction.ToUserSetup)
                         } else {
-                            _navigation.tryEmit(NavAction.ToHome(user.userType))
+                            _navigation.tryEmit(NavAction.ToHome(user.role))
                         }
                     } else {
                         // No profile yet; go to setup to complete essentials
@@ -314,6 +384,15 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun setFromGuest(fromGuest: Boolean) {
+        savedStateHandle["fromGuest"] = fromGuest
+    }
+
+    fun deferPhoneVerification(reason: String) {
+        _uiState.value = _uiState.value.copy(pendingPhoneVerificationReason = reason)
+        authAnalytics.trackPhoneVerificationDeferred(reason)
+    }
+
     fun cancelPhoneLinking() {
         viewModelScope.launch {
             // Log cancel and sign out to return to entry screen
@@ -323,3 +402,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 }
+
+val AuthViewModel.UiState.needsPhoneVerificationBanner: Boolean
+    get() = pendingPhoneVerificationReason != null

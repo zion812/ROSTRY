@@ -60,6 +60,8 @@ object AppModule {
     @Singleton
     fun provideFirebaseDatabase(): FirebaseDatabase = FirebaseDatabase.getInstance()
 
+
+
     @Provides
     @Singleton
     fun provideGson(): Gson = Gson()

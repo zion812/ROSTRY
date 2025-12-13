@@ -65,12 +65,12 @@ class DatabaseValidationHelper @Inject constructor(
                         userId = placeholderId,
                         fullName = "Placeholder User",
                         email = "placeholder@example.com",
-                        userType = UserType.GENERAL,
+                        userType = UserType.GENERAL.name,
                         verificationStatus = VerificationStatus.UNVERIFIED,
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
                     )
-                    userDao.insertUser(user)
+                    userDao.upsertUser(user)
                     Timber.d("Created placeholder user for orphaned products")
                 }
                 // Update sellerId for orphaned products and touch updatedAt/dirty

@@ -47,10 +47,10 @@ fun VerificationStatusScreen(
     val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     val context = LocalContext.current
     var showDocumentDialog by remember { mutableStateOf(false) }
-    val docUrls = remember(user?.kycDocumentUrls) { user?.kycDocumentUrls?.let { JSONArray(it).let { arr -> (0 until arr.length()).map { arr.getString(it) } } } ?: emptyList() }
-    val imgUrls = remember(user?.kycImageUrls) { user?.kycImageUrls?.let { JSONArray(it).let { arr -> (0 until arr.length()).map { arr.getString(it) } } } ?: emptyList() }
+    val docUrls = uiState.uploadedDocuments
+    val imgUrls = uiState.uploadedImages
     val allDocuments = docUrls + imgUrls
-    val docTypes = remember(user?.kycDocumentTypes) { user?.kycDocumentTypes?.let { JSONObject(it) } ?: JSONObject() }
+    val docTypes = uiState.uploadedDocTypes
 
     Scaffold(
         topBar = {
@@ -79,10 +79,10 @@ fun VerificationStatusScreen(
                     // Uploaded Stage
                     TimelineItem(
                         title = "Documents Uploaded",
-                        subtitle = user?.kycUploadedAt?.let { dateFormat.format(Date(it)) } ?: "Not uploaded",
+                        subtitle = if (docUrls.isNotEmpty() || imgUrls.isNotEmpty()) "Uploaded" else "Not uploaded",
                         icon = Icons.Default.Upload,
-                        color = if (user?.kycUploadedAt != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        isCompleted = user?.kycUploadedAt != null
+                        color = if (docUrls.isNotEmpty() || imgUrls.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        isCompleted = docUrls.isNotEmpty() || imgUrls.isNotEmpty()
                     )
                     // Pending Stage
                     TimelineItem(
@@ -123,7 +123,7 @@ fun VerificationStatusScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Complete verification to unlock full features.")
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(onClick = { user.userType?.let { onStartVerification(it) } }) {
+                                Button(onClick = { user.role.let { onStartVerification(it) } }) {
                                     Text("Start Verification")
                                 }
                             }
@@ -159,7 +159,7 @@ fun VerificationStatusScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Verified on: ${user.kycVerifiedAt?.let { dateFormat.format(Date(it)) } ?: ""}")
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Benefits unlocked: ${user.userType?.displayName ?: ""} features are now available.")
+                                Text("Benefits unlocked: ${user.role.displayName} features are now available.")
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(onClick = { showDocumentDialog = true }) {
                                     Text("View Documents")
@@ -180,7 +180,7 @@ fun VerificationStatusScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Please review and resubmit with corrected documents.")
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(onClick = { user.userType?.let { onResubmit(it) } }) {
+                                Button(onClick = { user.role.let { onResubmit(it) } }) {
                                     Text("Resubmit Verification")
                                 }
                             }
@@ -197,16 +197,12 @@ fun VerificationStatusScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            val docUrls = user?.kycDocumentUrls?.let { JSONArray(it) } ?: JSONArray()
-                            val imgUrls = user?.kycImageUrls?.let { JSONArray(it) } ?: JSONArray()
-                            val docTypes = user?.kycDocumentTypes?.let { JSONObject(it) } ?: JSONObject()
-                            Text("Documents: ${docUrls.length()}")
-                            Text("Images: ${imgUrls.length()}")
+                            Text("Documents: ${docUrls.size}")
+                            Text("Images: ${imgUrls.size}")
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Types:", fontWeight = FontWeight.Bold)
-                            for (i in 0 until docUrls.length()) {
-                                val url = docUrls.getString(i)
-                                val type = docTypes.optString(url, "Unknown")
+                            for (url in docUrls) {
+                                val type = docTypes[url] ?: "Unknown"
                                 Text("• $type", color = if (user?.verificationStatus == VerificationStatus.REJECTED) MaterialTheme.colorScheme.error else Color.Unspecified)
                             }
                         }
@@ -220,8 +216,7 @@ fun VerificationStatusScreen(
         DocumentPreviewDialog(
             onDismiss = { showDocumentDialog = false },
             documents = allDocuments,
-            types = docTypes,
-            uploadDate = user?.kycUploadedAt
+            types = docTypes
         )
     }
 }
@@ -230,8 +225,7 @@ fun VerificationStatusScreen(
 fun DocumentPreviewDialog(
     onDismiss: () -> Unit,
     documents: List<String>,
-    types: JSONObject,
-    uploadDate: Long?
+    types: Map<String, String>
 ) {
     val context = LocalContext.current
     var selectedDoc by remember { mutableStateOf<String?>(null) }
@@ -242,7 +236,7 @@ fun DocumentPreviewDialog(
         text = {
             LazyColumn {
                 items(documents) { url ->
-                    val type = types.optString(url, if (url.contains("images")) "Image" else "Document")
+                    val type = types[url] ?: if (url.contains("images")) "Image" else "Document"
                     val isImage = url.contains("images") || type in listOf("PHOTO", "FARM_PHOTO")
                     Card(modifier = Modifier.fillMaxWidth().clickable { selectedDoc = url }.padding(8.dp)) {
                         Row(modifier = Modifier.padding(16.dp)) {
@@ -250,7 +244,6 @@ fun DocumentPreviewDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(type)
-                                Text("Uploaded: ${uploadDate?.let { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(it)) } ?: "Unknown"}")
                                 // File size metadata would require fetching file info; placeholder for now
                             }
                             Spacer(modifier = Modifier.weight(1f))
@@ -275,7 +268,7 @@ fun DocumentPreviewDialog(
     if (selectedDoc != null) {
         DocumentViewerDialog(
             url = selectedDoc!!,
-            isImage = selectedDoc!!.contains("images") || (types.optString(selectedDoc!!, "") in listOf("PHOTO", "FARM_PHOTO")),
+            isImage = selectedDoc!!.contains("images") || ((types[selectedDoc!!] ?: "") in listOf("PHOTO", "FARM_PHOTO")),
             onDismiss = { selectedDoc = null }
         )
     }
@@ -299,7 +292,12 @@ fun DocumentViewerDialog(
                     offset += offsetChange
                 }
                 AsyncImage(
-                    model = url,
+                    model = androidx.compose.ui.platform.LocalContext.current.let {
+                        coil.request.ImageRequest.Builder(it)
+                            .data(url)
+                            .crossfade(true)
+                            .build()
+                    },
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()

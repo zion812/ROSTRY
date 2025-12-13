@@ -1,141 +1,200 @@
 package com.rio.rostry.ui.verification
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import android.Manifest
-import android.annotation.SuppressLint
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
-import androidx.core.content.ContextCompat
-import androidx.core.content.PermissionChecker
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.MapView
-import com.google.android.gms.maps.MapsInitializer
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.MarkerOptions
-import com.google.android.libraries.places.api.Places
-import com.google.android.libraries.places.api.model.Place
-import com.google.android.libraries.places.widget.Autocomplete
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
-import com.rio.rostry.BuildConfig
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.rememberCoroutineScope
 import com.rio.rostry.domain.model.VerificationStatus
-import kotlinx.coroutines.launch
+import com.rio.rostry.ui.components.LocationPicker
+import com.rio.rostry.domain.model.UpgradeType
+import com.rio.rostry.BuildConfig
 
 @Composable
 fun FarmerLocationVerificationScreen(
     onDone: () -> Unit,
     viewModel: VerificationViewModel = hiltViewModel()
 ) {
-    val ui by viewModel.ui.collectAsState()
-    val latState = remember { mutableStateOf("") }
-
-    val lngState = remember { mutableStateOf("") }
-    val addressState = remember { mutableStateOf("") }
-    val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val markerState = remember { mutableStateOf<Marker?>(null) }
-
-    val farmPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { viewModel.uploadImage(it.toString(), "FARM_PHOTO") }
-    }
-
-    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { viewModel.uploadDocument(it.toString(), "LAND_OWNERSHIP") }
-    }
-
-    // Initialize Places once
-    LaunchedEffect(Unit) {
-        if (!Places.isInitialized()) {
-            Places.initialize(context.applicationContext, BuildConfig.MAPS_API_KEY)
-        }
-    }
+    val uiState by viewModel.ui.collectAsState()
+    val placesClient = viewModel.placesClient
     
-    // Permission launcher for fine location
-    val locationPermissionLauncher = rememberLauncherForActivityResult(RequestPermission()) { granted ->
-        if (granted) {
-            fetchCurrentLocation(
-                onLocation = { lat, lng ->
-                    latState.value = lat
-                    lngState.value = lng
-                },
-                onError = { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() },
-                context = context
+    // Status Logic
+    when (uiState.user?.verificationStatus) {
+        VerificationStatus.VERIFIED -> {
+            VerifiedStateScreen(onDone)
+            return
+        }
+        VerificationStatus.PENDING -> {
+            PendingStateScreen(
+                onDone = onDone, 
+                uiState = uiState,
+                onViewDetails = { /* Optional: Expand details logic if needed internally in screen */ }
+            )
+            return
+        }
+        else -> { } // Continue to Form
+    }
+
+    // Main Form Logic
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (uiState.showLocationPicker) {
+            LocationPicker(
+                placesClient = placesClient,
+                onLocationSelected = { place -> viewModel.onPlaceSelected(place) },
+                onCancel = {
+                    if (uiState.selectedPlace != null) {
+                        viewModel.changeLocation() // Close picker
+                    } else {
+                        onDone()
+                    }
+                }
             )
         } else {
-            Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()
+            ConfirmationView(
+                viewModel = viewModel,
+                uiState = uiState,
+                onDone = onDone
+            )
+        }
+
+        // Success Dialog Overlay
+        if (uiState.submissionSuccess) {
+            AlertDialog(
+                onDismissRequest = { onDone() },
+                confirmButton = { Button(onClick = { onDone() }) { Text("Done") } },
+                icon = { Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text("Submission Received") },
+                text = { Text("Your documents are under review. We will notify you once verification is complete.") }
+            )
         }
     }
-    val autocompleteLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val data = result.data
-            if (data != null) {
-                try {
-                    val place = Autocomplete.getPlaceFromIntent(data)
-                    val latLng = place.latLng
-                    if (latLng != null) {
-                        latState.value = latLng.latitude.toString()
-                        lngState.value = latLng.longitude.toString()
+}
+
+@Composable
+private fun VerifiedStateScreen(onDone: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.CheckCircle, "Verified", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp))
+            Text("Verification Complete", style = MaterialTheme.typography.headlineMedium)
+            Text("Your farm location is verified.", style = MaterialTheme.typography.bodyLarge)
+            Button(onClick = onDone) { Text("Done") }
+        }
+    }
+}
+
+@Composable
+private fun PendingStateScreen(
+    onDone: () -> Unit,
+    uiState: VerificationViewModel.UiState,
+    onViewDetails: () -> Unit
+) {
+    var showDetails by remember { mutableStateOf(false) }
+
+    if (showDetails) {
+        // Read-only view of submitted data
+         Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Submitted Details", style = MaterialTheme.typography.headlineSmall)
+            
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Location Submitted", style = MaterialTheme.typography.titleMedium)
                     }
-                    addressState.value = place.address ?: place.name.orEmpty()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Error retrieving place: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    if (uiState.user?.farmLocationLat != null) {
+                        Text("Coordinates: ${uiState.user?.farmLocationLat}, ${uiState.user?.farmLocationLng}", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
-            } else {
-                Toast.makeText(context, "No place data returned.", Toast.LENGTH_SHORT).show()
             }
-        } else {
-            if (result.resultCode == android.app.Activity.RESULT_CANCELED) {
-                Toast.makeText(context, "Place selection cancelled.", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Failed to pick location.", Toast.LENGTH_SHORT).show()
+
+            Text("Documents", style = MaterialTheme.typography.titleMedium)
+            // Show uploaded images/docs (read-only)
+             LazyColumn(
+                 modifier = Modifier.height(200.dp),
+                 verticalArrangement = Arrangement.spacedBy(8.dp)
+             ) {
+                 items(uiState.uploadedImages) { url ->
+                     UploadedItem(url = url, onDelete = {}, isImage = true, readOnly = true)
+                 }
+                 items(uiState.uploadedDocuments) { url ->
+                     UploadedItem(url = url, onDelete = {}, isImage = false, readOnly = true)
+                 }
+             }
+
+             Button(onClick = { showDetails = false }, modifier = Modifier.fillMaxWidth()) {
+                 Text("Close Details")
+             }
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(Icons.Default.HourglassEmpty, "Pending", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(64.dp))
+                Text("Verification Pending", style = MaterialTheme.typography.headlineSmall)
+                Text("Your documents are under review.", style = MaterialTheme.typography.bodyMedium)
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedButton(onClick = { showDetails = true }) { Text("View Details") }
+                    Button(onClick = onDone) { Text("Done") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfirmationView(
+    viewModel: VerificationViewModel,
+    uiState: VerificationViewModel.UiState,
+    onDone: () -> Unit
+) {
+    val context = LocalContext.current
+    val selectedPlace = uiState.selectedPlace
+    val upgradeType = uiState.upgradeType
+
+    // Track which type is being uploaded
+    var currentUploadType by remember { mutableStateOf<String?>(null) }
+    var currentUploadIsImage by remember { mutableStateOf(true) }
+
+    val contentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { 
+            try {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+            
+            if (upgradeType != null && currentUploadType != null) {
+                if (currentUploadIsImage) {
+                    viewModel.uploadImage(it.toString(), currentUploadType!!, upgradeType)
+                } else {
+                    viewModel.uploadDocument(it.toString(), currentUploadType!!, upgradeType)
+                }
             }
         }
     }
@@ -143,335 +202,243 @@ fun FarmerLocationVerificationScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.Start
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Farmer Location Verification")
-        // Status banner
-        ui.user?.let { user ->
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                when (user.verificationStatus) {
-                    VerificationStatus.PENDING -> Text("Verification in progress", modifier = Modifier.padding(16.dp))
-                    VerificationStatus.VERIFIED -> Text("Verified ✓", modifier = Modifier.padding(16.dp), color = MaterialTheme.colorScheme.primary)
-                    VerificationStatus.REJECTED -> {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Verification rejected", color = MaterialTheme.colorScheme.error)
-                            user.kycRejectionReason?.let { reason ->
-                                Text(reason, style = MaterialTheme.typography.bodySmall)
-                            }
-                            Button(onClick = {
-                                // Clear form for resubmission
-                                latState.value = ""
-                                lngState.value = ""
-                                addressState.value = ""
-                                markerState.value?.remove()
-                                markerState.value = null
-                                // Note: Clearing uploads would require a viewModel method; assuming it's handled separately
-                            }, modifier = Modifier.padding(top = 8.dp)) {
-                                Text("Resubmit Verification")
-                            }
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        }
-        Text("Enter approximate farm location (lat/lng)")
-        Text("Tap on the map to set location", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(
-            value = addressState.value,
-            onValueChange = { addressState.value = it },
-            label = { Text("Search or address (optional)") },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        )
-        Button(
-            onClick = {
-                val fields = listOf(Place.Field.ID, Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG)
-                val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields).build(context)
-                autocompleteLauncher.launch(intent)
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) {
-            Text("Pick location on Google")
-        }
-        Button(
-            onClick = {
-                val status = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-                if (status == PermissionChecker.PERMISSION_GRANTED) {
-                    fetchCurrentLocation(
-                        onLocation = { lat, lng ->
-                            latState.value = lat
-                            lngState.value = lng
-                        },
-                        onError = { msg -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() },
-                        context = context
-                    )
-                } else {
-                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) {
-            Text("Use current location")
-        }
-        OutlinedButton(onClick = {
-            latState.value = ""
-            lngState.value = ""
-            markerState.value?.remove()
-            markerState.value = null
-        }, modifier = Modifier.padding(top = 4.dp)) { Text("Clear location") }
-        // Embedded Google Map
-        AndroidView(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(240.dp)
-                .padding(top = 8.dp),
-            factory = { ctx ->
-                MapsInitializer.initialize(ctx)
-                MapView(ctx).apply {
-                    onCreate(null)
-                    getMapAsync { map ->
-                        configureMap(map, latState.value, lngState.value, markerState) { newLat, newLng ->
-                            latState.value = newLat
-                            lngState.value = newLng
-                        }
-                    }
-                    onResume()
-                }
-            },
-            update = { mapView ->
-                mapView.getMapAsync { map ->
-                    updateMapMarker(map, latState.value, lngState.value, markerState)
-                }
-            }
-        )
-        OutlinedTextField(value = latState.value, onValueChange = { latState.value = it }, label = { Text("Latitude") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-        OutlinedTextField(value = lngState.value, onValueChange = { lngState.value = it }, label = { Text("Longitude") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
         
-        Text("Upload Farm Verification Documents", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
-        Text("Upload clear photos of your farm and poultry", style = MaterialTheme.typography.bodySmall)
-        Text("Accepted formats: JPG, PNG, PDF (max 5MB per file)", style = MaterialTheme.typography.bodySmall)
-        Text("Land ownership documents help speed up verification", style = MaterialTheme.typography.bodySmall)
-        
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            OutlinedButton(
-                onClick = { farmPhotoPicker.launch("image/*") },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Upload Farm Photo")
-            }
-            OutlinedButton(
-                onClick = { documentPicker.launch("*/*") },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Upload Land Proof")
-            }
-        }
-        
-        // Upload Progress
-        ui.uploadProgress.forEach { (path, progress) ->
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(path.substringAfterLast("/"), style = MaterialTheme.typography.bodySmall)
-                    LinearProgressIndicator(progress = progress / 100f, modifier = Modifier.fillMaxWidth())
-                    Text("$progress%")
-                }
-            }
-        }
-        
-        // Uploaded Images with Thumbnails
-        if (ui.uploadedImages.isNotEmpty()) {
-            Text("Uploaded Farm Photos (${ui.uploadedImages.size})", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                items(ui.uploadedImages) { img ->
-                    Card {
-                        Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            AsyncImage(
-                                model = img,
-                                contentDescription = "Farm photo",
-                                modifier = Modifier.size(80.dp)
-                            )
-                            IconButton(onClick = { viewModel.removeUploadedFile(img, false) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            }
-                        }
-                    }
-                }
-            }
+        // Header
+        Column {
+            Text("Verification Request", style = MaterialTheme.typography.headlineSmall)
+            Text(upgradeType?.description ?: "Complete standard verification", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        // EXIF Warnings
-        if (ui.exifWarnings.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Photo location warnings", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.tertiary)
-                    ui.exifWarnings.forEach { w ->
-                        Text("• $w", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text("Tip: Take photos at your farm location to speed up verification.", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-
-        // Uploaded Documents
-        if (ui.uploadedDocuments.isNotEmpty()) {
-            Text("Uploaded Documents (${ui.uploadedDocuments.size})", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
-            ui.uploadedDocuments.forEach { doc ->
-                Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    Row(
-                        Modifier
-                            .padding(8.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(doc.substringAfterLast('/'), modifier = Modifier.weight(1f))
-                        IconButton(onClick = { viewModel.removeUploadedFile(doc, true) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
-                        }
-                    }
-                }
-            }
-        }
-
-        // Upload Error
-        ui.uploadError?.let { error ->
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Upload Error", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
-                    Text(error)
-                    Button(onClick = { viewModel.clearUploadError() }) {
-                        Text("Retry")
-                    }
-                }
-            }
-        }
-
-        // Validation errors
-        if (ui.validationErrors.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        if (upgradeType == null) {
+             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("Please fix the following:", color = MaterialTheme.colorScheme.error)
-                    ui.validationErrors.forEach { (field, msg) ->
-                        Text("• $field: $msg", color = MaterialTheme.colorScheme.error)
+                    Text("Error: Unable to determine verification type.", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                }
+            }
+        }
+
+        // Status Banner (Rejected)
+        if (uiState.user?.verificationStatus == VerificationStatus.REJECTED) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Verification Rejected", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                    uiState.user?.kycRejectionReason?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
             }
         }
 
+        // 1. Location Section
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Farm Location", style = MaterialTheme.typography.titleMedium)
+                }
+                
+                Text(selectedPlace?.name ?: "Your Location", style = MaterialTheme.typography.titleLarge)
+                Text(selectedPlace?.address ?: "Address not selected", style = MaterialTheme.typography.bodyMedium)
+                
+                OutlinedButton(
+                    onClick = { viewModel.changeLocation() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Change Location")
+                }
+            }
+        }
+
+        // 2. Photos Section
+        if (upgradeType != null && upgradeType.requiredImages.isNotEmpty()) {
+            Text("Required Photos", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    upgradeType.requiredImages.forEach { imageType ->
+                        // Check if uploaded
+                        val uploadedUrl = uiState.uploadedImages.find { url -> 
+                            uiState.uploadedImageTypes[url] == imageType 
+                        } // simplified matching based on map content from VM
+                        
+                        UploadRow(
+                            label = formatLabel(imageType),
+                            isUploaded = uploadedUrl != null,
+                            uploadUrl = uploadedUrl,
+                            onUpload = {
+                                currentUploadType = imageType
+                                currentUploadIsImage = true
+                                contentLauncher.launch(arrayOf("image/*"))
+                            },
+                            onDelete = {
+                                if (uploadedUrl != null) viewModel.removeUploadedFile(uploadedUrl, false)
+                            },
+                            isImage = true
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Documents Section
+        if (upgradeType != null && upgradeType.requiredDocuments.isNotEmpty()) {
+            Text("Required Documents", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    upgradeType.requiredDocuments.forEach { docType ->
+                        val uploadedUrl = uiState.uploadedDocuments.find { url ->
+                             uiState.uploadedDocTypes[url] == docType
+                        }
+                        
+                        UploadRow(
+                            label = formatLabel(docType),
+                            isUploaded = uploadedUrl != null,
+                            uploadUrl = uploadedUrl,
+                            onUpload = {
+                                currentUploadType = docType
+                                currentUploadIsImage = false
+                                contentLauncher.launch(arrayOf("application/pdf", "image/*"))
+                            },
+                            onDelete = {
+                                if (uploadedUrl != null) viewModel.removeUploadedFile(uploadedUrl, true)
+                            },
+                            isImage = false
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Progress Bar
+        if (uiState.uploadProgress.isNotEmpty()) {
+             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+             Text("Uploading...", style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.End))
+        }
+
+        // Errors
+        if (uiState.uploadError != null) {
+            Text(uiState.uploadError ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        if (uiState.error != null) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
+                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                     Icon(Icons.Default.Error, null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                     Spacer(Modifier.width(8.dp))
+                     Text(uiState.error ?: "", color = MaterialTheme.colorScheme.onErrorContainer)
+                 }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Submit Button
         Button(
-            onClick = {
-                val lat = latState.value.toDoubleOrNull()
-                val lng = lngState.value.toDoubleOrNull()
-                if (lat != null && lng != null && ui.uploadedImages.isNotEmpty()) {
-                    viewModel.submitKycWithDocuments(passedLat = lat, passedLng = lng)
+            onClick = { 
+                if (upgradeType != null) {
+                    viewModel.submitKycWithDocuments(upgradeType) 
                 }
             },
-            enabled = !ui.isSubmitting && latState.value.toDoubleOrNull() != null && lngState.value.toDoubleOrNull() != null && ui.uploadedImages.isNotEmpty() && ui.user?.verificationStatus != VerificationStatus.VERIFIED,
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            enabled = !uiState.isSubmitting && upgradeType != null && isAllRequiredUploaded(upgradeType, uiState),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            if (ui.isSubmitting) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                Text("  Submitting...")
+            if (uiState.isSubmitting) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                Spacer(Modifier.width(8.dp))
+                Text("Submitting...")
             } else {
-                Text("Submit Location & Documents")
+                Text("Submit Verification")
             }
         }
-        if (ui.user?.verificationStatus == VerificationStatus.VERIFIED) {
-            Text(
-                "Your account is already verified",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        } else if (latState.value.toDoubleOrNull() == null || lngState.value.toDoubleOrNull() == null || ui.uploadedImages.isEmpty()) {
-            Text(
-                "Please set location and upload at least one farm photo for verification",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-        ui.error?.let { Text("Error: ${'$'}it", modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.error) }
-        ui.message?.let { Text(it, modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.primary) }
-
-        // Success dialog & navigation
-        if (ui.submissionSuccess) {
-            AlertDialog(
-                onDismissRequest = { onDone() },
-                confirmButton = {
-                    Button(onClick = { onDone() }) { Text("OK") }
-                },
-                title = { Text("Submission received") },
-                text = { Text("Your verification documents have been submitted.\nWe'll review them within 24-48 hours.\nYou'll receive a notification when verification is complete.\nOnce verified, you can list products and initiate transfers.") }
-            )
-        }
+        
+        Spacer(Modifier.height(32.dp))
     }
 }
 
+// Helper to check if all requirements met locally for button enable state
+private fun isAllRequiredUploaded(type: UpgradeType, state: VerificationViewModel.UiState): Boolean {
+    val imagesOk = type.requiredImages.all { req -> state.uploadedImages.any { state.uploadedImageTypes[it] == req } }
+    val docsOk = type.requiredDocuments.all { req -> state.uploadedDocuments.any { state.uploadedDocTypes[it] == req } }
+    return imagesOk && docsOk
+}
 
-@SuppressLint("MissingPermission")
-private fun fetchCurrentLocation(
-    onLocation: (lat: String, lng: String) -> Unit,
-    onError: (String) -> Unit,
-    context: android.content.Context
+private fun formatLabel(type: String): String {
+    return type.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+}
+
+@Composable
+fun UploadRow(
+    label: String,
+    isUploaded: Boolean,
+    uploadUrl: String?,
+    onUpload: () -> Unit,
+    onDelete: () -> Unit,
+    isImage: Boolean
 ) {
-    try {
-        val client = LocationServices.getFusedLocationProviderClient(context)
-        client.lastLocation
-            .addOnSuccessListener { loc ->
-                if (loc != null) {
-                    onLocation(loc.latitude.toString(), loc.longitude.toString())
-                } else {
-                    client.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
-                        .addOnSuccessListener { cur ->
-                            if (cur != null) onLocation(cur.latitude.toString(), cur.longitude.toString())
-                            else onError("Unable to get current location")
-                        }
-                        .addOnFailureListener { onError(it.message ?: "Location error") }
-                }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            if (isUploaded) {
+                Text("✓ Uploaded", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            } else {
+                Text("Required", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
-            .addOnFailureListener { onError(it.message ?: "Location error") }
-    } catch (t: Throwable) {
-        onError(t.message ?: "Location error")
+        }
+        
+        if (isUploaded && uploadUrl != null) {
+            UploadedItem(url = uploadUrl, onDelete = onDelete, isImage = isImage)
+        } else {
+            OutlinedButton(onClick = onUpload, shape = RoundedCornerShape(8.dp)) {
+                Icon(Icons.Default.Upload, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Upload")
+            }
+        }
     }
 }
 
-private fun configureMap(
-    map: GoogleMap,
-    lat: String,
-    lng: String,
-    markerState: androidx.compose.runtime.MutableState<Marker?>,
-    onPick: (lat: String, lng: String) -> Unit
-) {
-    map.uiSettings.isZoomControlsEnabled = true
-    map.uiSettings.isMyLocationButtonEnabled = true
-    try {
-        map.isMyLocationEnabled = true
-    } catch (_: SecurityException) { /* ignore if not granted */ }
+@Composable
+fun UploadedItem(url: String, onDelete: () -> Unit, isImage: Boolean, readOnly: Boolean = false) {
+    var imageLoadError by remember { mutableStateOf(false) }
 
-    map.setOnMapClickListener { ll ->
-        onPick(ll.latitude.toString(), ll.longitude.toString())
-        updateMapMarker(map, ll.latitude.toString(), ll.longitude.toString(), markerState)
+    Box(modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+        if (isImage) {
+             if (!imageLoadError) {
+                AsyncImage(
+                    model = LocalContext.current.let {
+                        coil.request.ImageRequest.Builder(it)
+                            .data(url)
+                            .crossfade(true)
+                            .build()
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    onError = { imageLoadError = true },
+                    onSuccess = { imageLoadError = false }
+                )
+             } else {
+                 Icon(Icons.Default.Image, "Image error", modifier = Modifier.align(Alignment.Center), tint = MaterialTheme.colorScheme.error)
+             }
+        } else {
+            Icon(Icons.Default.Description, null, modifier = Modifier.align(Alignment.Center))
+        }
+        
+        if (!readOnly) {
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.align(Alignment.TopEnd).size(20.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(12.dp))
+            }
+        }
     }
-
-    updateMapMarker(map, lat, lng, markerState)
 }
-
-private fun updateMapMarker(
-    map: GoogleMap,
-    lat: String,
-    lng: String,
-    markerState: androidx.compose.runtime.MutableState<Marker?>
-) {
-    val dLat = lat.toDoubleOrNull()
-    val dLng = lng.toDoubleOrNull()
-    if (dLat != null && dLng != null) {
-        val pos = LatLng(dLat, dLng)
-        markerState.value?.remove()
-        markerState.value = map.addMarker(MarkerOptions().position(pos).title("Selected location"))
-        map.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
-    }
-}
-

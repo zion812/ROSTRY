@@ -11,13 +11,104 @@
   - EXIF GPS within 500m of claimed location (warning if mismatch)
   - Photo recency (warn if > 30 days)
 - **Review:** Admin confirms location on map, inspects photos/docs.
-- **Benefits:** Enables farmer features and listings.
+- **Benefits:** Enables market listing creation. Other farmer features (breeding, monitoring, transfers, lineage) are available during PENDING status.
 
 ## Enthusiast KYC
 - **Requirements:** Government ID (Aadhaar/PAN/DL/Passport), selfie, address proof.
 - **Validation:** Format/size checks, presence of required categories.
 - **Review:** Admin verifies ID authenticity, address proof, and selfie.
-- **Benefits:** Unlocks higher-value purchases and features.
+- **Benefits:** Enables market listing creation. Other enthusiast features are available during PENDING status.
+
+## Feature Access by Verification Status
+- **UNVERIFIED:** No farmer/enthusiast features
+- **PENDING:** All farmer/enthusiast features including local farm management (bird onboarding, batch creation, daily logging, vaccination tracking, breeding records, growth monitoring, etc.) but EXCEPT public market listing creation
+  - Can add birds/batches locally with status="private"
+  - Cannot create public market listings (products with status="active" or other public statuses)
+- **VERIFIED:** All features including both local farm management and public market listings
+- **REJECTED:** Same as UNVERIFIED (can resubmit verification)
+
+## Product Status Values and Lifecycle
+
+### Private vs Public Products
+- **Private Products** (`status="private"`):
+  - For local farm management only
+  - Not visible in the public marketplace
+  - Can be created by PENDING farmers
+  - Used for tracking birds, batches, breeding records, etc.
+
+- **Public Products** (any status except "private"):
+  - Listed in the public marketplace
+  - Visible to all users
+  - Require VERIFIED status to create or transition to
+  - Examples: "available", "active", "reserved", "sold", etc.
+
+### Status Lifecycle
+1. Bird added locally: `status="private"`
+2. Farmer gets verified: Can transition to `status="available"`
+3. Product listed to market: `status="active"` or `status="available"`
+4. Product sold: `status="sold"`
+
+### Status Transition Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> private: Bird added\n(PENDING farmer)
+    private --> private: Updates\n(any farmer)
+    private --> available: List to market\n(VERIFIED only)
+    private --> active: List to market\n(VERIFIED only)
+    available --> sold: Order completed
+    active --> sold: Order completed
+    sold --> [*]: Archived
+
+    note right of private
+        Local farm management
+        No verification required
+    end note
+
+    note right of available
+        Public marketplace
+        Requires VERIFIED status
+    end note
+```
+
+### Code Example
+```kotlin
+// PENDING farmer adding a bird locally
+val bird = ProductEntity(
+    productId = UUID.randomUUID().toString(),
+    sellerId = currentUserId,
+    name = "My Chicken",
+    status = "private",  // Key: private status for local management
+    category = "BIRD",
+    // ... other fields
+)
+productRepository.addProduct(bird)  // ✅ Allowed for PENDING farmers
+```
+
+### ⚠️ Important: Status Transitions
+Updating a product from `status="private"` to any public status (e.g., "available", "active") requires VERIFIED status. The system enforces this in both `addProduct()` and `updateProduct()` methods.
+
+### Status Value Reference
+
+| Status | Visibility | Verification Required | Description |
+|--------|------------|----------------------|-------------|
+| `private` | Local only | No | For farm management and tracking |
+| `available` | Public | Yes | Listed in marketplace, ready for purchase |
+| `active` | Public | Yes | Listed and actively promoted |
+| `reserved` | Public | Yes | Temporarily held for a buyer |
+| `sold` | Public | Yes | Transaction completed |
+
+### Edge Cases & Special Scenarios
+
+- **Verification revoked**: If a farmer's verification is revoked after creating public listings, existing listings remain visible but cannot be updated to other public statuses. They can only be updated to "private" or deleted.
+- **Mid-transaction status**: Products involved in active orders cannot have their status changed until the order is completed or cancelled.
+- **Concurrent updates**: The system uses optimistic locking (dirty flag + lastModifiedAt) to handle concurrent updates. Last write wins.
+
+### Status Troubleshooting
+
+- **"Complete KYC verification" error when adding bird**: Ensure you're using the bird onboarding flow (not marketplace listing). Birds should be created with `status="private"`.
+- **Cannot update bird to "available"**: Verify your farm location first. Go to Profile → Verification.
+- **Bird stuck in "private" status**: This is normal for PENDING farmers. Complete verification to list to marketplace.
 
 ## Technical Architecture
 - **Flow:** UI (Compose) → `VerificationViewModel` → `VerificationValidationService` → `MediaUploadManager` → `FirebaseStorageUploader` → Firebase Storage → `UserRepository` → Firestore.

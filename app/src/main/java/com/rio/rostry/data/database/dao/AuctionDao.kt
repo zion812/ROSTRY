@@ -19,6 +19,9 @@ interface AuctionDao {
     @Query("SELECT * FROM auctions WHERE auctionId = :id")
     fun observeById(id: String): Flow<AuctionEntity?>
 
+    @Query("SELECT * FROM auctions WHERE auctionId = :id LIMIT 1")
+    suspend fun findById(id: String): AuctionEntity?
+
     @Query("SELECT * FROM auctions WHERE isActive = 1 AND startsAt <= :now AND endsAt >= :now")
     fun activeAuctions(now: Long = System.currentTimeMillis()): Flow<List<AuctionEntity>>
 

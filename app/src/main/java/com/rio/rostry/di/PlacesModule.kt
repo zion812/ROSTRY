@@ -25,6 +25,13 @@ object PlacesModule {
     fun providePlacesInitializer(@ApplicationContext context: Context): PlacesInitializer {
         return PlacesInitializer(context)
     }
+
+    @Provides
+    @Singleton
+    fun providePlacesClient(@ApplicationContext context: Context, initializer: PlacesInitializer): com.google.android.libraries.places.api.net.PlacesClient {
+        initializer.initialize()
+        return Places.createClient(context)
+    }
 }
 
 /**

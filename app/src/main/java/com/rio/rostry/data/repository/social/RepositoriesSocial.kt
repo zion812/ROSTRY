@@ -34,9 +34,21 @@ data class EngagementMetrics(
 interface SocialRepository {
     fun feed(pageSize: Int = 20): Flow<PagingData<PostEntity>>
     fun feedRanked(pageSize: Int = 20): Flow<PagingData<PostEntity>>
-    suspend fun createPost(authorId: String, type: String, text: String?, mediaUrl: String?, thumbnailUrl: String?, productId: String?): String
+    fun getUserPosts(userId: String, pageSize: Int = 20): Flow<PagingData<PostEntity>>
+    suspend fun createPost(
+        authorId: String,
+        type: String,
+        text: String?,
+        mediaUrl: String?,
+        thumbnailUrl: String?,
+        productId: String?,
+        hashtags: List<String>? = null,
+        mentions: List<String>? = null,
+        parentPostId: String? = null
+    ): String
     suspend fun createPostWithMedia(authorId: String, type: String, text: String?, mediaUri: Uri, isVideo: Boolean): String
     fun streamComments(postId: String): Flow<List<CommentEntity>>
+    fun getReplies(postId: String): Flow<List<PostEntity>>
     suspend fun addComment(postId: String, authorId: String, text: String)
     fun countLikes(postId: String): Flow<Int>
     suspend fun like(postId: String, userId: String)
@@ -48,6 +60,13 @@ interface SocialRepository {
     suspend fun getTrendingPosts(limit: Int, daysBack: Int): List<PostEntity>
     suspend fun getTrendingHashtags(limit: Int, daysBack: Int): List<String>
     suspend fun trackPostView(postId: String, userId: String, durationSeconds: Int)
+    
+    // Stories
+    suspend fun createStory(authorId: String, mediaUri: Uri, isVideo: Boolean): String
+    fun streamActiveStories(): Flow<List<StoryEntity>>
+    
+    // Reputation
+    fun getReputation(userId: String): Flow<ReputationEntity?>
 }
 
 @Singleton
@@ -55,6 +74,7 @@ class SocialRepositoryImpl @Inject constructor(
     private val postsDao: PostsDao,
     private val commentsDao: CommentsDao,
     private val likesDao: LikesDao,
+    private val storiesDao: StoriesDao,
     private val reputationDao: ReputationDao,
     private val badgesDao: BadgesDao,
     private val storage: FirebaseStorage,
@@ -82,7 +102,20 @@ class SocialRepositoryImpl @Inject constructor(
     override fun feedRanked(pageSize: Int): Flow<PagingData<PostEntity>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingRanked() }.flow
 
-    override suspend fun createPost(authorId: String, type: String, text: String?, mediaUrl: String?, thumbnailUrl: String?, productId: String?): String {
+    override fun getUserPosts(userId: String, pageSize: Int): Flow<PagingData<PostEntity>> =
+        Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingByAuthor(userId) }.flow
+
+    override suspend fun createPost(
+        authorId: String,
+        type: String,
+        text: String?,
+        mediaUrl: String?,
+        thumbnailUrl: String?,
+        productId: String?,
+        hashtags: List<String>?,
+        mentions: List<String>?,
+        parentPostId: String?
+    ): String {
         checkRateLimit("post", authorId, 5_000)
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
@@ -95,6 +128,9 @@ class SocialRepositoryImpl @Inject constructor(
                 mediaUrl = mediaUrl,
                 thumbnailUrl = thumbnailUrl,
                 productId = productId,
+                hashtags = hashtags,
+                mentions = mentions,
+                parentPostId = parentPostId,
                 createdAt = now,
                 updatedAt = now
             )
@@ -111,10 +147,12 @@ class SocialRepositoryImpl @Inject constructor(
 
     override suspend fun createPostWithMedia(authorId: String, type: String, text: String?, mediaUri: Uri, isVideo: Boolean): String {
         val url = if (isVideo) MediaUploader.uploadVideo(appContext, storage, mediaUri) else MediaUploader.uploadImage(appContext, storage, mediaUri)
-        return createPost(authorId, type, text, mediaUrl = url, thumbnailUrl = null, productId = null)
+        return createPost(authorId, type, text, mediaUrl = url, thumbnailUrl = null, productId = null, hashtags = null, mentions = null, parentPostId = null)
     }
 
     override fun streamComments(postId: String): Flow<List<CommentEntity>> = commentsDao.streamByPost(postId)
+
+    override fun getReplies(postId: String): Flow<List<PostEntity>> = postsDao.getReplies(postId)
 
     override suspend fun addComment(postId: String, authorId: String, text: String) {
         checkRateLimit("comment", authorId, 2_000)
@@ -132,27 +170,29 @@ class SocialRepositoryImpl @Inject constructor(
         reputationDao.upsert(ReputationEntity(rep?.repId ?: UUID.randomUUID().toString(), authorId, (rep?.score ?: 0) + 1, System.currentTimeMillis()))
     }
 
-    override fun countLikes(postId: String): Flow<Int> = likesDao.count(postId)
+    override fun countLikes(postId: String): Flow<Int> = likesDao.countLikes(postId)
 
     override suspend fun like(postId: String, userId: String) {
         checkRateLimit("like", userId, 500)
-        likesDao.upsert(
-            LikeEntity(
-                likeId = UUID.randomUUID().toString(),
-                postId = postId,
-                userId = userId,
-                createdAt = System.currentTimeMillis()
+        if (!likesDao.isLikedSuspend(postId, userId)) {
+            likesDao.insert(
+                LikeEntity(
+                    likeId = UUID.randomUUID().toString(),
+                    postId = postId,
+                    userId = userId,
+                    createdAt = System.currentTimeMillis()
+                )
             )
-        )
+        }
         // Reputation: +1 for like given; and +2 for post author (if needed, fetch and update)
     }
 
     override suspend fun unlike(postId: String, userId: String) {
-        likesDao.unlike(postId, userId)
+        likesDao.delete(postId, userId)
     }
 
     override suspend fun getEngagementMetrics(postId: String): EngagementMetrics {
-        val likeCount = likesDao.count(postId).first()
+        val likeCount = likesDao.countLikes(postId).first()
         val comments = commentsDao.streamByPost(postId).first()
         val commentCount = comments.size
         val shareCount = (postId.hashCode().toInt().coerceAtLeast(0) % 20) // Mock share count
@@ -204,6 +244,38 @@ class SocialRepositoryImpl @Inject constructor(
         // In a real implementation, this would store view analytics
         // For now, we can log it or store in a separate analytics table
     }
+
+    // Stories implementation
+    override suspend fun createStory(authorId: String, mediaUri: Uri, isVideo: Boolean): String {
+        checkRateLimit("story", authorId, 10_000)
+        val url = if (isVideo) MediaUploader.uploadVideo(appContext, storage, mediaUri) else MediaUploader.uploadImage(appContext, storage, mediaUri)
+        val id = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val expiresAt = now + 24 * 60 * 60 * 1000 // 24 hours
+        
+        storiesDao.upsert(
+            StoryEntity(
+                storyId = id,
+                authorId = authorId,
+                mediaUrl = url,
+                createdAt = now,
+                expiresAt = expiresAt
+            )
+        )
+        return id
+    }
+
+    override fun streamActiveStories(): Flow<List<StoryEntity>> {
+        return storiesDao.streamActive(System.currentTimeMillis())
+    }
+
+    override fun getReputation(userId: String): Flow<ReputationEntity?> = callbackFlow {
+        // Simple polling or one-shot for now since DAO doesn't return Flow for getByUserId
+        // Actually, let's change DAO to return Flow or just emit once here
+        val rep = reputationDao.getByUserId(userId)
+        trySend(rep)
+        close()
+    }
 }
 
 // Messaging (Firebase Realtime Database)
@@ -218,13 +290,23 @@ interface MessagingRepository {
     fun streamUserThreads(userId: String): Flow<List<String>>
     fun streamUnreadCount(userId: String): Flow<Int>
     
+    suspend fun sendOffer(threadId: String, fromUserId: String, toUserId: String, price: Double, quantity: Double, unit: String)
+    
     // Context-aware messaging enhancements
     suspend fun createThreadWithContext(fromUserId: String, toUserId: String, context: ThreadContext): String
     suspend fun updateThreadMetadata(threadId: String, title: String?, lastMessageAt: Long)
     fun streamThreadMetadata(threadId: String): Flow<ThreadMetadata?>
     fun streamUserThreadsWithMetadata(userId: String): Flow<List<ThreadWithMetadata>>
     
-    data class MessageDTO(val messageId: String, val fromUserId: String, val toUserId: String?, val text: String, val timestamp: Long)
+    data class MessageDTO(
+        val messageId: String, 
+        val fromUserId: String, 
+        val toUserId: String?, 
+        val text: String, 
+        val timestamp: Long,
+        val type: String = "TEXT",
+        val metadata: String? = null
+    )
     data class ThreadContext(val type: String, val relatedEntityId: String?, val topic: String?)
     data class ThreadMetadata(val threadId: String, val title: String?, val context: ThreadContext?, val participantIds: List<String>, val lastMessageAt: Long)
     data class ThreadWithMetadata(val threadId: String, val metadata: ThreadMetadata?, val lastMessage: MessageDTO?, val unreadCount: Int)
@@ -258,7 +340,9 @@ class MessagingRepositoryImpl @Inject constructor(
                     val to = c.child("toUserId").getValue(String::class.java)
                     val text = c.child("text").getValue(String::class.java) ?: return@mapNotNull null
                     val ts = c.child("timestamp").getValue(Long::class.java) ?: 0L
-                    MessagingRepository.MessageDTO(id, from, to, text, ts)
+                    val type = c.child("type").getValue(String::class.java) ?: "TEXT"
+                    val metadata = c.child("metadata").getValue(String::class.java)
+                    MessagingRepository.MessageDTO(id, from, to, text, ts, type, metadata)
                 }.sortedBy { it.timestamp }
                 trySend(messages)
             }
@@ -272,6 +356,21 @@ class MessagingRepositoryImpl @Inject constructor(
 
     override suspend fun markThreadSeen(threadId: String, userId: String) {
         firebaseDb.getReference("dm_meta/$threadId/seen/$userId").setValue(true)
+    }
+
+    override suspend fun sendOffer(threadId: String, fromUserId: String, toUserId: String, price: Double, quantity: Double, unit: String) {
+        val msgId = UUID.randomUUID().toString()
+        val metadata = "{\"price\": $price, \"quantity\": $quantity, \"unit\": \"$unit\"}"
+        val data = mapOf(
+            "messageId" to msgId,
+            "fromUserId" to fromUserId,
+            "toUserId" to toUserId,
+            "text" to "Offer: ₹$price for $quantity $unit",
+            "type" to "OFFER",
+            "metadata" to metadata,
+            "timestamp" to System.currentTimeMillis()
+        )
+        firebaseDb.getReference("dm/$threadId/$msgId").setValue(data)
     }
 
     override suspend fun sendGroupMessage(groupId: String, fromUserId: String, text: String) {

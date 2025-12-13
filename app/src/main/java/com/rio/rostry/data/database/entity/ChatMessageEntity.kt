@@ -45,5 +45,9 @@ data class ChatMessageEntity(
     val deletedAt: Long? = null,
     val dirty: Boolean = false,
     val syncedAt: Long? = null,
-    val deviceTimestamp: Long = System.currentTimeMillis()
+    val deviceTimestamp: Long = System.currentTimeMillis(),
+    
+    // Rich messaging support
+    val type: String = "TEXT", // "TEXT", "OFFER", "BILL", "ORDER_REQUEST"
+    val metadata: String? = null // JSON payload for offer details, bill amount, etc.
 )

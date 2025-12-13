@@ -3,6 +3,8 @@ package com.rio.rostry.data.sync
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.firestore.QuerySnapshot
 import com.rio.rostry.data.database.entity.ChatMessageEntity
 import com.rio.rostry.data.database.entity.OrderEntity
 import com.rio.rostry.data.database.entity.ProductEntity
@@ -25,6 +27,7 @@ import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import javax.inject.Inject
@@ -35,10 +38,10 @@ import javax.inject.Singleton
  */
 interface SyncRemote {
     suspend fun fetchUpdatedProducts(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.ProductEntity>
-    suspend fun fetchUpdatedOrders(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.OrderEntity>
-    suspend fun fetchUpdatedTransfers(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.TransferEntity>
-    suspend fun fetchUpdatedTrackings(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.ProductTrackingEntity>
-    suspend fun fetchUpdatedChats(since: Long, limit: Int = 1000): List<com.rio.rostry.data.database.entity.ChatMessageEntity>
+    suspend fun fetchUpdatedOrders(userId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.OrderEntity>
+    suspend fun fetchUpdatedTransfers(userId: String?, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.TransferEntity>
+    suspend fun fetchUpdatedTrackings(userId: String?, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.ProductTrackingEntity>
+    suspend fun fetchUpdatedChats(userId: String?, since: Long, limit: Int = 1000): List<com.rio.rostry.data.database.entity.ChatMessageEntity>
     suspend fun pushProducts(entities: List<com.rio.rostry.data.database.entity.ProductEntity>): Int
     suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int = 1000): List<com.rio.rostry.data.database.entity.DailyLogEntity>
     suspend fun pushDailyLogs(farmerId: String, entities: List<com.rio.rostry.data.database.entity.DailyLogEntity>): Int
@@ -114,52 +117,134 @@ class FirestoreService @Inject constructor(
         emptyList()
     }
 
-    override suspend fun fetchUpdatedOrders(since: Long, limit: Int): List<OrderEntity> = try {
+    override suspend fun fetchUpdatedOrders(userId: String, since: Long, limit: Int): List<OrderEntity> = try {
         withTimeout(READ_TIMEOUT_MS) {
-            orders.whereGreaterThan("updatedAt", since)
+            // Firestore rules require filtering by buyerId or sellerId.
+            // We must perform two queries and merge them because OR queries with inequality filters are restricted.
+            // Actually, we can't do OR with inequality on different fields easily.
+            // But we can do two separate queries.
+            
+            val buyerQueryTask = orders
+                .whereEqualTo("buyerId", userId)
+                .whereGreaterThan("updatedAt", since)
                 .orderBy("updatedAt", Query.Direction.ASCENDING)
                 .limit(limit.toLong())
-                .get().await()
-                .documents.mapNotNull { it.toObject(OrderEntity::class.java) }
+                .get()
+
+            val sellerQueryTask = orders
+                .whereEqualTo("sellerId", userId)
+                .whereGreaterThan("updatedAt", since)
+                .orderBy("updatedAt", Query.Direction.ASCENDING)
+                .limit(limit.toLong())
+                .get()
+
+            val buyerSnapshot = buyerQueryTask.await()
+            val sellerSnapshot = sellerQueryTask.await()
+            
+            val buyerOrders = buyerSnapshot.documents.mapNotNull { it.toObject(OrderEntity::class.java) }
+            val sellerOrders = sellerSnapshot.documents.mapNotNull { it.toObject(OrderEntity::class.java) }
+            
+            (buyerOrders + sellerOrders).distinctBy { it.orderId }
         }
     } catch (e: TimeoutCancellationException) {
         Timber.e(e, "Timeout fetching orders since=$since")
         emptyList()
     }
 
-    override suspend fun fetchUpdatedTransfers(since: Long, limit: Int): List<TransferEntity> = try {
+    override suspend fun fetchUpdatedTransfers(userId: String?, since: Long, limit: Int): List<TransferEntity> = try {
         withTimeout(READ_TIMEOUT_MS) {
-            transfers.whereGreaterThan("updatedAt", since)
-                .orderBy("updatedAt", Query.Direction.ASCENDING)
-                .limit(limit.toLong())
-                .get().await()
-                .documents.mapNotNull { it.toObject(TransferEntity::class.java) }
+            if (userId != null) {
+                val senderQuery = transfers.whereEqualTo("senderId", userId)
+                    .whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get()
+                val receiverQuery = transfers.whereEqualTo("receiverId", userId)
+                    .whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get()
+                val tasks = Tasks.whenAllSuccess<QuerySnapshot>(senderQuery, receiverQuery)
+                val results = tasks.await()
+                val senderSnap = results[0]
+                val receiverSnap = results[1]
+                val senderDocs = senderSnap.documents.mapNotNull { it.toObject(TransferEntity::class.java) }
+                val receiverDocs = receiverSnap.documents.mapNotNull { it.toObject(TransferEntity::class.java) }
+                (senderDocs + receiverDocs).distinctBy { it.transferId }
+            } else {
+                 transfers.whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get().await()
+                    .documents.mapNotNull { it.toObject(TransferEntity::class.java) }
+            }
         }
     } catch (e: TimeoutCancellationException) {
         Timber.e(e, "Timeout fetching transfers since=$since")
         emptyList()
     }
 
-    override suspend fun fetchUpdatedTrackings(since: Long, limit: Int): List<ProductTrackingEntity> = try {
+    override suspend fun fetchUpdatedTrackings(userId: String?, since: Long, limit: Int): List<ProductTrackingEntity> = try {
         withTimeout(READ_TIMEOUT_MS) {
-            trackings.whereGreaterThan("updatedAt", since)
-                .orderBy("updatedAt", Query.Direction.ASCENDING)
-                .limit(limit.toLong())
-                .get().await()
-                .documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+            if (userId != null) {
+                val buyerQuery = trackings.whereEqualTo("buyerId", userId)
+                    .whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get()
+                val sellerQuery = trackings.whereEqualTo("sellerId", userId)
+                    .whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get()
+                
+                val tasks = Tasks.whenAllSuccess<QuerySnapshot>(buyerQuery, sellerQuery)
+                val results = tasks.await()
+                val buyerSnap = results[0]
+                val sellerSnap = results[1]
+                val buyerDocs = buyerSnap.documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+                val sellerDocs = sellerSnap.documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+                (buyerDocs + sellerDocs).distinctBy { it.trackingId }
+            } else {
+                trackings.whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get().await()
+                    .documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+            }
         }
     } catch (e: TimeoutCancellationException) {
         Timber.e(e, "Timeout fetching trackings since=$since")
         emptyList()
     }
 
-    override suspend fun fetchUpdatedChats(since: Long, limit: Int): List<ChatMessageEntity> = try {
+    override suspend fun fetchUpdatedChats(userId: String?, since: Long, limit: Int): List<ChatMessageEntity> = try {
         withTimeout(READ_TIMEOUT_MS) {
-            chats.whereGreaterThan("updatedAt", since)
-                .orderBy("updatedAt", Query.Direction.ASCENDING)
-                .limit(limit.toLong())
-                .get().await()
-                .documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
+            if (userId != null) {
+                val senderQuery = chats.whereEqualTo("senderId", userId)
+                    .whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get()
+                val receiverQuery = chats.whereEqualTo("receiverId", userId)
+                    .whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get()
+                val tasks = Tasks.whenAllSuccess<QuerySnapshot>(senderQuery, receiverQuery)
+                val results = tasks.await()
+                val senderSnap = results[0]
+                val receiverSnap = results[1]
+                val senderDocs = senderSnap.documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
+                val receiverDocs = receiverSnap.documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
+                (senderDocs + receiverDocs).distinctBy { it.messageId }
+            } else {
+                chats.whereGreaterThan("updatedAt", since)
+                    .orderBy("updatedAt", Query.Direction.ASCENDING)
+                    .limit(limit.toLong())
+                    .get().await()
+                    .documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
+            }
         }
     } catch (e: TimeoutCancellationException) {
         Timber.e(e, "Timeout fetching chats since=$since")

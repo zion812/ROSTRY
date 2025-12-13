@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rio.rostry.data.database.AppDatabase
+import com.rio.rostry.data.database.entity.FamilyTreeEntity
 import com.rio.rostry.data.database.entity.TransferVerificationEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.TransferWorkflowRepositoryImpl
@@ -95,6 +96,17 @@ class GpsVerificationTest {
         override fun observeKycStatus(userId: String) = flowOf(true)
         override fun observeComplianceAlertsCount(farmerId: String) = flowOf(0)
         override fun observeEligibleProductsCount(farmerId: String) = flowOf(0)
+
+        override suspend fun getFamilyTree(familyTreeId: String): Resource<FamilyTreeEntity> =
+            Resource.Success(
+                FamilyTreeEntity(
+                    nodeId = familyTreeId,
+                    productId = "test-product",
+                    parentProductId = null,
+                    childProductId = null,
+                    relationType = "parent"
+                )
+            )
     }
 
     @Before
@@ -113,10 +125,6 @@ class GpsVerificationTest {
         val buyer = "b1"
 
         val productValidator = com.rio.rostry.marketplace.validation.ProductValidator(
-            traceabilityRepository = FakeTraceabilityRepo(),
-            vaccinationDao = db.vaccinationRecordDao(),
-            growthDao = db.growthRecordDao(),
-            dailyLogDao = db.dailyLogDao(),
             quarantineDao = db.quarantineRecordDao()
         )
         val rbacGuard = mock(RbacGuard::class.java).also {
@@ -146,7 +154,6 @@ class GpsVerificationTest {
             productDao = db.productDao(),
             quarantineDao = db.quarantineRecordDao(),
             rbacGuard = rbacGuard,
-            userRepository = userRepository,
             currentUserProvider = currentUserProvider
         )
 
@@ -179,7 +186,7 @@ class GpsVerificationTest {
             gpsExplanation = null
         )
         require(farRes is Resource.Success)
-        val verifications1: List<TransferVerificationEntity> = db.transferVerificationDao().getByTransfer(transferId)
+        val verifications1: List<TransferVerificationEntity> = db.transferVerificationDao().getByTransferId(transferId)
         val last1 = verifications1.last()
         assertEquals("REJECTED", last1.status)
         assertTrue(last1.notes?.contains("gpsExplanation=") != true)
@@ -197,7 +204,7 @@ class GpsVerificationTest {
             gpsExplanation = "Traffic diversion, police checkpoint"
         )
         require(farExplainRes is Resource.Success)
-        val verifications2: List<TransferVerificationEntity> = db.transferVerificationDao().getByTransfer(transferId)
+        val verifications2: List<TransferVerificationEntity> = db.transferVerificationDao().getByTransferId(transferId)
         val last2 = verifications2.last()
         assertEquals("REJECTED", last2.status)
         assertNotNull(last2.notes)

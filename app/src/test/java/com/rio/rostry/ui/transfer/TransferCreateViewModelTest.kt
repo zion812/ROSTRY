@@ -48,7 +48,7 @@ class TransferCreateViewModelTest {
         coEvery { workflow.validateTransferEligibility(any(), any(), any()) } returns Resource.Success(Unit)
         val validator = mockk<ProductValidator>()
         coEvery { validator.checkQuarantineStatus(any()) } returns validatorQuarantine
-        coEvery { validator.validateWithTraceability(any(), any(), any()) } returns ProductValidator.ValidationResult(validatorValid, if (validatorValid) emptyList() else listOf("outdated"))
+        coEvery { validator.validateWithTraceability(any(), any()) } returns ProductValidator.ValidationResult(validatorValid, if (validatorValid) emptyList() else listOf("outdated"))
         val quarantineDao = mockk<QuarantineRecordDao>(relaxed = true)
         val connectivity = mockk<ConnectivityManager>()
         every { connectivity.isOnline() } returns isOnline

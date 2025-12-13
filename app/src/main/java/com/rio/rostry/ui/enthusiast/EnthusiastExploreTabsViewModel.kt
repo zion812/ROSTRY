@@ -6,9 +6,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.data.database.dao.PostsDao
 import com.rio.rostry.data.database.dao.EventsDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
-import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.database.dao.LikesDao
 import com.rio.rostry.data.database.dao.CommentsDao
+import com.rio.rostry.utils.Resource
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.EventRsvpEntity
@@ -28,7 +29,7 @@ import java.util.UUID
 
 @HiltViewModel
 class EnthusiastExploreTabsViewModel @Inject constructor(
-    private val productsDao: ProductDao,
+    private val productRepository: ProductRepository,
     private val eventsDao: EventsDao,
     private val rsvpsDao: EventRsvpsDao,
     private val postsDao: PostsDao,
@@ -71,7 +72,10 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
     }
 
     private suspend fun loadProducts() {
-        val products = productsDao.getAllProducts().first().take(50) // limit for demo
+        val products = when (val result = productRepository.getAllProducts().first()) {
+            is com.rio.rostry.utils.Resource.Success -> result.data?.take(50) ?: emptyList()
+            else -> emptyList()
+        }
         _state.value = _state.value.copy(products = products, loading = false)
     }
 
@@ -156,7 +160,7 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             try {
-                likesDao.upsert(
+                likesDao.insert(
                     LikeEntity(
                         likeId = UUID.randomUUID().toString(),
                         postId = postId,

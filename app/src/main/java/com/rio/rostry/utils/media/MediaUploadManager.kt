@@ -4,6 +4,7 @@ import com.rio.rostry.utils.network.ConnectivityManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
@@ -50,7 +51,7 @@ class MediaUploadManager @Inject constructor(
         data class Cancelled(val remotePath: String): UploadEvent()
     }
   
-    private val scope = CoroutineScope(Dispatchers.IO + Job())
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activeUploads = mutableMapOf<String, Job>()
     private val _events = MutableSharedFlow<UploadEvent>(replay = 0, extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val events = _events.asSharedFlow()
@@ -131,7 +132,7 @@ class MediaUploadManager @Inject constructor(
             enqueue(UploadTask(localPath = localPath, remotePath = remotePath))
             return
         }
-        scope.launch {
+        val job = scope.launch {
             try {
                 _events.emit(UploadEvent.Queued(remotePath))
                 val now = System.currentTimeMillis()
@@ -149,9 +150,52 @@ class MediaUploadManager @Inject constructor(
                 )
                 dao.upsert(task)
                 scheduleWorker(ctx)
+
+                // Observe the task for updates
+                launch {
+                    try {
+                        dao.observeByRemotePath(remotePath).collect { entity ->
+                            if (entity == null) return@collect
+                            when (entity.status) {
+                                "UPLOADING" -> {
+                                    _events.emit(UploadEvent.Progress(remotePath, entity.progress))
+                                }
+                                "SUCCESS" -> {
+                                    val url = extractDownloadUrl(entity.contextJson) ?: ""
+                                    _events.emit(UploadEvent.Success(remotePath, url))
+                                    // Stop observing once terminal state is reached
+                                    throw kotlinx.coroutines.CancellationException("Upload completed")
+                                }
+                                "FAILED" -> {
+                                    _events.emit(UploadEvent.Failed(remotePath, entity.error ?: "Unknown error"))
+                                    throw kotlinx.coroutines.CancellationException("Upload failed")
+                                }
+                            }
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e 
+                    } catch (e: Exception) {
+                        // Swallow other exceptions from flow collection
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Expected for flow termination
             } catch (_: Throwable) {
                 // Swallow; WorkManager/DAO path is best-effort
+            } finally {
+                activeUploads.remove(remotePath)
             }
+        }
+        activeUploads[remotePath] = job
+    }
+
+    private fun extractDownloadUrl(json: String?): String? {
+        if (json.isNullOrEmpty()) return null
+        return try {
+            val jsonObj = org.json.JSONObject(json)
+            if (jsonObj.has("downloadUrl")) jsonObj.getString("downloadUrl") else null
+        } catch (_: Exception) {
+            null
         }
     }
   

@@ -16,6 +16,9 @@ import javax.inject.Singleton
 
 interface FamilyTreeRepository {
     fun getForProduct(productId: String): Flow<List<FamilyTreeEntity>>
+    /**
+     * Upserts a family tree node. Cross-owner lineage links are permitted as long as the child product belongs to the current user.
+     */
     suspend fun upsert(node: FamilyTreeEntity)
     suspend fun softDelete(nodeId: String)
 }
@@ -46,12 +49,26 @@ class FamilyTreeRepositoryImpl @Inject constructor(
         node.parentProductId?.let { parentId ->
             val parentProduct = productDao.findById(parentId) ?: throw SecurityException("Invalid parent product ID")
             if (parentProduct.sellerId != currentUserProvider.userIdOrNull()) {
-                SecurityManager.audit("LINEAGE_OWNERSHIP_VIOLATION", mapOf(
+                SecurityManager.audit("LINEAGE_CROSS_OWNER_LINK", mapOf(
                     "parentProductId" to parentId,
+                    "parentSellerId" to parentProduct.sellerId,
                     "childProductId" to node.productId,
-                    "userId" to currentUserProvider.userIdOrNull()
+                    "childSellerId" to currentUserProvider.userIdOrNull()
                 ))
-                throw SecurityException("You can only link to your own products as parents")
+                auditLogDao.insert(AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "LINEAGE_CROSS_OWNER_LINK",
+                    refId = node.nodeId,
+                    action = "UPSERT",
+                    actorUserId = currentUserProvider.userIdOrNull(),
+                    detailsJson = gson.toJson(mapOf(
+                        "parentProductId" to parentId,
+                        "parentSellerId" to parentProduct.sellerId,
+                        "childProductId" to node.productId,
+                        "childSellerId" to currentUserProvider.userIdOrNull()
+                    )),
+                    createdAt = System.currentTimeMillis()
+                ))
             }
         }
         

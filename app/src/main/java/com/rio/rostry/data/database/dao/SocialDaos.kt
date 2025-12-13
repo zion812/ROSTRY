@@ -34,22 +34,11 @@ interface PostsDao {
         "SELECT * FROM posts ORDER BY (SELECT COUNT(*) FROM likes WHERE likes.postId = posts.postId) DESC, createdAt DESC LIMIT :limit"
     )
     suspend fun getTrending(limit: Int): List<PostEntity>
+    // Get replies for a post (1 level deep threading)
+    @Query("SELECT * FROM posts WHERE parentPostId = :parentId ORDER BY createdAt ASC")
+    fun getReplies(parentId: String): Flow<List<PostEntity>>
 }
 
-@Dao
-interface AnalyticsDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertDaily(entity: com.rio.rostry.data.database.entity.AnalyticsDailyEntity)
-
-    @Query("SELECT * FROM analytics_daily WHERE userId = :userId AND dateKey BETWEEN :from AND :to ORDER BY dateKey ASC")
-    fun streamRange(userId: String, from: String, to: String): Flow<List<com.rio.rostry.data.database.entity.AnalyticsDailyEntity>>
-
-    @Query("SELECT * FROM analytics_daily WHERE userId = :userId ORDER BY dateKey DESC LIMIT :limit")
-    fun recent(userId: String, limit: Int = 30): Flow<List<com.rio.rostry.data.database.entity.AnalyticsDailyEntity>>
-
-    @Query("SELECT * FROM analytics_daily WHERE userId = :userId AND dateKey BETWEEN :from AND :to ORDER BY dateKey ASC")
-    suspend fun listRange(userId: String, from: String, to: String): List<com.rio.rostry.data.database.entity.AnalyticsDailyEntity>
-}
 
 @Dao
 interface ReportsDao {
@@ -84,20 +73,7 @@ interface CommentsDao {
     suspend fun countByUser(userId: String): Int
 }
 
-@Dao
-interface LikesDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(like: LikeEntity)
 
-    @Query("DELETE FROM likes WHERE postId = :postId AND userId = :userId")
-    suspend fun unlike(postId: String, userId: String)
-
-    @Query("SELECT COUNT(*) FROM likes WHERE postId = :postId")
-    fun count(postId: String): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM likes WHERE userId = :userId")
-    suspend fun countByUser(userId: String): Int
-}
 
 @Dao
 interface FollowsDao {
@@ -205,4 +181,16 @@ interface RateLimitDao {
 
     @Query("SELECT * FROM rate_limits WHERE userId = :userId AND action = :action LIMIT 1")
     suspend fun get(userId: String, action: String): com.rio.rostry.data.database.entity.RateLimitEntity?
+}
+
+@Dao
+interface StoriesDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(story: StoryEntity)
+
+    @Query("SELECT * FROM stories WHERE expiresAt > :now ORDER BY createdAt DESC")
+    fun streamActive(now: Long): Flow<List<StoryEntity>>
+
+    @Query("DELETE FROM stories WHERE expiresAt < :now")
+    suspend fun deleteExpired(now: Long)
 }

@@ -51,10 +51,10 @@ class FakeSyncRemote @Inject constructor(): SyncRemote {
     var usersToFetch: List<UserEntity> = emptyList()
 
     override suspend fun fetchUpdatedProducts(since: Long, limit: Int): List<ProductEntity> = productsToFetch
-    override suspend fun fetchUpdatedOrders(since: Long, limit: Int): List<OrderEntity> = ordersToFetch
-    override suspend fun fetchUpdatedTransfers(since: Long, limit: Int): List<TransferEntity> = transfersToFetch
-    override suspend fun fetchUpdatedTrackings(since: Long, limit: Int): List<ProductTrackingEntity> = trackingsToFetch
-    override suspend fun fetchUpdatedChats(since: Long, limit: Int): List<ChatMessageEntity> = chatsToFetch
+    override suspend fun fetchUpdatedOrders(userId: String, since: Long, limit: Int): List<OrderEntity> = ordersToFetch
+    override suspend fun fetchUpdatedTransfers(userId: String?, since: Long, limit: Int): List<TransferEntity> = transfersToFetch
+    override suspend fun fetchUpdatedTrackings(userId: String?, since: Long, limit: Int): List<ProductTrackingEntity> = trackingsToFetch
+    override suspend fun fetchUpdatedChats(userId: String?, since: Long, limit: Int): List<ChatMessageEntity> = chatsToFetch
     override suspend fun pushProducts(entities: List<ProductEntity>): Int { pushedProducts += entities; return entities.size }
     override suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int): List<DailyLogEntity> = dailyLogsToFetch
     override suspend fun pushDailyLogs(farmerId: String, entities: List<DailyLogEntity>): Int { pushedDailyLogs += entities; return entities.size }

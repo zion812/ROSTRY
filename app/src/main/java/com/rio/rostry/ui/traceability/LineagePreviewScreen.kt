@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.traceability
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rio.rostry.data.database.entity.ProductEntity
+import androidx.compose.foundation.lazy.LazyColumn
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,12 +43,18 @@ import kotlinx.coroutines.launch
 fun LineagePreviewScreen(
     productId: String,
     onOpenFullTree: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: LineagePreviewViewModel = hiltViewModel()
 ) {
+    val uiState = viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val link = remember(productId) { "https://rostry.app/lineage/$productId" }
     val clipboard = LocalClipboardManager.current
+
+    LaunchedEffect(productId) {
+        viewModel.loadProduct(productId)
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Lineage Preview") }) },
@@ -60,9 +71,28 @@ fun LineagePreviewScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Product", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(productId, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    uiState.value.product?.birdCode?.let { code ->
+                        Text("Bird ID: $code", style = MaterialTheme.typography.bodyMedium)
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text("Shareable Link", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(link, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            // Family Tree Preview
+            uiState.value.product?.let { product ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Family Tree Preview", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        LazyColumn {
+                            item {
+                                NodeCard(product = product, onShowDetails = { id ->
+                                    scope.launch { snackbar.showSnackbar("Technical ID: $id") }
+                                })
+                            }
+                        }
+                    }
                 }
             }
 
@@ -92,6 +122,31 @@ fun LineagePreviewScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun NodeCard(product: ProductEntity, onShowDetails: (String) -> Unit) {
+    val displayId = product.birdCode ?: product.name.take(10)
+    val backgroundColor = when (product.colorTag) {
+        "BLACK" -> Color.Black
+        "WHITE" -> Color.White
+        "BROWN" -> Color(0xFFA0522D)
+        "YELLOW" -> Color.Yellow
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(displayId, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = "Tap for details",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.clickable { onShowDetails(product.productId) }
+            )
         }
     }
 }

@@ -22,7 +22,7 @@ import javax.inject.Singleton
  * Initializes growth tracking and vaccination schedules for newly acquired birds.
  */
 interface FarmOnboardingRepository {
-    suspend fun addProductToFarmMonitoring(productId: String, farmerId: String): Resource<List<String>>
+    suspend fun addProductToFarmMonitoring(productId: String, farmerId: String, healthStatus: String = "OK"): Resource<List<String>>
     fun observeRecentOnboardingActivity(farmerId: String, days: Int = 7): Flow<List<OnboardingActivity>>
     suspend fun getOnboardingStats(farmerId: String): OnboardingStats
 }
@@ -56,7 +56,8 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
 
     override suspend fun addProductToFarmMonitoring(
         productId: String,
-        farmerId: String
+        farmerId: String,
+        healthStatus: String
     ): Resource<List<String>> {
         return try {
             // Check if monitoring records already exist (idempotent)
@@ -79,7 +80,7 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
                 week = 0,
                 weightGrams = product.weightGrams?.toDouble(),
                 heightCm = product.heightCm,
-                healthStatus = "OK",
+                healthStatus = healthStatus,
                 milestone = "Initial record created from marketplace purchase",
                 createdAt = now,
                 dirty = true,

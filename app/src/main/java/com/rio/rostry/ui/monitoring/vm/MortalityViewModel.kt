@@ -16,20 +16,35 @@ import javax.inject.Inject
 @HiltViewModel
 class MortalityViewModel @Inject constructor(
     private val repo: MortalityRepository,
+    private val productDao: com.rio.rostry.data.database.dao.ProductDao,
+    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
     data class UiState(
-        val records: List<MortalityRecordEntity> = emptyList()
+        val records: List<MortalityRecordEntity> = emptyList(),
+        val products: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()
     )
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     init {
+        loadProducts()
         viewModelScope.launch {
             repo.observeAll().collect { list ->
                 _ui.update { it.copy(records = list) }
+            }
+        }
+    }
+
+    private fun loadProducts() {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            productRepository.getProductsBySeller(farmerId).collect { res ->
+                if (res is com.rio.rostry.utils.Resource.Success) {
+                    _ui.update { it.copy(products = res.data ?: emptyList()) }
+                }
             }
         }
     }
@@ -40,6 +55,7 @@ class MortalityViewModel @Inject constructor(
         circumstances: String?,
         ageWeeks: Int?,
         disposalMethod: String?,
+        quantity: Int = 1,
         financialImpactInr: Double?
     ) {
         viewModelScope.launch {
@@ -52,9 +68,26 @@ class MortalityViewModel @Inject constructor(
                 circumstances = circumstances,
                 ageWeeks = ageWeeks,
                 disposalMethod = disposalMethod,
+                quantity = quantity,
                 financialImpactInr = financialImpactInr
             )
             repo.insert(rec)
+            
+            if (productId != null) {
+                val product = productRepository.findById(productId)
+                if (product != null) {
+                    if (product.isBatch == true) {
+                        productDao.decrementQuantity(productId, quantity, System.currentTimeMillis())
+                    } else {
+                        // Individual bird died - mark as DEAD
+                        productDao.updateLifecycleStatus(productId, "DEAD", System.currentTimeMillis())
+                        productDao.decrementQuantity(productId, quantity, System.currentTimeMillis())
+                    }
+                } else {
+                    // Fallback if product not found in repo cache (unlikely)
+                    productDao.decrementQuantity(productId, quantity, System.currentTimeMillis())
+                }
+            }
         }
     }
 }

@@ -53,7 +53,7 @@ class LifecycleWorker @AssistedInject constructor(
             // Restrict to active birds with known birth dates to reduce load
             val products = productDao.getActiveWithBirth()
             for (p in products) {
-                val week = p.birthDate?.let { ((now - it) / (7L * 24 * 60 * 60 * 1000)).toInt() } ?: continue
+                val week = p.birthDate?.let { com.rio.rostry.utils.LifecycleRules.calculateAgeInWeeks(it, now) } ?: continue
                 val stage = LifecycleStage.fromWeeks(week)
 
                 // Batch split detection: recommend split at >= 12 weeks
@@ -66,7 +66,7 @@ class LifecycleWorker @AssistedInject constructor(
                                 alertType = "BATCH_SPLIT_DUE",
                                 severity = "INFO",
                                 message = "Batch ${p.name} is ready for individual tracking. Consider splitting for sex/color separation.",
-                                actionRoute = Routes.Builders.monitoringGrowth(p.productId),
+                                actionRoute = Routes.Builders.monitoringGrowthWithProductId(p.productId),
                                 createdAt = now
                             )
                         )
@@ -233,7 +233,7 @@ class LifecycleWorker @AssistedInject constructor(
                                 alertType = "LINEAGE_INCONSISTENCY",
                                 severity = "MEDIUM",
                                 message = "Lineage inconsistency for ${p.name}: ${ancestors.message}",
-                                actionRoute = "family-tree/${p.productId}",
+                                actionRoute = Routes.Builders.familyTree(p.productId),
                                 createdAt = now
                             )
                         )
@@ -275,6 +275,7 @@ class LifecycleWorker @AssistedInject constructor(
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<LifecycleWorker>(1, TimeUnit.DAYS)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .addTag("session_worker")
                 .build()
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)

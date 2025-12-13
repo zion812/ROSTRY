@@ -18,7 +18,7 @@ import com.rio.rostry.domain.model.LifecycleStage
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["sellerId"])]
+    indices = [Index(value = ["sellerId"]), Index(value = ["category"]), Index(value = ["status"])]
 )
 data class ProductEntity(
     @PrimaryKey val productId: String = "",
@@ -33,7 +33,7 @@ data class ProductEntity(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val imageUrls: List<String> = emptyList(), // Store as JSON string or use a type converter
-    val status: String = "available", // e.g., "available", "sold_out", "pending_approval"
+    val status: String = "private", // e.g., "private", "available", "sold_out", "pending_approval"
     val condition: String? = null, // e.g. "organic", "fresh", "used" (for equipment)
     val harvestDate: Long? = null, // Timestamp
     val expiryDate: Long? = null, // Timestamp
@@ -46,6 +46,39 @@ data class ProductEntity(
     val gender: String? = null, // male, female, unknown
     val color: String? = null,
     val breed: String? = null,
+    val healthStatus: String? = null, // "OK", "Sick", etc.
+
+    /**
+     * Human-readable bird identifier (e.g., 'BLK-RIR-001'). Should be populated at product
+     * creation time using BirdIdGenerator.generate() and should not be recomputed later to
+     * ensure stability. Use for local, in-person exchanges and QR displays.
+     *
+     * For legacy products with null birdCode or colorTag, a one-time backfill migration is
+     * available via `ProductRepository.backfillBirdCodes()`. Implementers should invoke this
+     * method during app startup, database migration, or via an admin tool, guarded by a flag
+     * to prevent repeated execution. Lazy initialization on read is available as a fallback
+     * for exceptional cases but is not the primary mechanism.
+     *
+     * Once populated, these fields should not be recomputed to ensure stability across app
+     * sessions and QR code scans.
+     */
+    val birdCode: String? = null,
+
+    /**
+     * Standardized color classification (BLACK, WHITE, BROWN, YELLOW, MIXED) for visual
+     * identification and filtering. Should be populated at product creation time using
+     * BirdIdGenerator.colorTag() and should not be recomputed later to ensure stability.
+     *
+     * For legacy products with null birdCode or colorTag, a one-time backfill migration is
+     * available via `ProductRepository.backfillBirdCodes()`. Implementers should invoke this
+     * method during app startup, database migration, or via an admin tool, guarded by a flag
+     * to prevent repeated execution. Lazy initialization on read is available as a fallback
+     * for exceptional cases but is not the primary mechanism.
+     *
+     * Once populated, these fields should not be recomputed to ensure stability across app
+     * sessions and QR code scans.
+     */
+    val colorTag: String? = null,
 
     // Traceability
     val familyTreeId: String? = null,
@@ -68,9 +101,23 @@ data class ProductEntity(
     val lastStageTransitionAt: Long? = null,
     val breederEligibleAt: Long? = null,
     val isBatch: Boolean? = null,
+    val batchId: String? = null,
     val splitAt: Long? = null,
     val splitIntoIds: String? = null,
     val documentUrls: List<String> = emptyList(),
     val qrCodeUrl: String? = null,
-    val debug: Boolean = false
-)
+    val customStatus: String? = null, // Custom farmer-defined status (e.g., "Ready to Ship", "Reserved")
+    val debug: Boolean = false,
+
+    // Delivery & Logistics
+    val deliveryOptions: List<String> = emptyList(), // e.g., "SELF_PICKUP", "FARMER_DELIVERY"
+    val deliveryCost: Double? = null,
+    val leadTimeDays: Int? = null // Days notice required
+) {
+    /**
+     * Returns true if this product is a public market listing (requires verification to create).
+     * Returns false if the product is private (for local farm management only).
+     */
+    val isPublic: Boolean
+        get() = !status.isNullOrBlank() && status != "private"
+}

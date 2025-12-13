@@ -1,0 +1,82 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    function isTransferParticipant(transferId) {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/transfers/$(transferId)) &&
+        (
+          request.auth.uid == firestore.get(/databases/(default)/documents/transfers/$(transferId)).data.fromUserId ||
+          request.auth.uid == firestore.get(/databases/(default)/documents/transfers/$(transferId)).data.toUserId
+        );
+    }
+
+    // Social post media: uploads/social/{uid}/posts/{postId}/{filename}
+    match /uploads/social/{userId}/posts/{postId}/{filename} {
+      allow write: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.size < 25 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+      // Read allowed if the post is visible to the requester
+      allow read: if isSignedIn() && firestore.exists(/databases/(default)/documents/posts/$(postId)) && (
+        firestore.get(/databases/(default)/documents/posts/$(postId)).data.visibility == 'public' ||
+        (firestore.get(/databases/(default)/documents/posts/$(postId)).data.visibility == 'private' && firestore.get(/databases/(default)/documents/posts/$(postId)).data.authorId == request.auth.uid) ||
+        (firestore.get(/databases/(default)/documents/posts/$(postId)).data.visibility == 'followers' && (
+          firestore.get(/databases/(default)/documents/posts/$(postId)).data.authorId == request.auth.uid ||
+          firestore.exists(/databases/(default)/documents/follows/$(request.auth.uid)/following/$(firestore.get(/databases/(default)/documents/posts/$(postId)).data.authorId))
+        ))
+      );
+    }
+
+    // Messaging attachments: uploads/messaging/{threadId}/{messageId}/{filename}
+    match /uploads/messaging/{threadId}/{messageId}/{filename} {
+      allow write: if isSignedIn() &&
+        request.resource.size < 25 * 1024 * 1024 &&
+        (
+          request.resource.contentType.matches('image/.*') ||
+          request.resource.contentType.matches('video/.*') ||
+          request.resource.contentType in ['application/pdf','text/plain','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/msword','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel','application/json']
+        );
+      allow read: if false;
+    }
+
+    // User uploads (photos for verification)
+    match /uploads/users/{userId}/{all=**} {
+      allow write: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.size < 20 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow read: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // KYC Verification Documents
+    match /kyc/{userId}/{all=**} {
+      allow write: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+      allow read: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Verification documents: verifications/{upgradeType}/{userId}/{all=**}
+    match /verifications/{upgradeType}/{userId}/{all=**} {
+      allow write: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+      allow read: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Generated transfer documents (PDF) under docs/transfers/{transferId}/...
+    match /docs/transfers/{transferId}/{all=**} {
+      allow read: if isAdmin() || isTransferParticipant(transferId);
+      allow write: if false;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

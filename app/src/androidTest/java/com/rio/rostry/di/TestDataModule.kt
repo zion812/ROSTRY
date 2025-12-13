@@ -2,6 +2,7 @@ package com.rio.rostry.di
 
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.*
+import com.rio.rostry.data.repository.AuctionRepositoryImpl
 import com.rio.rostry.ui.general.market.GeneralMarketViewModel
 import com.rio.rostry.utils.Resource
 import dagger.Binds
@@ -55,6 +56,25 @@ class FakeProductRepository @javax.inject.Inject constructor() : ProductReposito
         Resource.Success(SeedCatalog.drop(offset).take(limit))
     override suspend fun filterTraceable(onlyTraceable: Boolean, base: List<ProductEntity>?): Resource<List<ProductEntity>> =
         Resource.Success((base ?: SeedCatalog).filter { it.familyTreeId != null })
+    override suspend fun backfillBirdCodes(): Resource<Int> = Resource.Success(0)
+    override suspend fun updateQrCodeUrl(productId: String, url: String?, updatedAt: Long): Resource<Unit> = Resource.Success(Unit)
+
+    override suspend fun findById(productId: String): ProductEntity? = SeedCatalog.find { it.productId == productId }
+
+    override suspend fun upsert(product: ProductEntity): Resource<Unit> = Resource.Success(Unit)
+
+    override fun observeActiveWithBirth(): Flow<List<ProductEntity>> = flowOf(SeedCatalog.filter { it.birthDate != null && !it.isDeleted })
+
+    override fun observeRecentlyAddedForFarmer(farmerId: String, since: Long): Flow<List<ProductEntity>> = flowOf(SeedCatalog.filter { it.sellerId == farmerId && it.createdAt >= since })
+
+    override fun observeEligibleForTransferCountForFarmer(farmerId: String): Flow<Int> = flowOf(SeedCatalog.count { it.sellerId == farmerId && !it.isDeleted })
+
+    override suspend fun countActiveByOwnerId(ownerId: String): Int =
+        SeedCatalog.count { it.sellerId == ownerId && !it.isDeleted && (it.lifecycleStatus ?: "ACTIVE") == "ACTIVE" }
+
+    override suspend fun seedStarterKits() {
+        // No-op for fake repository - starter kits not needed in tests
+    }
 }
 
 class FakeProductMarketplaceRepository @javax.inject.Inject constructor() : ProductMarketplaceRepository {
@@ -103,6 +123,12 @@ class FakeCartRepository @javax.inject.Inject constructor() : CartRepository {
 
     override suspend fun removeItem(userId: String, productId: String): Resource<Unit> {
         items[userId]?.remove(productId)
+        return Resource.Success(Unit)
+    }
+
+    override suspend fun updateQuantity(userId: String, productId: String, quantity: Double): Resource<Unit> {
+        val userMap = items.getOrPut(userId) { mutableMapOf() }
+        userMap[productId] = quantity
         return Resource.Success(Unit)
     }
 }
@@ -168,6 +194,7 @@ abstract class TestDataModule {
     @Binds @Singleton abstract fun bindListingDraftRepository(impl: com.rio.rostry.data.repository.monitoring.ListingDraftRepositoryImpl): com.rio.rostry.data.repository.monitoring.ListingDraftRepository
     @Binds @Singleton abstract fun bindFarmerDashboardRepository(impl: com.rio.rostry.data.repository.monitoring.FarmerDashboardRepositoryImpl): com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
     @Binds @Singleton abstract fun bindFarmOnboardingRepository(impl: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepositoryImpl): com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository
+    @Binds @Singleton abstract fun bindAuctionRepository(impl: AuctionRepositoryImpl): AuctionRepository
 }
 
 // Removed TestAuxModule as RecommendationEngine is not part of the current project schema

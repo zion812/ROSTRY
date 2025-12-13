@@ -78,7 +78,8 @@ class QuarantineEnforcementTest {
             dirty = true
         )
         db.quarantineRecordDao().upsert(rec)
-        val overdue = db.quarantineRecordDao().countUpdatesOverdueForFarmer(farmerId, now - twelveHrs)
+        val overdueRecords = db.quarantineRecordDao().getUpdatesOverdueForFarmer(farmerId, now - twelveHrs)
+        val overdue = overdueRecords.size
         assertTrue(overdue > 0)
     }
 

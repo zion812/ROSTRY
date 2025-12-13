@@ -30,7 +30,8 @@ class GeneralMarketViewModel @Inject constructor(
     private val wishlistRepository: com.rio.rostry.data.repository.WishlistRepository,
     private val recommendationEngine: com.rio.rostry.ai.RecommendationEngine,
     private val currentUserProvider: CurrentUserProvider,
-    private val analytics: GeneralAnalyticsTracker
+    private val analytics: GeneralAnalyticsTracker,
+    private val breedRepository: com.rio.rostry.data.repository.BreedRepository
 ) : ViewModel() {
 
     data class LatLong(val latitude: Double, val longitude: Double)
@@ -53,7 +54,8 @@ class GeneralMarketViewModel @Inject constructor(
         val traceableOnly: Boolean = false,
         val quickPreset: QuickPreset? = null,
         val minPrice: Double? = null,
-        val maxPrice: Double? = null
+        val maxPrice: Double? = null,
+        val selectedCulinaryProfile: String? = null
     )
 
     data class MarketUiState(
@@ -84,6 +86,7 @@ class GeneralMarketViewModel @Inject constructor(
     private val trendingProducts = MutableStateFlow<List<ProductEntity>>(emptyList())
     private val recommendedProducts = MutableStateFlow<List<ProductEntity>>(emptyList())
     private val wishlistIds = MutableStateFlow<Set<String>>(emptySet())
+    private val breedProfiles = MutableStateFlow<Map<String, String>>(emptyMap()) // breedName -> culinaryProfile
 
     private val baseState: StateFlow<MarketUiState> = combine(
         baseProducts,
@@ -150,6 +153,7 @@ class GeneralMarketViewModel @Inject constructor(
     init {
         observeProducts()
         observeWishlist()
+        loadBreedProfiles()
         
         // Refresh trending and recommendations after products load
         viewModelScope.launch {
@@ -227,6 +231,9 @@ class GeneralMarketViewModel @Inject constructor(
         if (old.selectedAgeGroup != new.selectedAgeGroup) {
             analytics.marketFilterApply("age_group", new.selectedAgeGroup?.name)
         }
+        if (old.selectedCulinaryProfile != new.selectedCulinaryProfile) {
+            analytics.marketFilterApply("culinary_profile", new.selectedCulinaryProfile)
+        }
     }
 
     fun notifyOfflineBannerSeen(context: String = "market") {
@@ -244,6 +251,14 @@ class GeneralMarketViewModel @Inject constructor(
                     error.value = result.message ?: "Unable to filter verified sellers"
                 }
                 else -> Unit
+            }
+        }
+    }
+
+    private fun loadBreedProfiles() {
+        viewModelScope.launch {
+            breedRepository.getAllBreeds().collect { breeds ->
+                breedProfiles.value = breeds.associate { it.name.lowercase() to it.culinaryProfile }
             }
         }
     }
@@ -301,6 +316,19 @@ class GeneralMarketViewModel @Inject constructor(
                     product.breed?.contains(normQ, true) == true ||
                     product.location.contains(normQ, true)
             }
+
+            // In-memory filter for culinary profile since it requires a join/lookup not in repo
+            if (filters.selectedCulinaryProfile != null) {
+                val targetProfile = filters.selectedCulinaryProfile
+                val profiles = breedProfiles.value
+                return@fetchByFilters traceFiltered.filter { product ->
+                    val breedName = product.breed?.lowercase()
+                    val profile = profiles[breedName]
+                    profile.equals(targetProfile, ignoreCase = true)
+                }
+            }
+            
+            traceFiltered
         } catch (_: Exception) {
             emptyList()
         }
@@ -339,6 +367,8 @@ class GeneralMarketViewModel @Inject constructor(
                 p.breed?.contains(normQ, true) == true ||
                 p.location.contains(normQ, true)
         }
+        
+
     }
 
     fun addToCart(product: ProductEntity, quantity: Double = 1.0) {
@@ -486,6 +516,7 @@ class GeneralMarketViewModel @Inject constructor(
                 "ageGroup" -> current.copy(selectedAgeGroup = null)
                 "traceable" -> current.copy(traceableOnly = false)
                 "price" -> current.copy(minPrice = null, maxPrice = null)
+                "culinaryProfile" -> current.copy(selectedCulinaryProfile = null)
                 else -> current
             }
         }
@@ -508,6 +539,7 @@ class GeneralMarketViewModel @Inject constructor(
                 val range = "₹${f.minPrice?.toInt() ?: 0}-${f.maxPrice?.toInt() ?: "∞"}"
                 add(range)
             }
+            f.selectedCulinaryProfile?.let { add("Taste: $it") }
         }
     }
 
@@ -520,6 +552,7 @@ class GeneralMarketViewModel @Inject constructor(
         if (f.selectedBreed != null) count++
         if (f.selectedAgeGroup != null) count++
         if (f.minPrice != null || f.maxPrice != null) count++
+        if (f.selectedCulinaryProfile != null) count++
         return count
     }
 }

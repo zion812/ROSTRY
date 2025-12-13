@@ -100,6 +100,11 @@ fun LoadingOverlay(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun LoadingScreen(modifier: Modifier = Modifier) {
+    LoadingOverlay(modifier)
+}
+
+@Composable
 fun EmptyState(title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier

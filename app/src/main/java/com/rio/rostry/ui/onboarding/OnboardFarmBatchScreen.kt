@@ -298,15 +298,25 @@ fun OnboardFarmBatchScreen(
                 }
                 OnboardFarmBatchViewModel.WizardStep.PROOFS -> {
                     Text("Proofs & Media")
-                    val pickImages = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+                    val pickImages = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                        uris.forEach { uri ->
+                            try {
+                                ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            } catch (e: Exception) { }
+                        }
                         if (uris != null) vm.updateMedia { m -> m.copy(photoUris = uris.map { it.toString() }) }
                     }
-                    val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+                    val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                        uris.forEach { uri ->
+                            try {
+                                ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            } catch (e: Exception) { }
+                        }
                         if (uris != null) vm.updateMedia { m -> m.copy(documentUris = uris.map { it.toString() }) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { pickImages.launch("image/*") }, modifier = Modifier.semantics { contentDescription = "Pick photos for batch proofs" }) { Text("Pick Photos") }
-                        OutlinedButton(onClick = { pickDocs.launch("application/pdf") }, modifier = Modifier.semantics { contentDescription = "Pick documents for batch proofs" }) { Text("Pick Documents") }
+                        OutlinedButton(onClick = { pickImages.launch(arrayOf("image/*")) }, modifier = Modifier.semantics { contentDescription = "Pick photos for batch proofs" }) { Text("Pick Photos") }
+                        OutlinedButton(onClick = { pickDocs.launch(arrayOf("application/pdf")) }, modifier = Modifier.semantics { contentDescription = "Pick documents for batch proofs" }) { Text("Pick Documents") }
                     }
                     val photos = state.media.photoUris.size
                     val docs = state.media.documentUris.size

@@ -44,19 +44,24 @@ object AnalyticsModule {
     
     @Provides
     @Singleton
+
     fun provideAnalyticsRepository(
         analyticsDao: AnalyticsDao,
         firebaseAnalytics: FirebaseAnalytics,
         taskDao: TaskDao,
         dailyLogDao: DailyLogDao,
-        vaccinationRecordDao: VaccinationRecordDao
+        vaccinationRecordDao: VaccinationRecordDao,
+        productDao: com.rio.rostry.data.database.dao.ProductDao,
+        hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao
     ): AnalyticsRepository {
         return AnalyticsRepositoryImpl(
             analyticsDao,
             firebaseAnalytics,
             taskDao,
             dailyLogDao,
-            vaccinationRecordDao
+            vaccinationRecordDao,
+            productDao,
+            hatchingBatchDao
         )
     }
 }

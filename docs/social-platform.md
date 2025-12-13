@@ -60,14 +60,26 @@ DAOs reside in `data/database/dao/` (e.g., `PostsDao`, `CommentsDao`, `GroupsDao
    - **Feed**: Trending posts with engagement metrics
    - **My Groups**: User's joined groups with activity indicators
 2. `FarmerCommunityScreen` shows farmer-specific features:
-   - Active threads with business context
-   - Suggested groups for regional farmers
    - Upcoming farming events with RSVP
    - Available agricultural experts with booking
 3. Context-aware thread creation:
    - Select context type (product inquiry, expert consult, breeding discussion)
    - System adds metadata for intelligent routing and recommendations
    - Visual badges show thread context throughout UI
+
+### Enhanced Social Features
+1. **Social Profile**: `SocialProfileScreen` replaces the basic profile, offering:
+   - Rich header with stats (followers, following, posts).
+   - Tabbed content view (Grid, Tagged).
+   - Follow/Unfollow and Message actions.
+2. **Stories**: `StoryViewerScreen` and `StoryCreatorScreen` enable ephemeral content:
+   - 24-hour expiration.
+   - Immersive full-screen viewer with progress bars.
+   - Simple creation flow.
+3. **Discussions**: `DiscussionDetailScreen` provides Twitter-style threading:
+   - Text-focused post rendering in feed.
+   - Threaded replies view.
+   - Quick reply input.
 
 ### Diagram
 ```mermaid

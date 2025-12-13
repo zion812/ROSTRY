@@ -2,6 +2,9 @@ package com.rio.rostry.data.repository
 
 import com.rio.rostry.data.database.dao.OrderDao
 import com.rio.rostry.data.database.dao.OrderTrackingEventDao
+import com.rio.rostry.data.database.dao.PaymentDao
+import com.rio.rostry.data.database.dao.InvoiceDao
+import com.rio.rostry.data.database.dao.RefundDao
 import com.rio.rostry.data.database.entity.OrderEntity
 import com.rio.rostry.data.database.entity.OrderTrackingEventEntity
 import com.rio.rostry.utils.Resource
@@ -14,12 +17,17 @@ interface OrderManagementRepository {
     suspend fun placeOrder(order: OrderEntity): Resource<String>
     suspend fun advanceState(orderId: String, newStatus: String, hubId: String? = null, note: String? = null): Resource<Unit>
     suspend fun cancelOrder(orderId: String, reason: String?): Resource<Unit>
+    suspend fun onPaymentStatusChanged(idempotencyKey: String, paymentStatus: String): Resource<Unit>
+    suspend fun onRefundCompleted(paymentId: String, refundAmount: Double): Resource<Unit>
 }
 
 @Singleton
 class OrderManagementRepositoryImpl @Inject constructor(
     private val orderDao: OrderDao,
     private val trackingDao: OrderTrackingEventDao,
+    private val paymentDao: PaymentDao,
+    private val invoiceDao: InvoiceDao,
+    private val refundDao: RefundDao,
 ) : OrderManagementRepository {
 
     override fun getOrder(orderId: String): Flow<OrderEntity?> = orderDao.getOrderById(orderId)
@@ -79,5 +87,72 @@ class OrderManagementRepositoryImpl @Inject constructor(
         Resource.Error(e.message ?: "Failed to advance state")
     }
 
-    override suspend fun cancelOrder(orderId: String, reason: String?): Resource<Unit> = advanceState(orderId, "CANCELLED", null, reason)
+    override suspend fun cancelOrder(orderId: String, reason: String?): Resource<Unit> {
+        val order = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+
+        // Validation logic
+        if (order.status == "CANCELLED" || order.status == "DELIVERED") {
+            return Resource.Error("Order cannot be cancelled")
+        }
+
+        val canCancel = if (order.paymentMethod == "COD") {
+            val elapsed = System.currentTimeMillis() - order.createdAt
+            elapsed <= 30 * 60 * 1000 // 30 minutes
+        } else {
+            order.paymentStatus == "pending"
+        }
+
+        if (!canCancel) {
+            return Resource.Error("Cancellation window expired or payment processed")
+        }
+
+        return advanceState(orderId, "CANCELLED", null, reason)
+    }
+
+    override suspend fun onPaymentStatusChanged(idempotencyKey: String, paymentStatus: String): Resource<Unit> {
+        return try {
+            val payment = paymentDao.findByIdempotencyKey(idempotencyKey) ?: return Resource.Error("Payment not found")
+            val orderId = payment.orderId
+            val order = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+            val result = when (paymentStatus) {
+                "SUCCESS" -> advanceState(orderId, "CONFIRMED", null, "Payment successful")
+                "FAILED" -> advanceState(orderId, "PAYMENT_FAILED", null, "Payment failed")
+                "REFUNDED" -> advanceState(orderId, "REFUNDED", null, "Payment refunded")
+                else -> return Resource.Error("Unknown payment status: $paymentStatus")
+            }
+            if (result is Resource.Error) {
+                return result // Propagate the error from advanceState
+            }
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to handle payment status change")
+        }
+    }
+
+    override suspend fun onRefundCompleted(paymentId: String, refundAmount: Double): Resource<Unit> {
+        return try {
+            val payment = paymentDao.findById(paymentId) ?: return Resource.Error("Payment not found")
+            val orderId = payment.orderId
+            val order = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+            // Determine full vs partial refund using cumulative refund amounts from refundDao
+            val totalRefundedSoFar = refundDao.totalRefundedForPayment(paymentId) // Use injected refundDao
+            val cumulativeRefundAmount = totalRefundedSoFar + refundAmount
+            val invoice = invoiceDao.findByOrder(orderId) // Use injected invoiceDao
+            val invoiceTotal = invoice?.total ?: order.totalAmount // Fallback to order total if invoice not found
+            val isFullRefund = cumulativeRefundAmount >= invoiceTotal
+
+            val result = if (isFullRefund) {
+                advanceState(orderId, "REFUNDED", null, "Full refund processed")
+            } else {
+                advanceState(orderId, "PARTIALLY_REFUNDED", null, "Partial refund of $refundAmount processed")
+            }
+
+            if (result is Resource.Error) {
+                return result // Propagate the error from advanceState
+            }
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to handle refund completion")
+        }
+    }
 }

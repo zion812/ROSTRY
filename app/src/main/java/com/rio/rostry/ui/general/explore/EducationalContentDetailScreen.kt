@@ -18,11 +18,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.rio.rostry.ui.general.explore.GeneralExploreViewModel.EducationalContent
+import com.rio.rostry.domain.model.EducationalContent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,12 +34,13 @@ fun EducationalContentDetailScreen(
 ) {
     // In a real app, we'd fetch the specific content by ID. 
     // For this demo, we'll find it in the existing list.
-    val contentItem = viewModel.educationalContent.value.find { it.id == contentId }
+    val uiState = viewModel.uiState.collectAsState()
+    val contentItem = uiState.value.educationalContent.find { it.id == contentId }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(contentItem?.type ?: "Learn") },
+                title = { Text(contentItem?.type?.name ?: "Learn") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")

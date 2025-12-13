@@ -28,7 +28,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
+import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.ui.monitoring.vm.HatchingViewModel
+import com.rio.rostry.ui.components.BirdSelectionSheet
+import com.rio.rostry.ui.components.BirdSelectionItem
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -136,6 +138,7 @@ fun HatchingProcessScreen(
             items(items = uiState.batches, key = { it.batchId }) { batch ->
                 HatchingBatchCard(
                     batch = batch,
+                    products = uiState.products,
                     dateFormat = dateFormat,
                     viewModel = viewModel
                 )
@@ -147,6 +150,7 @@ fun HatchingProcessScreen(
 @Composable
 private fun HatchingBatchCard(
     batch: HatchingBatchEntity,
+    products: List<ProductEntity>,
     dateFormat: SimpleDateFormat,
     viewModel: HatchingViewModel
 ) {
@@ -301,6 +305,9 @@ private fun HatchingBatchCard(
     }
 
     if (showDialog) {
+        var showMaleSheet by remember { mutableStateOf(false) }
+        var showFemaleSheet by remember { mutableStateOf(false) }
+
         AlertDialog(
             onDismissRequest = { showDialog = false },
             confirmButton = {
@@ -334,18 +341,51 @@ private fun HatchingBatchCard(
                         label = { Text("Failed Count (optional)") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = parentMaleId.value,
-                        onValueChange = { parentMaleId.value = it },
-                        label = { Text("Parent Male ID (optional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = parentFemaleId.value,
-                        onValueChange = { parentFemaleId.value = it },
-                        label = { Text("Parent Female ID (optional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    
+                    // Male Selection
+                    if (parentMaleId.value.isBlank()) {
+                        OutlinedButton(
+                            onClick = { showMaleSheet = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Select Father (Optional)")
+                        }
+                    } else {
+                        val male = products.find { it.productId == parentMaleId.value }
+                        if (male != null) {
+                            BirdSelectionItem(product = male, onClick = { showMaleSheet = true })
+                        } else {
+                            OutlinedButton(
+                                onClick = { showMaleSheet = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Father ID: ${parentMaleId.value} (Change)")
+                            }
+                        }
+                    }
+
+                    // Female Selection
+                    if (parentFemaleId.value.isBlank()) {
+                        OutlinedButton(
+                            onClick = { showFemaleSheet = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Select Mother (Optional)")
+                        }
+                    } else {
+                        val female = products.find { it.productId == parentFemaleId.value }
+                        if (female != null) {
+                            BirdSelectionItem(product = female, onClick = { showFemaleSheet = true })
+                        } else {
+                            OutlinedButton(
+                                onClick = { showFemaleSheet = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Mother ID: ${parentFemaleId.value} (Change)")
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = notes.value,
                         onValueChange = { notes.value = it },
@@ -355,6 +395,30 @@ private fun HatchingBatchCard(
                 }
             }
         )
+        
+        if (showMaleSheet) {
+            val males = products.filter { it.gender.equals("Male", ignoreCase = true) }
+            BirdSelectionSheet(
+                products = if (males.isNotEmpty()) males else products,
+                onDismiss = { showMaleSheet = false },
+                onSelect = { 
+                    parentMaleId.value = it.productId 
+                    showMaleSheet = false
+                }
+            )
+        }
+
+        if (showFemaleSheet) {
+            val females = products.filter { it.gender.equals("Female", ignoreCase = true) }
+            BirdSelectionSheet(
+                products = if (females.isNotEmpty()) females else products,
+                onDismiss = { showFemaleSheet = false },
+                onSelect = { 
+                    parentFemaleId.value = it.productId 
+                    showFemaleSheet = false
+                }
+            )
+        }
     }
 
     if (showCompleteDialog) {

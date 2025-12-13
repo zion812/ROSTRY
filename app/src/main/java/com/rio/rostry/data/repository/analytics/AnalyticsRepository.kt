@@ -91,7 +91,9 @@ class AnalyticsRepositoryImpl @Inject constructor(
     private val firebaseAnalytics: com.google.firebase.analytics.FirebaseAnalytics,
     private val taskDao: TaskDao,
     private val dailyLogDao: DailyLogDao,
-    private val vaccinationRecordDao: VaccinationRecordDao
+    private val vaccinationRecordDao: VaccinationRecordDao,
+    private val productDao: com.rio.rostry.data.database.dao.ProductDao,
+    private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao
 ) : AnalyticsRepository {
 
     private val fmt = DateTimeFormatter.ISO_DATE
@@ -239,49 +241,81 @@ class AnalyticsRepositoryImpl @Inject constructor(
         val endOfDay = now + 24 * 60 * 60 * 1000L // Approximate end of day
         val startOfDay = now - (now % (24 * 60 * 60 * 1000L)) // Start of today
 
-        val tasksFlow = taskDao.observeDueWindowForFarmer(userId, now, endOfDay).map { it.size }
-        val logsFlow = dailyLogDao.observeCountForFarmerBetween(userId, startOfDay, endOfDay)
-        val vaccFlow = vaccinationRecordDao.observeDueForFarmer(userId, now, endOfDay)
+        // 1. Tasks Goal Flow
+        val tasksGoalFlow = combine(
+            taskDao.observeDueWindowForFarmer(userId, now, endOfDay).map { it.size },
+            taskDao.observeCompletedCountForFarmerBetween(userId, startOfDay, endOfDay)
+        ) { dueCount, doneCount ->
+            val target = dueCount + doneCount
+            // If no tasks at all, maybe default to a small target or hide? 
+            // For now, if target is 0, we show 0/0 (100%) or hide. Let's show 0/5 as a fallback if 0 to encourage activity?
+            // User wants "data driven". If 0 tasks, goal is met?
+            val finalTarget = if (target == 0) 5 else target
+            DailyGoal(
+                goalId = "tasks_today",
+                type = "TASKS",
+                title = "Complete Daily Tasks",
+                description = "Finish scheduled farm tasks for today",
+                targetCount = finalTarget,
+                currentCount = doneCount,
+                progress = if (finalTarget > 0) (doneCount.toFloat() / finalTarget).coerceAtMost(1f) else 1f,
+                priority = "HIGH",
+                deepLink = "farmer/tasks",
+                iconName = "task_icon"
+            )
+        }
 
-        return combine(tasksFlow, logsFlow, vaccFlow) { tasksCount, logsCount, vaccCount ->
-            listOf(
-                DailyGoal(
-                    goalId = "tasks_today",
-                    type = "TASKS",
-                    title = "Complete Daily Tasks",
-                    description = "Finish scheduled farm tasks for today",
-                    targetCount = 5, // Fixed target; can be made dynamic based on farm size
-                    currentCount = tasksCount,
-                    progress = (tasksCount / 5f).coerceAtMost(1f),
-                    priority = "HIGH",
-                    deepLink = "farmer/tasks",
-                    iconName = "task_icon"
-                ),
-                DailyGoal(
-                    goalId = "logs_today",
-                    type = "DAILY_LOGS",
-                    title = "Record Daily Logs",
-                    description = "Log daily updates for your birds/batches",
-                    targetCount = 3, // Fixed target
-                    currentCount = logsCount,
-                    progress = (logsCount / 3f).coerceAtMost(1f),
-                    priority = "MEDIUM",
-                    deepLink = "farmer/logs",
-                    iconName = "log_icon"
-                ),
+        // 2. Logs Goal Flow
+        val logsGoalFlow = combine(
+            dailyLogDao.observeCountForFarmerBetween(userId, startOfDay, endOfDay),
+            productDao.observeActiveCountByOwnerId(userId),
+            hatchingBatchDao.observeActiveForFarmer(userId, now)
+        ) { logsCount, activeProducts, activeBatches ->
+            // Goal: Log once for every ~5 birds or 1 per batch?
+            // Simple heuristic: 1 log per active batch + 1 log per 10 individual birds?
+            // Or just: Target = 1 if any birds exist?
+            // Let's say Target = (Active Batches) + (Active Birds / 10). Min 1.
+            val derivedTarget = activeBatches + (activeProducts / 10).coerceAtLeast(1)
+            DailyGoal(
+                goalId = "logs_today",
+                type = "DAILY_LOGS",
+                title = "Record Daily Logs",
+                description = "Log daily updates for your birds/batches",
+                targetCount = derivedTarget,
+                currentCount = logsCount,
+                progress = if (derivedTarget > 0) (logsCount.toFloat() / derivedTarget).coerceAtMost(1f) else 1f,
+                priority = "MEDIUM",
+                deepLink = "farmer/logs",
+                iconName = "log_icon"
+            )
+        }
+
+        // 3. Vaccinations Goal Flow
+        val vaccGoalFlow = combine(
+            vaccinationRecordDao.observeDueForFarmer(userId, startOfDay, endOfDay),
+            vaccinationRecordDao.observeAdministeredCountForFarmerBetween(userId, startOfDay, endOfDay)
+        ) { dueCount, doneCount ->
+            val total = dueCount + doneCount
+            if (total > 0) {
                 DailyGoal(
                     goalId = "vaccinations_today",
                     type = "VACCINATIONS",
                     title = "Administer Vaccinations",
                     description = "Complete due vaccinations for your flock",
-                    targetCount = 2, // Fixed target
-                    currentCount = vaccCount,
-                    progress = (vaccCount / 2f).coerceAtMost(1f),
+                    targetCount = total,
+                    currentCount = doneCount,
+                    progress = (doneCount.toFloat() / total).coerceAtMost(1f),
                     priority = "HIGH",
                     deepLink = "farmer/vaccinations",
                     iconName = "vaccination_icon"
                 )
-            )
+            } else {
+                null // No vaccinations due today
+            }
+        }
+
+        return combine(tasksGoalFlow, logsGoalFlow, vaccGoalFlow) { taskGoal, logGoal, vaccGoal ->
+            listOfNotNull(taskGoal, logGoal, vaccGoal)
         }
     }
 

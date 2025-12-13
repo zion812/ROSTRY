@@ -68,4 +68,22 @@ class FarmerProfileViewModel @Inject constructor(
             }
         }
     }
+    fun updateProfile(updatedUser: UserEntity) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            when (val result = userRepository.updateUserProfile(updatedUser)) {
+                is Resource.Success -> {
+                    // Refresh profile to get latest data
+                    loadProfile()
+                }
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    // Handle error (could expose via state if needed)
+                }
+                else -> {
+                     _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            }
+        }
+    }
 }

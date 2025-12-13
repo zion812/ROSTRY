@@ -16,7 +16,7 @@ interface TrackingRepository {
 class TrackingRepositoryImpl @Inject constructor(
     private val dao: ProductTrackingDao
 ) : TrackingRepository {
-    override fun getByProduct(productId: String): Flow<List<ProductTrackingEntity>> = dao.getByProduct(productId)
+    override fun getByProduct(productId: String): Flow<List<ProductTrackingEntity>> = dao.observeByProduct(productId)
 
     override suspend fun addOrUpdate(entry: ProductTrackingEntity) {
         dao.upsert(entry.copy(dirty = true, updatedAt = System.currentTimeMillis()))

@@ -2,14 +2,13 @@ package com.rio.rostry.ui.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.demo.DemoUserProfile
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.domain.model.UserType
+import com.rio.rostry.domain.upgrade.RoleUpgradeManager
 import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.session.RolePreferenceDataSource
 import com.rio.rostry.session.SessionManager
-import com.rio.rostry.session.MockAuthManager
 import com.rio.rostry.ui.navigation.RoleNavigationConfig
 import com.rio.rostry.ui.navigation.RoleStartDestinationProvider
 import com.rio.rostry.utils.Resource
@@ -21,8 +20,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
@@ -32,7 +33,7 @@ class SessionViewModel @Inject constructor(
     private val rolePreferences: RolePreferenceDataSource,
     private val startDestinationProvider: RoleStartDestinationProvider,
     private val currentUserProvider: CurrentUserProvider,
-    private val mockAuthManager: MockAuthManager
+    private val roleUpgradeManager: RoleUpgradeManager
 ) : ViewModel() {
 
     data class SessionUiState(
@@ -42,8 +43,6 @@ class SessionViewModel @Inject constructor(
         val isLoading: Boolean = true,
         val error: String? = null,
         val availableUpgrade: UserType? = null,
-        val demoProfiles: List<DemoUserProfile> = emptyList(),
-        val currentDemoProfile: DemoUserProfile? = null,
         val authMode: SessionManager.AuthMode = SessionManager.AuthMode.FIREBASE,
         val pendingDeepLink: String? = null,
         val sessionExpiryWarning: String? = null
@@ -57,16 +56,8 @@ class SessionViewModel @Inject constructor(
     private var expiryCheckJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            mockAuthManager.ensureSeeded()
-            _uiState.value = _uiState.value.copy(
-                demoProfiles = mockAuthManager.allProfiles(),
-                currentDemoProfile = mockAuthManager.currentProfile.value
-            )
-        }
         observeSession()
         observePersistedRole()
-        observeDemoProfile()
     }
 
     private fun observeSession() {
@@ -74,12 +65,11 @@ class SessionViewModel @Inject constructor(
         sessionJob = viewModelScope.launch {
             kotlinx.coroutines.flow.combine(
                 sessionManager.authMode(),
-                authRepository.isAuthenticated,
-                mockAuthManager.isAuthenticated
-            ) { mode, firebaseAuthed, demoAuthed ->
+                authRepository.isAuthenticated
+            ) { mode, firebaseAuthed ->
                 val isAuthed = when (mode) {
                     SessionManager.AuthMode.FIREBASE -> firebaseAuthed
-                    SessionManager.AuthMode.DEMO -> demoAuthed
+                    SessionManager.AuthMode.GUEST -> true // Guests are considered authenticated in a limited capacity
                 }
                 mode to isAuthed
             }.collectLatest { (mode, authenticated) ->
@@ -107,7 +97,14 @@ class SessionViewModel @Inject constructor(
 
     private fun observePersistedRole() {
         viewModelScope.launch {
-            rolePreferences.role.collectLatest { role ->
+            combine(
+                rolePreferences.role,
+                sessionManager.getGuestRole(),
+                sessionManager.authMode()
+            ) { prefRole, guestRole, authMode ->
+                val role = if (authMode == SessionManager.AuthMode.GUEST) guestRole else prefRole
+                role
+            }.collectLatest { role ->
                 if (role == null) return@collectLatest
                 val navConfig = startDestinationProvider.configFor(role)
                 _uiState.value = _uiState.value.copy(
@@ -116,17 +113,6 @@ class SessionViewModel @Inject constructor(
                     availableUpgrade = role.nextLevel(),
                     isLoading = false,
                     error = null
-                )
-            }
-        }
-    }
-
-    private fun observeDemoProfile() {
-        viewModelScope.launch {
-            mockAuthManager.currentProfile.collectLatest { profile ->
-                _uiState.value = _uiState.value.copy(
-                    currentDemoProfile = profile,
-                    demoProfiles = mockAuthManager.allProfiles()
                 )
             }
         }
@@ -153,30 +139,37 @@ class SessionViewModel @Inject constructor(
     private fun synchronizeRole(mode: SessionManager.AuthMode) {
         userCollectionJob?.cancel()
         userCollectionJob = viewModelScope.launch {
+            if (mode == SessionManager.AuthMode.GUEST) {
+                val role = sessionManager.getGuestRole().firstOrNull() ?: UserType.GENERAL
+                rolePreferences.persist(role)
+                val navConfig = startDestinationProvider.configFor(role)
+                _uiState.value = _uiState.value.copy(
+                    isAuthenticated = true,
+                    role = role,
+                    navConfig = navConfig,
+                    availableUpgrade = role.nextLevel(),
+                    isLoading = false,
+                    error = null,
+                    authMode = mode
+                )
+                scheduleSessionExpiryCheck()
+                return@launch
+            }
             userRepository.getCurrentUser().collectLatest { resource ->
                 when (resource) {
                     is Resource.Error -> {
+                        Timber.e("Sync role failed: ${resource.message}")
                         _uiState.value = _uiState.value.copy(isLoading = false, error = resource.message)
                     }
                     is Resource.Loading -> {
                         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                     }
                     is Resource.Success -> {
-                        val demoProfile = mockAuthManager.currentProfile.value
-                        val role = demoProfile?.role
-                            ?: resource.data?.userType
+                        val role = resource.data?.role
                             ?: rolePreferences.role.value
                             ?: UserType.GENERAL
-                        if (mode == SessionManager.AuthMode.DEMO && demoProfile != null) {
-                            sessionManager.markAuthenticated(
-                                System.currentTimeMillis(),
-                                role,
-                                mode = SessionManager.AuthMode.DEMO,
-                                demoUserId = demoProfile.id
-                            )
-                        } else {
-                            sessionManager.markAuthenticated(System.currentTimeMillis(), role)
-                        }
+                        
+                        sessionManager.markAuthenticated(System.currentTimeMillis(), role)
                         rolePreferences.persist(role)
                         val navConfig = startDestinationProvider.configFor(role)
                         _uiState.value = _uiState.value.copy(
@@ -234,39 +227,53 @@ class SessionViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Switches the user's role.
+     * 
+     * For guest mode: lightweight switch without validation or audit logging.
+     * For authenticated mode: route through RoleUpgradeManager for consistency.
+     * 
+     * NOTE: This is reserved for guest-mode role switching and administrative overrides.
+     * Interactive user upgrades should use the upgrade wizard flow.
+     */
     fun switchRole(role: UserType) {
         viewModelScope.launch {
-            val mode = _uiState.value.authMode
-            if (mode == SessionManager.AuthMode.DEMO) {
-                val target = mockAuthManager.profilesByRole(role).firstOrNull()
-                if (target != null) {
-                    when (mockAuthManager.activateProfile(target.id)) {
-                        is Resource.Error -> _uiState.value = _uiState.value.copy(error = "Failed to switch demo profile")
-                        else -> Unit
-                    }
-                } else {
-                    _uiState.value = _uiState.value.copy(error = "No demo profile for role $role")
-                }
+            val uid = currentUserProvider.userIdOrNull()
+            val navConfig = startDestinationProvider.configFor(role)
+            val authMode = _uiState.value.authMode
+
+            // For guest mode: lightweight switch without validation
+            if (authMode == SessionManager.AuthMode.GUEST) {
+                sessionManager.markAuthenticated(System.currentTimeMillis(), role)
+                rolePreferences.persist(role)
+                _uiState.value = _uiState.value.copy(
+                    isAuthenticated = true,
+                    role = role,
+                    navConfig = navConfig,
+                    availableUpgrade = role.nextLevel(),
+                    error = null,
+                    isLoading = false
+                )
                 return@launch
             }
 
-            val uid = currentUserProvider.userIdOrNull()
-            val navConfig = startDestinationProvider.configFor(role)
-            sessionManager.markAuthenticated(System.currentTimeMillis(), role)
-            rolePreferences.persist(role)
-            _uiState.value = _uiState.value.copy(
-                isAuthenticated = true,
-                role = role,
-                navConfig = navConfig,
-                availableUpgrade = role.nextLevel(),
-                error = null,
-                isLoading = false
-            )
-
-            if (uid != null) {
-                when (val result = userRepository.updateUserType(uid, role)) {
+            // For authenticated mode: use RoleUpgradeManager for audit logging and analytics
+            if (uid != null && authMode == SessionManager.AuthMode.FIREBASE) {
+                when (val result = roleUpgradeManager.upgradeRole(uid, role, skipValidation = true)) {
                     is Resource.Error -> {
                         _uiState.value = _uiState.value.copy(error = result.message ?: "Failed to update role")
+                    }
+                    is Resource.Success -> {
+                        sessionManager.markAuthenticated(System.currentTimeMillis(), role)
+                        rolePreferences.persist(role)
+                        _uiState.value = _uiState.value.copy(
+                            isAuthenticated = true,
+                            role = role,
+                            navConfig = navConfig,
+                            availableUpgrade = role.nextLevel(),
+                            error = null,
+                            isLoading = false
+                        )
                     }
                     else -> Unit
                 }
@@ -279,29 +286,9 @@ class SessionViewModel @Inject constructor(
         switchRole(next)
     }
 
-    fun activateDemoProfile(profileId: String) {
-        viewModelScope.launch {
-            when (mockAuthManager.activateProfile(profileId)) {
-                is Resource.Error -> _uiState.value = _uiState.value.copy(error = "Unable to activate demo profile")
-                else -> Unit
-            }
-        }
-    }
-
-    fun signInDemo(username: String, password: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = mockAuthManager.authenticate(username, password)) {
-                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
-                else -> Unit
-            }
-        }
-    }
-
     fun signOut() {
         expiryCheckJob?.cancel()
         viewModelScope.launch {
-            mockAuthManager.signOut()
             authRepository.signOut()
             _uiState.value = SessionUiState(
                 isAuthenticated = false,
@@ -309,9 +296,7 @@ class SessionViewModel @Inject constructor(
                 navConfig = null,
                 isLoading = false,
                 error = null,
-                demoProfiles = mockAuthManager.allProfiles(),
-                currentDemoProfile = null,
-                authMode = SessionManager.AuthMode.DEMO,
+                authMode = SessionManager.AuthMode.FIREBASE,
                 sessionExpiryWarning = null
             )
         }

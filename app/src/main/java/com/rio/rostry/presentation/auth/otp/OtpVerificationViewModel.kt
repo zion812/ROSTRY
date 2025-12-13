@@ -38,16 +38,16 @@ class OtpVerificationViewModel @Inject constructor(
     private val resendOtpUseCase: ResendOtpUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    
-    private val verificationIdString: String = 
-        savedStateHandle.get<String>("verificationId") 
+
+    private val verificationIdString: String =
+        savedStateHandle.get<String>("verificationId")
             ?: throw IllegalArgumentException("VerificationId is required")
-    
+
     private val verificationId = VerificationId(verificationIdString)
-    
+
     private val _uiState = MutableStateFlow(OtpVerificationUiState())
     val uiState: StateFlow<OtpVerificationUiState> = _uiState.asStateFlow()
-    
+
     private var cooldownJob: Job? = null
     
     /**
@@ -109,7 +109,7 @@ class OtpVerificationViewModel @Inject constructor(
                     )
                     Timber.d("OTP verified successfully")
                 }
-                
+
                 is AuthResult.Error -> {
                     val attempts = _uiState.value.attemptCount + 1
                     _uiState.value = _uiState.value.copy(
@@ -120,7 +120,7 @@ class OtpVerificationViewModel @Inject constructor(
                     )
                     Timber.e("OTP verification failed: ${result.error.getTitle()}")
                 }
-                
+
                 AuthResult.Loading -> {
                     // Already handled above
                 }

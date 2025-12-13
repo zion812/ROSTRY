@@ -679,6 +679,107 @@ Closes #123
 - Test thoroughly after updates
 - Update one dependency at a time when possible
 
+## DataStore Patterns
+
+### Consistent DataStore Initialization
+
+Use the `preferencesDataStore` delegate pattern for all DataStore instances to ensure singletons and prevent multiple instances accessing the same file:
+
+✅ **Good**:
+```kotlin
+// Define the extension at the top of the file
+private val Context.myFeatureDataStore by preferencesDataStore(name = "my_feature_prefs")
+
+// Use in ViewModel/Repository constructor
+class MyFeatureViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
+    private val dataStore = context.myFeatureDataStore
+
+    // Use dataStore for operations
+    fun saveValue(key: String, value: String) {
+        viewModelScope.launch {
+            context.myFeatureDataStore.edit { prefs ->
+                prefs[stringPreferencesKey(key)] = value
+            }
+        }
+    }
+}
+```
+
+❌ **Bad**:
+```kotlin
+// Creating multiple instances per ViewModel creation
+private val dataStore = PreferenceDataStoreFactory.create(
+    produceFile = { context.preferencesDataStoreFile("my_feature_prefs") }
+)
+```
+
+### Multiple DataStore Files
+
+When multiple DataStore files are needed for different purposes:
+- Use descriptive names that clearly indicate the purpose
+- Add KDoc comments explaining the scope of each DataStore
+- Avoid overlapping data between different DataStore files
+
+✅ **Good**:
+```kotlin
+// Authentication-related preferences
+private val Context.authPrefsDataStore by preferencesDataStore(name = "auth_prefs")
+
+// Phone verification state (separate for process death recovery)
+private val Context.authVerificationDataStore by preferencesDataStore(name = "auth_state")
+```
+
+### Error Handling
+
+Always wrap DataStore operations in `runCatching` blocks:
+
+```kotlin
+suspend fun savePreference(key: String, value: String): Result<Unit> {
+    return runCatching {
+        context.myFeatureDataStore.edit { prefs ->
+            prefs[stringPreferencesKey(key)] = value
+        }
+    }.fold(
+        onSuccess = { Result.success(Unit) },
+        onFailure = { Result.failure(it) }
+    )
+}
+```
+
+### Migration Patterns
+
+When migrating from SharedPreferences to DataStore:
+
+```kotlin
+private suspend fun migrateLegacyIfNeeded() {
+    val migratedKey = booleanPreferencesKey("data_migrated")
+    val prefs = context.myFeatureDataStore.data.first()
+    val alreadyMigrated = prefs[migratedKey] ?: false
+    if (alreadyMigrated) return
+
+    // Read legacy SharedPreferences
+    val legacy = context.getSharedPreferences("legacy_prefs", Context.MODE_PRIVATE)
+    val legacyValue = legacy.getString("key", null)
+
+    // Write to DataStore
+    if (legacyValue != null) {
+        context.myFeatureDataStore.edit { prefs ->
+            prefs[stringPreferencesKey("key")] = legacyValue
+        }
+    }
+
+    // Mark as migrated
+    context.myFeatureDataStore.edit { prefs ->
+        prefs[migratedKey] = true
+    }
+
+    // Clear legacy values
+    legacy.edit().remove("key").apply()
+}
+```
+
 ---
 
 **References**:

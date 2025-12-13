@@ -40,11 +40,15 @@ class SyncConflictResolutionTest {
     private class FakeRemote : SyncRemote {
         val products = mutableListOf<ProductEntity>()
         val transfers = mutableListOf<TransferEntity>()
+        val transfersToFetch = mutableListOf<TransferEntity>()
+        val trackingsToFetch = mutableListOf<com.rio.rostry.data.database.entity.ProductTrackingEntity>()
+        val chatsToFetch = mutableListOf<com.rio.rostry.data.database.entity.ChatMessageEntity>()
+
         override suspend fun fetchUpdatedProducts(since: Long, limit: Int) = products
-        override suspend fun fetchUpdatedOrders(since: Long, limit: Int) = emptyList<com.rio.rostry.data.database.entity.OrderEntity>()
-        override suspend fun fetchUpdatedTransfers(since: Long, limit: Int) = transfers
-        override suspend fun fetchUpdatedTrackings(since: Long, limit: Int) = emptyList<com.rio.rostry.data.database.entity.ProductTrackingEntity>()
-        override suspend fun fetchUpdatedChats(since: Long, limit: Int) = emptyList<com.rio.rostry.data.database.entity.ChatMessageEntity>()
+        override suspend fun fetchUpdatedOrders(userId: String, since: Long, limit: Int) = emptyList<com.rio.rostry.data.database.entity.OrderEntity>()
+        override suspend fun fetchUpdatedTransfers(userId: String?, since: Long, limit: Int): List<TransferEntity> = transfersToFetch
+        override suspend fun fetchUpdatedTrackings(userId: String?, since: Long, limit: Int): List<com.rio.rostry.data.database.entity.ProductTrackingEntity> = trackingsToFetch
+        override suspend fun fetchUpdatedChats(userId: String?, since: Long, limit: Int): List<com.rio.rostry.data.database.entity.ChatMessageEntity> = chatsToFetch
         override suspend fun pushProducts(entities: List<ProductEntity>) = entities.size
         override suspend fun fetchUpdatedDailyLogs(farmerId: String, since: Long, limit: Int) = emptyList<com.rio.rostry.data.database.entity.DailyLogEntity>()
         override suspend fun pushDailyLogs(farmerId: String, entities: List<com.rio.rostry.data.database.entity.DailyLogEntity>) = 0
@@ -122,7 +126,8 @@ class SyncConflictResolutionTest {
             eggCollectionDao = db.eggCollectionDao(),
             enthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao(),
             firebaseAuth = firebaseAuth,
-            traceabilityRepository = trace
+            traceabilityRepository = trace,
+            sessionManager = mockk(relaxed = true)
         )
     }
 
@@ -266,7 +271,8 @@ class SyncConflictResolutionTest {
             mortalityRecordDao = db.mortalityRecordDao(), hatchingBatchDao = db.hatchingBatchDao(), hatchingLogDao = db.hatchingLogDao(),
             dailyLogDao = db.dailyLogDao(), taskDao = db.taskDao(), matingLogDao = db.matingLogDao(), eggCollectionDao = db.eggCollectionDao(),
             enthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao(), firebaseAuth = mockk(relaxed = true) { every { currentUser } returns null },
-            traceabilityRepository = mockk(relaxed = true)
+            traceabilityRepository = mockk(relaxed = true),
+            sessionManager = mockk(relaxed = true)
         )
         val res = localSync.syncAll(now)
         assertTrue(res is Resource.Success)
@@ -305,7 +311,8 @@ class SyncConflictResolutionTest {
             mortalityRecordDao = db.mortalityRecordDao(), hatchingBatchDao = db.hatchingBatchDao(), hatchingLogDao = db.hatchingLogDao(),
             dailyLogDao = db.dailyLogDao(), taskDao = db.taskDao(), matingLogDao = db.matingLogDao(), eggCollectionDao = db.eggCollectionDao(),
             enthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao(), firebaseAuth = mockk(relaxed = true) { every { currentUser } returns null },
-            traceabilityRepository = mockk(relaxed = true)
+            traceabilityRepository = mockk(relaxed = true),
+            sessionManager = mockk(relaxed = true)
         )
         val res = localSync.syncAll(now)
         assertTrue(res is Resource.Success)
@@ -346,7 +353,8 @@ class SyncConflictResolutionTest {
             mortalityRecordDao = db.mortalityRecordDao(), hatchingBatchDao = db.hatchingBatchDao(), hatchingLogDao = db.hatchingLogDao(),
             dailyLogDao = db.dailyLogDao(), taskDao = db.taskDao(), matingLogDao = db.matingLogDao(), eggCollectionDao = db.eggCollectionDao(),
             enthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao(), firebaseAuth = mockk(relaxed = true) { every { currentUser } returns null },
-            traceabilityRepository = mockk(relaxed = true)
+            traceabilityRepository = mockk(relaxed = true),
+            sessionManager = mockk(relaxed = true)
         )
         val res = localSync.syncAll(System.currentTimeMillis())
         assertTrue(res is Resource.Success)
@@ -383,7 +391,8 @@ class SyncConflictResolutionTest {
             farmerDashboardSnapshotDao = db.farmerDashboardSnapshotDao(), vaccinationRecordDao = db.vaccinationRecordDao(), growthRecordDao = db.growthRecordDao(), quarantineRecordDao = db.quarantineRecordDao(),
             mortalityRecordDao = db.mortalityRecordDao(), hatchingBatchDao = db.hatchingBatchDao(), hatchingLogDao = db.hatchingLogDao(), dailyLogDao = db.dailyLogDao(), taskDao = db.taskDao(),
             matingLogDao = db.matingLogDao(), eggCollectionDao = db.eggCollectionDao(), enthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao(), firebaseAuth = mockk(relaxed = true) { every { currentUser } returns null },
-            traceabilityRepository = mockk(relaxed = true)
+            traceabilityRepository = mockk(relaxed = true),
+            sessionManager = mockk(relaxed = true)
         )
         val res = localSync.syncAll(System.currentTimeMillis())
         assertTrue(res is Resource.Success)
@@ -461,7 +470,8 @@ class SyncConflictResolutionTest {
             eggCollectionDao = db.eggCollectionDao(),
             enthusiastDashboardSnapshotDao = db.enthusiastDashboardSnapshotDao(),
             firebaseAuth = firebaseAuth,
-            traceabilityRepository = trace
+            traceabilityRepository = trace,
+            sessionManager = mockk(relaxed = true)
         )
         val res = localSyncManager.syncAll(System.currentTimeMillis())
         assertTrue(res is Resource.Success)

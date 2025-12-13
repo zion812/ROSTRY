@@ -60,6 +60,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         EventRsvpEntity::class,
         AnalyticsDailyEntity::class,
         ReportEntity::class,
+        StoryEntity::class,
         // Farm monitoring entities
         GrowthRecordEntity::class,
         QuarantineRecordEntity::class,
@@ -92,9 +93,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         UploadTaskEntity::class,
         // New Sprint 1 entities
         DailyLogEntity::class,
-        TaskEntity::class
+        TaskEntity::class,
+        BreedEntity::class
     ],
-    version = 40, // 40 adds performance indexes for ProductDao queries; 39 adds deferred foreign keys support; 38 adds farmer_dashboard_snapshots new KPI columns; 37 adds outbox indexes; 36 adds syncedAt/mergedAt/mergeCount to transfers and syncedAt/deviceTimestamp to chat_messages with indices; 35 adds mergedAt/mergeCount/conflictResolved to daily_logs and mergedAt/mergeCount to tasks with indices; 34 adds qrCodeUrl to products; 33 adds status & hatchedAt to hatching_batches; 32 adds productId index to tasks; 31 adds statusHistoryJson to quarantine_records; 30 added UNIQUE(productId, logDate) on daily_logs
+    version = 46, // 46 adds healthScore to quarantine_records; 45 adds auction fields; 44 adds customStatus to products; 43 adds isMarketplace to groups; 42 adds stories table; 41 adds hashtags, mentions, parentPostId to posts
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -155,6 +157,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun eventRsvpsDao(): EventRsvpsDao
     abstract fun analyticsDao(): AnalyticsDao
     abstract fun reportsDao(): ReportsDao
+    abstract fun storiesDao(): StoriesDao
 
     // Gamification DAOs
     abstract fun achievementsDefDao(): com.rio.rostry.data.database.dao.AchievementDao
@@ -184,6 +187,7 @@ abstract class AppDatabase : RoomDatabase() {
     // Sprint 1 new DAOs
     abstract fun dailyLogDao(): com.rio.rostry.data.database.dao.DailyLogDao
     abstract fun taskDao(): com.rio.rostry.data.database.dao.TaskDao
+    abstract fun breedDao(): BreedDao
 
     object Converters {
         @TypeConverter
@@ -379,8 +383,22 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_35_36: Migration = Converters.MIGRATION_35_36
         val MIGRATION_36_37: Migration = Converters.MIGRATION_36_37
         val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
-        
 
+        // Add bidIncrement, status, winnerId to auctions (44 -> 45)
+        val MIGRATION_44_45 = object : Migration(44, 45) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `bidIncrement` REAL NOT NULL DEFAULT 10.0")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `status` TEXT NOT NULL DEFAULT 'UPCOMING'")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `winnerId` TEXT")
+            }
+        }
+
+        // Add healthScore to quarantine_records (45 -> 46)
+        val MIGRATION_45_46 = object : Migration(45, 46) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `healthScore` INTEGER NOT NULL DEFAULT 100")
+            }
+        }
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -1299,6 +1317,39 @@ abstract class AppDatabase : RoomDatabase() {
                     android.util.Log.e("Migration_39_40", "Error during migration", e)
                     throw e
                 }
+            }
+        }
+
+        // Add hashtags, mentions, and parentPostId to posts (40 -> 41)
+        val MIGRATION_40_41 = object : Migration(40, 41) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add new columns to posts table
+                db.execSQL("ALTER TABLE `posts` ADD COLUMN `hashtags` TEXT")
+                db.execSQL("ALTER TABLE `posts` ADD COLUMN `mentions` TEXT")
+                db.execSQL("ALTER TABLE `posts` ADD COLUMN `parentPostId` TEXT")
+            }
+        }
+
+        // Add stories table (41 -> 42)
+        val MIGRATION_41_42 = object : Migration(41, 42) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `stories` (`storyId` TEXT NOT NULL, `authorId` TEXT NOT NULL, `mediaUrl` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, PRIMARY KEY(`storyId`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_stories_authorId` ON `stories` (`authorId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_stories_expiresAt` ON `stories` (`expiresAt`)")
+            }
+        }
+
+        // Add isMarketplace to groups (42 -> 43)
+        val MIGRATION_42_43 = object : Migration(42, 43) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `groups` ADD COLUMN `isMarketplace` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // Add customStatus to products (43 -> 44)
+        val MIGRATION_43_44 = object : Migration(43, 44) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `customStatus` TEXT")
             }
         }
     }

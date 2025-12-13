@@ -4,8 +4,10 @@
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2025-10-29  
-**Documentation Version**: 3.1
+**Last Updated**: 2025-01-15  
+**Documentation Version**: 3.2
+
+📘 **NEW: Complete System Reference** - See `SYSTEM_BLUEPRINT.md` for the comprehensive System Information and Functionality (SINF) document that provides end-to-end coverage of the entire codebase.
 
 ## Table of Contents
 
@@ -41,13 +43,31 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 - `blueprint.md` — System overview for stakeholders
 
 ### For Product Managers / Stakeholders
+- `../SYSTEM_BLUEPRINT.md` — Comprehensive SINF (System Information and Functionality) document covering complete codebase structure, all features, data flows, and system architecture
 - `blueprint.md` — High-level system overview
 - `roadmap.md` — Feature roadmap and priorities
 - `analytics-dashboard.md` — Key metrics and insights
 
+## System Reference (SINF)
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| `../SYSTEM_BLUEPRINT.md` | **Canonical System Reference.** The comprehensive System Information and Functionality (SINF) document. Defines the master system architecture, features, and data flows. | ✅ Master |
+
+## Documentation Hierarchy
+
+To avoid drift, ROSTRY documentation follows a strict hierarchy:
+
+1.  **SYSTEM_BLUEPRINT.md** (Root): The single source of truth for high-level system definition.
+2.  **architecture.md** (Implementation): Developers' guide to code organization, patterns, and infrastructure. Updates here should align with the Blueprint.
+3.  **CODEBASE_STRUCTURE.md** (Navigation): Map of files and packages for code exploration.
+4.  **Feature Guides**: Specific implementation details for sub-systems (e.g., `social-platform.md`).
+
+When updating architecture, start with `SYSTEM_BLUEPRINT.md`, then cascade changes to `architecture.md` and specific guides.
+
 ## Core Architecture
 
-Understanding the ROSTRY system:
+Understanding the ROSTRY implementation details:
 
 | Document | Description | Status |
 |----------|-------------|--------|
@@ -175,7 +195,8 @@ Decision records documenting key architectural choices:
 
 ```mermaid
 flowchart TD
-    A[README-docs.md<br/>Primary Index] --> B[Core Architecture<br/>architecture.md, etc.]
+    S[SYSTEM_BLUEPRINT.md<br/>Master Reference] --> A[README-docs.md<br/>Primary Index]
+    A --> B[Core Architecture<br/>architecture.md, etc.]
     A --> C[Feature Guides<br/>Social, Marketplace, etc.]
     A --> D[Operations<br/>Testing, Deployment]
     A --> E[ADRs<br/>Decision Records]
@@ -189,6 +210,7 @@ flowchart TD
 
 | Task | Relevant Documentation |
 |------|------------------------|
+| Understanding complete system | SYSTEM_BLUEPRINT.md, architecture.md, README-docs.md |
 | Adding a new screen | `architecture.md`, `user-experience-guidelines.md`, `CODE_STYLE.md` |
 | Database migration | `database-migrations.md`, `data-contracts.md`, `architecture.md` |
 | Background worker | `background-jobs.md`, `architecture.md` |

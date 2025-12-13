@@ -56,5 +56,13 @@ interface OutboxDao {
     // Compatibility for tests: simple pending fetch ordered by createdAt
     @Query("SELECT * FROM outbox WHERE status = 'PENDING' ORDER BY createdAt ASC LIMIT :limit")
     suspend fun getPending(limit: Int): List<OutboxEntity>
-}
 
+    @Query("SELECT COUNT(*) FROM outbox WHERE status = 'PENDING' OR status = 'RETRYING'")
+    fun getPendingCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM outbox WHERE status = 'FAILED'")
+    fun getFailedCount(): Flow<Int>
+
+    @Query("SELECT * FROM outbox WHERE status = 'FAILED' ORDER BY createdAt DESC LIMIT 10")
+    fun getFailedOperations(): Flow<List<OutboxEntity>>
+}

@@ -7,35 +7,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * Comprehensive Material 3 typography for the ROSTRY app.
- * Uses Roboto system font stack (FontFamily.Default) for wide availability.
- * Sizes aim for readability across marketplace, analytics, and social content.
+ * ROSTRY Typography System.
+ * 
+ * Designed for clarity, readability, and hierarchy.
+ * Uses system default font (Roboto on Android) with optimized weights and spacing.
  */
 val Typography = Typography(
+    // Large Display - Hero sections, Welcome screens
     displayLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Light,
+        fontWeight = FontWeight.Bold, // Bold for impact
         fontSize = 57.sp,
         lineHeight = 64.sp,
         letterSpacing = (-0.25).sp
     ),
     displayMedium = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Light,
+        fontWeight = FontWeight.Bold,
         fontSize = 45.sp,
         lineHeight = 52.sp,
         letterSpacing = 0.sp
     ),
     displaySmall = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 36.sp,
         lineHeight = 44.sp,
         letterSpacing = 0.sp
     ),
+    
+    // Headlines - Page titles, Section headers
     headlineLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.SemiBold, // Stronger hierarchy
         fontSize = 32.sp,
         lineHeight = 40.sp,
         letterSpacing = 0.sp
@@ -49,14 +53,16 @@ val Typography = Typography(
     ),
     headlineSmall = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 32.sp,
         letterSpacing = 0.sp
     ),
+    
+    // Titles - Card titles, List headers
     titleLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Medium, // Medium for clear distinction
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.sp
@@ -75,6 +81,8 @@ val Typography = Typography(
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
     ),
+    
+    // Body - Main content, Descriptions
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
@@ -96,6 +104,8 @@ val Typography = Typography(
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp
     ),
+    
+    // Labels - Buttons, Tabs, Captions
     labelLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Medium,

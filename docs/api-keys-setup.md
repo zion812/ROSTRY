@@ -95,12 +95,16 @@ keytool -list -v -keystore /path/to/your/release.keystore -alias your_key_alias
 **In local.properties**:
 ```properties
 MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+MAPS_JS_API_KEY=AIzaSyYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY # Optional, for WebViews
 ```
 
 **How it works**:
 
-1. **Gradle** reads key from `local.properties` using providers API:
-   ```kotlin
+1. **Gradle** reads keys from `local.properties`.
+   - Release builds will fails with a clear error if `MAPS_API_KEY` is missing or matches a placeholder.
+   - `MAPS_JS_API_KEY` falls back to `MAPS_API_KEY` if not explicitly set.
+   
+```kotlin
    // In app/build.gradle.kts
    val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
 

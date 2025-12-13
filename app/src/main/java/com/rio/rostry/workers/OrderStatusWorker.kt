@@ -48,6 +48,7 @@ class OrderStatusWorker @AssistedInject constructor(
                 try {
                     // Fetch latest status from Firestore
                     val remoteOrders = firestoreService.fetchUpdatedOrders(
+                        userId = userId,
                         since = order.updatedAt,
                         limit = 1
                     )

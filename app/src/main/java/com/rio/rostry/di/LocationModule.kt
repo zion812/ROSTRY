@@ -16,16 +16,7 @@ import timber.log.Timber
 @InstallIn(SingletonComponent::class)
 object LocationModule {
 
-    @Provides
-    @Singleton
-    fun providePlacesClient(app: Application): PlacesClient {
-        if (!Places.isInitialized()) {
-            // Defensive init (RostryApp initializes too)
-            Places.initializeWithNewPlacesApiEnabled(app, com.rio.rostry.BuildConfig.MAPS_API_KEY)
-            Timber.d("Places SDK initialized from LocationModule")
-        }
-        return Places.createClient(app)
-    }
+
 
     @Provides
     @Singleton

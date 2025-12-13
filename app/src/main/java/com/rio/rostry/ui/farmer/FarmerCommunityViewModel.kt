@@ -8,6 +8,8 @@ import com.rio.rostry.data.database.entity.GroupEntity
 import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.data.repository.CommunityRepository
 import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.data.database.entity.UserEntity
+import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,9 +22,15 @@ class FarmerCommunityViewModel @Inject constructor(
     private val communityEngagementService: CommunityEngagementService,
     private val communityRepository: CommunityRepository,
     private val messagingRepository: MessagingRepository,
+    private val userRepository: UserRepository,
     private val currentUserProvider: CurrentUserProvider,
     private val sessionManager: SessionManager
 ) : ViewModel() {
+    
+    sealed class SearchResult {
+        object Empty : SearchResult()
+        data class Success(val groups: List<GroupEntity>, val users: List<UserEntity>) : SearchResult()
+    }
 
     private val userId: String?
         get() = currentUserProvider.userIdOrNull()
@@ -78,7 +86,42 @@ class FarmerCommunityViewModel @Inject constructor(
         }
     }
 
-    fun createThreadWithContext(toUserId: String, contextType: String, relatedEntityId: String?) {
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    val searchResults: StateFlow<SearchResult> = _searchQuery
+        .debounce(300)
+        .flatMapLatest { query ->
+            if (query.isBlank()) {
+                flowOf(SearchResult.Empty)
+            } else {
+                val groupsFlow = communityRepository.searchGroups(query)
+                val usersFlow = userRepository.searchUsers(query)
+
+                combine(groupsFlow, usersFlow) { groups, users ->
+                    // Filter out current user from results
+                    val filteredUsers = users.filter { it.userId != userId }
+                    SearchResult.Success(groups, filteredUsers)
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchResult.Empty)
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+    }
+
+    fun startChat(withUserId: String, onSuccess: (String) -> Unit) {
+        // Just create a simple thread context for P2P chat
+        createThreadWithContext(withUserId, "DIRECT_MESSAGE", null, onSuccess)
+    }
+
+    fun createThreadWithContext(toUserId: String, contextType: String, relatedEntityId: String?, onSuccess: (String) -> Unit = {}) {
         viewModelScope.launch {
             try {
                 val fromUserId = userId ?: return@launch
@@ -87,7 +130,8 @@ class FarmerCommunityViewModel @Inject constructor(
                     relatedEntityId = relatedEntityId,
                     topic = null
                 )
-                communityEngagementService.createContextualThread(fromUserId, toUserId, context)
+                val threadId = communityEngagementService.createContextualThread(fromUserId, toUserId, context)
+                onSuccess(threadId)
             } catch (e: Exception) {
                 // Handle error
             }

@@ -4,9 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.BreedingRecordDao
 import com.rio.rostry.data.database.dao.LifecycleEventDao
-import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.entity.LifecycleEventEntity
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,7 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class EnthusiastFlockViewModel @Inject constructor(
-    private val productDao: ProductDao,
+    private val productRepository: ProductRepository,
     private val breedingDao: BreedingRecordDao,
     private val lifecycleDao: LifecycleEventDao,
     currentUserProvider: CurrentUserProvider,
@@ -41,7 +42,14 @@ class EnthusiastFlockViewModel @Inject constructor(
     private val uid = currentUserProvider.userIdOrNull()
 
     // Products owned by current user
-    private val productsFlow = if (!uid.isNullOrBlank()) productDao.getProductsBySeller(uid) else MutableStateFlow(emptyList())
+    private val productsFlow = if (!uid.isNullOrBlank()) {
+        productRepository.getProductsBySeller(uid).map { resource ->
+            when (resource) {
+                is Resource.Success -> resource.data ?: emptyList()
+                else -> emptyList()
+            }
+        }
+    } else MutableStateFlow(emptyList())
 
     // Build alerts and counts from available DAOs
     val state: StateFlow<UiState> = productsFlow.flatMapLatest { products ->

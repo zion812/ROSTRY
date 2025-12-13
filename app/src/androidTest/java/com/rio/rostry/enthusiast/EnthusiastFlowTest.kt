@@ -161,7 +161,7 @@ class EnthusiastFlowTest {
         assertNotNull("TransferId should not be null", transferId)
 
         // Verify timeline and audit logs
-        val verifications = verificationDao.streamByTransfer(transferId!!).first()
+        val verifications = verificationDao.observeByTransferId(transferId!!).first()
         assertTrue("Seller init verification should exist", verifications.any { it.step == "SELLER_INIT" })
 
         val audits = auditDao.streamByRef(transferId).first()

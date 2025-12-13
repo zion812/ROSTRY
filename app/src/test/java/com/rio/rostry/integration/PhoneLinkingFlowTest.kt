@@ -6,6 +6,7 @@ import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.ui.auth.AuthViewModel
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
+import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
 import com.rio.rostry.utils.network.FeatureToggles
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,6 +27,7 @@ class PhoneLinkingFlowTest {
     private lateinit var userRepo: UserRepository
     private lateinit var featureToggles: FeatureToggles
     private lateinit var analytics: AuthAnalyticsTracker
+    private lateinit var flowAnalyticsTracker: FlowAnalyticsTracker
     private lateinit var firebaseAuth: FirebaseAuth
 
     private val testDispatcher = StandardTestDispatcher()
@@ -59,6 +61,7 @@ class PhoneLinkingFlowTest {
             savedStateHandle = androidx.lifecycle.SavedStateHandle(),
             featureToggles = featureToggles,
             authAnalytics = analytics,
+            flowAnalyticsTracker = flowAnalyticsTracker,
             firebaseAuth = firebaseAuth
         )
 
@@ -89,6 +92,7 @@ class PhoneLinkingFlowTest {
             savedStateHandle = androidx.lifecycle.SavedStateHandle(),
             featureToggles = featureToggles,
             authAnalytics = analytics,
+            flowAnalyticsTracker = flowAnalyticsTracker,
             firebaseAuth = firebaseAuth
         )
         vm.handleFirebaseUIResult(response = null, resultCode = android.app.Activity.RESULT_OK)

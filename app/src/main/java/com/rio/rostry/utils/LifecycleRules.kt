@@ -31,4 +31,9 @@ object LifecycleRules {
         }
         return out
     }
+    fun calculateAgeInWeeks(birthDate: Long, now: Long = System.currentTimeMillis()): Int {
+        if (birthDate > now) return 0
+        val diff = now - birthDate
+        return java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt() / 7
+    }
 }

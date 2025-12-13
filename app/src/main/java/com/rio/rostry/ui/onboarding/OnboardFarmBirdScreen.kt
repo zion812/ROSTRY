@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import android.Manifest
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
+import androidx.compose.material3.MaterialTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,7 +151,8 @@ fun OnboardFarmBirdScreen(
                             vaccinationRecords = state.coreDetails.vaccinationRecords,
                             healthStatus = state.coreDetails.healthStatus,
                             breedingHistory = state.coreDetails.breedingHistory,
-                            awards = state.coreDetails.awards
+                            awards = state.coreDetails.awards,
+                            location = state.coreDetails.location
                         )
                         val ageGroup = state.ageGroup ?: OnboardingValidator.AgeGroup.CHICK
                         val isTraceable = state.isTraceable ?: false
@@ -164,6 +166,21 @@ fun OnboardFarmBirdScreen(
                         modifier = Modifier.semantics { contentDescription = "Enter bird name" }
                     )
                     coreErrors["name"]?.let { Text(it) }
+                    
+                    // Location Selector
+                    Text("Location", style = MaterialTheme.typography.bodyMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val loc = state.coreDetails.location
+                        listOf("Coop", "Free Range", "Quarantine").forEach { l ->
+                            if (loc == l) {
+                                Button(onClick = { vm.updateCoreDetails { it.copy(location = l) } }) { Text(l) }
+                            } else {
+                                OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(location = l) } }) { Text(l) }
+                            }
+                        }
+                    }
+                    coreErrors["location"]?.let { Text(it, color = androidx.compose.ui.graphics.Color.Red) }
+
                     // Birth date picker
                     val showDate = remember { mutableStateOf(false) }
                     
@@ -359,15 +376,25 @@ fun OnboardFarmBirdScreen(
                         ),
                         state.isTraceable == true
                     )
-                    val pickImages = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+                    val pickImages = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                        uris.forEach { uri ->
+                            try {
+                                ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            } catch (e: Exception) { }
+                        }
                         if (uris != null) vm.updateMedia { m -> m.copy(photoUris = uris.map { it.toString() }) }
                     }
-                    val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+                    val pickDocs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                        uris.forEach { uri ->
+                            try {
+                                ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            } catch (e: Exception) { }
+                        }
                         if (uris != null) vm.updateMedia { m -> m.copy(documentUris = uris.map { it.toString() }) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { pickImages.launch("image/*") }, modifier = Modifier.semantics { contentDescription = "Pick photos" }) { Text("Pick Photos") }
-                        OutlinedButton(onClick = { pickDocs.launch("application/pdf") }, modifier = Modifier.semantics { contentDescription = "Pick documents" }) { Text("Pick Documents") }
+                        OutlinedButton(onClick = { pickImages.launch(arrayOf("image/*")) }, modifier = Modifier.semantics { contentDescription = "Pick photos" }) { Text("Pick Photos") }
+                        OutlinedButton(onClick = { pickDocs.launch(arrayOf("application/pdf")) }, modifier = Modifier.semantics { contentDescription = "Pick documents" }) { Text("Pick Documents") }
                     }
                     mediaErrors["photos"]?.let { Text(it) }
                     mediaErrors["documents"]?.let { Text(it) }
@@ -399,7 +426,8 @@ fun OnboardFarmBirdScreen(
                             vaccinationRecords = state.coreDetails.vaccinationRecords,
                             healthStatus = state.coreDetails.healthStatus,
                             breedingHistory = state.coreDetails.breedingHistory,
-                            awards = state.coreDetails.awards
+                            awards = state.coreDetails.awards,
+                            location = state.coreDetails.location
                         )
                         val ageGroup2 = state.ageGroup ?: OnboardingValidator.AgeGroup.CHICK
                         val isTraceable2 = state.isTraceable ?: false
@@ -429,6 +457,33 @@ fun OnboardFarmBirdScreen(
                 }
             }
             state.error?.let { Text(it) }
+            
+            state.warning?.let { warning ->
+                androidx.compose.material3.Card(
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Upgrade Recommended",
+                            style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = warning,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        TextButton(
+                            onClick = { onNavigateRoute(com.rio.rostry.ui.navigation.Routes.Builders.upgradeWizard(com.rio.rostry.domain.model.UserType.ENTHUSIAST)) }
+                        ) {
+                            Text("Upgrade Role")
+                        }
+                    }
+                }
+            }
 
             // Upload status banner
             val pendingOrUploading = state.uploadStatus.values.count { it == "PENDING" || it == "UPLOADING" }

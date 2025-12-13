@@ -15,6 +15,7 @@ import com.rio.rostry.utils.normalizeToE164
 import com.rio.rostry.utils.formatToE164
 import com.rio.rostry.utils.network.FeatureToggles
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
+import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -27,6 +28,8 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.MockitoJUnitRunner
+import com.firebase.ui.auth.IdpResponse
+import com.rio.rostry.ui.auth.needsPhoneVerificationBanner
 
 @ExperimentalCoroutinesApi
 @RunWith(MockitoJUnitRunner::class)
@@ -53,6 +56,9 @@ class AuthFlowIntegrationTest {
     @Mock
     private lateinit var authAnalytics: AuthAnalyticsTracker
 
+    @Mock
+    private lateinit var flowAnalyticsTracker: FlowAnalyticsTracker
+
     private lateinit var authViewModel: AuthViewModel
 
     @Before
@@ -64,6 +70,7 @@ class AuthFlowIntegrationTest {
             savedStateHandle = savedStateHandle,
             featureToggles = featureToggles,
             authAnalytics = authAnalytics,
+            flowAnalyticsTracker = flowAnalyticsTracker,
             firebaseAuth = firebaseAuth
         )
     }
@@ -131,7 +138,7 @@ class AuthFlowIntegrationTest {
 
     @Test
     fun `verifyOtpAndSignIn on success navigates to home for farmer`() = runTest {
-        val user = UserEntity(userId = "test-user-1", userType = UserType.FARMER)
+        val user = UserEntity(userId = "test-user-1", userType = UserType.FARMER.name)
         `when`(authRepository.verifyOtp(anyString(), anyString())).thenReturn(Resource.Success(Unit))
         `when`(userRepository.getCurrentUser()).thenReturn(flowOf(Resource.Success(user)))
         `when`(sessionManager.markAuthenticated(anyLong(), any(UserType::class.java))).then { }
@@ -152,7 +159,7 @@ class AuthFlowIntegrationTest {
 
     @Test
     fun `verifyOtpAndSignIn on success navigates to user setup for general user`() = runTest {
-        val user = UserEntity(userId = "test-user-2", userType = UserType.GENERAL)
+        val user = UserEntity(userId = "test-user-2", userType = UserType.GENERAL.name)
         `when`(authRepository.verifyOtp(anyString(), anyString())).thenReturn(Resource.Success(Unit))
         `when`(userRepository.getCurrentUser()).thenReturn(flowOf(Resource.Success(user)))
         `when`(sessionManager.markAuthenticated(anyLong(), any(UserType::class.java))).then { }
@@ -183,4 +190,54 @@ class AuthFlowIntegrationTest {
     }
 
     // Removed direct instantiation test for AuthRepositoryImpl; its constructor requires Android dependencies.
+
+    @Test
+    fun `guest upgrade defers phone verification when feature enabled`() = runTest {
+        val user = UserEntity(userId = "test-user-3", userType = UserType.FARMER.name, phoneNumber = null)
+        `when`(featureToggles.isPhoneVerificationRequired()).thenReturn(true)
+        `when`(sessionManager.isGuestSession()).thenReturn(flowOf(true))
+        `when`(userRepository.getCurrentUser()).thenReturn(flowOf(Resource.Success(user)))
+        
+        authViewModel.setFromGuest(true)
+        // Simulate FirebaseUI result for guest upgrade
+        val response = mock(IdpResponse::class.java)
+        `when`(response.providerType).thenReturn("google.com")
+        authViewModel.handleFirebaseUIResult(response, Activity.RESULT_OK)
+        
+        val state = authViewModel.uiState.value
+        assertEquals("guest_upgrade", state.pendingPhoneVerificationReason)
+        assertTrue(state.needsPhoneVerificationBanner)
+    }
+
+    @Test
+    fun `new user without phone sets pending verification reason`() = runTest {
+        val user = UserEntity(userId = "test-user-4", userType = UserType.FARMER.name, phoneNumber = null)
+        `when`(featureToggles.isPhoneVerificationRequired()).thenReturn(true)
+        `when`(sessionManager.isGuestSession()).thenReturn(flowOf(false))
+        `when`(userRepository.getCurrentUser()).thenReturn(flowOf(Resource.Success(user)))
+        
+        val response = mock(IdpResponse::class.java)
+        `when`(response.providerType).thenReturn("google.com")
+        authViewModel.handleFirebaseUIResult(response, Activity.RESULT_OK)
+        
+        val state = authViewModel.uiState.value
+        assertNotNull(state.pendingPhoneVerificationReason)
+        assertTrue(state.pendingPhoneVerificationReason!!.startsWith("new_user_"))
+    }
+
+    @Test
+    fun `existing user with phone has no pending verification`() = runTest {
+        val user = UserEntity(userId = "test-user-5", userType = UserType.FARMER.name, phoneNumber = "+919876543210")
+        `when`(featureToggles.isPhoneVerificationRequired()).thenReturn(true)
+        `when`(sessionManager.isGuestSession()).thenReturn(flowOf(false))
+        `when`(userRepository.getCurrentUser()).thenReturn(flowOf(Resource.Success(user)))
+        
+        val response = mock(IdpResponse::class.java)
+        `when`(response.providerType).thenReturn("google.com")
+        authViewModel.handleFirebaseUIResult(response, Activity.RESULT_OK)
+        
+        val state = authViewModel.uiState.value
+        assertNull(state.pendingPhoneVerificationReason)
+        assertFalse(state.needsPhoneVerificationBanner)
+    }
 }

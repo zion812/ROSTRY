@@ -14,7 +14,8 @@ object OnboardingValidator {
         val vaccinationRecords: String = "",
         val healthStatus: String = "OK",
         val breedingHistory: String = "",
-        val awards: String = ""
+        val awards: String = "",
+        val location: String = ""
     )
 
     data class LineageState(
@@ -44,6 +45,7 @@ object OnboardingValidator {
         val errors = mutableMapOf<String, String>()
         if (details.name.isBlank()) errors["name"] = "Name is required"
         if (details.birthDate == null) errors["birthDate"] = "Birth date is required"
+        if (details.location.isBlank()) errors["location"] = "Location is required"
         val weight = details.weightGrams.toDoubleOrNull()
         if (weight == null || weight <= 0.0) errors["weightGrams"] = "Valid weight (g) required"
         if (isTraceable && details.gender.equals("Unknown", ignoreCase = true)) {

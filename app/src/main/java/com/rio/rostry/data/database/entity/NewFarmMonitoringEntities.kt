@@ -5,45 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-// Breeding pair entity for tracking breeding operations
-@Entity(
-    tableName = "breeding_pairs",
-    foreignKeys = [
-        ForeignKey(
-            entity = ProductEntity::class,
-            parentColumns = ["productId"],
-            childColumns = ["maleProductId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = ProductEntity::class,
-            parentColumns = ["productId"],
-            childColumns = ["femaleProductId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [
-        Index("farmerId"),
-        Index("status"),
-        Index("maleProductId"),
-        Index("femaleProductId")
-    ]
-)
-data class BreedingPairEntity(
-    @PrimaryKey val pairId: String,
-    val farmerId: String,
-    val maleProductId: String,
-    val femaleProductId: String,
-    val pairedAt: Long,
-    val status: String, // ACTIVE, RETIRED
-    val eggsCollected: Int = 0,
-    val hatchSuccessRate: Double = 0.0,
-    val notes: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis(),
-    val dirty: Boolean = false,
-    val syncedAt: Long? = null
-)
+
 
 // Farm alert entity for notifications and reminders
 @Entity(

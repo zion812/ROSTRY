@@ -39,10 +39,10 @@ class SyncManagerTest {
         // Return empty remote deltas
         runBlocking {
             `when`(firestore.fetchUpdatedProducts(Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
-            `when`(firestore.fetchUpdatedOrders(Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
-            `when`(firestore.fetchUpdatedTransfers(Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
-            `when`(firestore.fetchUpdatedTrackings(Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
-            `when`(firestore.fetchUpdatedChats(Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
+            `when`(firestore.fetchUpdatedOrders(Mockito.anyString(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
+            `when`(firestore.fetchUpdatedTransfers(Mockito.anyString(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
+            `when`(firestore.fetchUpdatedTrackings(Mockito.anyString(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
+            `when`(firestore.fetchUpdatedChats(Mockito.anyString(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(emptyList())
 
             // Echo sizes for pushes
             `when`(firestore.pushProducts(Mockito.anyList<ProductEntity>())).thenAnswer(Answer { (it.arguments[0] as List<*>).size })
@@ -108,7 +108,8 @@ class SyncManagerTest {
             eggCollectionDao = Mockito.mock(com.rio.rostry.data.database.dao.EggCollectionDao::class.java),
             enthusiastDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao::class.java),
             firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java),
-            traceabilityRepository = Mockito.mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java)
+            traceabilityRepository = Mockito.mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java),
+            sessionManager = Mockito.mock(com.rio.rostry.session.SessionManager::class.java)
         )
 
         val res = sync.syncAll()
@@ -145,7 +146,7 @@ class SyncManagerTest {
 
         // Remote says COMPLETED (terminal)
         val remote = local.copy(status = "COMPLETED", dirty = false, updatedAt = 5L, lastModifiedAt = 5L)
-        `when`(firestore.fetchUpdatedTransfers(Mockito.anyLong(), Mockito.anyInt())).thenReturn(listOf(remote))
+        `when`(firestore.fetchUpdatedTransfers(Mockito.anyString(), Mockito.anyLong(), Mockito.anyInt())).thenReturn(listOf(remote))
 
         val sync = SyncManager(
             userDao = db.userDao(),
@@ -174,7 +175,8 @@ class SyncManagerTest {
             eggCollectionDao = Mockito.mock(com.rio.rostry.data.database.dao.EggCollectionDao::class.java),
             enthusiastDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao::class.java),
             firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java),
-            traceabilityRepository = Mockito.mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java)
+            traceabilityRepository = Mockito.mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java),
+            sessionManager = Mockito.mock(com.rio.rostry.session.SessionManager::class.java)
         )
 
         sync.syncAll()
@@ -250,7 +252,8 @@ class SyncManagerTest {
             eggCollectionDao = Mockito.mock(com.rio.rostry.data.database.dao.EggCollectionDao::class.java),
             enthusiastDashboardSnapshotDao = Mockito.mock(com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao::class.java),
             firebaseAuth = Mockito.mock(com.google.firebase.auth.FirebaseAuth::class.java),
-            traceabilityRepository = Mockito.mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java)
+            traceabilityRepository = Mockito.mock(com.rio.rostry.data.repository.TraceabilityRepository::class.java),
+            sessionManager = Mockito.mock(com.rio.rostry.session.SessionManager::class.java)
         )
 
         sync.syncAll()

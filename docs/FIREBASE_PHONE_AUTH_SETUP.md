@@ -57,6 +57,8 @@ SHA-256: C8:FB:8F:7A:83:DD:26:EF:4E:04:F5:1F:E4:BC:E6:91:46:EC:4B:B3:B3:C6:01:A2
 
 ### **Step 3: Add Test Phone Numbers (For Development)**
 
+> **Note:** We use `PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING=true` in debug builds (configured in `app/build.gradle.kts`) to bypass reCAPTCHA and Play Integrity checks. This setting MUST be disabled for release builds (default: false).
+
 To avoid hitting SMS quotas during development:
 
 1. **Go to Phone Numbers for Testing**

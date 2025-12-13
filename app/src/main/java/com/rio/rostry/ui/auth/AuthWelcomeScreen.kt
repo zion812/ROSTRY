@@ -3,11 +3,15 @@ package com.rio.rostry.ui.auth
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Agriculture
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,33 +23,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rio.rostry.R
+import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.ui.components.ShimmerAuthCard
 
 /**
- * Unified authentication welcome screen - Instagram style
- * 
- * Single entry point for all authentication methods:
- * - Phone number sign-in
- * - Google sign-in
- * - Email/Password sign-in
+ * Role-first welcome screen - asks users to select their role before authentication
+ *
+ * Shows three role selection cards with options for guest preview or immediate sign-in.
  */
 @Composable
 fun AuthWelcomeScreen(
-    onPhoneSignInClick: () -> Unit,
-    onGoogleSignInClick: () -> Unit,
-    onEmailSignInClick: () -> Unit,
+    onPreviewAsRole: (UserType) -> Unit,
+    onSignInAsRole: (UserType) -> Unit,
     isLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp)
             .windowInsetsPadding(WindowInsets.safeDrawing),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.weight(1f))
-        
+
         // Animated App Logo
         val logoScale by animateFloatAsState(
             targetValue = 1f,
@@ -55,7 +56,7 @@ fun AuthWelcomeScreen(
             ),
             label = "logo_scale"
         )
-        
+
         Surface(
             modifier = Modifier
                 .size(120.dp)
@@ -67,34 +68,34 @@ fun AuthWelcomeScreen(
             Box(contentAlignment = Alignment.Center) {
                 // ROSTRY Logo - custom drawable
                 Image(
-                    painter = painterResource(id = R.drawable.ic_rostry_logo),
+                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
                     contentDescription = "ROSTRY Logo",
                     modifier = Modifier.size(100.dp)
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Text(
-            text = "Welcome to ROSTRY",
+            text = "Welcome to ROSTRY - Your Poultry Management Platform",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
-            text = "Poultry farm management made simple",
+            text = "Choose your role to get started",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
-        // Primary Sign-In Methods with staggered animations
+
+        // Role Selection Cards with staggered animations
         AnimatedVisibility(
             visible = !isLoading,
             enter = fadeIn() + slideInVertically(
@@ -108,84 +109,55 @@ fun AuthWelcomeScreen(
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Phone Number Sign-In (Primary) - Animated
-                AnimatedButton(
-                    onClick = onPhoneSignInClick,
+                // Farmer Role Card
+                RoleSelectionCard(
+                    role = UserType.FARMER,
+                    icon = Icons.Default.Agriculture,
+                    title = "Farmer",
+                    description = "Manage your poultry farm, track production, and sell products",
+                    onPreviewClick = {
+                        onPreviewAsRole(UserType.FARMER)
+                    },
+                    onSignInClick = {
+                        onSignInAsRole(UserType.FARMER)
+                    },
                     delayMillis = 100
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Continue with Phone Number",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                
-                // Divider with "OR"
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Divider(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "OR",
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Divider(modifier = Modifier.weight(1f))
-                }
-                
-                // Google Sign-In with actual Google icon
-                AnimatedOutlinedButton(
-                    onClick = onGoogleSignInClick,
+                )
+
+                // Enthusiast Role Card
+                RoleSelectionCard(
+                    role = UserType.ENTHUSIAST,
+                    icon = Icons.Default.Pets,
+                    title = "Enthusiast",
+                    description = "Breed, monitor, and showcase your birds",
+                    onPreviewClick = {
+                        onPreviewAsRole(UserType.ENTHUSIAST)
+                    },
+                    onSignInClick = {
+                        onSignInAsRole(UserType.ENTHUSIAST)
+                    },
                     delayMillis = 200
-                ) {
-                    // Google icon - actual SVG
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_google),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = androidx.compose.ui.graphics.Color.Unspecified // Preserve original colors
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Continue with Google",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                
-                // Email Sign-In
-                AnimatedOutlinedButton(
-                    onClick = onEmailSignInClick,
-                    delayMillis = 300
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Email,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Continue with Email",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                )
+
+                // General User Role Card
+                RoleSelectionCard(
+                    role = UserType.GENERAL,
+                    icon = Icons.Default.Person,
+                    title = "General User",
+                    description = "Browse marketplace, learn about poultry, and connect with farmers",
+                    onPreviewClick = {
+                        onPreviewAsRole(UserType.GENERAL)
+                    },
+                    onSignInClick = {
+                        onSignInAsRole(UserType.GENERAL)
+                    },
+                    delayMillis = 200
+                )
             }
         }
-        
+
         // Shimmer Loading
         AnimatedVisibility(
             visible = isLoading,
@@ -194,9 +166,20 @@ fun AuthWelcomeScreen(
         ) {
             ShimmerAuthCard()
         }
-        
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // "Why we ask" help text
+        Text(
+            text = "Why we ask? We customize your experience based on your role to show relevant features and content.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         // Terms and Privacy
         Text(
             text = "By continuing, you agree to our Terms of Service\nand Privacy Policy",
@@ -209,100 +192,94 @@ fun AuthWelcomeScreen(
 }
 
 /**
- * Animated Button with slide-in effect
+ * Role selection card with icon, title, description, and action buttons
  */
 @Composable
-private fun AnimatedButton(
-    onClick: () -> Unit,
-    delayMillis: Int = 0,
-    content: @Composable RowScope.() -> Unit
+private fun RoleSelectionCard(
+    role: UserType,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    onPreviewClick: () -> Unit,
+    onSignInClick: () -> Unit,
+    delayMillis: Int = 0
 ) {
     var visible by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(delayMillis.toLong())
-        visible = true
-    }
-    
-    val offsetX by animateFloatAsState(
-        targetValue = if (visible) 0f else 50f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "button_slide"
-    )
-    
-    val alpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(durationMillis = 400),
-        label = "button_fade"
-    )
-    
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .graphicsLayer {
-                translationX = offsetX
-                this.alpha = alpha
-            },
-        shape = RoundedCornerShape(12.dp),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 2.dp,
-            pressedElevation = 8.dp
-        )
-    ) {
-        content()
-    }
-}
 
-/**
- * Animated Outlined Button with slide-in effect
- */
-@Composable
-private fun AnimatedOutlinedButton(
-    onClick: () -> Unit,
-    delayMillis: Int = 0,
-    content: @Composable RowScope.() -> Unit
-) {
-    var visible by remember { mutableStateOf(false) }
-    
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(delayMillis.toLong())
         visible = true
     }
-    
-    val offsetX by animateFloatAsState(
+
+    val offsetY by animateFloatAsState(
         targetValue = if (visible) 0f else 50f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         ),
-        label = "button_slide"
+        label = "card_slide"
     )
-    
+
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(durationMillis = 400),
-        label = "button_fade"
+        label = "card_fade"
     )
-    
-    OutlinedButton(
-        onClick = onClick,
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
             .graphicsLayer {
-                translationX = offsetX
+                translationY = offsetY
                 this.alpha = alpha
-            },
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            }
+            .clickable(onClick = onPreviewClick),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        content()
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onPreviewClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Preview as $title")
+                }
+                Button(
+                    onClick = onSignInClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Sign in as $title")
+                }
+            }
+        }
     }
 }

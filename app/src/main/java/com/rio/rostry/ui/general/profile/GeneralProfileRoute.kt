@@ -2,6 +2,7 @@ package com.rio.rostry.ui.general.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.foundation.background
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +67,35 @@ fun GeneralProfileRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showEditSheet by remember { mutableStateOf(false) }
+    var showUpgradeSheet by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var upgradeRole by remember { mutableStateOf<com.rio.rostry.domain.model.UserType?>(null) }
+    val sheetState = rememberModalBottomSheetState()
+    val upgradeSheetState = rememberModalBottomSheetState()
+    val isUpgrading by viewModel.isUpgrading.collectAsStateWithLifecycle()
+
+    // Observe upgrade events
+    LaunchedEffect(viewModel) {
+        viewModel.upgradeEvent.collect { event ->
+            when (event) {
+                is GeneralProfileViewModel.UpgradeEvent.Success -> {
+                    // Close the upgrade sheet first
+                    scope.launch { 
+                        upgradeSheetState.hide() 
+                    }.invokeOnCompletion {
+                        showUpgradeSheet = false
+                        // Then show success dialog
+                        upgradeRole = event.newRole
+                        showSuccessDialog = true
+                    }
+                }
+                is GeneralProfileViewModel.UpgradeEvent.Error -> {
+                    scope.launch { snackbarHostState.showSnackbar(event.message) }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let { message ->
@@ -115,10 +150,80 @@ fun GeneralProfileRoute(
                     preferences = uiState.preferences,
                     orderHistory = uiState.orderHistory,
                     supportOptions = uiState.supportOptions,
-                    onUpdateName = viewModel::updateProfileName,
+                    onEditProfile = { showEditSheet = true },
+                    onUpgradeProfile = { 
+                        android.util.Log.d("GeneralProfileRoute", "onUpgradeProfile callback triggered. Setting showUpgradeSheet = true")
+                        showUpgradeSheet = true 
+                    },
                     onTogglePreference = viewModel::updatePreference
                 )
+
+                if (showEditSheet) {
+                    EditProfileSheet(
+                        sheetState = sheetState,
+                        currentProfile = profile!!,
+                        onDismissRequest = { showEditSheet = false },
+                        onSave = { name, email, address ->
+                            viewModel.updateProfile(name, email, address)
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                showEditSheet = false
+                            }
+                        }
+                    )
+                }
+
+                if (showUpgradeSheet) {
+                    UpgradeFarmerSheet(
+                        sheetState = upgradeSheetState,
+                        currentProfile = profile!!,
+                        onDismissRequest = { 
+                            // Only allow dismiss if not upgrading
+                            if (!isUpgrading) {
+                                showUpgradeSheet = false
+                            }
+                        },
+                        onUpgrade = { address, count, type, since, breed, lat, lng ->
+                            android.util.Log.d("GeneralProfileRoute", "onUpgrade callback called: address='$address', count=$count, loc=[$lat, $lng]")
+                            viewModel.upgradeToFarmer(address, count, type, since, breed, lat, lng)
+                            android.util.Log.d("GeneralProfileRoute", "upgradeToFarmer called")
+                            // Don't close sheet here - wait for success event
+                        }
+                    )
+                }
             }
+        }
+
+        // Loading overlay during upgrade
+        if (isUpgrading) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = "Upgrading your profile...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        // Success dialog
+        if (showSuccessDialog && upgradeRole != null) {
+            UpgradeSuccessDialog(
+                newRole = upgradeRole!!,
+                onContinue = {
+                    showSuccessDialog = false
+                    upgradeRole = null
+                    // Navigation will happen automatically via role change
+                }
+            )
         }
     }
 }
@@ -145,7 +250,8 @@ private fun ProfileContent(
     preferences: List<GeneralProfileViewModel.PreferenceToggle>,
     orderHistory: List<OrderEntity>,
     supportOptions: List<GeneralProfileViewModel.SupportOption>,
-    onUpdateName: (String) -> Unit,
+    onEditProfile: () -> Unit,
+    onUpgradeProfile: () -> Unit,
     onTogglePreference: (String, Boolean) -> Unit
 ) {
     LazyColumn(
@@ -154,8 +260,18 @@ private fun ProfileContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            ProfileHeader(profile = profile, onUpdateName = onUpdateName)
+            ProfileHeader(profile = profile, onEditProfile = onEditProfile)
         }
+        if (profile.role == com.rio.rostry.domain.model.UserType.GENERAL) {
+            item {
+                if (profile.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
+                    PendingVerificationSection()
+                } else {
+                    UpgradeSection(onUpgrade = onUpgradeProfile)
+                }
+            }
+        }
+
         item {
             PreferencesSection(preferences = preferences, onToggle = onTogglePreference)
         }
@@ -170,8 +286,9 @@ private fun ProfileContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ProfileHeader(profile: UserEntity, onUpdateName: (String) -> Unit) {
+private fun ProfileHeader(profile: UserEntity, onEditProfile: () -> Unit) {
     Card { Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.weight(1f)) {
@@ -179,15 +296,23 @@ private fun ProfileHeader(profile: UserEntity, onUpdateName: (String) -> Unit) {
                     profile.phoneNumber?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                     profile.email?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                 }
-                IconButton(onClick = { onUpdateName((profile.fullName ?: "") + " ✨") }) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit name")
+                IconButton(onClick = onEditProfile) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit profile")
                 }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 profile.address?.takeIf { it.isNotBlank() }?.let {
-                    PreferenceChip(icon = Icons.Filled.LocationOn, label = it)
+                    PreferenceChip(
+                        icon = Icons.Filled.LocationOn,
+                        label = it,
+                        onClick = onEditProfile
+                    )
                 }
-                PreferenceChip(icon = Icons.Filled.Email, label = "Email updates ${if (profile.email.isNullOrBlank()) "off" else "on"}")
+                PreferenceChip(
+                    icon = Icons.Filled.Email,
+                    label = "Email updates ${if (profile.email.isNullOrBlank()) "off" else "on"}",
+                    onClick = onEditProfile
+                )
                 PreferenceChip(icon = Icons.Filled.Phone, label = "Phone verified")
             }
         }
@@ -195,9 +320,18 @@ private fun ProfileHeader(profile: UserEntity, onUpdateName: (String) -> Unit) {
 }
 
 @Composable
-private fun PreferenceChip(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+private fun PreferenceChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: (() -> Unit)? = null
+) {
     Row(
         modifier = Modifier
+            .then(
+                if (onClick != null) Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onClick) else Modifier
+            )
             .padding(4.dp)
             .height(32.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -272,8 +406,50 @@ private fun SupportSection(options: List<GeneralProfileViewModel.SupportOption>)
 }
 
 @Composable
+private fun UpgradeSection(onUpgrade: () -> Unit) {
+    Card {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Become a Farmer", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Start selling your produce and managing your flock efficiently. Upgrade to Farmer status today!",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Button(
+                onClick = {
+                    android.util.Log.d("GeneralProfileRoute", "UpgradeSection: 'Become a Farmer' button clicked")
+                    onUpgrade()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Become a Farmer")
+            }
+        }
+    }
+}
+
+@Composable
 private fun DividerSpacer() {
     Spacer(Modifier.height(8.dp))
     androidx.compose.material3.Divider()
     Spacer(Modifier.height(8.dp))
+}
+
+@Composable
+private fun PendingVerificationSection() {
+    Card {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Verification Pending", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Your application to become a Farmer is currently under review. We will notify you once it is approved.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Button(
+                onClick = { },
+                enabled = false,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Application Submitted")
+            }
+        }
+    }
 }

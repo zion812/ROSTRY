@@ -5,6 +5,12 @@ Scheduling, constraints, and reliability for background tasks.
 ## Integration
 
 - `RostryApp.kt` schedules recurring jobs on app start.
+- **Session Orchestration**:
+  - Workers tagged with `"session_worker"` (e.g. `SyncWorker`, `LifecycleWorker`) are canceled on logout.
+  - System-level workers (e.g. `AnalyticsAggregationWorker`) continue running.
+- **Connectivity**:
+  - A single `ConnectivityManager` callback is registered in `RostryApp` (idempotent).
+  - Triggers expedited syncs (`OutboxSyncWorker`) and notification flushes upon network reconnection.
 - Workers include:
   - `SyncWorker.kt` (data sync)
   - `LifecycleWorker.kt` (milestones)

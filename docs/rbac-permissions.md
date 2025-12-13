@@ -29,6 +29,10 @@ This guide explains ROSTRY's role-based access control model.
 - Matrix tests across roles × permissions.
 - Snapshot tests for role-specific tab visibility.
 
+## Verification Requirements
+
+Only `LIST_PRODUCT` permission requires KYC verification to be VERIFIED. PENDING users can access all other farmer features (orders, lineage, transfers, breeding, monitoring, etc.).
+
 ## Security & Auditing
 
 - Sensitive actions produce audit logs with actor, permission, target, and timestamp.

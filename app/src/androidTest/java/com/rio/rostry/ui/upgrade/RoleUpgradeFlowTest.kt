@@ -55,7 +55,7 @@ class RoleUpgradeFlowTest {
     @Mock
     lateinit var verificationNotificationService: VerificationNotificationService
 
-    private lateinit var viewModel: RoleUpgradeViewModel
+    // Note: ViewModel is created via hiltViewModel() in each test to ensure proper DI
 
     @Before
     fun setup() {
@@ -70,34 +70,30 @@ class RoleUpgradeFlowTest {
             doReturn(Resource.Success(Unit)).whenever(userRepository).updateUserType(anyString(), any<UserType>())
         }
 
-        // Create ViewModel with mocks
-        viewModel = RoleUpgradeViewModel(
-            userRepository = userRepository,
-            rbacGuard = mock(),
-            currentUserProvider = mock(),
-            rolePreferenceStorage = mock(),
-            auditLogDao = mock(),
-            verificationNotificationService = verificationNotificationService,
-            flowAnalyticsTracker = flowAnalyticsTracker
-        )
+        // Note: ViewModel is now created via hiltViewModel() in each test's setContent block
+        // This ensures proper Hilt injection with all dependencies including SessionRefresher and RoleUpgradeManager
     }
 
     private fun mockUserIncomplete() = com.rio.rostry.data.database.entity.UserEntity(
         userId = "test_user",
-        userType = UserType.GENERAL,
+        userType = UserType.GENERAL.name,
         fullName = null, // Incomplete
         email = null,
         phoneNumber = "+919876543210",
-        verificationStatus = VerificationStatus.UNVERIFIED
+        verificationStatus = VerificationStatus.UNVERIFIED,
+        createdAt = System.currentTimeMillis(),
+        updatedAt = System.currentTimeMillis()
     )
 
     private fun mockUserComplete() = com.rio.rostry.data.database.entity.UserEntity(
         userId = "test_user",
-        userType = UserType.GENERAL,
+        userType = UserType.GENERAL.name,
         fullName = "Test User",
         email = "test@example.com",
         phoneNumber = "+919876543210",
-        verificationStatus = VerificationStatus.VERIFIED
+        verificationStatus = VerificationStatus.VERIFIED,
+        createdAt = System.currentTimeMillis(),
+        updatedAt = System.currentTimeMillis()
     )
 
     // ============================================
@@ -112,7 +108,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = { upgradeCompleteCalled.value = true }
+                onUpgradeComplete = { upgradeCompleteCalled.value = true },
+                onNavigateToVerification = {}
             )
         }
 
@@ -148,7 +145,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -160,8 +158,8 @@ class RoleUpgradeFlowTest {
         composeTestRule.waitForIdle()
 
         // Should show validation errors
-        composeTestRule.onNodeWithText("Complete your full name").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Add your email address").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Complete your full name", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Add your email address", substring = true).assertIsDisplayed()
 
         // Next button should be disabled
         composeTestRule.onNodeWithText("Next").assertIsNotEnabled()
@@ -182,7 +180,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -210,7 +209,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -222,7 +222,7 @@ class RoleUpgradeFlowTest {
         composeTestRule.waitForIdle()
 
         // Should show verification error
-        composeTestRule.onNodeWithText("Complete KYC verification").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Complete KYC verification", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Next").assertIsNotEnabled()
     }
 
@@ -243,7 +243,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = { upgradeCompleteCalled.value = true }
+                onUpgradeComplete = { upgradeCompleteCalled.value = true },
+                onNavigateToVerification = {}
             )
         }
 
@@ -281,7 +282,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -305,7 +307,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -330,7 +333,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -362,7 +366,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = { upgradeCompleteCalled.value = true }
+                onUpgradeComplete = { upgradeCompleteCalled.value = true },
+                onNavigateToVerification = {}
             )
         }
 
@@ -395,7 +400,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 
@@ -430,7 +436,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = {},
-                onUpgradeComplete = { upgradeCompleteCalled.value = true }
+                onUpgradeComplete = { upgradeCompleteCalled.value = true },
+                onNavigateToVerification = {}
             )
         }
 
@@ -462,7 +469,8 @@ class RoleUpgradeFlowTest {
             RoleUpgradeScreen(
                 targetRole = UserType.ENTHUSIAST,
                 onNavigateBack = { backCalled.value = true },
-                onUpgradeComplete = {}
+                onUpgradeComplete = {},
+                onNavigateToVerification = {}
             )
         }
 

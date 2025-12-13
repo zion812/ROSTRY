@@ -28,5 +28,10 @@ data class SyncStateEntity(
     val lastEnthusiastDashboardSyncAt: Long = 0L,
     // Dedicated cursors
     val lastDailyLogSyncAt: Long = 0L,
-    val lastTaskSyncAt: Long = 0L
+    val lastTaskSyncAt: Long = 0L,
+    val lastExpenseSyncAt: Long = 0L,
+    val lastProofSyncAt: Long = 0L,
+    val lastGeneticAnalysisSyncAt: Long = 0L,
+    val lastIoTDeviceSyncAt: Long = 0L,
+    val lastIoTDataSyncAt: Long = 0L
 )

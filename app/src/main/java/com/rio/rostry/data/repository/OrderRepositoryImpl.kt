@@ -80,7 +80,40 @@ class AdvancedOrderService @Inject constructor(
 
     suspend fun deliverOrder(orderId: String): Resource<Unit> = transition(orderId, "DELIVERED", setOf("OUT_FOR_DELIVERY"))
 
-    suspend fun cancelOrder(orderId: String): Resource<Unit> = transition(orderId, "CANCELLED", setOf("PLACED", "CONFIRMED", "PROCESSING", "OUT_FOR_DELIVERY"))
+    suspend fun cancelOrder(orderId: String, reason: String? = null): Resource<Unit> {
+        val current = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+        
+        // Cancellation Logic
+        val canCancel = when {
+            // Already cancelled or delivered
+            current.status == "CANCELLED" || current.status == "DELIVERED" -> false
+            
+            // COD: 30 minute window
+            current.paymentMethod == "COD" -> {
+                val elapsed = System.currentTimeMillis() - current.createdAt
+                elapsed <= 30 * 60 * 1000 // 30 minutes
+            }
+            
+            // Other methods: Before payment/bill submission (assuming "pending" payment status means no slip/bill yet)
+            else -> current.paymentStatus == "pending"
+        }
+        
+        if (!canCancel) {
+            return Resource.Error("Cancellation not allowed for this order state or time window.")
+        }
+
+        val now = System.currentTimeMillis()
+        val updated = current.copy(
+            status = "CANCELLED", 
+            cancellationReason = reason,
+            cancellationTime = now,
+            updatedAt = now, 
+            lastModifiedAt = now, 
+            dirty = true
+        )
+        orderDao.insertOrUpdate(updated)
+        return Resource.Success(Unit)
+    }
 
     suspend fun processPayment(
         orderId: String,

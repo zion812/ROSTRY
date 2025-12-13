@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.BreedingRecordDao
 import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.GrowthRecordDao
-import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.DailyLogEntity
@@ -35,7 +35,7 @@ class TraceabilityViewModel @Inject constructor(
     private val growthDao: GrowthRecordDao,
     private val vaccinationDao: VaccinationRecordDao,
     private val dailyLogDao: DailyLogDao,
-    private val productDao: ProductDao,
+    private val productRepository: ProductRepository,
     private val transferDao: TransferDao,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
@@ -204,7 +204,7 @@ class TraceabilityViewModel @Inject constructor(
         val growth = growthDao.observeForProduct(productId).first()
 
         // Product metadata
-        val product = productDao.findById(productId)
+        val product = productRepository.findById(productId)
         val productRows = if (product != null) {
             val healthScore = traceRepo.getProductHealthScore(productId).let { if (it is Resource.Success) it.data?.toString() ?: "0" else "0" }
             listOf(

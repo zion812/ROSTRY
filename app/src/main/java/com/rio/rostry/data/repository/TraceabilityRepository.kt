@@ -14,6 +14,10 @@ import com.rio.rostry.data.database.dao.ProductTrackingDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.BreedingRecordEntity
 import com.rio.rostry.data.database.entity.LifecycleEventEntity
+import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.data.database.entity.QuarantineRecordEntity
+import com.rio.rostry.data.database.entity.FamilyTreeEntity
+import com.rio.rostry.data.database.dao.FamilyTreeDao
 import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.utils.Resource
@@ -51,6 +55,7 @@ interface TraceabilityRepository {
     fun observeKycStatus(userId: String): Flow<Boolean>
     fun observeComplianceAlertsCount(farmerId: String): Flow<Int>
     fun observeEligibleProductsCount(farmerId: String): Flow<Int>
+    suspend fun getFamilyTree(familyTreeId: String): Resource<FamilyTreeEntity>
 }
 
 data class NodeMetadata(
@@ -78,6 +83,7 @@ class TraceabilityRepositoryImpl @Inject constructor(
     private val growthDao: GrowthRecordDao,
     private val quarantineDao: QuarantineRecordDao,
     private val userRepository: UserRepository,
+    private val familyTreeDao: FamilyTreeDao
 ) : TraceabilityRepository {
 
     // Simple in-memory LRU cache for traversals
@@ -177,7 +183,7 @@ class TraceabilityRepositoryImpl @Inject constructor(
         try {
             // Compose chain from transfer records and product tracking events
             val transfers: List<com.rio.rostry.data.database.entity.TransferEntity> = transferDao.getTransfersByProduct(productId)
-            val track = productTrackingDao.getByProduct(productId).first()
+            val track = productTrackingDao.observeByProduct(productId).first()
             val chain = mutableListOf<Any>()
             chain.addAll(transfers)
             chain.addAll(track)
@@ -190,9 +196,9 @@ class TraceabilityRepositoryImpl @Inject constructor(
             }
             // Validation checks: verify each transfer has proper verification records and flag disputes
             val transfersWithIssues = transfers.filter { transfer ->
-                val ver = transferVerificationDao.getByTransfer(transfer.transferId)
+                val ver = transferVerificationDao.getByTransferId(transfer.transferId)
                 val hasApproved = ver.any { it.status == "APPROVED" }
-                val disputes = disputeDao.getByTransfer(transfer.transferId)
+                val disputes = disputeDao.getByTransferId(transfer.transferId)
                 val hasOpenDispute = disputes.any { it.status == "OPEN" || it.status == "UNDER_REVIEW" }
                 !hasApproved || hasOpenDispute
             }
@@ -363,8 +369,8 @@ class TraceabilityRepositoryImpl @Inject constructor(
 
     override fun createFamilyTree(maleId: String?, femaleId: String?, pairId: String?): String? {
         return when {
-            !maleId.isNullOrBlank() && !femaleId.isNullOrBlank() -> "FT_${'$'}maleId_${'$'}femaleId"
-            !pairId.isNullOrBlank() -> "FT_PAIR_${'$'}pairId"
+            !maleId.isNullOrBlank() && !femaleId.isNullOrBlank() -> "FT_${maleId}_${femaleId}"
+            !pairId.isNullOrBlank() -> "FT_PAIR_${pairId}"
             else -> null
         }
     }
@@ -422,7 +428,7 @@ class TraceabilityRepositoryImpl @Inject constructor(
                 System.currentTimeMillis()
             ),
             quarantineDao.observeActiveForFarmer(farmerId)
-        ) { products, _, _, _, _ ->
+        ) { products: List<ProductEntity>, _: Int, _: Int, _: Int, _: List<QuarantineRecordEntity> ->
             products
         }.mapLatest { products ->
             // Compute on background to avoid main-thread work
@@ -448,6 +454,19 @@ class TraceabilityRepositoryImpl @Inject constructor(
                 count
             }
         }.flowOn(Dispatchers.Default)
+    }
+
+    override suspend fun getFamilyTree(familyTreeId: String): Resource<FamilyTreeEntity> = withContext(Dispatchers.IO) {
+        try {
+            val tree = familyTreeDao.findById(familyTreeId)
+            if (tree != null) {
+                Resource.Success(tree)
+            } else {
+                Resource.Error("Family tree record not found")
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get family tree")
+        }
     }
 
     private suspend fun collectAncestors(rootId: String, maxDepth: Int): Map<Int, List<String>> {

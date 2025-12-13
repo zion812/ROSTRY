@@ -20,7 +20,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hiltViewModel()) {
     LaunchedEffect(threadId) { vm.bind(threadId) }
     val msgs by vm.messages.collectAsState()
+
     val metadata by vm.threadMetadata.collectAsState()
+    val currentUserId by vm.currentUserId.collectAsState()
     var input by remember { mutableStateOf("") }
     var showTitleDialog by remember { mutableStateOf(false) }
 
@@ -120,17 +122,40 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(items = msgs, key = { it.hashCode() }) { m ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
+                        val isMe = m.fromUserId == currentUserId
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
                         ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(
-                                    m.fromUserId.take(8),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
+                            if (m.type == "OFFER") {
+                                OfferCard(
+                                    message = m,
+                                    isMe = isMe,
+                                    onAccept = { vm.acceptOffer(m) },
+                                    onReject = { vm.rejectOffer(m) },
+                                    onCounter = { 
+                                        // For now, just send a message indicating counter offer intent
+                                        vm.sendQueuedDm(threadId, currentUserId ?: "me", m.fromUserId, "I would like to propose a different price.")
+                                    }
                                 )
-                                Text(m.text, style = MaterialTheme.typography.bodyMedium)
+                            } else {
+                                Card(
+                                    modifier = Modifier
+                                        .widthIn(max = 280.dp)
+                                        .padding(4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Column(Modifier.padding(12.dp)) {
+                                        Text(m.text, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(m.timestamp)),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.align(Alignment.End)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -151,7 +176,7 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
                 Button(
                     onClick = {
                         if (input.isNotBlank()) {
-                            vm.sendQueuedDm(threadId = threadId, fromUserId = "me", toUserId = "them", text = input)
+                            vm.sendQueuedDm(threadId = threadId, fromUserId = currentUserId ?: "me", toUserId = "them", text = input)
                             input = ""
                         }
                     },
@@ -192,5 +217,85 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
                 }
             }
         )
+    }
+}
+
+
+@Composable
+fun OfferCard(
+    message: com.rio.rostry.data.repository.social.MessagingRepository.MessageDTO,
+    isMe: Boolean,
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+    onCounter: () -> Unit
+) {
+    val offerDetails = remember(message.metadata) {
+        try {
+            org.json.JSONObject(message.metadata ?: "{}")
+        } catch (e: Exception) {
+            org.json.JSONObject()
+        }
+    }
+    val price = offerDetails.optDouble("price", 0.0)
+    val quantity = offerDetails.optDouble("quantity", 0.0)
+    val unit = offerDetails.optString("unit", "")
+
+    Card(
+        modifier = Modifier
+            .widthIn(max = 300.dp)
+            .padding(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                text = if (isMe) "You sent an offer" else "Received an Offer",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "₹$price",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "for $quantity $unit",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            if (!isMe) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onAccept,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Accept")
+                    }
+                    OutlinedButton(
+                        onClick = onReject,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Reject")
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onCounter,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Counter Offer")
+                }
+            } else {
+                Text(
+                    text = "Waiting for seller response...",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
+        }
     }
 }

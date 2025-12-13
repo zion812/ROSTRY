@@ -58,7 +58,7 @@ class MediaUploadWorker @AssistedInject constructor(
                         localUriString = task.localPath,
                         remotePath = task.remotePath,
                         compress = true,
-                        sizeLimitBytes = 5_000_000L,
+                        sizeLimitBytes = 10_000_000L, // 10MB to match Firebase Storage rules
                         onProgress = { pct ->
                             if (pct == 25 || pct == 50 || pct == 75 || pct == 100) {
                                 Timber.d("UploadWorker: progress ${pct}% for ${task.taskId}")

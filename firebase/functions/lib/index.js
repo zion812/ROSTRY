@@ -15,82 +15,94 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.canSendOtp = exports.setPhoneVerifiedClaim = void 0;
-const https_1 = require("firebase-functions/v2/https");
+exports.refreshUserClaims = exports.setUserRoleClaim = void 0;
+const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
-const db = admin.firestore();
-exports.setPhoneVerifiedClaim = (0, https_1.onCall)(async (request) => {
-    if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in required");
+// Initialize Firebase Admin
+admin.initializeApp();
+/**
+ * Cloud Function to set custom claims when user role changes.
+ * Triggered when a user document is created or updated in Firestore.
+ *
+ * Custom claims set:
+ * - role: User's current role (GENERAL, FARMER, ENTHUSIAST)
+ * - verified: Whether user is verified (VERIFIED status)
+ */
+exports.setUserRoleClaim = functions.firestore
+    .document("users/{userId}")
+    .onWrite(async (change, context) => {
+    const userId = context.params.userId;
+    // If document was deleted, remove custom claims
+    if (!change.after.exists) {
+        await admin.auth().setCustomUserClaims(userId, {});
+        console.log(`Removed custom claims for deleted user: ${userId}`);
+        return;
     }
-    const uid = request.auth.uid;
-    // Merge existing claims with phone_verified
-    const token = request.auth.token || {};
-    await admin.auth().setCustomUserClaims(uid, { ...token, phone_verified: true });
-    // Optional audit log
-    await db.collection("verification_audits").add({
-        type: "PHONE_VERIFY",
-        uid,
-        timestamp: Date.now(),
-        actor: uid,
-    }).catch(() => undefined);
-    return { ok: true };
+    const userData = change.after.data();
+    if (!userData)
+        return;
+    const role = userData.userType || "GENERAL";
+    const verified = userData.verificationStatus === "VERIFIED";
+    try {
+        // Set custom claims
+        await admin.auth().setCustomUserClaims(userId, {
+            role: role,
+            verified: verified,
+        });
+        console.log(`Set custom claims for ${userId}: role=${role}, verified=${verified}`);
+        // Update the user document with a timestamp of when claims were set
+        // This helps with debugging and can trigger client token refresh
+        await change.after.ref.update({
+            customClaimsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+    catch (error) {
+        console.error(`Error setting custom claims for ${userId}:`, error);
+        throw error;
+    }
 });
-async function incrementAndCheck(key, windowSec, max) {
-    const now = Date.now();
-    const bucketStart = Math.floor(now / (windowSec * 1000)) * windowSec * 1000;
-    const docId = `${key}-${bucketStart}`;
-    const ref = db.collection("otp_throttle").doc(docId);
-    await db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
-        const count = (snap.exists ? snap.data()?.count || 0 : 0) + 1;
-        if (!snap.exists) {
-            tx.set(ref, { count, bucketStart, createdAt: now });
-        }
-        else {
-            tx.update(ref, { count });
-        }
-    });
-    const snap = await ref.get();
-    const count = snap.data()?.count || 0;
-    return count <= max;
-}
-exports.canSendOtp = (0, https_1.onCall)(async (request) => {
-    const phone = request.data?.phone || "";
-    const raw = request.rawRequest;
-    const ipHeader = raw?.headers?.["x-forwarded-for"] || raw?.ip || "";
-    const ip = ipHeader.split(",")[0].trim();
-    if (!phone) {
-        throw new https_1.HttpsError("invalid-argument", "phone required");
+/**
+ * Callable function to manually refresh custom claims.
+ * Can be called from the client to force a custom claims update.
+ */
+exports.refreshUserClaims = functions.https.onCall(async (data, context) => {
+    // Ensure user is authenticated
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Must be authenticated to refresh claims");
     }
-    // Limits: phone (3/30s, 10/10min), IP (6/30s, 30/10min)
-    const ok1 = await incrementAndCheck(`phone:${phone}`, 30, 3);
-    const ok2 = await incrementAndCheck(`phone:${phone}`, 600, 10);
-    const ok3 = await incrementAndCheck(`ip:${ip}`, 30, 6);
-    const ok4 = await incrementAndCheck(`ip:${ip}`, 600, 30);
-    if (!(ok1 && ok2 && ok3 && ok4)) {
-        throw new https_1.HttpsError("resource-exhausted", "Too many requests");
+    const userId = context.auth.uid;
+    try {
+        // Fetch user document from Firestore
+        const userDoc = await admin.firestore().collection("users").doc(userId).get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError("not-found", "User document not found");
+        }
+        const userData = userDoc.data();
+        const role = (userData === null || userData === void 0 ? void 0 : userData.userType) || "GENERAL";
+        const verified = (userData === null || userData === void 0 ? void 0 : userData.verificationStatus) === "VERIFIED";
+        // Update custom claims
+        await admin.auth().setCustomUserClaims(userId, {
+            role: role,
+            verified: verified,
+        });
+        console.log(`Refreshed custom claims for ${userId}: role=${role}, verified=${verified}`);
+        return {
+            success: true,
+            role: role,
+            verified: verified,
+        };
     }
-    return { ok: true };
+    catch (error) {
+        console.error(`Error refreshing claims for ${userId}:`, error);
+        throw new functions.https.HttpsError("internal", error.message);
+    }
 });
+//# sourceMappingURL=index.js.map

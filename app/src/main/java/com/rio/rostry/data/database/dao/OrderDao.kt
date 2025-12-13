@@ -84,4 +84,17 @@ interface OrderDao {
 
     @Query("SELECT COUNT(*) FROM orders WHERE sellerId = :sellerId AND status = 'DELIVERED' AND updatedAt BETWEEN :start AND :end")
     suspend fun countDeliveredForSellerBetween(sellerId: String, start: Long, end: Long): Int
+
+    @Query("SELECT * FROM orders WHERE sellerId = :farmerId AND status = 'DELIVERED' AND updatedAt BETWEEN :start AND :end")
+    suspend fun getDeliveredOrdersForFarmerBetween(farmerId: String, start: Long, end: Long): List<OrderEntity>
+
+    // Note: Assuming orders are linked to batches/products via order items. This query is simplified and might need adjustment based on schema.
+    // Ideally, we'd join with order_items, but for now, we'll assume a direct link or handle it in repository if needed.
+    // However, since OrderEntity doesn't have batchId/productId directly, we need a JOIN.
+    // But Room return types must match. Let's try a JOIN and return Orders.
+    @Query("SELECT DISTINCT o.* FROM orders o INNER JOIN order_items oi ON o.orderId = oi.orderId WHERE oi.productId IN (SELECT productId FROM products WHERE batchId = :batchId)")
+    suspend fun getOrdersForBatch(batchId: String): List<OrderEntity>
+
+    @Query("SELECT DISTINCT o.* FROM orders o INNER JOIN order_items oi ON o.orderId = oi.orderId WHERE oi.productId = :productId")
+    suspend fun getOrdersForProduct(productId: String): List<OrderEntity>
 }

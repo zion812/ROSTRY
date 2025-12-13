@@ -8,6 +8,7 @@ import com.rio.rostry.data.database.entity.LikeEntity
 import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.data.database.dao.ReputationDao
 import com.rio.rostry.data.database.dao.BadgesDao
+import com.rio.rostry.data.database.dao.StoriesDao
 import com.google.firebase.storage.FirebaseStorage
 import android.content.Context
 import com.rio.rostry.data.database.dao.RateLimitDao
@@ -27,6 +28,7 @@ class SocialRepositoryTest {
     private lateinit var postsDao: PostsDao
     private lateinit var commentsDao: CommentsDao
     private lateinit var likesDao: LikesDao
+    private lateinit var storiesDao: StoriesDao
     private lateinit var reputationDao: ReputationDao
     private lateinit var badgesDao: BadgesDao
     private lateinit var storage: FirebaseStorage
@@ -39,12 +41,13 @@ class SocialRepositoryTest {
         postsDao = mockk(relaxed = true)
         commentsDao = mockk(relaxed = true)
         likesDao = mockk(relaxed = true)
+        storiesDao = mockk(relaxed = true)
         reputationDao = mockk(relaxed = true)
         badgesDao = mockk(relaxed = true)
         storage = mockk(relaxed = true)
         rateLimitDao = mockk(relaxed = true)
         appContext = mockk(relaxed = true)
-        repo = SocialRepositoryImpl(postsDao, commentsDao, likesDao, reputationDao, badgesDao, storage, rateLimitDao, appContext)
+        repo = SocialRepositoryImpl(postsDao, commentsDao, likesDao, storiesDao, reputationDao, badgesDao, storage, rateLimitDao, appContext)
     }
 
     @Test
@@ -68,8 +71,8 @@ class SocialRepositoryTest {
         val postId = UUID.randomUUID().toString()
         val userId = "user-3"
         repo.like(postId, userId)
-        coVerify { likesDao.upsert(match { it.postId == postId && it.userId == userId }) }
+        coVerify { likesDao.insert(match { it.postId == postId && it.userId == userId }) }
         repo.unlike(postId, userId)
-        coVerify { likesDao.unlike(postId, userId) }
+        coVerify { likesDao.delete(postId, userId) }
     }
 }

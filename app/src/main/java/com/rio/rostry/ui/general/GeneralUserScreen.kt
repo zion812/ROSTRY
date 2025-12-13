@@ -43,7 +43,9 @@ fun GeneralUserScreen(
     onOpenProductDetails: (String) -> Unit,
     onOpenTraceability: (String) -> Unit,
     onOpenSocialFeed: () -> Unit,
+
     onOpenMessages: (String) -> Unit,
+    onScanQr: () -> Unit = {},
     initialTabRoute: String? = null
 ) {
     val navController = rememberNavController()
@@ -92,7 +94,8 @@ fun GeneralUserScreen(
             composable(Routes.GeneralNav.EXPLORE) {
                 GeneralExploreRoute(
                     onOpenSocialFeed = onOpenSocialFeed,
-                    onOpenMessages = onOpenMessages
+                    onOpenMessages = onOpenMessages,
+                    onScanQr = onScanQr
                 )
             }
             composable(Routes.GeneralNav.CREATE) {

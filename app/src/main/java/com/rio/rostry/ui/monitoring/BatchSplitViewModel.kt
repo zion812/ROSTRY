@@ -2,10 +2,10 @@ package com.rio.rostry.ui.monitoring
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository
+import com.rio.rostry.utils.BirdIdGenerator
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +23,6 @@ import javax.inject.Inject
 class BatchSplitViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val farmOnboardingRepository: FarmOnboardingRepository,
-    private val productDao: ProductDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val analyticsTracker: FlowAnalyticsTracker
 ) : ViewModel() {
@@ -134,6 +133,10 @@ class BatchSplitViewModel @Inject constructor(
                 // Create individual products
                 birds.forEach { bird ->
                     val productId = UUID.randomUUID().toString()
+                    val color = batch.color?.ifBlank { null }
+                    val breed = batch.breed?.ifBlank { null }
+                    val birdCode = BirdIdGenerator.generate(color, breed, batch.sellerId, productId)
+                    val colorTag = BirdIdGenerator.colorTag(color)
                     val individualProduct = ProductEntity(
                         productId = productId,
                         sellerId = batch.sellerId,
@@ -153,13 +156,15 @@ class BatchSplitViewModel @Inject constructor(
                         longitude = batch.longitude,
                         imageUrls = bird.photoUri?.let { listOf(it) } ?: emptyList(),
                         isBatch = false,
-                        status = "ACTIVE",
+                        status = "private",
                         createdAt = now,
                         updatedAt = now,
                         lastModifiedAt = now,
-                        dirty = true
+                        dirty = true,
+                        birdCode = birdCode,
+                        colorTag = colorTag
                     )
-                    productDao.upsert(individualProduct)
+                    productRepository.upsert(individualProduct)
                     newProductIds.add(productId)
                 }
 
@@ -172,7 +177,7 @@ class BatchSplitViewModel @Inject constructor(
                     splitIntoIds = (newProductIds.joinToString(",")),
                     dirty = true
                 )
-                productDao.updateProduct(updatedBatch)
+                productRepository.updateProduct(updatedBatch)
 
                 // Generate monitoring records for each new bird
                 newProductIds.forEach { productId ->

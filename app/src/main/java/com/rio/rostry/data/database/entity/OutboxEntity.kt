@@ -43,5 +43,12 @@ data class OutboxEntity(
         const val TYPE_CHAT_MESSAGE = "CHAT_MESSAGE"
         const val TYPE_GROUP_MESSAGE = "GROUP_MESSAGE"
         const val TYPE_TASK = "TASK"
+        const val TYPE_PRODUCT = "PRODUCT"
+        const val TYPE_EXPENSE = "EXPENSE"
+        const val TYPE_PROOF = "PROOF"
+        const val TYPE_GENETIC_ANALYSIS = "GENETIC_ANALYSIS"
+        const val TYPE_IOT_DEVICE = "IOT_DEVICE"
+        const val TYPE_IOT_DATA = "IOT_DATA"
+        const val TYPE_PRODUCT_TRACKING = "PRODUCT_TRACKING"
     }
 }

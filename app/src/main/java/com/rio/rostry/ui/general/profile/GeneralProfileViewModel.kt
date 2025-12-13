@@ -7,10 +7,13 @@ import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -22,8 +25,14 @@ import kotlinx.coroutines.launch
 class GeneralProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val orderRepository: OrderRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
+
+    sealed class UpgradeEvent {
+        data class Success(val newRole: com.rio.rostry.domain.model.UserType) : UpgradeEvent()
+        data class Error(val message: String) : UpgradeEvent()
+    }
 
     data class PreferenceToggle(
         val title: String,
@@ -58,6 +67,12 @@ class GeneralProfileViewModel @Inject constructor(
 
     private val error = MutableStateFlow<String?>(null)
     private val success = MutableStateFlow<String?>(null)
+
+    private val _upgradeEvent = MutableSharedFlow<UpgradeEvent>()
+    val upgradeEvent: SharedFlow<UpgradeEvent> = _upgradeEvent
+
+    private val _isUpgrading = MutableStateFlow(false)
+    val isUpgrading: StateFlow<Boolean> = _isUpgrading
 
     private val userId = currentUserProvider.userIdOrNull()
 
@@ -117,10 +132,14 @@ class GeneralProfileViewModel @Inject constructor(
         success.value = "Preference updated"
     }
 
-    fun updateProfileName(name: String) {
+    fun updateProfile(name: String, email: String, address: String) {
         val current = uiState.value.profile ?: return
         viewModelScope.launch {
-            val updated = current.copy(fullName = name)
+            val updated = current.copy(
+                fullName = name,
+                email = email,
+                address = address
+            )
             when (val result = userRepository.updateUserProfile(updated)) {
                 is Resource.Success -> success.value = "Profile updated"
                 is Resource.Error -> error.value = result.message ?: "Failed to update profile"
@@ -129,6 +148,93 @@ class GeneralProfileViewModel @Inject constructor(
         }
     }
 
+    fun upgradeToFarmer(
+        address: String,
+        chickenCount: Int,
+        farmerType: String,
+        raisingSince: Long,
+        favoriteBreed: String,
+        lat: Double?,
+        lng: Double?
+    ) {
+        android.util.Log.e("GeneralProfileViewModel", "upgradeToFarmer called with: address='$address', count=$chickenCount, loc=[$lat, $lng]")
+        val current = uiState.value.profile
+        if (current == null) {
+            android.util.Log.e("GeneralProfileViewModel", "Current profile is null! Aborting upgrade.")
+            return
+        }
+
+        if (current.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING || 
+            current.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
+            _upgradeEvent.tryEmit(UpgradeEvent.Error("Verification is already pending or completed."))
+            return
+        }
+        android.util.Log.e("GeneralProfileViewModel", "Current profile: ${current.userId}, starting upgrade...")
+
+        // Explicitly use IO dispatcher to ensure it runs
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                android.util.Log.e("GeneralProfileViewModel", "Coroutine started on thread: ${Thread.currentThread().name}")
+                _isUpgrading.value = true
+
+                // Auto-verify location if GPS coordinates are provided
+                val isLocationVerified = lat != null && lng != null
+
+                val updated = current.copy(
+                    address = address,
+                    chickenCount = chickenCount,
+                    farmerType = farmerType,
+                    raisingSince = raisingSince,
+                    favoriteBreed = favoriteBreed,
+                    // Persist Farm Location Data
+                    farmLocationLat = lat,
+                    farmLocationLng = lng,
+                    locationVerified = isLocationVerified,
+                    // Standard status updates
+                    verificationStatus = com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
+                    userType = com.rio.rostry.domain.model.UserType.FARMER.name
+                )
+
+                android.util.Log.e("GeneralProfileViewModel", "Calling updateUserProfile...")
+                val result = userRepository.updateUserProfile(updated)
+                android.util.Log.e("GeneralProfileViewModel", "updateUserProfile returned: $result")
+
+                when (result) {
+                    is Resource.Success -> {
+                        android.util.Log.e("GeneralProfileViewModel", "SUCCESS! Updating SessionManager...")
+                        try {
+                            // Use markAuthenticated to refresh the session timestamp.
+                            // Farmers have a shorter session timeout (7 days) vs General (30 days).
+                            // If we don't refresh the timestamp, an old session might immediately expire upon upgrade.
+                            sessionManager.markAuthenticated(
+                                nowMillis = System.currentTimeMillis(),
+                                userType = com.rio.rostry.domain.model.UserType.FARMER
+                            )
+                            android.util.Log.e("GeneralProfileViewModel", "SessionManager updated. Emitting UpgradeEvent.Success")
+                            _upgradeEvent.emit(UpgradeEvent.Success(com.rio.rostry.domain.model.UserType.FARMER))
+                        } catch (e: Exception) {
+                            android.util.Log.e("GeneralProfileViewModel", "Failed to update SessionManager: ${e.message}", e)
+                            _upgradeEvent.emit(UpgradeEvent.Error("Failed to update session: ${e.message}"))
+                        }
+                    }
+                    is Resource.Error -> {
+                        android.util.Log.e("GeneralProfileViewModel", "ERROR! ${result.message}")
+                        _upgradeEvent.emit(UpgradeEvent.Error(result.message ?: "Failed to upgrade profile"))
+                    }
+                    else -> {
+                        android.util.Log.e("GeneralProfileViewModel", "Resource.Loading or other state: $result")
+                    }
+                }
+            } catch (t: Throwable) {
+                // Catch EVERYTHING including RuntimeExceptions and Errors
+                android.util.Log.e("GeneralProfileViewModel", "CRITICAL EXCEPTION in upgradeToFarmer: ${t.message}", t)
+                _upgradeEvent.emit(UpgradeEvent.Error("Critical Error: ${t.message}"))
+            } finally {
+                android.util.Log.e("GeneralProfileViewModel", "Setting isUpgrading=false")
+                _isUpgrading.value = false
+            }
+        }
+    }
     fun clearMessages() {
         error.value = null
         success.value = null

@@ -118,7 +118,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_40_41,
             AppDatabase.MIGRATION_41_42,
             AppDatabase.MIGRATION_42_43,
-            AppDatabase.MIGRATION_43_44
+            AppDatabase.MIGRATION_43_44,
+            AppDatabase.MIGRATION_44_45,
+            AppDatabase.MIGRATION_45_46
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -425,4 +427,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideTaskDao(db: AppDatabase): com.rio.rostry.data.database.dao.TaskDao = db.taskDao()
+
+    @Provides
+    @Singleton
+    fun provideBreedDao(db: AppDatabase): com.rio.rostry.data.database.dao.BreedDao = db.breedDao()
 }

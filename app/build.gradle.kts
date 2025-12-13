@@ -29,6 +29,11 @@ val localProps = Properties().apply {
 val mapsApiKeyProvider = providers.gradleProperty("MAPS_API_KEY")
     .orElse(providers.provider { localProps.getProperty("MAPS_API_KEY") ?: "" })
 
+// Separate key for Maps JavaScript (WebView) usage; can be a browser key.
+// Falls back to MAPS_API_KEY if MAPS_JS_API_KEY is not defined.
+val mapsJsApiKeyProvider = providers.gradleProperty("MAPS_JS_API_KEY")
+    .orElse(providers.provider { localProps.getProperty("MAPS_JS_API_KEY") ?: mapsApiKeyProvider.get() })
+
 // Pin JaCoCo tool version to avoid instrumentation incompatibilities
 jacoco {
     toolVersion = "0.8.10"
@@ -62,7 +67,7 @@ android {
         applicationId = "com.rio.rostry"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
+        versionCode = 9
         versionName = "1.0"
 
         testInstrumentationRunner = "com.rio.rostry.HiltTestRunner"
@@ -101,10 +106,14 @@ android {
             }
             val releaseKey = mapsApiKeyProvider.get()
             if (releaseKey.isBlank() || releaseKey == "your_api_key_here" || releaseKey == "<set me>" || releaseKey == "debug-placeholder") {
-                throw GradleException("MAPS_API_KEY is missing or placeholder. Configure a real key in local.properties or Gradle properties for release builds.")
+                throw GradleException("MAPS_API_KEY is missing. Please check local.properties.template and docs/api-keys-setup.md for instructions on how to configure this key.")
             }
             buildConfigField("String", "MAPS_API_KEY", "\"$releaseKey\"")
             manifestPlaceholders["MAPS_API_KEY"] = releaseKey
+            // Use a dedicated JS key if provided; otherwise fall back to the Android key.
+            val releaseJsKey = mapsJsApiKeyProvider.orElse(releaseKey).get()
+            buildConfigField("String", "MAPS_JS_API_KEY", "\"$releaseJsKey\"")
+            buildConfigField("boolean", "PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING", "false")
         }
         debug {
             // Disable runtime coverage to avoid JaCoCo bytecode instrumentation interfering with Compose at runtime
@@ -115,6 +124,10 @@ android {
             val debugKey = mapsApiKeyProvider.orElse("debug-placeholder").get()
             buildConfigField("String", "MAPS_API_KEY", "\"$debugKey\"")
             manifestPlaceholders["MAPS_API_KEY"] = debugKey
+            // Dedicated JS key for debug WebView; falls back to MAPS_API_KEY if not set.
+            val debugJsKey = mapsJsApiKeyProvider.orElse(debugKey).get()
+            buildConfigField("String", "MAPS_JS_API_KEY", "\"$debugJsKey\"")
+            buildConfigField("boolean", "PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING", "true")
         }
     }
     compileOptions {
@@ -205,12 +218,16 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation("androidx.activity:activity-ktx:1.9.0")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
+    
+    // Firebase BoM - manages all Firebase library versions
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
 
     // Navigation Compose
@@ -265,8 +282,9 @@ dependencies {
     // Google Maps Platform
     implementation(libs.google.maps.android)
     implementation(libs.google.places.new)
+    implementation(libs.google.maps.compose)
 
-    // Firebase App Check (Debug Provider for development)
+    // Firebase App Check
     implementation(libs.firebase.appcheck)
 implementation(libs.firebase.appcheck.playintegrity)
     debugImplementation(libs.firebase.appcheck.debug)
@@ -305,6 +323,7 @@ implementation(libs.firebase.appcheck.playintegrity)
 
     // ViewModel for Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Testing
     testImplementation(libs.junit)
@@ -316,6 +335,11 @@ implementation(libs.firebase.appcheck.playintegrity)
     testImplementation("org.mockito:mockito-inline:5.2.0")
     testImplementation(libs.mockk)
     testImplementation("app.cash.turbine:turbine:1.0.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.23")
+    testImplementation("com.tngtech.archunit:archunit-junit4:1.3.0")
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
 
     // AndroidTest
     androidTestImplementation(libs.androidx.junit)

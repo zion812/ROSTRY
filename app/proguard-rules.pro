@@ -106,6 +106,11 @@
 -keep class com.google.android.gms.auth.api.signin.internal.* # For Google Sign-In
 -keep class com.google.android.gms.tasks.** { *; }
 
+# Firebase Crashlytics - Ensure logger and core classes are preserved
+-keep class com.google.firebase.crashlytics.** { *; }
+-keepattributes SourceFile,LineNumberTable
+-keepattributes *Annotation*
+
 # Suppress warnings for Firebase KTX
 -dontwarn com.google.firebase.ktx.Firebase
 
@@ -244,3 +249,37 @@
 -keep class com.rio.rostry.ui.**.*ViewModel { *; }
 -keep class com.rio.rostry.data.repository.** { *; }
 -keep class com.rio.rostry.data.database.dao.** { *; }
+
+# Suppress warnings for third-party libraries that may use hidden APIs
+# These are typically in Google's own libraries (Firebase, Conscrypt) and are safe to ignore
+-dontwarn com.squareup.leakcanary.**
+-dontwarn com.getkeepsafe.relinker.**
+-dontwarn org.conscrypt.**
+-dontwarn libcore.io.**
+-dontwarn dalvik.system.**
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.firebase.auth.internal.**
+
+# Keep LeakCanary classes to prevent obfuscation issues
+-keep class com.squareup.leakcanary.** { *; }
+-dontwarn com.squareup.leakcanary.FunKt
+-keep class com.squareup.leakcanary.internal.** { *; }
+-keep class com.squareup.leakcanary.AndroidReferenceMatchers { *; }
+-keep class com.squareup.leakcanary.internal.activity.** { *; }
+-keep class com.squareup.leakcanary.Sha256** { *; }
+
+# Suppress warnings related to hidden API usage in Android internals
+-dontwarn libcore.io.IoUtils
+-dontwarn dalvik.system.BlockGuard
+-dontwarn android.net.NetworkUtils
+-dontwarn android.security.NetworkSecurityPolicy
+-dontwarn android.security.keystore.KeyGenParameterSpec
+-dontwarn android.security.keystore.KeyProperties
+-dontwarn android.system.Os
+-dontwarn android.system.ErrnoException
+-dontwarn sun.security.**
+-dontwarn sun.misc.**
+-dontwarn com.android.org.conscrypt.**
+-dontwarn com.google.android.gms.common.GooglePlayServicesUtil
+-dontwarn com.google.android.gms.dynamite.DynamiteModule
+-dontwarn com.google.android.gms.common.wrappers.**

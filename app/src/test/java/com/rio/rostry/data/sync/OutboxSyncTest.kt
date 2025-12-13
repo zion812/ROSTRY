@@ -87,7 +87,8 @@ class OutboxSyncTest {
             eggCollectionDao = mockk(relaxed = true),
             enthusiastDashboardSnapshotDao = mockk(relaxed = true),
             firebaseAuth = mockk(relaxed = true),
-            traceabilityRepository = mockk(relaxed = true)
+            traceabilityRepository = mockk(relaxed = true),
+            sessionManager = mockk(relaxed = true)
         )
     }
 
@@ -279,7 +280,10 @@ class OutboxSyncTest {
             thumbnailUrl = null,
             productId = null,
             createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
+            updatedAt = System.currentTimeMillis(),
+            hashtags = null,
+            mentions = null,
+            parentPostId = null
         )
         
         val entry = createOutboxEntry(entityType = "POST", entityId = "post-123", payload = post)
@@ -314,7 +318,10 @@ class OutboxSyncTest {
                 thumbnailUrl = null,
                 productId = null,
                 createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
+                updatedAt = System.currentTimeMillis(),
+                hashtags = null,
+                mentions = null,
+                parentPostId = null
             )
         )
         

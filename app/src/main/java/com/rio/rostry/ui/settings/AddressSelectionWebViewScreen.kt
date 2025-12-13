@@ -9,6 +9,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import android.os.Handler
+import android.os.Looper
 import com.rio.rostry.BuildConfig
 import org.json.JSONObject
 
@@ -42,7 +45,11 @@ fun AddressSelectionWebViewScreen(
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
             AddressSelectionWebView(
                 context = context,
                 onSubmit = onSubmit,
@@ -99,8 +106,13 @@ private fun AddressSelectionWebView(
                 }
 
                 val html = ctx.assets.open("address_selection.html").bufferedReader().use { it.readText() }
-                val key = BuildConfig.MAPS_API_KEY
-                val patched = html.replace("YOUR_API_KEY_HERE", key)
+                // Use dedicated JS key when available; fall back to native Maps key as a backup.
+                val jsKey = try {
+                    BuildConfig.MAPS_JS_API_KEY
+                } catch (_: Throwable) {
+                    BuildConfig.MAPS_API_KEY
+                }
+                val patched = html.replace("YOUR_API_KEY_HERE", jsKey)
                 loadDataWithBaseURL(
                     "https://rostry.local/",
                     patched,
@@ -114,14 +126,19 @@ private fun AddressSelectionWebView(
 }
 
 private class AddressJsBridge(private val onSubmit: (String) -> Unit) {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     @JavascriptInterface
     fun onSubmit(json: String) {
-        try {
+        val payload = try {
             // Basic validation that it's JSON; pass upstream as-is to keep flexibility
             JSONObject(json)
-            onSubmit(json)
+            json
         } catch (_: Throwable) {
-            onSubmit("{}")
+            "{}"
+        }
+        mainHandler.post {
+            onSubmit(payload)
         }
     }
 }

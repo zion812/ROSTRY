@@ -102,6 +102,7 @@ class ModerationWorker @AssistedInject constructor(
             val request = androidx.work.PeriodicWorkRequestBuilder<ModerationWorker>(6, TimeUnit.HOURS)
                 .setConstraints(constraints)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .addTag("session_worker")
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,

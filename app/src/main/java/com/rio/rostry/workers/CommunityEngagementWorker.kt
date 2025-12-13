@@ -37,7 +37,6 @@ class CommunityEngagementWorker @AssistedInject constructor(
         return try {
             // Get current user
             val userId = currentUserProvider.userIdOrNull()
-                ?: sessionManager.currentDemoUserId().first()
                 ?: return Result.success() // No user to fetch for
 
             // Get user type

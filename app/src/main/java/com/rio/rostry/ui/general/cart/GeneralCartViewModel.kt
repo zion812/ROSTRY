@@ -15,6 +15,7 @@ import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.PaymentRepository
+import com.rio.rostry.domain.model.OrderStatus
 import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.marketplace.pricing.FeeCalculationEngine
 import com.rio.rostry.utils.Resource
@@ -54,7 +55,7 @@ class GeneralCartViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
-    enum class PaymentMethod { COD, MOCK_PAYMENT }
+    enum class PaymentMethod { COD }
 
     data class DeliveryOption(
         val id: String,
@@ -302,7 +303,7 @@ class GeneralCartViewModel @Inject constructor(
         val subtotal = items.sumOf { it.subtotal }
         val deliveryFee = selection.delivery.fee
         // Fee breakdown via FeeCalculationEngine (use cents)
-        val userType = (base.user.data?.userType) ?: com.rio.rostry.domain.model.UserType.GENERAL
+        val userType = (base.user.data?.role) ?: com.rio.rostry.domain.model.UserType.GENERAL
         val breakdown = FeeCalculationEngine.calculate(
             subtotalCents = (subtotal * 100).toLong(),
             userType = userType,
@@ -390,12 +391,11 @@ class GeneralCartViewModel @Inject constructor(
         val currentQuantity = currentItem?.quantity ?: 0.0
         val newQuantity = transform(currentQuantity)
         viewModelScope.launch {
-            val result = cartRepository.addOrUpdateItem(
+            // Initial item additions (via a separate "Add to Cart" flow) should still use addOrUpdateItem with valid coordinates to enforce delivery validation.
+            val result = cartRepository.updateQuantity(
                 userId = uid,
                 productId = productId,
-                quantity = newQuantity,
-                buyerLat = null,
-                buyerLon = null
+                quantity = newQuantity
             )
             if (result is Resource.Error) {
                 error.value = result.message ?: "Unable to update quantity"
@@ -500,32 +500,25 @@ class GeneralCartViewModel @Inject constructor(
                             // Mark order placed for COD
                             orderRepository.upsert(order.copy(status = "PLACED"))
                             
+                            // Insert outbox entry for online COD order to ensure replayability
+                            val orderJson = gson.toJson(order.copy(status = OrderStatus.PLACED.toStoredString(), dirty = true))
+                            val outboxEntry = OutboxEntity(
+                                outboxId = UUID.randomUUID().toString(),
+                                userId = uid,
+                                entityType = OutboxEntity.TYPE_ORDER,
+                                entityId = orderId,
+                                operation = "CREATE",
+                                payloadJson = orderJson,
+                                createdAt = System.currentTimeMillis(),
+                                status = "PENDING",
+                                priority = "NORMAL"
+                            )
+                            outboxDao.insert(outboxEntry)
+                            
                             // Marketplace-to-farm bridge: Prompt farmer after COD confirmation
                             val userData = userResource.value
-                            val userType = if (userData is Resource.Success) userData.data?.userType else null
+                            val userType = if (userData is Resource.Success) userData.data?.role else null
                             if (userType == com.rio.rostry.domain.model.UserType.FARMER && currentState.items.isNotEmpty()) {
-                                val firstProduct = currentState.items.first()
-                                _showAddToFarmDialog.value = true
-                                _addToFarmProductId.value = firstProduct.productId
-                                _addToFarmProductName.value = firstProduct.name
-                                
-                                // Track analytics
-                                analyticsRepository.trackMarketplaceToFarmDialogShown(uid, firstProduct.productId)
-                            }
-                        }
-                        PaymentMethod.MOCK_PAYMENT -> {
-                            val start = paymentRepository.cardWalletDemo(orderId, uid, currentState.total, idempotencyKey = "CARD-$orderId-${currentState.total}")
-                            if (start is Resource.Error) throw IllegalStateException(start.message ?: "Payment init failed")
-                            // For demo, mark success immediately
-                            val mark = paymentRepository.markPaymentResult("CARD-$orderId-${currentState.total}", success = true, providerRef = null)
-                            if (mark is Resource.Error) throw IllegalStateException(mark.message ?: "Payment finalize failed")
-                            // Update order status to CONFIRMED
-                            orderRepository.upsert(order.copy(status = "CONFIRMED"))
-                            
-                            // Marketplace-to-farm bridge: Prompt farmer to add product to monitoring
-                            val userData2 = userResource.value
-                            val userType2 = if (userData2 is Resource.Success) userData2.data?.userType else null
-                            if (userType2 == com.rio.rostry.domain.model.UserType.FARMER && currentState.items.isNotEmpty()) {
                                 val firstProduct = currentState.items.first()
                                 _showAddToFarmDialog.value = true
                                 _addToFarmProductId.value = firstProduct.productId
@@ -561,7 +554,7 @@ class GeneralCartViewModel @Inject constructor(
             
             // Comment 8: Verify current role is FARMER
             val userData = userResource.value
-            val userType = if (userData is Resource.Success) userData.data?.userType else null
+            val userType = if (userData is Resource.Success) userData.data?.role else null
             if (userType != com.rio.rostry.domain.model.UserType.FARMER) {
                 error.value = "Only farmers can add products to farm monitoring."
                 analyticsRepository.trackSecurityEvent(farmerId, "unauthorized_farm_add_attempt", productId)
@@ -606,7 +599,7 @@ class GeneralCartViewModel @Inject constructor(
     fun dismissAddToFarmDialog() {
         // Send notification if farmer dismisses without adding
         val userData = userResource.value
-        val userType = if (userData is Resource.Success) userData.data?.userType else null
+        val userType = if (userData is Resource.Success) userData.data?.role else null
         val productId = _addToFarmProductId.value
         val productName = _addToFarmProductName.value
         
@@ -636,7 +629,7 @@ class GeneralCartViewModel @Inject constructor(
     fun showAddToFarmDialogForProduct(productId: String) {
         viewModelScope.launch {
             val userData = userResource.value
-            val userType = if (userData is Resource.Success) userData.data?.userType else null
+            val userType = if (userData is Resource.Success) userData.data?.role else null
             val farmerId = firebaseAuth.currentUser?.uid
             
             // Comment 10: Validate current user is FARMER

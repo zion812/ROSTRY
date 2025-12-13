@@ -8,12 +8,15 @@ import com.rio.rostry.data.repository.InvoiceRepository
 import com.rio.rostry.data.repository.OrderManagementRepository
 import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.database.dao.OrderTrackingEventDao
+import com.rio.rostry.domain.model.OrderStatus
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -25,10 +28,11 @@ class OrderTrackingViewModel @Inject constructor(
     private val orderManagementRepository: OrderManagementRepository,
     private val trackingEventDao: OrderTrackingEventDao,
     private val invoiceRepository: InvoiceRepository,
+    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider,
     // TODO: Inject dedicated analytics tracker for orders when available
 ) : ViewModel() {
 
-    enum class OrderStatus { PLACED, CONFIRMED, PROCESSING, OUT_FOR_DELIVERY, DELIVERED }
+    enum class UiOrderStatus { PLACED, CONFIRMED, PROCESSING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, REFUNDED }
 
     data class OrderItem(
         val productId: String,
@@ -39,7 +43,7 @@ class OrderTrackingViewModel @Inject constructor(
     )
 
     data class TimelineEvent(
-        val status: OrderStatus,
+        val status: UiOrderStatus,
         val note: String?,
         val timestamp: Long,
         val hubId: String?
@@ -47,17 +51,22 @@ class OrderTrackingViewModel @Inject constructor(
 
     data class OrderDetail(
         val orderId: String,
-        val status: OrderStatus,
+        val status: UiOrderStatus,
         val items: List<OrderItem>,
         val total: Double,
         val deliveryAddress: String,
         val estimatedDeliveryDate: Long?,
         val paymentMethod: String,
         val paymentStatus: String,
+        val buyerId: String?,
+        val sellerId: String,
         val sellerName: String,
         val sellerPhone: String,
         val canCancel: Boolean,
-        val timelineEvents: List<TimelineEvent>
+        val timelineEvents: List<TimelineEvent>,
+        val isBuyer: Boolean = false,
+        val isSeller: Boolean = false,
+        val negotiationStatus: String? = null
     )
 
     private val _uiState = MutableStateFlow(OrderTrackingUiState())
@@ -93,7 +102,7 @@ class OrderTrackingViewModel @Inject constructor(
         }
 
         // Validation: only allow cancellation if not shipped or delivered
-        val cancellableStatuses = listOf(OrderStatus.PLACED, OrderStatus.CONFIRMED, OrderStatus.PROCESSING)
+        val cancellableStatuses = listOf(UiOrderStatus.PLACED, UiOrderStatus.CONFIRMED, UiOrderStatus.PROCESSING)
         if (currentOrder.status !in cancellableStatuses) {
             viewModelScope.launch {
                 _events.send(OrderTrackingEvent.Error("Order cannot be cancelled at this stage"))
@@ -154,6 +163,95 @@ class OrderTrackingViewModel @Inject constructor(
         }
     }
 
+    fun acceptOrder(orderId: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                val currentOrder = orderRepository.getOrderById(orderId).firstOrNull()
+                if (currentOrder != null) {
+                    val updated = currentOrder.copy(
+                        negotiationStatus = "AGREED",
+                        status = "PLACED", // Ensure it's placed
+                        dirty = true,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    orderRepository.upsert(updated)
+                    _events.send(OrderTrackingEvent.Error("Order accepted"))
+                }
+                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                handleError("Failed to accept order: ${e.message}")
+            }
+        }
+    }
+
+    fun submitBill(orderId: String, amount: Double, billImageUri: String?) {
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                val currentOrder = orderRepository.getOrderById(orderId).firstOrNull()
+                if (currentOrder != null) {
+                    val updated = currentOrder.copy(
+                        totalAmount = amount,
+                        billImageUri = billImageUri,
+                        status = "PENDING_PAYMENT",
+                        dirty = true,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    orderRepository.upsert(updated)
+                    _events.send(OrderTrackingEvent.Error("Bill submitted successfully"))
+                }
+                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                handleError("Failed to submit bill: ${e.message}")
+            }
+        }
+    }
+
+    fun uploadPaymentSlip(orderId: String, slipImageUri: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                val currentOrder = orderRepository.getOrderById(orderId).firstOrNull()
+                if (currentOrder != null) {
+                    val updated = currentOrder.copy(
+                        paymentStatus = "submitted",
+                        paymentSlipUri = slipImageUri,
+                        dirty = true,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    orderRepository.upsert(updated)
+                    _events.send(OrderTrackingEvent.Error("Payment slip uploaded"))
+                }
+                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                handleError("Failed to upload slip: ${e.message}")
+            }
+        }
+    }
+
+    fun confirmPayment(orderId: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                val currentOrder = orderRepository.getOrderById(orderId).firstOrNull()
+                if (currentOrder != null) {
+                    val updated = currentOrder.copy(
+                        paymentStatus = "success",
+                        status = "CONFIRMED",
+                        dirty = true,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                    orderRepository.upsert(updated)
+                    _events.send(OrderTrackingEvent.Error("Payment confirmed"))
+                }
+                _uiState.update { it.copy(isLoading = false) }
+            } catch (e: Exception) {
+                handleError("Failed to confirm payment: ${e.message}")
+            }
+        }
+    }
+
     // Handle network errors gracefully by showing in UI state
     private fun handleError(message: String) {
         _uiState.update { it.copy(error = message, isLoading = false) }
@@ -162,7 +260,7 @@ class OrderTrackingViewModel @Inject constructor(
     private fun mapToDetail(order: OrderEntity?, events: List<OrderTrackingEventEntity>): OrderDetail {
         if (order == null) return OrderDetail(
             orderId = "",
-            status = OrderStatus.PLACED,
+            status = UiOrderStatus.PLACED,
             items = emptyList(),
             total = 0.0,
             deliveryAddress = "",
@@ -172,16 +270,24 @@ class OrderTrackingViewModel @Inject constructor(
             sellerName = "",
             sellerPhone = "",
             canCancel = true,
-            timelineEvents = emptyList()
+            timelineEvents = emptyList(),
+            isBuyer = false,
+            isSeller = false,
+            negotiationStatus = null,
+            buyerId = null,
+            sellerId = ""
         )
 
-        val statusEnum = when (order.status.uppercase()) {
-            "PLACED" -> OrderStatus.PLACED
-            "CONFIRMED" -> OrderStatus.CONFIRMED
-            "PROCESSING" -> OrderStatus.PROCESSING
-            "OUT_FOR_DELIVERY" -> OrderStatus.OUT_FOR_DELIVERY
-            "DELIVERED" -> OrderStatus.DELIVERED
-            else -> OrderStatus.PLACED
+        val statusEnum = OrderStatus.fromString(order.status)
+        val uiStatus = when (statusEnum) {
+            OrderStatus.PLACED -> UiOrderStatus.PLACED
+            OrderStatus.CONFIRMED -> UiOrderStatus.CONFIRMED
+            OrderStatus.PROCESSING -> UiOrderStatus.PROCESSING
+            OrderStatus.OUT_FOR_DELIVERY -> UiOrderStatus.OUT_FOR_DELIVERY
+            OrderStatus.DELIVERED -> UiOrderStatus.DELIVERED
+            OrderStatus.CANCELLED -> UiOrderStatus.CANCELLED
+            OrderStatus.REFUNDED -> UiOrderStatus.REFUNDED
+            else -> UiOrderStatus.PLACED
         }
 
         val items = if (false) {
@@ -199,36 +305,55 @@ class OrderTrackingViewModel @Inject constructor(
             )
         }
 
-        val canCancel = statusEnum < OrderStatus.OUT_FOR_DELIVERY
+        val canCancel = if (uiStatus !in listOf(UiOrderStatus.PLACED, UiOrderStatus.CONFIRMED, UiOrderStatus.PROCESSING)) {
+            false
+        } else if (order.paymentMethod == "COD") {
+            val elapsed = System.currentTimeMillis() - order.createdAt
+            elapsed <= 30 * 60 * 1000 // 30 minutes
+        } else {
+            order.paymentStatus == "pending"
+        }
 
         val mappedEvents = events.sortedBy { it.timestamp }.map { mapTimelineEvent(it) }
 
+        val currentUserId = currentUserProvider.userIdOrNull()
+        val isBuyer = currentUserId == order.buyerId
+        val isSeller = currentUserId == order.sellerId
+
         return OrderDetail(
             orderId = order.orderId,
-            status = statusEnum,
+            status = uiStatus,
             items = items,
             total = order.totalAmount,
             deliveryAddress = order.shippingAddress,
             estimatedDeliveryDate = order.expectedDeliveryDate,
             paymentMethod = order.paymentMethod ?: "Unknown",
             paymentStatus = order.paymentStatus,
+            buyerId = order.buyerId,
+            sellerId = order.sellerId,
             sellerName = "",
             sellerPhone = "",
             canCancel = canCancel,
-            timelineEvents = mappedEvents
+            timelineEvents = mappedEvents,
+            isBuyer = isBuyer,
+            isSeller = isSeller,
+            negotiationStatus = order.negotiationStatus
         )
     }
 
     private fun mapTimelineEvent(e: OrderTrackingEventEntity): TimelineEvent {
-        val st = when (e.status.uppercase()) {
-            "PLACED" -> OrderStatus.PLACED
-            "CONFIRMED" -> OrderStatus.CONFIRMED
-            "PROCESSING" -> OrderStatus.PROCESSING
-            "OUT_FOR_DELIVERY" -> OrderStatus.OUT_FOR_DELIVERY
-            "DELIVERED" -> OrderStatus.DELIVERED
-            else -> OrderStatus.PLACED
+        val statusEnum = OrderStatus.fromString(e.status)
+        val uiStatus = when (statusEnum) {
+            OrderStatus.PLACED -> UiOrderStatus.PLACED
+            OrderStatus.CONFIRMED -> UiOrderStatus.CONFIRMED
+            OrderStatus.PROCESSING -> UiOrderStatus.PROCESSING
+            OrderStatus.OUT_FOR_DELIVERY -> UiOrderStatus.OUT_FOR_DELIVERY
+            OrderStatus.DELIVERED -> UiOrderStatus.DELIVERED
+            OrderStatus.CANCELLED -> UiOrderStatus.CANCELLED
+            OrderStatus.REFUNDED -> UiOrderStatus.REFUNDED
+            else -> UiOrderStatus.PLACED
         }
-        return TimelineEvent(status = st, note = e.note, timestamp = e.timestamp, hubId = e.hubId)
+        return TimelineEvent(status = uiStatus, note = e.note, timestamp = e.timestamp, hubId = e.hubId)
     }
 }
 

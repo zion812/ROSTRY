@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -70,7 +71,7 @@ import com.rio.rostry.marketplace.location.LocationService
 import com.google.android.libraries.places.api.Places
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GeneralCreateRoute(
     onPostCreated: () -> Unit,
@@ -99,11 +100,16 @@ fun GeneralCreateRoute(
     var locationInput by rememberSaveable { mutableStateOf(uiState.locationTag.orEmpty()) }
     var showPlacesPicker by rememberSaveable { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 6)
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
-        uris?.forEach { uri ->
-            val isVideo = uri.toString().endsWith(".mp4", ignoreCase = true)
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { }
+            
+            val isVideo = uri.toString().contains("video") || uri.toString().endsWith(".mp4", ignoreCase = true)
             viewModel.addMedia(uri, isVideo)
         }
     }
@@ -213,7 +219,7 @@ fun GeneralCreateRoute(
             MediaSection(
                 attachments = uiState.attachments,
                 onAddMedia = {
-                    mediaPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                    mediaPicker.launch(arrayOf("image/*", "video/*"))
                 },
                 onRemove = viewModel::removeMedia
             )
@@ -250,6 +256,7 @@ fun GeneralCreateRoute(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PrivacySelector(selected: Privacy, onSelect: (Privacy) -> Unit) {
     Column {

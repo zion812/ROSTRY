@@ -70,6 +70,9 @@ interface TaskDao {
     @Query("UPDATE tasks SET snoozeUntil = :snoozeUntil, updatedAt = :updatedAt, dirty = 1 WHERE taskId = :taskId")
     suspend fun updateSnoozeUntil(taskId: String, snoozeUntil: Long?, updatedAt: Long)
 
+    @Query("SELECT COUNT(*) FROM tasks WHERE farmerId = :farmerId AND completedAt BETWEEN :start AND :end")
+    fun observeCompletedCountForFarmerBetween(farmerId: String, start: Long, end: Long): Flow<Int>
+
     // Cursor-based incremental sync
     @Query("SELECT * FROM tasks WHERE updatedAt > :since ORDER BY updatedAt ASC LIMIT :limit")
     suspend fun getUpdatedSince(since: Long, limit: Int): List<TaskEntity>

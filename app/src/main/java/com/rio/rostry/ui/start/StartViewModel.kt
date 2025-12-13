@@ -23,31 +23,48 @@ class StartViewModel @Inject constructor(
     sealed class Nav {
         object ToAuth : Nav()
         data class ToHome(val role: UserType) : Nav()
+        object ToAuthWelcome : Nav()
+        data class ToGuestHome(val role: UserType) : Nav()
     }
 
     val nav = MutableSharedFlow<Nav>(extraBufferCapacity = 4)
 
     fun decide(nowMillis: Long) {
         viewModelScope.launch {
-            var authed = false
-            authRepository.isAuthenticated.collectLatest { isAuthed ->
-                authed = isAuthed
-                if (!authed) {
-                    nav.tryEmit(Nav.ToAuth)
-                } else {
-                    // Check session validity and user role
+            sessionManager.isGuestSession().collectLatest { isGuest ->
+                if (isGuest) {
                     sessionManager.isSessionValidFlow { nowMillis }.collectLatest { valid ->
                         if (valid) {
-                            userRepository.getCurrentUser().collectLatest { res ->
-                                if (res is Resource.Success) {
-                                    val role = res.data?.userType ?: UserType.GENERAL
-                                    nav.tryEmit(Nav.ToHome(role))
-                                } else if (res is Resource.Error) {
-                                    nav.tryEmit(Nav.ToAuth)
+                            sessionManager.getGuestRole().collectLatest { role ->
+                                if (role != null) {
+                                    nav.tryEmit(Nav.ToGuestHome(role))
+                                } else {
+                                    nav.tryEmit(Nav.ToAuthWelcome)
                                 }
                             }
                         } else {
-                            nav.tryEmit(Nav.ToAuth)
+                            nav.tryEmit(Nav.ToAuthWelcome)
+                        }
+                    }
+                } else {
+                    authRepository.isAuthenticated.collectLatest { isAuthed ->
+                        if (!isAuthed) {
+                            nav.tryEmit(Nav.ToAuthWelcome)
+                        } else {
+                            sessionManager.isSessionValidFlow { nowMillis }.collectLatest { valid ->
+                                if (valid) {
+                                    userRepository.getCurrentUser().collectLatest { res ->
+                                        if (res is Resource.Success) {
+                                            val role = res.data?.role ?: UserType.GENERAL
+                                            nav.tryEmit(Nav.ToHome(role))
+                                        } else if (res is Resource.Error) {
+                                            nav.tryEmit(Nav.ToAuthWelcome)
+                                        }
+                                    }
+                                } else {
+                                    nav.tryEmit(Nav.ToAuthWelcome)
+                                }
+                            }
                         }
                     }
                 }

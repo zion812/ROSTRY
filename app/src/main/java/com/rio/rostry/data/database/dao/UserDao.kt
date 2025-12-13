@@ -12,19 +12,32 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertUser(user: UserEntity)
+    suspend fun insertUserIgnore(user: UserEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertUsers(users: List<UserEntity>)
+    suspend fun insertUsersIgnore(users: List<UserEntity>): List<Long>
+
+    @Transaction
+    suspend fun upsertUser(user: UserEntity) {
+        insertUserIgnore(user)
+        updateUser(user)
+    }
 
     @Transaction
     suspend fun upsertUsers(users: List<UserEntity>) {
-        insertUsers(users)
-        users.forEach { updateUser(it) }
+        insertUsersIgnore(users)
+        updateUsers(users)
     }
+
+    /* Kept for potential strict replace needs, but check usage! */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUserReplace(user: UserEntity)
 
     @Update
     suspend fun updateUser(user: UserEntity)
+
+    @Update
+    suspend fun updateUsers(users: List<UserEntity>)
 
     @Query("SELECT * FROM users WHERE userId = :userId")
     fun getUserById(userId: String): Flow<UserEntity?>
@@ -40,4 +53,7 @@ interface UserDao {
 
     @Query("DELETE FROM users")
     suspend fun deleteAllUsers()
+
+    @Query("SELECT * FROM users WHERE fullName LIKE '%' || :query || '%' OR userId LIKE '%' || :query || '%' OR address LIKE '%' || :query || '%'")
+    fun searchUsers(query: String): Flow<List<UserEntity>>
 }

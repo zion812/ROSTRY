@@ -127,6 +127,17 @@ class AutoChickCreationTest {
         override fun observeKycStatus(userId: String) = flowOf(true)
         override fun observeComplianceAlertsCount(farmerId: String) = flowOf(0)
         override fun observeEligibleProductsCount(farmerId: String) = flowOf(0)
+
+        override suspend fun getFamilyTree(familyTreeId: String): Resource<FamilyTreeEntity> =
+            Resource.Success(
+                FamilyTreeEntity(
+                    nodeId = familyTreeId,
+                    productId = "test-product",
+                    parentProductId = null,
+                    childProductId = null,
+                    relationType = "parent"
+                )
+            )
     }
 
     @Before
