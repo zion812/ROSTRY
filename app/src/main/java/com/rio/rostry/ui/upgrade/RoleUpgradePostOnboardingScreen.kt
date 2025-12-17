@@ -20,7 +20,14 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -169,7 +176,7 @@ private fun FeatureCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Star,
+                imageVector = feature.icon,
                 contentDescription = feature.title,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -193,7 +200,8 @@ private fun FeatureCard(
 private data class Feature(
     val title: String,
     val description: String,
-    val route: String
+    val route: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
 
 private data class QuickAction(
@@ -207,34 +215,40 @@ private fun getFeaturesForRole(role: UserType): List<Feature> {
             Feature(
                 title = "List Products",
                 description = "Start selling your farm products on the marketplace.",
-                route = Routes.FarmerNav.CREATE
+                route = Routes.FarmerNav.CREATE,
+                icon = androidx.compose.material.icons.Icons.Filled.Store
             ),
             Feature(
                 title = "Track Farm Health",
                 description = "Monitor and manage your farm's health metrics.",
-                route = Routes.MONITORING_DASHBOARD
+                route = Routes.MONITORING_DASHBOARD,
+                icon = androidx.compose.material.icons.Icons.Filled.MonitorHeart
             ),
             Feature(
                 title = "Manage Sales",
                 description = "View analytics and manage your sales performance.",
-                route = Routes.ANALYTICS_FARMER
+                route = Routes.ANALYTICS_FARMER,
+                icon = androidx.compose.material.icons.Icons.Filled.TrendingUp
             )
         )
         UserType.ENTHUSIAST -> listOf(
             Feature(
                 title = "Breeding Records",
                 description = "Keep detailed records of your breeding activities.",
-                route = Routes.MONITORING_BREEDING
+                route = Routes.MONITORING_BREEDING,
+                icon = androidx.compose.material.icons.Icons.Filled.Favorite
             ),
             Feature(
                 title = "Transfer System",
                 description = "Initiate and manage bird transfers securely.",
-                route = Routes.TRANSFER_LIST
+                route = Routes.TRANSFER_LIST,
+                icon = androidx.compose.material.icons.Icons.Filled.SwapHoriz
             ),
             Feature(
                 title = "Advanced Analytics",
                 description = "Access in-depth analytics for your birds and activities.",
-                route = Routes.ANALYTICS_ENTHUSIAST
+                route = Routes.ANALYTICS_ENTHUSIAST,
+                icon = androidx.compose.material.icons.Icons.Filled.Insights
             )
         )
         UserType.GENERAL -> emptyList() // Not applicable

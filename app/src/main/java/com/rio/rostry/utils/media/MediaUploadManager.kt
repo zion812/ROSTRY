@@ -6,10 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -53,8 +52,9 @@ class MediaUploadManager @Inject constructor(
   
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activeUploads = mutableMapOf<String, Job>()
-    private val _events = MutableSharedFlow<UploadEvent>(replay = 0, extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-    val events = _events.asSharedFlow()
+    // Use Channel to ensure events are buffered and not lost if emitted before collection starts
+    private val _events = Channel<UploadEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
   
     // Optional outbox wiring (set via DI at app start)
     @Volatile private var uploadTaskDao: UploadTaskDao? = null
@@ -71,7 +71,7 @@ class MediaUploadManager @Inject constructor(
   
     fun enqueue(task: UploadTask) {
         val job = scope.launch {
-            _events.emit(UploadEvent.Queued(task.remotePath))
+            _events.send(UploadEvent.Queued(task.remotePath))
             try {
                 withTimeout(MAX_UPLOAD_TIMEOUT_MS) {
                     var attempt = 0
@@ -81,7 +81,7 @@ class MediaUploadManager @Inject constructor(
                             if (!connectivityManager.isOnline()) {
                                 delay(1000)
                                 attempt++
-                                _events.emit(UploadEvent.Retrying(task.remotePath, attempt))
+                                _events.send(UploadEvent.Retrying(task.remotePath, attempt))
                                 continue
                             }
                             val result = firebaseStorageUploader.uploadFile(
@@ -89,17 +89,17 @@ class MediaUploadManager @Inject constructor(
                                 remotePath = task.remotePath,
                                 compress = task.compress,
                                 sizeLimitBytes = task.sizeLimitBytes,
-                                onProgress = { p -> scope.launch { _events.emit(UploadEvent.Progress(task.remotePath, p)) } }
+                                onProgress = { p -> scope.launch { _events.send(UploadEvent.Progress(task.remotePath, p)) } }
                             )
-                            _events.emit(UploadEvent.Success(task.remotePath, downloadUrl = result.downloadUrl))
+                            _events.send(UploadEvent.Success(task.remotePath, downloadUrl = result.downloadUrl))
                             break
                         } catch (t: Throwable) {
                             attempt++
                             if (attempt >= maxAttempts) {
-                                _events.emit(UploadEvent.Failed(task.remotePath, t.message ?: "Upload failed"))
+                                _events.send(UploadEvent.Failed(task.remotePath, t.message ?: "Upload failed"))
                                 SecurityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("remotePath" to task.remotePath, "attempt" to attempt))
                             } else {
-                                _events.emit(UploadEvent.Retrying(task.remotePath, attempt))
+                                _events.send(UploadEvent.Retrying(task.remotePath, attempt))
                                 val backoff = 500L * (1 shl (attempt - 1))
                                 delay(backoff)
                             }
@@ -107,7 +107,7 @@ class MediaUploadManager @Inject constructor(
                     }
                 }
             } catch (t: TimeoutCancellationException) {
-                _events.emit(UploadEvent.Failed(task.remotePath, "Upload timed out"))
+                _events.send(UploadEvent.Failed(task.remotePath, "Upload timed out"))
                 SecurityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("remotePath" to task.remotePath, "attempt" to "timeout"))
             }
             activeUploads.remove(task.remotePath)
@@ -117,7 +117,7 @@ class MediaUploadManager @Inject constructor(
   
     fun cancelUpload(remotePath: String) {
         activeUploads.remove(remotePath)?.cancel()
-        scope.launch { _events.emit(UploadEvent.Cancelled(remotePath)) }
+        scope.launch { _events.send(UploadEvent.Cancelled(remotePath)) }
     }
   
     /**
@@ -132,9 +132,10 @@ class MediaUploadManager @Inject constructor(
             enqueue(UploadTask(localPath = localPath, remotePath = remotePath))
             return
         }
+        
         val job = scope.launch {
             try {
-                _events.emit(UploadEvent.Queued(remotePath))
+                _events.send(UploadEvent.Queued(remotePath))
                 val now = System.currentTimeMillis()
                 val task = UploadTaskEntity(
                     taskId = UUID.randomUUID().toString(),
@@ -151,37 +152,56 @@ class MediaUploadManager @Inject constructor(
                 dao.upsert(task)
                 scheduleWorker(ctx)
 
-                // Observe the task for updates
-                launch {
-                    try {
-                        dao.observeByRemotePath(remotePath).collect { entity ->
-                            if (entity == null) return@collect
-                            when (entity.status) {
-                                "UPLOADING" -> {
-                                    _events.emit(UploadEvent.Progress(remotePath, entity.progress))
-                                }
-                                "SUCCESS" -> {
-                                    val url = extractDownloadUrl(entity.contextJson) ?: ""
-                                    _events.emit(UploadEvent.Success(remotePath, url))
-                                    // Stop observing once terminal state is reached
-                                    throw kotlinx.coroutines.CancellationException("Upload completed")
-                                }
-                                "FAILED" -> {
-                                    _events.emit(UploadEvent.Failed(remotePath, entity.error ?: "Unknown error"))
-                                    throw kotlinx.coroutines.CancellationException("Upload failed")
-                                }
-                            }
+                // Start observing
+                startObservingTask(remotePath, dao)
+            } catch (e: Exception) {
+                // Swallow
+            }
+        }
+        activeUploads[remotePath] = job
+    }
+
+    /**
+     * Re-attach to an existing upload task (e.g., after process death).
+     */
+    fun retrack(remotePath: String) {
+        val dao = uploadTaskDao ?: return
+        if (activeUploads.containsKey(remotePath)) return
+        
+        startObservingTask(remotePath, dao)
+    }
+
+    private fun startObservingTask(remotePath: String, dao: UploadTaskDao) {
+        val job = scope.launch {
+            try {
+                dao.observeByRemotePath(remotePath).collect { entity ->
+                    if (entity == null) {
+                        // Task missing? Stop observing
+                        throw kotlinx.coroutines.CancellationException("Task not found")
+                    }
+                    when (entity.status) {
+                         "QUEUED" -> {
+                            // Optionally emit queued again if needed, or just wait
+                         }
+                        "UPLOADING" -> {
+                            _events.send(UploadEvent.Progress(remotePath, entity.progress))
                         }
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e 
-                    } catch (e: Exception) {
-                        // Swallow other exceptions from flow collection
+                        "SUCCESS" -> {
+                            val url = extractDownloadUrl(entity.contextJson) ?: ""
+                            _events.send(UploadEvent.Success(remotePath, url))
+                            // Stop observing once terminal state is reached
+                            throw kotlinx.coroutines.CancellationException("Upload completed")
+                        }
+                        "FAILED" -> {
+                            _events.send(UploadEvent.Failed(remotePath, entity.error ?: "Unknown error"))
+                            throw kotlinx.coroutines.CancellationException("Upload failed")
+                        }
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // Expected for flow termination
-            } catch (_: Throwable) {
-                // Swallow; WorkManager/DAO path is best-effort
+                throw e 
+            } catch (e: Exception) {
+                // Swallow other exceptions from flow collection
             } finally {
                 activeUploads.remove(remotePath)
             }

@@ -78,6 +78,7 @@ import com.rio.rostry.ui.auth.PhoneVerificationScreen
 import com.rio.rostry.ui.splash.SplashScreen
 import com.rio.rostry.ui.product.ProductDetailsScreen
 import com.rio.rostry.ui.profile.ProfileScreen
+import com.rio.rostry.ui.profile.EditProfileScreen
 import com.rio.rostry.ui.screens.HomeEnthusiastScreen
 import com.rio.rostry.ui.farmer.FarmerHomeScreen
 import com.rio.rostry.ui.farmer.FarmerMarketScreen
@@ -1160,9 +1161,18 @@ private fun RoleNavGraph(
                     },
                     onNavigateToVerification = { upgradeType ->
                         navController.navigate(Routes.Builders.verificationWithType(upgradeType))
+                    },
+                    onNavigateToProfileEdit = { _ ->
+                        navController.navigate(Routes.User.PROFILE_EDIT)
                     }
                 )
             }
+        }
+
+        composable(Routes.User.PROFILE_EDIT) {
+            EditProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // Post-Onboarding Route (Comment 6 & 7)

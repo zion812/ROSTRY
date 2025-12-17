@@ -50,7 +50,7 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 @HiltAndroidApp
-class RostryApp : Application(), Configuration.Provider {
+class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     @Inject
@@ -77,6 +77,11 @@ class RostryApp : Application(), Configuration.Provider {
                 .setWorkerFactory(entryPoint.hiltWorkerFactory())
                 .build()
         }
+        
+    override fun newImageLoader(): ImageLoader {
+        val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
+        return entryPoint.imageLoader()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -145,16 +150,15 @@ class RostryApp : Application(), Configuration.Provider {
             }
         }
 
-        // Initialize Places SDK
-        if (!Places.isInitialized()) {
-            Places.initialize(applicationContext, BuildConfig.MAPS_API_KEY)
-            Timber.d("Places SDK initialized")
-        }
+        // Places SDK initialization is handled lazily by PlacesModule.kt
+        // if (!Places.isInitialized()) {
+        //    Places.initialize(applicationContext, BuildConfig.MAPS_API_KEY)
+        //    Timber.d("Places SDK initialized")
+        // }
 
         // Coil ImageLoader from DI for centralized config (memory/disk cache, RGB_565, OkHttp cache)
+        // using lazy init via ImageLoaderFactory interface
         val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
-        val imageLoader: ImageLoader = entryPoint.imageLoader()
-        Coil.setImageLoader(imageLoader)
         // Attach MediaUploadManager outbox at startup (initializer has side-effects in init)
         entryPoint.mediaUploadInitializer()
 

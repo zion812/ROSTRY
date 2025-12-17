@@ -25,6 +25,7 @@ import com.google.firebase.firestore.FieldValue
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import android.net.TrafficStats
 import java.util.Date
 
@@ -38,93 +39,90 @@ class UserRepositoryImpl @Inject constructor(
 
     private val usersCollection = firestore.collection("users")
 
-    override fun getCurrentUser(): Flow<Resource<UserEntity?>> =
-        flow<Resource<UserEntity?>> {
-            TrafficStats.setThreadStatsTag(0xF00D) // Tag for user profile fetch
-            try {
-                val firebaseUser = firebaseAuth.currentUser
-                val resolvedUserId = firebaseUser?.uid
+    override fun getCurrentUser(): Flow<Resource<UserEntity?>> = callbackFlow {
+        TrafficStats.setThreadStatsTag(0xF00D)
+        val firebaseUser = firebaseAuth.currentUser
+        val userId = firebaseUser?.uid
 
-                if (resolvedUserId != null) {
-                    // 1. Emit local data immediately (Stale)
-                    val localUser = userDao.getUserById(resolvedUserId).firstOrNull()
-                    if (localUser != null) {
-                        emit(Resource.Success<UserEntity?>(localUser))
+        if (userId == null) {
+            trySend(Resource.Success(null))
+            close()
+            return@callbackFlow
+        }
+
+        // 1. Emit local data immediately (stale-while-revalidate)
+        val localUser = userDao.getUserById(userId).firstOrNull()
+        if (localUser != null) {
+            trySend(Resource.Success(localUser))
+        }
+
+        // 2. Setup Real-time Listener
+        val registration = usersCollection.document(userId).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                // If we have local data, we can swallow the error or log it, but 
+                // typically we might want to let the UI know if it's critical.
+                // For now, if we have local data, we keep the stream alive.
+                if (localUser == null) {
+                     trySend(Resource.Error("Failed to listen for user updates: ${error.message}"))
+                } else {
+                     android.util.Log.w("UserRepository", "Firestore listen error: ${error.message}")
+                }
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val userEntity = snapshot.toObject(UserEntity::class.java)
+                if (userEntity != null) {
+                    // Update local cache
+                    // We must use a separate coroutine scope or blocking call if Dao is suspend
+                    // But here we are in a callback. Ideally we launch in the flow's scope
+                    // However, callbackFlow scope is thread-safe for send, but for DB writes we need a scope.
+                    // We can use the 'launch' builder inside the callbackFlow.
+                    
+                    // Since we can't launch comfortably inside the listener callback without capturing the scope,
+                    // we'll use a try/catch block if needed, but actually the best pattern is:
+                    // Just emit the data, and let the collector handle side effects? 
+                    // No, Repository is responsible for caching.
+                    
+                    // We'll trust the main scope or use a runBlocking for the quick DB write? 
+                    // No, runBlocking in main thread is bad.
+                    // Let's use `launch` from the enclosing (producer) scope.
+                    launch {
+                        userDao.upsertUser(userEntity)
                     }
-
-                    // 2. Always fetch from Firestore (Revalidate)
-                    if (firebaseUser != null) {
+                    trySend(Resource.Success(userEntity))
+                }
+            } else if (snapshot != null && !snapshot.exists()) {
+                // User document doesn't exist yet (e.g. new auth user)
+                if (firebaseUser.phoneNumber != null) {
+                     val newUser = UserEntity(
+                        userId = userId,
+                        email = firebaseUser.email,
+                        phoneNumber = firebaseUser.phoneNumber
+                    )
+                    // Create it
+                    // We use launch to do the async write
+                    launch {
                         try {
-                            val documentSnapshot = usersCollection.document(firebaseUser.uid).get().await()
-                            val userEntity = documentSnapshot.toObject(UserEntity::class.java)
-                            
-                            if (userEntity != null) {
-                                // Update local cache (triggers REPLACE)
-                                userDao.upsertUser(userEntity)
-                                // Emit fresh data
-                                emit(Resource.Success<UserEntity?>(userEntity))
-                            } else {
-                                // No Firestore profile yet. Handle creation if needed.
-                                if (firebaseUser.phoneNumber.isNullOrBlank()) {
-                                    if (localUser == null) emit(Resource.Success<UserEntity?>(null))
-                                } else {
-                                    val newUser = UserEntity(
-                                        userId = firebaseUser.uid,
-                                        email = firebaseUser.email,
-                                        phoneNumber = firebaseUser.phoneNumber
-                                    )
-                                    usersCollection.document(firebaseUser.uid).set(newUser).await()
-                                    userDao.upsertUser(newUser)
-                                    emit(Resource.Success<UserEntity?>(newUser))
-                                }
-                            }
+                             usersCollection.document(userId).set(newUser).await()
+                             userDao.upsertUser(newUser)
+                             trySend(Resource.Success(newUser))
                         } catch (e: Exception) {
-                            if (e is kotlinx.coroutines.CancellationException) throw e
-                            
-                            // If we already emitted local data, suppress the error to keep the UI showing content
-                            // Only throw/emit error if we have no data to show
-                            if (localUser == null) {
-                                if (e is com.google.firebase.firestore.FirebaseFirestoreException && 
-                                    e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-                                     // Handle PERMISSION_DENIED (create logic) - duplicated from original but simplified for null case
-                                     if (!firebaseUser.phoneNumber.isNullOrBlank()) {
-                                        try {
-                                            val newUser = UserEntity(
-                                                userId = firebaseUser.uid,
-                                                email = firebaseUser.email,
-                                                phoneNumber = firebaseUser.phoneNumber
-                                            )
-                                            usersCollection.document(firebaseUser.uid).set(newUser).await()
-                                            userDao.upsertUser(newUser)
-                                            emit(Resource.Success<UserEntity?>(newUser))
-                                        } catch (createError: Exception) {
-                                            if (createError is kotlinx.coroutines.CancellationException) throw createError
-                                            emit(Resource.Error<UserEntity?>("Failed to create user profile: ${createError.message}"))
-                                        }
-                                     } else {
-                                         emit(Resource.Success<UserEntity?>(null))
-                                     }
-                                } else {
-                                    throw e // Will be caught by outer flow catch
-                                }
-                            } else {
-                                // Log the error but don't disrupt the user flow with an error state
-                                android.util.Log.w("UserRepository", "Failed to refresh user profile from Firestore, using local cache: ${e.message}")
-                            }
+                            trySend(Resource.Error("Failed to create initial user: ${e.message}"))
                         }
                     }
                 } else {
-                    emit(Resource.Success<UserEntity?>(null)) // No user logged in
+                    // No phone, maybe deleted?
+                    trySend(Resource.Success(null))
                 }
-            } finally {
-                TrafficStats.clearThreadStatsTag()
             }
         }
-            .onStart { emit(Resource.Loading<UserEntity?>()) }
-            .catch { e ->
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                emit(Resource.Error<UserEntity?>("Failed to fetch user profile: ${e.message}"))
-            }
+
+        awaitClose {
+            registration.remove()
+            TrafficStats.clearThreadStatsTag()
+        }
+    }
 
     override suspend fun refreshCurrentUser(userId: String): Resource<Unit> = safeCall<Unit> {
         // Fetch from Firestore and update local DB
@@ -193,7 +191,7 @@ class UserRepositoryImpl @Inject constructor(
         val docRef = usersCollection.document(userId)
         val snapshot = docRef.get().await()
         val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
-        val updated = current.copy(userType = newType.name, updatedAt = System.currentTimeMillis())
+        val updated = current.copy(userType = newType.name, updatedAt = Date())
         docRef.set(updated).await()
 
         // Update local Room database
@@ -205,14 +203,14 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit> = safeCall {
         if (firebaseAuth.currentUser == null) {
             val current = userDao.getUserById(userId).firstOrNull() ?: UserEntity(userId = userId)
-            val updated = current.copy(verificationStatus = status, updatedAt = System.currentTimeMillis())
+            val updated = current.copy(verificationStatus = status, updatedAt = Date())
             userDao.upsertUser(updated)
             Unit
         } else {
             val docRef = usersCollection.document(userId)
             val snapshot = docRef.get().await()
             val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
-            val updated = current.copy(verificationStatus = status, updatedAt = System.currentTimeMillis())
+            val updated = current.copy(verificationStatus = status, updatedAt = Date())
             docRef.set(updated).await()
             userDao.upsertUser(updated)
             Unit
@@ -304,7 +302,7 @@ class UserRepositoryImpl @Inject constructor(
         }
 
         // Also reflect status in Room user row if present
-        val updated = current.copy(verificationStatus = VerificationStatus.PENDING, updatedAt = System.currentTimeMillis())
+        val updated = current.copy(verificationStatus = VerificationStatus.PENDING, updatedAt = Date())
         userDao.upsertUser(updated)
         
         // Update status in Firestore users collection (lightweight flag only)
@@ -335,10 +333,10 @@ class UserRepositoryImpl @Inject constructor(
         val phone = firebaseUser.phoneNumber
         if (phone != null) {
             val docRef = usersCollection.document(userId)
-            docRef.update(mapOf("phoneNumber" to phone, "updatedAt" to System.currentTimeMillis())).await()
+            docRef.update(mapOf("phoneNumber" to phone, "updatedAt" to FieldValue.serverTimestamp())).await()
             val local = userDao.getUserById(userId).firstOrNull()
             if (local != null) {
-                userDao.upsertUser(local.copy(phoneNumber = phone, updatedAt = System.currentTimeMillis()))
+                userDao.upsertUser(local.copy(phoneNumber = phone, updatedAt = Date()))
             }
         }
         Unit
@@ -352,7 +350,7 @@ class UserRepositoryImpl @Inject constructor(
             farmLocationLat = latitude,
             farmLocationLng = longitude,
             locationVerified = true,
-            updatedAt = System.currentTimeMillis()
+            updatedAt = Date()
         )
         docRef.set(updated).await()
         userDao.upsertUser(updated)
@@ -384,7 +382,8 @@ class UserRepositoryImpl @Inject constructor(
         docTypes: Map<String, String>,
         upgradeType: UpgradeType,
         currentRole: UserType,
-        targetRole: UserType?
+        targetRole: UserType?,
+        farmLocation: Map<String, Double>?
     ): Resource<Unit> = safeCall {
         val currentUser = firebaseAuth.currentUser
         if (currentUser == null) {
@@ -397,39 +396,32 @@ class UserRepositoryImpl @Inject constructor(
              android.util.Log.w("UserRepository", "submitKycVerification: userId param ($userId) does not match auth UID ($authUserId). Using auth UID.")
         }
 
-        // Fetch current user details to snapshot location
-        val userDoc = usersCollection.document(authUserId).get().await()
-        val userEntity = userDoc.toObject(UserEntity::class.java)
-        val locationSnapshot = if (userEntity?.farmLocationLat != null && userEntity.farmLocationLng != null) {
-            mapOf("lat" to userEntity.farmLocationLat, "lng" to userEntity.farmLocationLng)
-        } else null
-
+        // NO FETCH needed - use passed location
+        
         val batch = firestore.batch()
         val verificationsRef = firestore.collection("verifications").document(authUserId)
         val userRef = usersCollection.document(authUserId)
         
-        // Create structured submission object
-        // NOTE: We use null for submittedAt to allow @ServerTimestamp to work, 
-        // effectively clearing client-side clock dependencies.
-        val submission = VerificationSubmission(
-            submissionId = submissionId,
-            userId = authUserId,
-            upgradeType = upgradeType,
-            currentRole = currentRole,
-            targetRole = targetRole,
-            currentStatus = VerificationStatus.PENDING,
-            documentUrls = documentUrls,
-            imageUrls = imageUrls,
-            documentTypes = docTypes,
-            farmLocation = locationSnapshot,
-            rejectionReason = null, // Clear previous rejection
-            reviewedBy = null,
-            reviewedAt = null,
-            submittedAt = null // @ServerTimestamp will populate this
+        // Create structured submission map to ensure only allowed fields are sent to Firestore
+        // This avoids PERMISSION_DENIED errors caused by sending protected fields (like reviewedBy, rejectionReason) 
+        // which are present in the data class but forbidden by the strict keys().hasOnly() rule in security rules.
+        val submissionMap = hashMapOf<String, Any?>(
+            "submissionId" to submissionId,
+            "userId" to authUserId,
+            "upgradeType" to upgradeType.name,
+            "currentRole" to currentRole.name,
+            "targetRole" to targetRole?.name,
+            "currentStatus" to VerificationStatus.PENDING.name,
+            "documentUrls" to documentUrls,
+            "imageUrls" to imageUrls,
+            "documentTypes" to docTypes,
+            "farmLocation" to farmLocation,
+            "additionalData" to emptyMap<String, Any>(),
+            "submittedAt" to FieldValue.serverTimestamp()
         )
         
         // 1. Write Verification Submission
-        batch.set(verificationsRef, submission)
+        batch.set(verificationsRef, submissionMap)
         
         // 2. Update User Profile Status atomically
         // Explicitly clear kycRejectionReason to remove "Rejected" UI state completely

@@ -39,6 +39,7 @@ object Routes {
 
     object User {
         const val PROFILE = "user/{userId}"
+        const val PROFILE_EDIT = "user/edit"
     }
 
     object Onboarding {

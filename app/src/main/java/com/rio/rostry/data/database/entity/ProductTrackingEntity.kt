@@ -24,10 +24,10 @@ import androidx.room.PrimaryKey
     indices = [Index("productId"), Index("ownerId"), Index(value = ["productId", "timestamp"])]
 )
 data class ProductTrackingEntity(
-    @PrimaryKey val trackingId: String,
-    val productId: String,
-    val ownerId: String,
-    val status: String, // e.g., in_farm, shipped, delivered, breeding, etc.
+    @PrimaryKey val trackingId: String = "",
+    val productId: String = "",
+    val ownerId: String = "",
+    val status: String = "", // e.g., in_farm, shipped, delivered, breeding, etc.
     val metadataJson: String? = null, // arbitrary JSON payload for extra fields
     val timestamp: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis(),

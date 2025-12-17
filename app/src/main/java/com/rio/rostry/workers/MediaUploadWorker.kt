@@ -68,8 +68,20 @@ class MediaUploadWorker @AssistedInject constructor(
                             }
                         },
                     )
-                    val contextJson = "{" + "\"downloadUrl\":\"" + result.downloadUrl + "\"}" 
-                    uploadTaskDao.markSuccess(task.taskId, contextJson, System.currentTimeMillis())
+                    // Merge downloadUrl into existing contextJson
+                    val existingJson = task.contextJson
+                    val jsonObject = if (!existingJson.isNullOrEmpty()) {
+                        try {
+                            org.json.JSONObject(existingJson)
+                        } catch (e: Exception) {
+                            org.json.JSONObject()
+                        }
+                    } else {
+                        org.json.JSONObject()
+                    }
+                    jsonObject.put("downloadUrl", result.downloadUrl)
+                    
+                    uploadTaskDao.markSuccess(task.taskId, jsonObject.toString(), System.currentTimeMillis())
                     Timber.i("UploadWorker: success taskId=${task.taskId} in ${System.currentTimeMillis() - start}ms")
                 } catch (t: Throwable) {
                     Timber.w(t, "UploadWorker: task ${task.taskId} failed (retries=${task.retries})")

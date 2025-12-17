@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -17,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,11 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Warning
 import com.rio.rostry.domain.model.UserType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +48,7 @@ fun RoleUpgradeScreen(
     onNavigateBack: () -> Unit,
     onUpgradeComplete: () -> Unit,
     onNavigateToVerification: (com.rio.rostry.domain.model.UpgradeType) -> Unit,
+    onNavigateToProfileEdit: (String) -> Unit,
     viewModel: RoleUpgradeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,6 +64,9 @@ fun RoleUpgradeScreen(
             when (event) {
                 is RoleUpgradeViewModel.UiEvent.NavigateToVerification -> {
                     onNavigateToVerification(event.upgradeType)
+                }
+                is RoleUpgradeViewModel.UiEvent.NavigateToProfileEdit -> {
+                    onNavigateToProfileEdit(event.field)
                 }
                 else -> {}
             }
@@ -135,64 +145,150 @@ fun RoleUpgradeScreen(
                 }
                 RoleUpgradeViewModel.WizardStep.PREREQUISITES -> {
                     Text("Prerequisites Check", style = MaterialTheme.typography.headlineSmall)
-                    val validationErrors = uiState.validationErrors
                     val basePrereqs = listOf(
-                        "Full Name" to (uiState.user?.fullName?.isNotBlank() == true),
-                        "Email" to (uiState.user?.email?.isNotBlank() == true),
-                        "Phone Number" to (uiState.user?.phoneNumber?.isNotBlank() == true)
+                        Triple("Full Name", uiState.user?.fullName?.isNotBlank() == true, "fullName"),
+                        Triple("Email", uiState.user?.email?.isNotBlank() == true, "email"),
+                        Triple("Phone Number", uiState.user?.phoneNumber?.isNotBlank() == true, "phoneNumber")
                     )
-                    basePrereqs.forEach { (label, completed) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (completed) Icons.Filled.Check else Icons.Filled.Close,
-                                contentDescription = if (completed) "Completed" else "Incomplete",
-                                tint = if (completed) Color.Green else Color.Red
-                            )
-                            Text(label)
-                        }
-                    }
-                    if (targetRole == UserType.ENTHUSIAST) {
-                        // Use validation errors for verification status (Comment 5)
-                        // This ensures consistency with ViewModel's authoritative check
-                        val verificationError = validationErrors["verification"]
-                        val verified = verificationError == null
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (verified) Icons.Filled.Check else Icons.Filled.Close,
-                                contentDescription = if (verified) "Completed" else "Incomplete",
-                                tint = if (verified) Color.Green else Color.Red
-                            )
-                            Text("Verification Status")
-                        }
-                    }
-                    validationErrors.forEach { (key, error) ->
-                        Text(error, color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                RoleUpgradeViewModel.WizardStep.CONFIRMATION -> {
-                    Text("Confirmation", style = MaterialTheme.typography.headlineSmall)
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Summary of Changes:")
-                            Text("Upgrading from ${uiState.currentRole?.displayName} to ${targetRole.displayName}")
-                            Text("New features will be unlocked upon upgrade.")
-                            Spacer(modifier = Modifier.height(8.dp))
-                            if (uiState.isUpgrading) {
-                                Text("Upgrading...")
-                            } else {
-                                Button(onClick = { viewModel.performUpgrade() }) {
-                                    Text("Upgrade Now")
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        basePrereqs.forEach { (label, completed, fieldKey) ->
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (completed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (completed) Icons.Filled.Check else Icons.Filled.Close,
+                                            contentDescription = if (completed) "Completed" else "Incomplete",
+                                            tint = if (completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                        )
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                    }
+                                    if (!completed) {
+                                        TextButton(onClick = { viewModel.fixPrerequisite(fieldKey) }) {
+                                            Text("Fix")
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    uiState.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+                    if (targetRole == UserType.ENTHUSIAST) {
+                        val verificationError = uiState.validationErrors["verification"]
+                        val verified = verificationError == null
+                        Card(
+                             colors = CardDefaults.cardColors(
+                                containerColor = if (verified) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (verified) Icons.Filled.Check else Icons.Filled.Close,
+                                    contentDescription = null,
+                                    tint = if (verified) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text("Verification Status", style = MaterialTheme.typography.bodyLarge)
+                                    if (!verified) {
+                                        Text(
+                                            text = "Complete your farmer verification first", 
+                                            style = MaterialTheme.typography.bodySmall, 
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Show any other generic errors not covered above
+                    uiState.validationErrors.filterKeys { it !in listOf("fullName", "email", "phoneNumber", "verification") }.forEach { (_, error) ->
+                         Text(error, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                RoleUpgradeViewModel.WizardStep.CONFIRMATION -> {
+                    Text("Confirmation", style = MaterialTheme.typography.headlineSmall)
+                    
+                    val verificationStatus = uiState.user?.verificationStatus
+                    
+                    if (verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
+                         Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                     Icon(imageVector = Icons.Filled.Schedule, contentDescription = null)
+                                     Spacer(Modifier.width(8.dp))
+                                     Text("Verification Pending", style = MaterialTheme.typography.titleMedium)
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Text("Your verification request is under review. You will be notified once it is approved.")
+                            }
+                        }
+                    } else {
+                        if (verificationStatus == com.rio.rostry.domain.model.VerificationStatus.REJECTED) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                         Icon(imageVector = Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                                         Spacer(Modifier.width(8.dp))
+                                         Text("Verification Rejected", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    uiState.user?.kycRejectionReason?.let { reason ->
+                                        Text("Reason: $reason", color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(Modifier.height(8.dp))
+                                    }
+                                    Text("You can submit a new verification request.", color = MaterialTheme.colorScheme.onErrorContainer)
+                                }
+                            }
+                            Spacer(Modifier.height(16.dp))
+                        }
+
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Summary of Changes:")
+                                Text("Upgrading from ${uiState.currentRole?.displayName} to ${targetRole.displayName}")
+                                Text("New features will be unlocked upon upgrade.")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                if (uiState.isUpgrading) {
+                                    Text("Upgrading...")
+                                } else {
+                                    Button(onClick = { viewModel.performUpgrade() }) {
+                                        Text(if (verificationStatus == com.rio.rostry.domain.model.VerificationStatus.REJECTED) "Try Again" else "Upgrade Now")
+                                    }
+                                }
+                            }
+                        }
+                        uiState.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    }
                 }
             }
 

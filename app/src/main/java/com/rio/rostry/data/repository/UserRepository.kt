@@ -41,7 +41,8 @@ interface UserRepository {
         docTypes: Map<String, String> = emptyMap(),
         upgradeType: UpgradeType = UpgradeType.GENERAL_TO_FARMER,
         currentRole: UserType = UserType.GENERAL,
-        targetRole: UserType? = null
+        targetRole: UserType? = null,
+        farmLocation: Map<String, Double>? = null
     ): Resource<Unit>
 
     fun getKycSubmissionStatus(userId: String): Flow<Resource<String?>>

@@ -72,9 +72,20 @@ object HttpModule {
     @Provides
     @Singleton
     fun provideOkHttpCache(@ApplicationContext context: Context): Cache {
-        // 10 MB HTTP cache for API/Coil - using lazy initialization to defer disk I/O
-        val cacheDir = lazy { File(context.cacheDir, "http_cache") }
-        return Cache(cacheDir.value, 10L * 1024 * 1024)
+        // Allow disk reads for cache initialization to prevent StrictMode violations
+        val oldPolicy = android.os.StrictMode.getThreadPolicy()
+        android.os.StrictMode.setThreadPolicy(
+            android.os.StrictMode.ThreadPolicy.Builder(oldPolicy)
+                .permitDiskReads()
+                .build()
+        )
+        try {
+            // 10 MB HTTP cache for API/Coil
+            val cacheDir = File(context.cacheDir, "http_cache")
+            return Cache(cacheDir, 10L * 1024 * 1024)
+        } finally {
+            android.os.StrictMode.setThreadPolicy(oldPolicy)
+        }
     }
 
     @Provides

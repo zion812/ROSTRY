@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 46,
-    "identityHash": "f18e0af038a9a48265e3219e61ddcb6f",
+    "identityHash": "cceb9de42c1ca5b81c2c78051161dd24",
     "entities": [
       {
         "tableName": "users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `phoneNumber` TEXT, `email` TEXT, `fullName` TEXT, `address` TEXT, `bio` TEXT, `profilePictureUrl` TEXT, `userType` TEXT NOT NULL, `verificationStatus` TEXT NOT NULL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `farmLocationLat` REAL, `farmLocationLng` REAL, `locationVerified` INTEGER, `kycLevel` INTEGER, `chickenCount` INTEGER, `farmerType` TEXT, `raisingSince` INTEGER, `favoriteBreed` TEXT, `kycVerifiedAt` INTEGER, `kycRejectionReason` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`userId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `phoneNumber` TEXT, `email` TEXT, `fullName` TEXT, `address` TEXT, `bio` TEXT, `profilePictureUrl` TEXT, `userType` TEXT NOT NULL, `verificationStatus` TEXT NOT NULL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `farmLocationLat` REAL, `farmLocationLng` REAL, `locationVerified` INTEGER, `kycLevel` INTEGER, `chickenCount` INTEGER, `farmerType` TEXT, `raisingSince` INTEGER, `favoriteBreed` TEXT, `kycVerifiedAt` INTEGER, `kycRejectionReason` TEXT, `createdAt` INTEGER, `updatedAt` INTEGER, PRIMARY KEY(`userId`))",
         "fields": [
           {
             "fieldPath": "userId",
@@ -139,14 +139,12 @@
           {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "updatedAt",
             "columnName": "updatedAt",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -7471,7 +7469,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f18e0af038a9a48265e3219e61ddcb6f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cceb9de42c1ca5b81c2c78051161dd24')"
     ]
   }
 }

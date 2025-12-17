@@ -41,7 +41,18 @@ object AppModule {
     @Singleton
     @Named(RolePreferenceStorage.ROLE_PREFS_NAME)
     fun provideRoleSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
-        return context.getSharedPreferences(RolePreferenceStorage.ROLE_PREFS_NAME, Context.MODE_PRIVATE)
+        // Allow disk reads for SharedPreferences initialization to prevent StrictMode violations
+        val oldPolicy = android.os.StrictMode.getThreadPolicy()
+        android.os.StrictMode.setThreadPolicy(
+            android.os.StrictMode.ThreadPolicy.Builder(oldPolicy)
+                .permitDiskReads()
+                .build()
+        )
+        try {
+            return context.getSharedPreferences(RolePreferenceStorage.ROLE_PREFS_NAME, Context.MODE_PRIVATE)
+        } finally {
+            android.os.StrictMode.setThreadPolicy(oldPolicy)
+        }
     }
 
     @Provides

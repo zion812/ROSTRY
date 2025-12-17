@@ -3,12 +3,16 @@ package com.rio.rostry.data.database.entity
 import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
 import com.google.firebase.firestore.Exclude
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
+import java.util.Date
 
 @Keep
 @Entity(tableName = "users")
+@TypeConverters(UserEntity.DateLongConverter::class)
 data class UserEntity(
     @PrimaryKey val userId: String = "",
     val phoneNumber: String? = null,
@@ -40,8 +44,8 @@ data class UserEntity(
     val kycVerifiedAt: Long? = null,
     val kycRejectionReason: String? = null,
     // Common audit
-    val createdAt: Long = 0L,
-    val updatedAt: Long = 0L
+    val createdAt: Date? = null,
+    val updatedAt: Date? = null
 ) {
     @get:Exclude
     val role: UserType
@@ -50,4 +54,12 @@ data class UserEntity(
         } catch (e: Exception) {
             UserType.GENERAL
         }
+
+    class DateLongConverter {
+        @TypeConverter
+        fun fromTimestamp(value: Long?): Date? = value?.let { Date(it) }
+
+        @TypeConverter
+        fun dateToTimestamp(date: Date?): Long? = date?.time
+    }
 }

@@ -143,7 +143,7 @@ class OnboardingChecklistRepository @Inject constructor(
         if (user == null) return false
 
         // Check if the user registered within the last 7 days
-        val registrationDate = user.createdAt
+        val registrationDate = user.createdAt?.time ?: 0L
         val now = System.currentTimeMillis()
         val sevenDaysInMillis = 7L * 24 * 60 * 60 * 1000 // 7 days in milliseconds
 
@@ -182,7 +182,7 @@ class OnboardingChecklistRepository @Inject constructor(
     /**
      * Migrate legacy SharedPreferences data if needed.
      */
-    private suspend fun migrateLegacyIfNeeded(userId: String) {
+    private suspend fun migrateLegacyIfNeeded(userId: String) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val migratedKey = booleanPreferencesKey("onboarding_migrated_$userId")
         val dismissedPrefKey = booleanPreferencesKey("onboarding_checklist_dismissed_$userId")
         val completedPrefKey = stringSetPreferencesKey("onboarding_checklist_$userId")
@@ -190,11 +190,11 @@ class OnboardingChecklistRepository @Inject constructor(
         val prefs = runCatching { 
             context.onboardingChecklistDataStore.data.first() 
         }.getOrElse { 
-            return
+            return@withContext
         }
         
         val alreadyMigrated = prefs[migratedKey] ?: false
-        if (alreadyMigrated) return
+        if (alreadyMigrated) return@withContext
 
         // Read legacy SharedPreferences
         val legacy = context.getSharedPreferences("onboarding_checklist", Context.MODE_PRIVATE)

@@ -347,7 +347,9 @@ class MessagingRepositoryImpl @Inject constructor(
                 trySend(messages)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                timber.log.Timber.e(error.toException(), "streamThread cancelled")
+                trySend(emptyList())
+                close() 
             }
         }
         ref.addValueEventListener(listener)
@@ -397,7 +399,11 @@ class MessagingRepositoryImpl @Inject constructor(
                 }.sortedBy { it.timestamp }
                 trySend(messages)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { 
+                timber.log.Timber.e(error.toException(), "streamGroup cancelled")
+                trySend(emptyList())
+                close() 
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -444,7 +450,11 @@ class MessagingRepositoryImpl @Inject constructor(
                 val ids = snapshot.children.mapNotNull { it.key }
                 trySend(ids)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { 
+                timber.log.Timber.e(error.toException(), "streamUserThreads cancelled")
+                trySend(emptyList())
+                close() 
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -476,7 +486,11 @@ class MessagingRepositoryImpl @Inject constructor(
                     override fun onCancelled(error: DatabaseError) { /* ignore */ }
                 })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) { 
+                timber.log.Timber.e(error.toException(), "streamUnreadCount cancelled")
+                trySend(0)
+                close() 
+            }
         }
         indexRef.addValueEventListener(indexListener)
         awaitClose { indexRef.removeEventListener(indexListener) }
@@ -562,7 +576,9 @@ class MessagingRepositoryImpl @Inject constructor(
                 trySend(metadata)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                timber.log.Timber.e(error.toException(), "streamThreadMetadata cancelled")
+                trySend(null)
+                close()
             }
         }
         ref.addValueEventListener(listener)
@@ -591,7 +607,9 @@ class MessagingRepositoryImpl @Inject constructor(
                 trySend(threadsWithMetadata)
             }
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                timber.log.Timber.e(error.toException(), "streamUserThreadsWithMetadata cancelled")
+                trySend(emptyList())
+                close()
             }
         }
         indexRef.addValueEventListener(listener)

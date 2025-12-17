@@ -95,7 +95,7 @@ fun ProfileScreen(
                             val reset = user.copy(
                                 verificationStatus = VerificationStatus.UNVERIFIED,
                                 kycRejectionReason = null,
-                                updatedAt = System.currentTimeMillis()
+                                updatedAt = java.util.Date()
                             )
                             viewModel.updateUser(reset)
                             // Navigate to appropriate flow

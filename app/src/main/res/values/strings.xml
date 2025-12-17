@@ -13,6 +13,7 @@
     <string name="clear">Clear</string>
     <string name="apply">Apply</string>
     <string name="close">Close</string>
+    <string name="done">Done</string>
     
     <!-- Market tab strings -->
     <string name="marketplace">Marketplace</string>
@@ -92,4 +93,27 @@
     <string name="contact_support">Contact Support</string>
     <string name="report_issue">Report Issue</string>
     <string name="sign_in_to_view_profile">Sign in to view your profile</string>
+
+    <!-- Verification Strings -->
+    <string name="verification_request">Verification Request</string>
+    <string name="farm_location">Farm Location</string>
+    <string name="change_location">Change Location</string>
+    <string name="your_location">Your Location</string>
+    <string name="address_not_selected">Address not selected</string>
+    <string name="photo_location_warning">Photo Location Warning</string>
+    <string name="required_photos">Required Photos</string>
+    <string name="required_documents">Required Documents</string>
+    <string name="submit_verification">Submit Verification</string>
+    <string name="submitting">Submitting...</string>
+    <string name="uploading_progress">Uploading...</string>
+    <string name="submission_received">Submission Received</string>
+    <string name="submission_received_msg">Your documents are under review. We will notify you once verification is complete.</string>
+    <string name="verification_rejected">Verification Rejected</string>
+    <string name="error_unable_to_determine_type">Error: Unable to determine verification type.</string>
+    <string name="required_items_remaining">* %d required items remaining</string>
+    <string name="complete_standard_verification">Complete standard verification</string>
+    
+    <!-- Role Upgrade -->
+    <string name="become_a_farmer">Become a Farmer</string>
+    
 </resources>

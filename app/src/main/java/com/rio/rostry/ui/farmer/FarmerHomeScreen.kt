@@ -116,7 +116,7 @@ fun FarmerHomeScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        "You can add birds, track growth, manage breeding, and use all farm features. Market listing will be enabled once your farm location is verified (24-48 hours).",
+                                        "You can add birds, track growth, manage breeding, use all farm features, and access market listings while your location is under review.",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -328,14 +328,16 @@ fun FarmerHomeScreen(
                     WidgetType.MORTALITY -> Icons.Filled.Warning to { viewModel.navigateToModule(Routes.Builders.monitoringMortality()) }
                     WidgetType.BREEDING -> Icons.Filled.Favorite to { viewModel.navigateToModule(Routes.Builders.monitoringBreeding()) }
                     WidgetType.READY_TO_LIST -> Icons.Filled.Storefront to { 
-                        if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
+                        if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED || 
+                            uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
                             viewModel.navigateToModule(Routes.Builders.productsWithFilter("ready_to_list")) 
                         } else {
                             showVerificationPendingDialog = true
                         }
                     }
                     WidgetType.NEW_LISTING -> Icons.Filled.AddCircle to { 
-                        if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
+                        if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED ||
+                            uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
                             viewModel.navigateToModule(Routes.FarmerNav.CREATE)
                         } else {
                             showVerificationPendingDialog = true
@@ -363,7 +365,8 @@ fun FarmerHomeScreen(
                 }
 
                 val isLocked = (widget.type == WidgetType.READY_TO_LIST || widget.type == WidgetType.NEW_LISTING) && 
-                               uiState.verificationStatus != com.rio.rostry.domain.model.VerificationStatus.VERIFIED
+                               uiState.verificationStatus != com.rio.rostry.domain.model.VerificationStatus.VERIFIED &&
+                               uiState.verificationStatus != com.rio.rostry.domain.model.VerificationStatus.PENDING
 
                 FetcherCard(
                     title = widget.title,

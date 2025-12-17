@@ -48,8 +48,12 @@ class PlacesInitializer(private val context: Context) {
             synchronized(this) {
                 if (!initialized) {
                     if (!Places.isInitialized()) {
-                        Places.initializeWithNewPlacesApiEnabled(context, BuildConfig.MAPS_API_KEY)
-                        Timber.d("Places SDK initialized (lazy)")
+                        try {
+                            Places.initializeWithNewPlacesApiEnabled(context, BuildConfig.MAPS_API_KEY)
+                            Timber.d("Places SDK initialized (lazy)")
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to initialize Places SDK")
+                        }
                     }
                     initialized = true
                 }

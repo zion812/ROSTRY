@@ -179,8 +179,8 @@ class FirestoreService @Inject constructor(
                     .documents.mapNotNull { it.toObject(TransferEntity::class.java) }
             }
         }
-    } catch (e: TimeoutCancellationException) {
-        Timber.e(e, "Timeout fetching transfers since=$since")
+    } catch (e: Exception) {
+        Timber.e(e, "Error fetching transfers since=$since")
         emptyList()
     }
 
@@ -206,15 +206,13 @@ class FirestoreService @Inject constructor(
                 val sellerDocs = sellerSnap.documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
                 (buyerDocs + sellerDocs).distinctBy { it.trackingId }
             } else {
-                trackings.whereGreaterThan("updatedAt", since)
-                    .orderBy("updatedAt", Query.Direction.ASCENDING)
-                    .limit(limit.toLong())
-                    .get().await()
-                    .documents.mapNotNull { it.toObject(ProductTrackingEntity::class.java) }
+                // Do not attempt global query if user is not authenticated/identified
+                Timber.w("Skipping global tracking fetch without userId")
+                emptyList()
             }
         }
-    } catch (e: TimeoutCancellationException) {
-        Timber.e(e, "Timeout fetching trackings since=$since")
+    } catch (e: Exception) {
+        Timber.e(e, "Error fetching trackings since=$since")
         emptyList()
     }
 
@@ -246,8 +244,8 @@ class FirestoreService @Inject constructor(
                     .documents.mapNotNull { it.toObject(ChatMessageEntity::class.java) }
             }
         }
-    } catch (e: TimeoutCancellationException) {
-        Timber.e(e, "Timeout fetching chats since=$since")
+    } catch (e: Exception) {
+        Timber.e(e, "Error fetching chats since=$since")
         emptyList()
     }
 
@@ -361,12 +359,16 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    override suspend fun fetchUpdatedUsers(since: Long, limit: Int): List<UserEntity> =
-        users.whereGreaterThan("updatedAt", since)
+    override suspend fun fetchUpdatedUsers(since: Long, limit: Int): List<UserEntity> = try {
+        users.whereGreaterThan("updatedAt", java.util.Date(since))
             .orderBy("updatedAt", Query.Direction.ASCENDING)
             .limit(limit.toLong())
             .get().await()
             .documents.mapNotNull { it.toObject(UserEntity::class.java) }
+    } catch (e: Exception) {
+        Timber.e(e, "Error fetching users since=$since")
+        emptyList()
+    }
 
     override suspend fun fetchUsersByIds(ids: List<String>): List<UserEntity> {
         if (ids.isEmpty()) return emptyList()

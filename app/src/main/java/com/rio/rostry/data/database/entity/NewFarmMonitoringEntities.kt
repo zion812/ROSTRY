@@ -17,11 +17,11 @@ import androidx.room.PrimaryKey
     ]
 )
 data class FarmAlertEntity(
-    @PrimaryKey val alertId: String,
-    val farmerId: String,
-    val alertType: String, // VACCINATION_DUE, QUARANTINE_UPDATE, MORTALITY_SPIKE, HATCHING_DUE
-    val severity: String, // INFO, WARNING, URGENT
-    val message: String,
+    @PrimaryKey val alertId: String = "",
+    val farmerId: String = "",
+    val alertType: String = "", // VACCINATION_DUE, QUARANTINE_UPDATE, MORTALITY_SPIKE, HATCHING_DUE
+    val severity: String = "", // INFO, WARNING, URGENT
+    val message: String = "",
     val actionRoute: String? = null, // navigation deep-link
     val isRead: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
@@ -39,10 +39,10 @@ data class FarmAlertEntity(
     ]
 )
 data class ListingDraftEntity(
-    @PrimaryKey val draftId: String,
-    val farmerId: String,
-    val step: String, // BASICS, DETAILS, MEDIA, REVIEW
-    val formDataJson: String, // serialized wizard state
+    @PrimaryKey val draftId: String = "",
+    val farmerId: String = "",
+    val step: String = "", // BASICS, DETAILS, MEDIA, REVIEW
+    val formDataJson: String = "", // serialized wizard state
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val expiresAt: Long? = null
@@ -57,10 +57,10 @@ data class ListingDraftEntity(
     ]
 )
 data class FarmerDashboardSnapshotEntity(
-    @PrimaryKey val snapshotId: String,
-    val farmerId: String,
-    val weekStartAt: Long,
-    val weekEndAt: Long,
+    @PrimaryKey val snapshotId: String = "",
+    val farmerId: String = "",
+    val weekStartAt: Long = 0L,
+    val weekEndAt: Long = 0L,
     val revenueInr: Double = 0.0,
     val ordersCount: Int = 0,
     val hatchSuccessRate: Double = 0.0,

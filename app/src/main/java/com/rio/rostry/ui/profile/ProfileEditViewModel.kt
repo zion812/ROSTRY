@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
+import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -232,7 +233,7 @@ class ProfileEditViewModel @Inject constructor(
                 profilePictureUrl = _ui.value.photoUri,
                 farmLocationLat = lat ?: currentUser.farmLocationLat,
                 farmLocationLng = lng ?: currentUser.farmLocationLng,
-                updatedAt = System.currentTimeMillis()
+                updatedAt = Date()
             )
 
             val res = userRepository.updateUserProfile(updatedUser)

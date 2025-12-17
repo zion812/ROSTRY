@@ -1,9 +1,9 @@
 package com.rio.rostry.ui.verification
 
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.SavedStateHandle
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.gson.Gson
@@ -11,27 +11,35 @@ import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.model.FarmLocation
+import com.rio.rostry.domain.model.LocationComponent
 import com.rio.rostry.domain.model.UpgradeType
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
+import com.rio.rostry.notifications.VerificationNotificationService
+import com.rio.rostry.security.SecurityManager
+import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.ui.verification.state.VerificationFormState
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.media.MediaUploadManager
 import com.rio.rostry.utils.storage.VerificationStoragePathBuilder
 import com.rio.rostry.utils.validation.VerificationValidationService
-import com.rio.rostry.notifications.VerificationNotificationService
-import com.rio.rostry.security.SecurityManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.rio.rostry.session.CurrentUserProvider
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.UUID
-import javax.inject.Inject
-import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
+import com.rio.rostry.domain.verification.VerificationRequirementProvider
+
+import com.rio.rostry.domain.verification.VerificationRequirements
+import javax.inject.Inject
 
 @HiltViewModel
 class VerificationViewModel @Inject constructor(
@@ -40,17 +48,20 @@ class VerificationViewModel @Inject constructor(
     private val verificationValidationService: VerificationValidationService,
     private val verificationNotificationService: VerificationNotificationService,
     private val auditLogDao: AuditLogDao,
+    private val verificationRequirementProvider: VerificationRequirementProvider,
     @ApplicationContext private val appContext: Context,
     private val currentUserProvider: CurrentUserProvider,
     val placesClient: PlacesClient,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    // Keep UiState compatible with View for now, but sourced from FormState
     data class UiState(
         val isLoading: Boolean = false,
         val user: UserEntity? = null,
         val message: String? = null,
         val error: String? = null,
+        // Derived from FormState
         val uploadProgress: Map<String, Int> = emptyMap(),
         val uploadedDocuments: List<String> = emptyList(),
         val uploadedImages: List<String> = emptyList(),
@@ -61,629 +72,444 @@ class VerificationViewModel @Inject constructor(
         val submissionSuccess: Boolean = false,
         val uploadedDocTypes: Map<String, String> = emptyMap(),
         val uploadedImageTypes: Map<String, String> = emptyMap(),
-        // New state for location picker
-        val selectedPlace: Place? = null,
-        val showLocationPicker: Boolean = true,
-        // New state for upgrade tracking
+        val selectedPlace: FarmLocation? = null,
+        val showLocationPicker: Boolean = false,
         val upgradeType: UpgradeType? = null,
         val currentRole: UserType? = null,
-        val targetRole: UserType? = null
+        val targetRole: UserType? = null,
+        // Dynamic Requirements
+        val requiredDocuments: List<String> = emptyList(),
+        val requiredImages: List<String> = emptyList()
     )
 
-    private val _ui = MutableStateFlow(restoreUiState() ?: UiState())
-    val ui: StateFlow<UiState> = _ui
+    private val gson = Gson()
+    
+    private val _requirements = MutableStateFlow(VerificationRequirements(emptyList(), emptyList()))
+    private val _showLocationPicker = MutableStateFlow(false)
+    private val _userData = MutableStateFlow<UserEntity?>(null)
+    private val _validationErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    private val _formState = savedStateHandle.getStateFlow("verification_form_state", VerificationFormState())
+
+    private fun updateFormState(update: (VerificationFormState) -> VerificationFormState) {
+        val current = _formState.value
+        val new = update(current)
+        savedStateHandle["verification_form_state"] = new
+    }
+
+    val ui: StateFlow<UiState> = combine(
+        _formState,
+        _userData,
+        _validationErrors,
+        _requirements,
+        _showLocationPicker
+    ) { form: VerificationFormState, user: UserEntity?, validationErrors: Map<String, String>, reqs: VerificationRequirements, showPicker: Boolean ->
+        UiState(
+            isLoading = user == null,
+            user = user,
+            message = null,
+            error = form.error,
+            uploadProgress = form.uploadProgress,
+            uploadedDocuments = form.uploadedDocuments,
+            uploadedImages = form.uploadedImages,
+            uploadError = form.uploadError,
+            isSubmitting = form.isSubmitting,
+            exifWarnings = form.exifWarnings,
+            validationErrors = validationErrors,
+            submissionSuccess = form.submissionSuccess,
+            uploadedDocTypes = form.uploadedDocTypes,
+            uploadedImageTypes = form.uploadedImageTypes,
+            selectedPlace = form.farmLocation,
+            showLocationPicker = showPicker || (form.farmLocation == null && user?.farmLocationLat == null && user?.farmLocationLng == null),
+            upgradeType = form.upgradeType,
+            currentRole = user?.role,
+            requiredDocuments = reqs.requiredDocuments,
+            requiredImages = reqs.requiredImages
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = UiState(isLoading = true)
+    )
 
     init {
+        // Reset transient flags that shouldn't persist across process death
+        updateFormState { it.copy(isSubmitting = false) }
+        
+        // Restore pending uploads monitoring after process death
+        _formState.value.uploadProgress.keys.forEach { remotePath ->
+            mediaUploadManager.retrack(remotePath)
+        }
+        
+        // Restore requirements immediately if type is known
+        _formState.value.upgradeType?.let { updateRequirements(it) }
+
         refresh()
         observeUploadEvents()
-        persistState()
-    }
-
-    private fun restoreUiState(): UiState? {
-        if (!savedStateHandle.contains("uploaded_docs")) return null
-        
-        return UiState(
-            uploadedDocuments = savedStateHandle.get<List<String>>("uploaded_docs") ?: emptyList(),
-            uploadedImages = savedStateHandle.get<List<String>>("uploaded_images") ?: emptyList(),
-            uploadedDocTypes = (savedStateHandle.get<java.io.Serializable>("doc_types") as? HashMap<String, String>)?.toMap() ?: emptyMap(),
-            uploadedImageTypes = (savedStateHandle.get<java.io.Serializable>("img_types") as? HashMap<String, String>)?.toMap() ?: emptyMap(),
-            selectedPlace = savedStateHandle.get<Place>("selected_place"),
-            showLocationPicker = savedStateHandle.get<Boolean>("show_picker") ?: true,
-            upgradeType = savedStateHandle.get<String>("upgrade_type")?.let { try { UpgradeType.valueOf(it) } catch(e: Exception) { null } },
-            // Reset transient states
-            isLoading = true,
-            isSubmitting = false
-        )
-    }
-
-    private fun persistState() {
-        viewModelScope.launch {
-            _ui.collectLatest { state ->
-                savedStateHandle["uploaded_docs"] = ArrayList(state.uploadedDocuments)
-                savedStateHandle["uploaded_images"] = ArrayList(state.uploadedImages)
-                savedStateHandle["doc_types"] = HashMap(state.uploadedDocTypes)
-                savedStateHandle["img_types"] = HashMap(state.uploadedImageTypes)
-                savedStateHandle["selected_place"] = state.selectedPlace
-                savedStateHandle["show_picker"] = state.showLocationPicker
-                savedStateHandle["upgrade_type"] = state.upgradeType?.name
-            }
-        }
-    }
-
-    fun onPlaceSelected(place: Place) {
-        _ui.value = _ui.value.copy(selectedPlace = place, showLocationPicker = false)
-    }
-
-    fun changeLocation() {
-        _ui.value = _ui.value.copy(showLocationPicker = true)
     }
 
     fun refresh() {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            userRepository.getCurrentUser().collectLatest { res ->
-                when (res) {
-                    is Resource.Success -> {
-                        val user = res.data
-                        if (user != null) {
-                            determineUpgradeType(user)
-                            // Fetch verification details separately
-                            launch {
-                                val submissionRes = userRepository.getVerificationSubmission(user.userId)
-                                if (submissionRes is Resource.Success && submissionRes.data != null) {
-                                    val submission = submissionRes.data
-                                    // ONLY overwrite local draft if status is PENDING or VERIFIED
-                                    // If UNVERIFIED/REJECTED, we assume user is fixing/applying, so keep local draft if exists.
-                                    val shouldLoadRemote = user.verificationStatus == VerificationStatus.PENDING || 
-                                                           user.verificationStatus == VerificationStatus.VERIFIED ||
-                                                           (_ui.value.uploadedDocuments.isEmpty() && _ui.value.uploadedImages.isEmpty())
-
-                                    if (shouldLoadRemote) {
-                                        val imgTypes = submission.imageUrls.associateWith { "UNKNOWN" }.toMutableMap()
-                                        
-                                        _ui.value = _ui.value.copy(
-                                            user = user,
-                                            isLoading = false,
-                                            uploadedDocuments = submission.documentUrls,
-                                            uploadedImages = submission.imageUrls,
-                                            uploadedDocTypes = submission.documentTypes,
-                                            uploadedImageTypes = imgTypes
-                                        )
-                                    } else {
-                                        // Keep local draft, just update user info
-                                        _ui.value = _ui.value.copy(user = user, isLoading = false)
-                                    }
-                                } else {
-                                    _ui.value = _ui.value.copy(user = user, isLoading = false)
-                                }
-                            }
-                        } else {
-                             _ui.value = UiState(user = null, isLoading = false)
-                        }
-                    }
-                    is Resource.Error -> _ui.value = UiState(error = res.message, isLoading = false)
-                    is Resource.Loading -> _ui.value = _ui.value.copy(isLoading = true)
+            userRepository.getCurrentUser().collectLatest { resource ->
+                if (resource is Resource.Success) {
+                    val user = resource.data
+                    _userData.value = user
+                    user?.let { determineUpgradeType(it) }
                 }
             }
         }
+    }
+    
+    private fun updateRequirements(type: UpgradeType?) {
+        if (type == null) {
+            _requirements.value = VerificationRequirements(emptyList(), emptyList())
+            return
+        }
+        viewModelScope.launch {
+            val reqs = verificationRequirementProvider.getRequirements(type)
+             _requirements.value = reqs
+        }
+    }
+
+    fun onPlaceSelected(place: Place) {
+        val location = mapPlaceToFarmLocation(place)
+        updateFormState { it.copy(farmLocation = location) }
+        _showLocationPicker.value = false
+    }
+
+    fun changeLocation() {
+        _showLocationPicker.value = true
+    }
+
+    fun cancelLocationChange() {
+        _showLocationPicker.value = false
     }
 
     fun setUpgradeType(type: UpgradeType) {
-        val targetRole = when (type) {
-            UpgradeType.GENERAL_TO_FARMER -> UserType.FARMER
-            UpgradeType.FARMER_TO_ENTHUSIAST -> UserType.ENTHUSIAST
-            else -> null
+        val targetRole = calculateTargetRole(type)
+        val formUpdate = { state: VerificationFormState ->
+             state.copy(upgradeType = type)
         }
-        _ui.value = _ui.value.copy(
-            upgradeType = type,
-            targetRole = targetRole
-        )
+        updateFormState(formUpdate)
+        updateRequirements(type)
     }
 
+    // (Inside determineUpgradeType call updateRequirements)
     private fun determineUpgradeType(user: UserEntity) {
-        val upgradeType = when {
+        val computedType = when {
             user.role == UserType.GENERAL && user.verificationStatus == VerificationStatus.UNVERIFIED -> UpgradeType.GENERAL_TO_FARMER
-            user.role == UserType.FARMER && (user.verificationStatus == VerificationStatus.UNVERIFIED || user.verificationStatus == VerificationStatus.PENDING || user.verificationStatus == VerificationStatus.REJECTED) -> UpgradeType.FARMER_VERIFICATION
+            user.role == UserType.FARMER && (user.verificationStatus != VerificationStatus.VERIFIED) -> UpgradeType.FARMER_VERIFICATION
             user.role == UserType.FARMER && user.verificationStatus == VerificationStatus.VERIFIED -> UpgradeType.FARMER_TO_ENTHUSIAST
             else -> null
         }
-        
-        val targetRole = when (upgradeType) {
-            UpgradeType.GENERAL_TO_FARMER -> UserType.FARMER
-            UpgradeType.FARMER_TO_ENTHUSIAST -> UserType.ENTHUSIAST
-            else -> null
-        }
-
-        _ui.value = _ui.value.copy(
-            upgradeType = upgradeType,
-            currentRole = user.role,
-            targetRole = targetRole
-        )
-    }
-
-    fun submitFarmerLocation(lat: Double?, lng: Double?) {
-        val current = _ui.value.user ?: return
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            val updated = current.copy(
-                farmLocationLat = lat,
-                farmLocationLng = lng,
-                locationVerified = false,
-                updatedAt = System.currentTimeMillis()
-            )
-            val res = userRepository.updateUserProfile(updated)
-            _ui.value = if (res is Resource.Error) {
-                _ui.value.copy(isLoading = false, error = res.message)
+        computedType?.let { type ->
+            if (_formState.value.upgradeType == null) {
+                 updateFormState { it.copy(upgradeType = type) }
+                 updateRequirements(type)
             } else {
-                _ui.value.copy(isLoading = false, message = "Location submitted for verification")
+                 // Even if already set, ensure requirements are loaded
+                 updateRequirements(_formState.value.upgradeType)
             }
         }
     }
+    
+    // (Rest of file updates)
 
-    fun submitEnthusiastKyc(level: Int?) {
-        val current = _ui.value.user ?: return
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true)
-            val updated = current.copy(
-                kycLevel = level,
-                updatedAt = System.currentTimeMillis()
-            )
-            val res = userRepository.updateUserProfile(updated)
-            _ui.value = if (res is Resource.Error) {
-                _ui.value.copy(isLoading = false, error = res.message)
-            } else {
-                _ui.value.copy(isLoading = false, message = "KYC submitted for verification")
-            }
-        }
-    }
 
     fun uploadDocument(localUri: String, documentType: String, upgradeType: UpgradeType) {
-        val userId = _ui.value.user?.userId ?: return
         viewModelScope.launch {
-            when (val vr = verificationValidationService.validateDocumentFile(localUri, appContext)) {
-                is VerificationValidationService.ValidationResult.Error -> {
-                    _ui.value = _ui.value.copy(uploadError = vr.message)
-                    return@launch
-                }
-                else -> {}
+            val user = _userData.value ?: userRepository.getCurrentUser().firstOrNull()?.data ?: run {
+                updateFormState { it.copy(uploadError = "User session not found") }
+                return@launch
             }
+            val userId = user.userId
+            
+             val vr = verificationValidationService.validateDocumentFile(localUri, appContext)
+             if (vr is VerificationValidationService.ValidationResult.Error) {
+                 updateFormState { it.copy(uploadError = vr.message) }
+                 return@launch
+             }
+
+             val uri = android.net.Uri.parse(localUri)
+             val extension = getFileExtension(uri)
+             val remotePath = VerificationStoragePathBuilder.buildDocumentPath(upgradeType, userId, documentType, extension)
+             
+             updateFormState {
+                 it.copy(uploadProgress = it.uploadProgress + (remotePath to 0))
+             }
+
+             val ctx = JSONObject().apply { 
+                 put("docType", documentType)
+                 put("upgradeType", upgradeType.name)
+             }.toString()
+             mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath, contextJson = ctx)
         }
-        
-        // Use organized path builder
-        val uri = android.net.Uri.parse(localUri)
-        val mimeType = appContext.contentResolver.getType(uri)
-        val extension = when (mimeType) {
-            "application/pdf" -> "pdf"
-            "image/jpeg" -> "jpg"
-            "image/png" -> "png"
-            else -> localUri.substringAfterLast('.', "pdf")
-        }
-        val remotePath = VerificationStoragePathBuilder.buildDocumentPath(upgradeType, userId, documentType, extension)
-        
-        val ctx = JSONObject().apply { 
-            put("docType", documentType)
-            put("upgradeType", upgradeType.name)
-        }.toString()
-        mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath, contextJson = ctx)
     }
 
     fun uploadImage(localUri: String, imageType: String, upgradeType: UpgradeType) {
-        val userId = _ui.value.user?.userId ?: return
         viewModelScope.launch {
+            val user = _userData.value ?: userRepository.getCurrentUser().firstOrNull()?.data ?: run {
+                 updateFormState { it.copy(uploadError = "User session not found") }
+                 return@launch
+            }
+            val userId = user.userId
+
             val imgVr = verificationValidationService.validateImageFile(localUri, appContext)
             if (imgVr is VerificationValidationService.ValidationResult.Error) {
-                _ui.value = _ui.value.copy(uploadError = imgVr.message)
+                updateFormState { it.copy(uploadError = imgVr.message) }
                 return@launch
             }
-            // If farmer photos and location set, do EXIF validation as a warning-only
-            val u = _ui.value.user
-            val lat = u?.farmLocationLat
-            val lng = u?.farmLocationLng
-            if (lat != null && lng != null) {
-                val exif = verificationValidationService.validateFarmPhotoLocation(localUri, lat, lng, appContext)
+            
+            // Validation: Check GPS EXIF Data against User/Form location
+            val userLat = user.farmLocationLat ?: _formState.value.farmLocation?.lat
+            val userLng = user.farmLocationLng ?: _formState.value.farmLocation?.lng
+            
+            if (userLat != null && userLng != null) {
+                val exif = verificationValidationService.validateFarmPhotoLocation(localUri, userLat, userLng, appContext)
                 if (!exif.isValid) {
-                    val warns = _ui.value.exifWarnings.toMutableList()
-                    exif.errorMessage?.let { warns.add(it) }
-                    _ui.value = _ui.value.copy(exifWarnings = warns)
+                     val newWarning = exif.errorMessage ?: "Location mismatch"
+                     updateFormState { it.copy(exifWarnings = it.exifWarnings + newWarning) }
                 }
             }
+
+            val uri = android.net.Uri.parse(localUri)
+            val extension = getFileExtension(uri)
+            val remotePath = VerificationStoragePathBuilder.buildImagePath(upgradeType, userId, imageType, extension)
+            
+            updateFormState {
+                 it.copy(uploadProgress = it.uploadProgress + (remotePath to 0))
+            }
+            
+            mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath)
         }
-        
-        // Use organized path builder
-        val uri = android.net.Uri.parse(localUri)
-        val mimeType = appContext.contentResolver.getType(uri)
-        val extension = when (mimeType) {
-            "image/jpeg" -> "jpg"
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> localUri.substringAfterLast('.', "jpg")
-        }
-        val remotePath = VerificationStoragePathBuilder.buildImagePath(upgradeType, userId, imageType, extension)
-        
-        mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath)
     }
 
     private fun observeUploadEvents() {
         viewModelScope.launch {
-            try {
-                mediaUploadManager.events.collect { event ->
-                    when (event) {
-                        is MediaUploadManager.UploadEvent.Progress -> {
-                            val progress = _ui.value.uploadProgress.toMutableMap()
-                            progress[event.remotePath] = event.percent
-                            _ui.value = _ui.value.copy(uploadProgress = progress)
-                        }
-                        is MediaUploadManager.UploadEvent.Success -> {
-                            val progress = _ui.value.uploadProgress.toMutableMap()
-                            progress.remove(event.remotePath)
-                            
-                            val documents = _ui.value.uploadedDocuments.toMutableList()
-                            val images = _ui.value.uploadedImages.toMutableList()
-                            val docTypes = _ui.value.uploadedDocTypes.toMutableMap()
-                            val imgTypes = _ui.value.uploadedImageTypes.toMutableMap()
-                            
-                            if (event.remotePath.contains("/documents/")) {
-                                if (!documents.contains(event.downloadUrl)) {
-                                    documents.add(event.downloadUrl)
-                                }
-                                // Extract type from remotePath filename: {timestamp}_{TYPE}.xyz
-                                val fileName = event.remotePath.substringAfterLast('/')
-                                val docType = fileName.substringAfter('_').substringBeforeLast('.').uppercase()
-                                docTypes[event.downloadUrl] = docType
-                            } else if (event.remotePath.contains("/images/")) {
-                                if (!images.contains(event.downloadUrl)) {
-                                    images.add(event.downloadUrl)
-                                }
-                                val fileName = event.remotePath.substringAfterLast('/')
-                                val imgType = fileName.substringAfter('_').substringBeforeLast('.').uppercase()
-                                imgTypes[event.downloadUrl] = imgType
-                            }
-                            
-                            _ui.value = _ui.value.copy(
-                                uploadProgress = progress,
-                                uploadedDocuments = documents,
-                                uploadedImages = images,
-                                uploadedDocTypes = docTypes,
-                                uploadedImageTypes = imgTypes
-                            )
-                        }
-                        is MediaUploadManager.UploadEvent.Failed -> {
-                            val progress = _ui.value.uploadProgress.toMutableMap()
-                            progress.remove(event.remotePath)
-                            _ui.value = _ui.value.copy(
-                                uploadProgress = progress,
-                                uploadError = event.error
-                            )
-                        }
-                        is MediaUploadManager.UploadEvent.Queued -> {
-                            val progress = _ui.value.uploadProgress.toMutableMap()
-                            progress[event.remotePath] = 0
-                            _ui.value = _ui.value.copy(uploadProgress = progress)
-                        }
-                        is MediaUploadManager.UploadEvent.Retrying -> {
-                            // Update UI to show retry attempt
-                        }
-                        is MediaUploadManager.UploadEvent.Cancelled -> {
-                            val progress = _ui.value.uploadProgress.toMutableMap()
-                            progress.remove(event.remotePath)
-                            _ui.value = _ui.value.copy(uploadProgress = progress)
-                        }
+            mediaUploadManager.events.collect { event ->
+                when (event) {
+                    is MediaUploadManager.UploadEvent.Progress -> {
+                        updateFormState { it.copy(uploadProgress = it.uploadProgress + (event.remotePath to event.percent)) }
                     }
+                    is MediaUploadManager.UploadEvent.Success -> {
+                        handleUploadSuccess(event.remotePath, event.downloadUrl)
+                    }
+                    is MediaUploadManager.UploadEvent.Failed -> {
+                        updateFormState { it.copy(
+                            uploadProgress = it.uploadProgress - event.remotePath,
+                            uploadError = event.error
+                        )}
+                    }
+                    is MediaUploadManager.UploadEvent.Queued -> {
+                        updateFormState { it.copy(uploadProgress = it.uploadProgress + (event.remotePath to 0)) }
+                    }
+                    is MediaUploadManager.UploadEvent.Cancelled -> {
+                        updateFormState { it.copy(uploadProgress = it.uploadProgress - event.remotePath) }
+                    }
+                    else -> {}
                 }
-            } catch (e: Exception) {
-                // Ignore collection errors to keep VM alive
             }
         }
     }
 
-    fun clearUploadError() {
-        _ui.value = _ui.value.copy(uploadError = null)
+    private fun handleUploadSuccess(remotePath: String, downloadUrl: String) {
+        updateFormState { current ->
+            val newProgress = current.uploadProgress - remotePath
+            // Best effort type extraction from path
+            val fileName = remotePath.substringAfterLast('/')
+            val type = fileName.substringAfter('_').substringBeforeLast('.').uppercase()
+
+            if (remotePath.contains("/documents/")) {
+                if (!current.uploadedDocuments.contains(downloadUrl)) {
+                    current.copy(
+                        uploadProgress = newProgress,
+                        uploadedDocuments = current.uploadedDocuments + downloadUrl,
+                        uploadedDocTypes = current.uploadedDocTypes + (downloadUrl to type)
+                    )
+                } else current.copy(uploadProgress = newProgress)
+            } else {
+                if (!current.uploadedImages.contains(downloadUrl)) {
+                     current.copy(
+                        uploadProgress = newProgress,
+                        uploadedImages = current.uploadedImages + downloadUrl,
+                        uploadedImageTypes = current.uploadedImageTypes + (downloadUrl to type)
+                    )
+                } else current.copy(uploadProgress = newProgress)
+            }
+        }
     }
 
     fun removeUploadedFile(url: String, isDocument: Boolean) {
-        val documents = _ui.value.uploadedDocuments.toMutableList()
-        val images = _ui.value.uploadedImages.toMutableList()
-        
-        if (isDocument) {
-            documents.remove(url)
-        } else {
-            images.remove(url)
+        updateFormState { current ->
+            if (isDocument) {
+                current.copy(uploadedDocuments = current.uploadedDocuments - url, uploadedDocTypes = current.uploadedDocTypes - url)
+            } else {
+                current.copy(uploadedImages = current.uploadedImages - url, uploadedImageTypes = current.uploadedImageTypes - url)
+            }
         }
+    }
+
+    fun submitKycWithDocuments(upgradeType: UpgradeType, enthusiastLevel: Int? = null) {
+        viewModelScope.launch {
+            updateFormState { it.copy(isSubmitting = true, error = null, submissionSuccess = false) }
+            val user = _userData.value ?: run {
+                updateFormState { it.copy(isSubmitting = false, error = "User not loaded") }
+                return@launch
+            }
+            
+            val form = _formState.value
+            val lat = form.farmLocation?.lat ?: user.farmLocationLat
+            val lng = form.farmLocation?.lng ?: user.farmLocationLng
+            
+            // Client-side Validation (Double check)
+            val validationError = if (upgradeType == UpgradeType.GENERAL_TO_FARMER || upgradeType == UpgradeType.FARMER_VERIFICATION) {
+                 verificationValidationService.validateFarmerSubmission(
+                     lat, lng,
+                     form.uploadedImages, form.uploadedDocuments,
+                     form.uploadedImageTypes, form.uploadedDocTypes,
+                     upgradeType.requiredImages, upgradeType.requiredDocuments
+                 )
+            } else {
+                 verificationValidationService.validateEnthusiastSubmission(
+                     form.uploadedImages, form.uploadedDocuments,
+                     form.uploadedImageTypes, form.uploadedDocTypes,
+                     upgradeType.requiredImages, upgradeType.requiredDocuments
+                 )
+            }
+
+            if (validationError is VerificationValidationService.ValidationResult.Error) {
+                val field = validationError.field ?: "general"
+                _validationErrors.value = mapOf(field to validationError.message)
+                updateFormState { it.copy(isSubmitting = false, error = validationError.message) }
+                return@launch
+            }
+
+            // Perform Submission
+            val submissionId = UUID.randomUUID().toString()
+            val targetRole = calculateTargetRole(upgradeType)
+            val updatedUser = user.copy(
+                farmLocationLat = lat,
+                farmLocationLng = lng,
+                updatedAt = java.util.Date()
+            ).let { u ->
+                // Apply address updates if present in form
+                form.farmLocation?.let { loc ->
+                     u.copy(
+                         farmAddressLine1 = loc.address ?: loc.name,
+                         farmCity = loc.city,
+                         farmState = loc.state,
+                         farmPostalCode = loc.postalCode,
+                         farmCountry = loc.country
+                     )
+                } ?: u
+            }.let { u ->
+                if (enthusiastLevel != null && upgradeType == UpgradeType.FARMER_TO_ENTHUSIAST) {
+                    u.copy(kycLevel = enthusiastLevel)
+                } else u
+            }
+
+            // 1. Update Profile
+            userRepository.updateUserProfile(updatedUser)
+            
+            // 2. Audit Log
+             auditLogDao.insert(AuditLogEntity(
+                logId = UUID.randomUUID().toString(),
+                type = "VERIFICATION",
+                refId = user.userId,
+                action = "KYC_SUBMITTED",
+                actorUserId = user.userId,
+                detailsJson = gson.toJson(mapOf("upgradeType" to upgradeType.name, "submissionId" to submissionId)),
+                createdAt = System.currentTimeMillis()
+            ))
+
+            // 3. Submit
+            val locationMap = if (lat != null && lng != null) mapOf("lat" to lat, "lng" to lng) else null
+            
+            val result = userRepository.submitKycVerification(
+                userId = user.userId,
+                submissionId = submissionId,
+                documentUrls = form.uploadedDocuments,
+                imageUrls = form.uploadedImages,
+                docTypes = form.uploadedDocTypes,
+                upgradeType = upgradeType,
+                currentRole = user.role,
+                targetRole = targetRole,
+                farmLocation = locationMap
+            )
+
+            if (result is Resource.Success) {
+                 updateFormState { it.copy(isSubmitting = false, submissionSuccess = true) }
+                 refresh() // Refresh user to get PENDING status logic
+                 // Notify
+                 runCatching { verificationNotificationService.notifyVerificationPending(user.userId) }
+            } else {
+                 updateFormState { it.copy(isSubmitting = false, error = result.message) }
+            }
+        }
+    }
+    
+    // Internal Helpers
+
+    private fun calculateTargetRole(type: UpgradeType?): UserType? {
+        return when (type) {
+            UpgradeType.GENERAL_TO_FARMER -> UserType.FARMER
+            UpgradeType.FARMER_TO_ENTHUSIAST -> UserType.ENTHUSIAST
+            else -> null
+        }
+    }
+
+    private fun mapPlaceToFarmLocation(place: Place): FarmLocation {
+        val lat = place.latLng?.latitude ?: 0.0
+        val lng = place.latLng?.longitude ?: 0.0
         
-        _ui.value = _ui.value.copy(
-            uploadedDocuments = documents,
-            uploadedImages = images
+        val components = place.addressComponents?.asList()?.map { 
+            LocationComponent(it.name, it.types)
+        } ?: emptyList()
+        
+        fun getComp(type: String) = components.find { it.types.contains(type) }?.name
+
+        return FarmLocation(
+            lat = lat,
+            lng = lng,
+            name = place.name,
+            address = place.address,
+            city = getComp("locality"),
+            state = getComp("administrative_area_level_1"),
+            postalCode = getComp("postal_code"),
+            country = getComp("country"),
+            addressComponents = components
         )
     }
 
-    fun submitKycWithDocuments(upgradeType: UpgradeType, passedLat: Double? = null, passedLng: Double? = null) {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = false, isSubmitting = true, submissionSuccess = false, error = null, message = null)
 
-            // Fetch the latest user data to preserve recently entered location/KYC level
-            val latestUserResource = userRepository.getCurrentUser().first()
-            val current = when (latestUserResource) {
-                is Resource.Success -> latestUserResource.data
-                else -> {
-                    _ui.value = _ui.value.copy(
-                        isSubmitting = false,
-                        error = "Failed to retrieve latest user data"
-                    )
-                    return@launch
-                }
-            }
 
-            if (current == null) {
-                _ui.value = _ui.value.copy(isSubmitting = false, error = "User not found")
-                return@launch
-            }
-
-            // Check for resubmission if previously rejected
-            val isResubmission = current.verificationStatus == VerificationStatus.REJECTED
-            val previousRejectionReason = current.kycRejectionReason // Assuming this field exists in UserEntity
-
-            // Duplicate prevention centralized here
-            val statusResource = userRepository.getKycSubmissionStatus(current.userId).first()
-            if (statusResource is Resource.Success && statusResource.data != null) {
-                val status = statusResource.data
-                if (status == "PENDING" || status == "APPROVED") {
-                    _ui.value = _ui.value.copy(isSubmitting = false, error = "Verification already submitted. Please wait for review.")
-                    return@launch
-                }
-            }
-
-            // Get location from selected place if available
-            val selectedPlace = _ui.value.selectedPlace
-            val latFromPlace = selectedPlace?.latLng?.latitude
-            val lngFromPlace = selectedPlace?.latLng?.longitude
-
-            // Validate submission
-            // Validate submission
-            val effectiveLat = passedLat ?: latFromPlace ?: current.farmLocationLat
-            val effectiveLng = passedLng ?: lngFromPlace ?: current.farmLocationLng
-            
-            // Check if submission is already in progress to prevent double clicks
-            if (_ui.value.isSubmitting) return@launch
-
-            val validation = if (upgradeType == UpgradeType.GENERAL_TO_FARMER || upgradeType == UpgradeType.FARMER_VERIFICATION) {
-                verificationValidationService.validateFarmerSubmission(
-                    effectiveLat, effectiveLng, 
-                    _ui.value.uploadedImages, _ui.value.uploadedDocuments,
-                    _ui.value.uploadedImageTypes, _ui.value.uploadedDocTypes,
-                    upgradeType.requiredImages, upgradeType.requiredDocuments
-                )
-            } else {
-                verificationValidationService.validateEnthusiastSubmission(
-                    _ui.value.uploadedImages, _ui.value.uploadedDocuments, 
-                    _ui.value.uploadedImageTypes, _ui.value.uploadedDocTypes,
-                    upgradeType.requiredImages, upgradeType.requiredDocuments
-                )
-            }
-            
-            if (validation is VerificationValidationService.ValidationResult.Error) {
-                _ui.value = _ui.value.copy(
-                    isSubmitting = false, 
-                    validationErrors = mapOf((validation.field ?: "general") to validation.message),
-                    error = validation.message // Also show as general error
-                )
-                return@launch
-            }
-
-            // Serialize document lists to JSON
-            val documentUrlsJson = JSONArray(_ui.value.uploadedDocuments).toString()
-            val imageUrlsJson = JSONArray(_ui.value.uploadedImages).toString()
-
-            // Create document types map from tracked types
-            val docTypesMap = JSONObject(_ui.value.uploadedDocTypes)
-
-            var updated = current.copy(
-                // For farmers, persist location atomically with KYC submission if provided
-                farmLocationLat = effectiveLat,
-                farmLocationLng = effectiveLng,
-                updatedAt = System.currentTimeMillis()
-            )
-
-            // If a place was selected, update the structured address fields
-            selectedPlace?.let { place ->
-                updated = updated.copy(
-                    farmAddressLine1 = place.addressComponents?.asList()?.find { "street_number" in it.types }?.name?.let { streetNumber ->
-                        place.addressComponents?.asList()?.find { "route" in it.types }?.name?.let { route ->
-                            "$streetNumber $route"
-                        }
-                    } ?: place.addressComponents?.asList()?.find { "route" in it.types }?.name,
-                    farmCity = place.getAddressComponent("locality"),
-                    farmState = place.getAddressComponent("administrative_area_level_1"),
-                    farmPostalCode = place.getAddressComponent("postal_code"),
-                    farmCountry = place.getAddressComponent("country")
-                )
-            }
-
-            val res = userRepository.updateUserProfile(updated)
-            if (res is Resource.Error) {
-                _ui.value = _ui.value.copy(isSubmitting = false, error = res.message)
-            } else {
-                // Send pending notification (non-blocking)
-                runCatching { verificationNotificationService.notifyVerificationPending(current.userId ?: "") }
-
-                // Create audit log for submission - do this before submission attempt
-                val gson = Gson()
-                val action = if (isResubmission) "KYC_RESUBMITTED" else "KYC_SUBMITTED"
-                val details = mutableMapOf<String, Any?>(
-                    "documentCount" to _ui.value.uploadedDocuments.size,
-                    "imageCount" to _ui.value.uploadedImages.size,
-                    "upgradeType" to upgradeType.name
-                )
-                if (isResubmission) {
-                    details["previousRejectionReason"] = previousRejectionReason
-                }
-                auditLogDao.insert(
-                    AuditLogEntity(
-                        logId = UUID.randomUUID().toString(),
-                        type = "VERIFICATION",
-                        refId = current.userId,
-                        action = action,
-                        actorUserId = current.userId,
-                        detailsJson = gson.toJson(details),
-                        createdAt = System.currentTimeMillis()
-                    )
-                )
-
-                val submissionId = UUID.randomUUID().toString()
-                
-                // Determine target role based on upgrade type
-                val targetRole = when(upgradeType) {
-                    UpgradeType.GENERAL_TO_FARMER -> UserType.FARMER
-                    UpgradeType.FARMER_TO_ENTHUSIAST -> UserType.ENTHUSIAST
-                    else -> null
-                }
-                
-                val submissionResult = userRepository.submitKycVerification(
-                    userId = current.userId, 
-                    submissionId = submissionId, 
-                    documentUrls = _ui.value.uploadedDocuments, 
-                    imageUrls = _ui.value.uploadedImages, 
-                    docTypes = _ui.value.uploadedDocTypes,
-                    upgradeType = upgradeType,
-                    currentRole = current.role,
-                    targetRole = targetRole
-                )
-
-                // Handle the submission result - only set success after submitKycVerification succeeds
-                when (submissionResult) {
-                    is Resource.Error -> {
-                        // Set a clear, user-facing error message that distinguishes network errors from permission problems
-                        val userFacingError = when {
-                            submissionResult.message?.contains("permission", ignoreCase = true) == true -> {
-                                "Permission denied. Please contact support with code: PERMISSION_ERROR_${current.userId.takeLast(6)}"
-                            }
-                            submissionResult.message?.contains("network", ignoreCase = true) == true ||
-                            submissionResult.message?.contains("timeout", ignoreCase = true) == true -> {
-                                "Network error. Check your internet connection and try again."
-                            }
-                            else -> {
-                                "Submission failed: ${submissionResult.message}. Please try again."
-                            }
-                        }
-                        _ui.value = _ui.value.copy(
-                            isSubmitting = false,
-                            submissionSuccess = false,
-                            error = userFacingError
-                        )
-                        SecurityManager.audit("KYC_SUBMIT", mapOf(
-                            "userId" to current.userId,
-                            "submissionId" to submissionId,
-                            "documentCount" to _ui.value.uploadedDocuments.size,
-                            "status" to "FAILED",
-                            "error" to submissionResult.message
-                        ))
-                    }
-                    is Resource.Success -> {
-                        // Update local user status to PENDING
-                        val pendingUser = current.copy(
-                            verificationStatus = VerificationStatus.PENDING,
-                            kycRejectionReason = null
-                        )
-
-                        _ui.value = _ui.value.copy(
-                            user = pendingUser,
-                            isSubmitting = false,
-                            submissionSuccess = true,
-                            message = "Submitted for verification",
-                            error = null
-                        )
-                        SecurityManager.audit("KYC_SUBMIT", mapOf(
-                            "userId" to current.userId,
-                            "submissionId" to submissionId,
-                            "documentCount" to _ui.value.uploadedDocuments.size,
-                            "status" to "SUCCESS"
-                        ))
-                    }
-                    is Resource.Loading -> {
-                        // This shouldn't happen since submitKycVerification is a suspend function returning Resource
-                        // but handle it gracefully anyway
-                        _ui.value = _ui.value.copy(isSubmitting = true)
-                    }
-                }
-            }
-        }
+    fun clearUploadError() {
+        updateFormState { it.copy(uploadError = null) }
     }
 
-    // Helper function to extract address components
-    private fun Place.getAddressComponent(type: String): String? {
-        return addressComponents?.asList()?.find { it.types.contains(type) }?.name
-    }
-
-    // Retry submission if it failed previously
     fun retryKycSubmission() {
-        if (!_ui.value.isSubmitting && _ui.value.error != null) {
-            val type = _ui.value.upgradeType ?: UpgradeType.FARMER_VERIFICATION // Default fallback
+        if (!_formState.value.isSubmitting && _formState.value.error != null) {
+            val type = _formState.value.upgradeType ?: UpgradeType.FARMER_VERIFICATION
             submitKycWithDocuments(type)
         }
     }
 
-    // Update only farm location in profile without touching verificationStatus
-    fun updateFarmLocation(lat: Double, lng: Double) {
-        val current = _ui.value.user ?: return
-        viewModelScope.launch {
-            val updated = current.copy(
-                farmLocationLat = lat,
-                farmLocationLng = lng,
-                updatedAt = System.currentTimeMillis()
-            )
-            userRepository.updateUserProfile(updated)
-        }
-    }
-
-    fun handleRejection(reason: String) {
-        val current = _ui.value.user ?: return
-        viewModelScope.launch {
-            val updated = current.copy(
-                verificationStatus = VerificationStatus.REJECTED,
-                kycRejectionReason = reason,
-                updatedAt = System.currentTimeMillis()
-            )
-            val res = userRepository.updateUserProfile(updated)
-            if (res is Resource.Success) {
-                // Create audit log for rejection
-                val gson = Gson()
-                auditLogDao.insert(
-                    AuditLogEntity(
-                        logId = UUID.randomUUID().toString(),
-                        type = "VERIFICATION",
-                        refId = current.userId,
-                        action = "KYC_REJECTED",
-                        actorUserId = currentUserProvider.userIdOrNull(),
-                        detailsJson = gson.toJson(mapOf("rejectionReason" to reason)),
-                        createdAt = System.currentTimeMillis()
-                    )
-                )
-            }
-        }
-    }
-
-    fun handleApproval() {
-        val current = _ui.value.user ?: return
-        viewModelScope.launch {
-            val updated = current.copy(
-                verificationStatus = VerificationStatus.VERIFIED,
-                updatedAt = System.currentTimeMillis()
-            )
-            val res = userRepository.updateUserProfile(updated)
-            if (res is Resource.Success) {
-                // Create audit log for approval
-                val gson = Gson()
-                auditLogDao.insert(
-                    AuditLogEntity(
-                        logId = UUID.randomUUID().toString(),
-                        type = "VERIFICATION",
-                        refId = current.userId,
-                        action = "KYC_APPROVED",
-                        actorUserId = currentUserProvider.userIdOrNull(),
-                        detailsJson = gson.toJson(emptyMap<String, Any>()),
-                        createdAt = System.currentTimeMillis()
-                    )
-                )
-            }
+    private fun getFileExtension(uri: android.net.Uri): String {
+        val mimeType = appContext.contentResolver.getType(uri)
+        return if (mimeType != null) {
+            android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+        } else {
+            // Fallback: try parsing from name
+            var name = ""
+            try {
+                appContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                     if (cursor.moveToFirst()) {
+                         val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                         if (idx >= 0) name = cursor.getString(idx)
+                     }
+                }
+            } catch (e: Exception) {}
+            if (name.contains(".")) name.substringAfterLast('.') else "jpg"
         }
     }
 }

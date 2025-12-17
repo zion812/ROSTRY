@@ -59,4 +59,12 @@ data class DailyLogEntity(
     val mergeCount: Int = 0,
     /** Flag indicating if a conflict was resolved during the last merge. */
     val conflictResolved: Boolean = false
-)
+) {
+    // No-arg constructor for Firestore deserialization
+    constructor() : this(
+        logId = "",
+        productId = "",
+        farmerId = "",
+        logDate = 0L
+    )
+}

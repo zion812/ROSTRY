@@ -159,7 +159,14 @@ class SessionViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Error -> {
                         Timber.e("Sync role failed: ${resource.message}")
-                        _uiState.value = _uiState.value.copy(isLoading = false, error = resource.message)
+                        // Only show error screen if we don't have a usable role yet.
+                        // If we have a role (from cache/DataStore), fallback to it (stale-while-revalidate).
+                        if (_uiState.value.role == null) {
+                            _uiState.value = _uiState.value.copy(isLoading = false, error = resource.message)
+                        } else {
+                            // We have cached data, so just stop loading. The user can continue offline/stale.
+                            _uiState.value = _uiState.value.copy(isLoading = false, error = null)
+                        }
                     }
                     is Resource.Loading -> {
                         _uiState.value = _uiState.value.copy(isLoading = true, error = null)

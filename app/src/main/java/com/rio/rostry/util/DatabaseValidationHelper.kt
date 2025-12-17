@@ -67,8 +67,8 @@ class DatabaseValidationHelper @Inject constructor(
                         email = "placeholder@example.com",
                         userType = UserType.GENERAL.name,
                         verificationStatus = VerificationStatus.UNVERIFIED,
-                        createdAt = System.currentTimeMillis(),
-                        updatedAt = System.currentTimeMillis()
+                        createdAt = java.util.Date(),
+                        updatedAt = java.util.Date()
                     )
                     userDao.upsertUser(user)
                     Timber.d("Created placeholder user for orphaned products")

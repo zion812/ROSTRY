@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @HiltViewModel
 class GeneralProfileViewModel @Inject constructor(
@@ -210,6 +211,15 @@ class GeneralProfileViewModel @Inject constructor(
                                 nowMillis = System.currentTimeMillis(),
                                 userType = com.rio.rostry.domain.model.UserType.FARMER
                             )
+                            
+                            // Force refresh of ID token to propagate new role claims to backend/security rules
+                            try {
+                                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()
+                                android.util.Log.e("GeneralProfileViewModel", "Auth token refreshed successfully.")
+                            } catch (e: Exception) {
+                                android.util.Log.e("GeneralProfileViewModel", "Failed to refresh auth token: ${e.message}")
+                            }
+
                             android.util.Log.e("GeneralProfileViewModel", "SessionManager updated. Emitting UpgradeEvent.Success")
                             _upgradeEvent.emit(UpgradeEvent.Success(com.rio.rostry.domain.model.UserType.FARMER))
                         } catch (e: Exception) {

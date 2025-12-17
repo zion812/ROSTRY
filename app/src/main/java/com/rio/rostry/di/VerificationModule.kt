@@ -54,4 +54,9 @@ object VerificationModule {
         @ApplicationContext context: Context,
         userRepository: UserRepository,
     ): VerificationNotificationService = VerificationNotificationService(firebaseMessaging, notificationDao, context, userRepository)
+    @Provides
+    @Singleton
+    fun provideVerificationRequirementProvider(): com.rio.rostry.domain.verification.VerificationRequirementProvider {
+        return com.rio.rostry.domain.verification.DefaultVerificationRequirementProvider()
+    }
 }

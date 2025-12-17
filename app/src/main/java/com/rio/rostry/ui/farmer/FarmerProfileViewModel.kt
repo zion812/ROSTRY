@@ -40,32 +40,39 @@ class FarmerProfileViewModel @Inject constructor(
         loadProfile()
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun loadProfile() {
         viewModelScope.launch {
-            userRepository.getCurrentUser().collect { userRes ->
-                if (userRes is Resource.Success && userRes.data != null) {
-                    val user = userRes.data
-                    
-                    // Combine flows to update state
-                    combine(
-                        socialRepository.getReputation(user.userId),
-                        productRepository.getProductsBySeller(user.userId),
-                        orderRepository.getOrdersBySeller(user.userId)
-                    ) { rep, productsRes, orders ->
-                        UiState(
-                            user = user,
-                            reputation = rep,
-                            products = productsRes.data ?: emptyList(),
-                            salesHistory = orders,
-                            isLoading = false
+            userRepository.getCurrentUser()
+                // Actually, assuming userRepo.getCurrentUser() returns Flow<Resource<UserEntity?>>
+                .kotlinx.coroutines.flow.flatMapLatest { userRes ->
+                    if (userRes is Resource.Success && userRes.data != null) {
+                        val user = userRes.data
+                        
+                        // Combine flows to update state with fresh user data
+                        combine(
+                            socialRepository.getReputation(user.userId),
+                            productRepository.getProductsBySeller(user.userId),
+                            orderRepository.getOrdersBySeller(user.userId)
+                        ) { rep, productsRes, orders ->
+                            UiState(
+                                user = user,
+                                reputation = rep,
+                                products = productsRes.data ?: emptyList(),
+                                salesHistory = orders,
+                                isLoading = false
+                            )
+                        }
+                    } else {
+                        // Propagate loading state or error, keeping existing data if desired or resetting
+                        kotlinx.coroutines.flow.flowOf(
+                            _uiState.value.copy(isLoading = userRes is Resource.Loading)
                         )
-                    }.collect { newState ->
-                        _uiState.value = newState
                     }
-                } else {
-                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
-            }
+                .collect { newState ->
+                    _uiState.value = newState
+                }
         }
     }
     fun updateProfile(updatedUser: UserEntity) {

@@ -15,6 +15,7 @@ plugins {
     id("org.jetbrains.dokka")
     // JaCoCo for unit test coverage reports
     id("jacoco")
+    id("kotlin-parcelize")
 }
 
 // Export Room schemas for migration testing (KSP)
