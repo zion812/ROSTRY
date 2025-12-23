@@ -312,7 +312,22 @@ private fun countMissingRequirements(state: VerificationViewModel.UiState): Int 
 }
 
 private fun formatLabel(type: String): String {
-    return type.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+    return when (type) {
+        // Photo types
+        "SELFIE_WITH_CHICKEN" -> "Selfie with your chicken"
+        "FARM_PHOTO" -> "Photo of your farm"
+        "CHICKENS_PHOTO" -> "Photo of your chickens"
+        "PRIZE_WINNING_STOCK" -> "Prize-winning bird photo"
+        "FACILITY_PHOTO" -> "Breeding facility photo"
+        
+        // Document types
+        "GOVT_ID" -> "Government ID (Aadhar/Voter ID/Job Card)"
+        "BREEDING_RECORD" -> "Breeding record/certificate"
+        "VET_CERTIFICATE" -> "Veterinary certificate"
+        
+        // Fallback: convert SNAKE_CASE to Title Case
+        else -> type.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+    }
 }
 
 

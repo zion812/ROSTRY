@@ -3,12 +3,25 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===== Helper Functions =====
+    // ZERO-COST ARCHITECTURE: Reads role from user document instead of custom claims
+    // This eliminates the need for Cloud Functions entirely, saving ₹775+/month
+    
     function isAuthenticated() {
       return request.auth != null;
     }
     
+    // Get user document data - cached per request by Firestore
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Get role from user document (replaces Cloud Function custom claims)
     function getRole() {
-      return request.auth.token.role;
+      // First try custom claims for backwards compatibility during migration
+      // Then fall back to reading from user document
+      return request.auth.token.role != null 
+        ? request.auth.token.role 
+        : getUserData().userType;
     }
     
     function isGeneral() {
@@ -24,11 +37,13 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return request.auth.token.admin == true;
+      // Check both custom claim and user document field
+      return request.auth.token.admin == true || getUserData().isAdmin == true;
     }
     
     function isVerified() {
-      return request.auth.token.verified == true;
+      // Check both custom claim and user document field
+      return request.auth.token.verified == true || getUserData().verificationStatus == 'VERIFIED';
     }
     
     function isOwner(userId) {
@@ -79,25 +94,27 @@ service cloud.firestore {
 
     // ===== Verifications Collection =====
     // Users can read/write their own verification data, admins can read
-    match /verifications/{userId} {
+    // NOTE: Documents are keyed by submissionId, not userId, so we check data.userId for ownership.
+    match /verifications/{docId} {
       // Owners: Read
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Owners: Create (User-submitted fields only, Enum validation)
       allow create: if request.auth != null &&
-        request.auth.uid == userId &&
+        request.resource.data.userId == request.auth.uid &&
         request.resource.data.keys().hasOnly([
-          'submissionId', 'userId', 'upgradeType', 'currentRole', 'targetRole', 'currentStatus',
-          'documentUrls', 'imageUrls', 'documentTypes', 'farmLocation', 'additionalData', 'submittedAt'
+          'submissionId', 'userId', 'referenceNumber', 'applicantName', 'applicantPhone',
+          'upgradeType', 'currentRole', 'targetRole', 'currentStatus', 'documentUrls', 'imageUrls',
+          'documentTypes', 'imageTypes', 'farmLocation', 'farmAddress', 'additionalData', 'submittedAt'
         ]) &&
         request.resource.data.upgradeType in ['GENERAL_TO_FARMER', 'FARMER_VERIFICATION', 'FARMER_TO_ENTHUSIAST'] &&
         request.resource.data.currentRole in ['GENERAL', 'FARMER', 'ENTHUSIAST'];
 
       // Owners: Update (Evidence fields and submission details for resubmission)
       allow update: if request.auth != null &&
-        request.auth.uid == userId &&
+        resource.data.userId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'documentUrls', 'imageUrls', 'documentTypes', 'farmLocation', 'additionalData',
+          'documentUrls', 'imageUrls', 'documentTypes', 'imageTypes', 'farmLocation', 'farmAddress', 'additionalData',
           'submissionId', 'upgradeType', 'currentRole', 'targetRole', 'currentStatus', 'submittedAt'
         ]);
 

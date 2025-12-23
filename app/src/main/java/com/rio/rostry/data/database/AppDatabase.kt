@@ -10,6 +10,7 @@ import com.rio.rostry.data.database.dao.*
 import com.rio.rostry.data.database.entity.*
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
+import com.rio.rostry.data.database.dao.FarmVerificationDao
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -94,9 +95,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // New Sprint 1 entities
         DailyLogEntity::class,
         TaskEntity::class,
-        BreedEntity::class
+        BreedEntity::class,
+        FarmVerificationEntity::class,
+        FarmAssetEntity::class,
+        InventoryItemEntity::class,
+        MarketListingEntity::class
     ],
-    version = 46, // 46 adds healthScore to quarantine_records; 45 adds auction fields; 44 adds customStatus to products; 43 adds isMarketplace to groups; 42 adds stories table; 41 adds hashtags, mentions, parentPostId to posts
+    version = 50, // 50: Add latestVerificationId/Ref to users; 49: Add customClaimsUpdatedAt to users
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -114,6 +119,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun familyTreeDao(): FamilyTreeDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun syncStateDao(): SyncStateDao
+    abstract fun farmVerificationDao(): FarmVerificationDao
     abstract fun auctionDao(): AuctionDao
     abstract fun bidDao(): BidDao
     abstract fun cartDao(): CartDao
@@ -131,6 +137,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transferVerificationDao(): TransferVerificationDao
     abstract fun disputeDao(): DisputeDao
     abstract fun auditLogDao(): AuditLogDao
+    
+    // Farm Management & Marketplace DAOs
+    abstract fun farmAssetDao(): FarmAssetDao
+    abstract fun inventoryItemDao(): InventoryItemDao
+    abstract fun marketListingDao(): MarketListingDao
 
     // Farm monitoring DAOs
     abstract fun growthRecordDao(): com.rio.rostry.data.database.dao.GrowthRecordDao
@@ -397,6 +408,14 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_45_46 = object : Migration(45, 46) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `quarantine_records` ADD COLUMN `healthScore` INTEGER NOT NULL DEFAULT 100")
+            }
+        }
+
+        // Add latestVerificationId and latestVerificationRef to users (49 -> 50)
+        val MIGRATION_49_50 = object : Migration(49, 50) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `latestVerificationId` TEXT")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `latestVerificationRef` TEXT")
             }
         }
         // Add daily_logs and tasks tables; add lifecycle columns to products
@@ -1350,6 +1369,164 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_43_44 = object : Migration(43, 44) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `products` ADD COLUMN `customStatus` TEXT")
+            }
+        }
+
+        // New Architecture Migration (46 -> 47)
+        val MIGRATION_46_47 = object : Migration(46, 47) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create farm_assets table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `farm_assets` (
+                        `assetId` TEXT NOT NULL, 
+                        `farmerId` TEXT NOT NULL, 
+                        `name` TEXT NOT NULL, 
+                        `assetType` TEXT NOT NULL, 
+                        `category` TEXT NOT NULL, 
+                        `status` TEXT NOT NULL, 
+                        `isShowcase` INTEGER NOT NULL, 
+                        `locationName` TEXT, 
+                        `latitude` REAL, 
+                        `longitude` REAL, 
+                        `quantity` REAL NOT NULL, 
+                        `initialQuantity` REAL NOT NULL, 
+                        `unit` TEXT NOT NULL, 
+                        `birthDate` INTEGER, 
+                        `ageWeeks` INTEGER, 
+                        `breed` TEXT, 
+                        `gender` TEXT, 
+                        `color` TEXT, 
+                        `healthStatus` TEXT NOT NULL, 
+                        `description` TEXT NOT NULL, 
+                        `imageUrls` TEXT NOT NULL, 
+                        `notes` TEXT, 
+                        `parentIdsJson` TEXT, 
+                        `batchId` TEXT, 
+                        `origin` TEXT, 
+                        `birdCode` TEXT, 
+                        `lastVaccinationDate` INTEGER, 
+                        `nextVaccinationDate` INTEGER, 
+                        `weightGrams` REAL,
+                        `metadataJson` TEXT NOT NULL DEFAULT '{}',
+                        `createdAt` INTEGER NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `isDeleted` INTEGER NOT NULL, 
+                        `deletedAt` INTEGER, 
+                        `dirty` INTEGER NOT NULL, 
+                        PRIMARY KEY(`assetId`), 
+                        FOREIGN KEY(`farmerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_farmerId` ON `farm_assets` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_assetType` ON `farm_assets` (`assetType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_status` ON `farm_assets` (`status`)")
+
+                // Create inventory_items table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `inventory_items` (
+                        `inventoryId` TEXT NOT NULL, 
+                        `farmerId` TEXT NOT NULL, 
+                        `sourceAssetId` TEXT, 
+                        `sourceBatchId` TEXT, 
+                        `name` TEXT NOT NULL, 
+                        `sku` TEXT NOT NULL, 
+                        `category` TEXT NOT NULL, 
+                        `quantityAvailable` REAL NOT NULL, 
+                        `quantityReserved` REAL NOT NULL, 
+                        `unit` TEXT NOT NULL, 
+                        `expiryDate` INTEGER, 
+                        `qualityGrade` TEXT, 
+                        `notes` TEXT, 
+                        `createdAt` INTEGER NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `dirty` INTEGER NOT NULL, 
+                        PRIMARY KEY(`inventoryId`), 
+                        FOREIGN KEY(`farmerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE, 
+                        FOREIGN KEY(`sourceAssetId`) REFERENCES `farm_assets`(`assetId`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_inventory_items_farmerId` ON `inventory_items` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_inventory_items_sourceAssetId` ON `inventory_items` (`sourceAssetId`)")
+
+                // Create market_listings table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `market_listings` (
+                        `listingId` TEXT NOT NULL, 
+                        `sellerId` TEXT NOT NULL, 
+                        `inventoryId` TEXT NOT NULL, 
+                        `title` TEXT NOT NULL, 
+                        `description` TEXT NOT NULL, 
+                        `price` REAL NOT NULL, 
+                        `currency` TEXT NOT NULL, 
+                        `priceUnit` TEXT NOT NULL, 
+                        `category` TEXT NOT NULL, 
+                        `tags` TEXT NOT NULL, 
+                        `deliveryOptions` TEXT NOT NULL, 
+                        `deliveryCost` REAL, 
+                        `locationName` TEXT, 
+                        `latitude` REAL, 
+                        `longitude` REAL, 
+                        `minOrderQuantity` REAL NOT NULL, 
+                        `maxOrderQuantity` REAL, 
+                        `imageUrls` TEXT NOT NULL, 
+                        `status` TEXT NOT NULL, 
+                        `isActive` INTEGER NOT NULL, 
+                        `viewCount` INTEGER NOT NULL, 
+                        `createdAt` INTEGER NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL, 
+                        `expiresAt` INTEGER, 
+                        `dirty` INTEGER NOT NULL, 
+                        PRIMARY KEY(`listingId`), 
+                        FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE, 
+                        FOREIGN KEY(`inventoryId`) REFERENCES `inventory_items`(`inventoryId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_market_listings_sellerId` ON `market_listings` (`sellerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_market_listings_inventoryId` ON `market_listings` (`inventoryId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_market_listings_status` ON `market_listings` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_market_listings_category` ON `market_listings` (`category`)")
+            }
+        }
+
+        // Field fixes and renaming (47 -> 48)
+        val MIGRATION_47_48 = object : Migration(47, 48) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // farm_assets fixes (already added weightGrams/metadataJson in 46->47 creation for new users, 
+                // but for users who already had 47, we need to add them. Wait, if I just added them in 46->47 creation,
+                // then users who run 46->47 will already have them.
+                // If a user was already on 47 (dev), they might miss them.
+                
+                // For safety, check if columns exist before adding
+                val cursor = db.query("PRAGMA table_info(`farm_assets`)")
+                val columns = mutableListOf<String>()
+                while (cursor.moveToNext()) {
+                    columns.add(cursor.getString(1))
+                }
+                cursor.close()
+
+                if (!columns.contains("weightGrams")) {
+                    db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `weightGrams` REAL")
+                }
+                if (!columns.contains("metadataJson")) {
+                    db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `metadataJson` TEXT NOT NULL DEFAULT '{}'")
+                }
+
+                // market_listings fixes
+                db.execSQL("ALTER TABLE `market_listings` ADD COLUMN `inquiriesCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `market_listings` ADD COLUMN `leadTimeDays` INTEGER NOT NULL DEFAULT 0")
+                
+                try {
+                    db.execSQL("ALTER TABLE `market_listings` RENAME COLUMN `viewCount` TO `viewsCount`")
+                } catch (e: Exception) {
+                    db.execSQL("ALTER TABLE `market_listings` ADD COLUMN `viewsCount` INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("UPDATE `market_listings` SET `viewsCount` = `viewCount`")
+                }
+            }
+        }
+
+        val MIGRATION_48_49 = object : Migration(48, 49) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `customClaimsUpdatedAt` INTEGER")
             }
         }
     }

@@ -8,6 +8,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.rio.rostry.domain.model.UserType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -27,11 +31,30 @@ class SessionManager(private val context: Context) {
 
     enum class AuthMode { FIREBASE, GUEST }
 
+    // Flag to prevent auto-sync during an active role upgrade
+    // When true, SessionViewModel should NOT react to role changes from userRepository
+    private val _upgradeInProgress = MutableStateFlow(false)
+    val upgradeInProgress: StateFlow<Boolean> = _upgradeInProgress.asStateFlow()
+
+    fun setUpgradeInProgress(inProgress: Boolean) {
+        _upgradeInProgress.value = inProgress
+    }
+
     suspend fun markAuthenticated(
         nowMillis: Long,
         userType: UserType,
         mode: AuthMode = AuthMode.FIREBASE
     ) {
+        val currentData = context.sessionDataStore.data.firstOrNull()
+        val currentRole = currentData?.get(Keys.role)
+        val currentMode = currentData?.get(Keys.authMode)
+        val lastAuth = currentData?.get(Keys.lastAuthAt)
+        
+        // Only edit if something changed (avoiding millisecond precision jitter)
+        if (currentRole == userType.name && currentMode == mode.name && lastAuth != null && (nowMillis - lastAuth) < 1000) {
+            return
+        }
+
         context.sessionDataStore.edit { prefs ->
             prefs[Keys.lastAuthAt] = nowMillis
             prefs[Keys.role] = userType.name
@@ -40,6 +63,9 @@ class SessionManager(private val context: Context) {
     }
 
     suspend fun updateRole(userType: UserType) {
+        val current = context.sessionDataStore.data.firstOrNull()?.get(Keys.role)
+        if (current == userType.name) return
+        
         context.sessionDataStore.edit { prefs ->
             prefs[Keys.role] = userType.name
         }
@@ -51,7 +77,7 @@ class SessionManager(private val context: Context) {
             AuthMode.GUEST -> prefs[Keys.guestRolePreference]?.let { runCatching { UserType.valueOf(it) }.getOrNull() }
             else -> prefs[Keys.role]?.let { runCatching { UserType.valueOf(it) }.getOrNull() }
         }
-    }
+    }.distinctUntilChanged()
 
     fun lastAuthAt(): Flow<Long?> = context.sessionDataStore.data.map { prefs ->
         prefs[Keys.lastAuthAt]
@@ -112,21 +138,26 @@ class SessionManager(private val context: Context) {
         }
     }
 
+    /**
+     * Refreshes the Firebase auth token.
+     * 
+     * ZERO-COST ARCHITECTURE: We no longer rely on Cloud Functions to set custom claims.
+     * Roles are now read directly from the user document in Firestore/Room.
+     * This eliminates the Cloud Functions cost (₹775+/month saved).
+     * 
+     * The role should be updated by calling updateRole() after fetching the user document,
+     * not from token claims.
+     */
     suspend fun refreshAuthToken() {
         val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
         if (user != null) {
             try {
-                // Force refresh of the ID token to get new custom claims
-                val result = user.getIdToken(true).await()
-                val claims = result.claims
-                val roleString = claims["role"] as? String
-
-                if (roleString != null) {
-                    val userType = runCatching { UserType.valueOf(roleString) }.getOrNull()
-                    if (userType != null) {
-                        updateRole(userType)
-                    }
-                }
+                // Refresh the ID token to maintain auth session
+                // We no longer extract role from claims - role comes from Firestore/Room
+                user.getIdToken(true).await()
+                
+                // Note: Role updates should come from UserRepository.getCurrentUser()
+                // which reads from Firestore and syncs to Room
             } catch (e: Exception) {
                 e.printStackTrace()
             }

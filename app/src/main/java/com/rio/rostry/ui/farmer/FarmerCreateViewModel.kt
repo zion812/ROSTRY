@@ -35,6 +35,12 @@ import com.rio.rostry.domain.model.VerificationStatus
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import com.rio.rostry.utils.BirdIdGenerator
+import com.rio.rostry.data.repository.MarketListingRepository
+import com.rio.rostry.data.repository.FarmAssetRepository
+import com.rio.rostry.data.repository.InventoryRepository
+import com.rio.rostry.data.database.entity.MarketListingEntity
+import com.rio.rostry.data.database.entity.FarmAssetEntity
+import com.rio.rostry.data.database.entity.InventoryItemEntity
 
 @HiltViewModel
 class FarmerCreateViewModel @Inject constructor(
@@ -58,7 +64,10 @@ class FarmerCreateViewModel @Inject constructor(
     private val currentUserProvider: CurrentUserProvider,
     private val connectivityManager: com.rio.rostry.utils.network.ConnectivityManager,
     private val syncManager: SyncManager,
-    private val rbacGuard: RbacGuard
+    private val rbacGuard: RbacGuard,
+    private val marketListingRepository: MarketListingRepository,
+    private val farmAssetRepository: FarmAssetRepository,
+    private val inventoryRepository: InventoryRepository
 ) : ViewModel() {
 
     private var prefillProductId: String? = null
@@ -851,16 +860,21 @@ class FarmerCreateViewModel @Inject constructor(
                 val baseProduct = if (imageBytes.isNotEmpty()) candidate.copy(imageUrls = emptyList()) else candidate
                 when (val res = marketplace.createProduct(baseProduct, imageBytes)) {
                     is Resource.Success -> {
-                        _ui.value = _ui.value.copy(isSubmitting = false, successProductId = res.data, listingSyncState = if (connectivityManager.isOnline()) SyncState.SYNCED else SyncState.PENDING, error = if (connectivityManager.isOnline()) "Listing published successfully" else "Listing queued. Will publish when online.")
+                        val listingId = res.data ?: candidate.productId
+                        
+                        // New Architecture: Create parallel entities
+                        createNewDomainEntities(currentUser, form, listingId)
+                        
+                        _ui.value = _ui.value.copy(isSubmitting = false, successProductId = listingId, listingSyncState = if (connectivityManager.isOnline()) SyncState.SYNCED else SyncState.PENDING, error = if (connectivityManager.isOnline()) "Listing published successfully" else "Listing queued. Will publish when online.")
                         // Delete draft on successful publish
                         listingDraftRepository.deleteDraft("${currentUser.userId}_current")
 
                         // Track analytics: listing submitted
-                        if (prefillProductId != null && res.data != null) {
+                        if (prefillProductId != null) {
                             analyticsRepository.trackFarmToMarketplaceListingSubmitted(
                                 currentUser.userId,
                                 prefillProductId!!,
-                                res.data!!
+                                listingId
                             )
                         }
                     }
@@ -980,6 +994,90 @@ class FarmerCreateViewModel @Inject constructor(
             }
         }
         return list
+    }
+
+    private suspend fun createNewDomainEntities(user: UserEntity, form: ListingForm, listingId: String) {
+        val now = System.currentTimeMillis()
+        val farmerId = user.userId
+        
+        // 1. Determine Asset ID (Link to existing if prefilled, otherwise create new)
+        val assetId = prefillProductId ?: UUID.randomUUID().toString()
+        
+        // 2. Ensure FarmAsset exists in the new table
+        val existingAssetRes = if (prefillProductId != null) {
+            farmAssetRepository.getAssetById(assetId).first()
+        } else null
+        val existingAsset = existingAssetRes?.data
+
+        if (existingAsset == null) {
+            val breed = _ui.value.wizardState.detailsInfo.breed
+            
+            val newAsset = FarmAssetEntity(
+                assetId = assetId,
+                farmerId = farmerId,
+                name = form.title,
+                assetType = if (form.isBatch) "BATCH" else "ANIMAL",
+                category = form.category.name,
+                status = "ACTIVE",
+                locationName = user.address ?: "Farm",
+                quantity = form.quantity.toDouble(),
+                birthDate = form.birthDateMillis,
+                breed = breed,
+                healthStatus = "OK",
+                weightGrams = _ui.value.wizardState.detailsInfo.weightText.toDoubleOrNull(),
+                isShowcase = false,
+                color = _ui.value.wizardState.detailsInfo.colorPattern,
+                metadataJson = "{}",
+                createdAt = now,
+                updatedAt = now,
+                dirty = true
+            )
+            farmAssetRepository.addAsset(newAsset)
+        }
+        
+        // 3. Create Inventory Item (The bridge)
+        val inventoryId = UUID.randomUUID().toString()
+        val inventoryItem = InventoryItemEntity(
+            inventoryId = inventoryId,
+            farmerId = farmerId,
+            sourceAssetId = assetId,
+            name = form.title,
+            sku = "SKU-${assetId.take(5).uppercase()}",
+            category = form.category.name,
+            quantityAvailable = form.quantity.toDouble(),
+            unit = "piece",
+            createdAt = now,
+            updatedAt = now,
+            dirty = true
+        )
+        inventoryRepository.addInventory(inventoryItem)
+        
+        // 4. Create Market Listing (Commercial detail)
+        val marketListing = MarketListingEntity(
+            listingId = listingId,
+            sellerId = farmerId,
+            inventoryId = inventoryId,
+            title = form.title,
+            description = _ui.value.wizardState.detailsInfo.specialChars.ifBlank { "" },
+            category = form.category.name,
+            price = form.price ?: 0.0,
+            currency = "INR",
+            status = "PUBLISHED",
+            isActive = true,
+            latitude = form.latitude ?: user.farmLocationLat,
+            longitude = form.longitude ?: user.farmLocationLng,
+            deliveryOptions = form.deliveryOptions,
+            deliveryCost = form.deliveryCost ?: 0.0,
+            leadTimeDays = form.leadTimeDays ?: 0,
+            viewsCount = 0,
+            inquiriesCount = 0,
+            createdAt = now,
+            updatedAt = now,
+            dirty = true
+        )
+        marketListingRepository.publishListing(marketListing)
+        
+        timber.log.Timber.d("New domain entities created for listing $listingId (Asset: $assetId, Inv: $inventoryId)")
     }
 
     private suspend fun getCurrentUserOrNull(): UserEntity? {

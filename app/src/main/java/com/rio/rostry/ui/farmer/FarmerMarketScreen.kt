@@ -680,5 +680,7 @@ data class Listing(
     val inquiries: Int,
     val orders: Int,
     val isBatch: Boolean = false,
-    val quantity: Int = 1
+    val quantity: Int = 1,
+    val category: String = "",
+    val isTraceable: Boolean = false
 )

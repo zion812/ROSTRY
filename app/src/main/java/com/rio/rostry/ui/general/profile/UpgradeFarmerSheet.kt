@@ -45,6 +45,7 @@ import com.google.android.gms.location.Priority
 fun UpgradeFarmerSheet(
     sheetState: SheetState,
     currentProfile: UserEntity,
+    isUpgrading: Boolean = false,
     onDismissRequest: () -> Unit,
     onUpgrade: (String, Int, String, Long, String, Double?, Double?) -> Unit
 ) {
@@ -255,8 +256,8 @@ fun UpgradeFarmerSheet(
                 Button(
                     onClick = {
                         android.util.Log.d("UpgradeFarmerSheet", "Upgrade button clicked!")
-                        if (!isFormValid) {
-                            android.util.Log.w("UpgradeFarmerSheet", "Form invalid on click: addr='$address', count='$chickenCount', year='$raisingSince', breed='$favoriteBreed'")
+                        if (!isFormValid || isUpgrading) {
+                            android.util.Log.w("UpgradeFarmerSheet", "Form invalid or already upgrading on click.")
                             return@Button
                         }
                         android.util.Log.d("UpgradeFarmerSheet", "Form VALID. Proceeding with upgrade.")
@@ -264,10 +265,13 @@ fun UpgradeFarmerSheet(
                         val year = raisingSince.toLongOrNull() ?: 0L
                         onUpgrade(address, count, farmerType, year, favoriteBreed, lat, lng)
                     },
-                    // TEMPORARILY ENABLE ALWAYS FOR DEBUGGING
-                    enabled = true // was: isFormValid
+                    enabled = isFormValid && !isUpgrading
                 ) {
-                    Text(if (isFormValid) "Upgrade" else "Upgrade (Invalid)")
+                    if (isUpgrading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Upgrade")
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))

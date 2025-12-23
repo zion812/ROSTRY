@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 46,
-    "identityHash": "cceb9de42c1ca5b81c2c78051161dd24",
+    "identityHash": "65eb0bb7d7ba99d418b5717a546cf565",
     "entities": [
       {
         "tableName": "users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `phoneNumber` TEXT, `email` TEXT, `fullName` TEXT, `address` TEXT, `bio` TEXT, `profilePictureUrl` TEXT, `userType` TEXT NOT NULL, `verificationStatus` TEXT NOT NULL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `farmLocationLat` REAL, `farmLocationLng` REAL, `locationVerified` INTEGER, `kycLevel` INTEGER, `chickenCount` INTEGER, `farmerType` TEXT, `raisingSince` INTEGER, `favoriteBreed` TEXT, `kycVerifiedAt` INTEGER, `kycRejectionReason` TEXT, `createdAt` INTEGER, `updatedAt` INTEGER, PRIMARY KEY(`userId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `phoneNumber` TEXT, `email` TEXT, `fullName` TEXT, `address` TEXT, `bio` TEXT, `profilePictureUrl` TEXT, `userType` TEXT NOT NULL, `verificationStatus` TEXT NOT NULL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `farmLocationLat` REAL, `farmLocationLng` REAL, `locationVerified` INTEGER, `kycLevel` INTEGER, `chickenCount` INTEGER, `farmerType` TEXT, `raisingSince` INTEGER, `favoriteBreed` TEXT, `kycVerifiedAt` INTEGER, `kycRejectionReason` TEXT, `verificationRejectionReason` TEXT, `verificationSubmittedAt` INTEGER, `createdAt` INTEGER, `updatedAt` INTEGER, PRIMARY KEY(`userId`))",
         "fields": [
           {
             "fieldPath": "userId",
@@ -135,6 +135,16 @@
             "fieldPath": "kycRejectionReason",
             "columnName": "kycRejectionReason",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "verificationRejectionReason",
+            "columnName": "verificationRejectionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "verificationSubmittedAt",
+            "columnName": "verificationSubmittedAt",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "createdAt",
@@ -7465,11 +7475,167 @@
             "breedId"
           ]
         }
+      },
+      {
+        "tableName": "farm_verifications",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`verificationId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `farmLocationLat` REAL, `farmLocationLng` REAL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `verificationDocumentUrls` TEXT NOT NULL, `gpsAccuracy` REAL, `gpsTimestamp` INTEGER, `status` TEXT NOT NULL, `submittedAt` INTEGER, `reviewedAt` INTEGER, `reviewedBy` TEXT, `rejectionReason` TEXT, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`verificationId`), FOREIGN KEY(`farmerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "verificationId",
+            "columnName": "verificationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "farmerId",
+            "columnName": "farmerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "farmLocationLat",
+            "columnName": "farmLocationLat",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "farmLocationLng",
+            "columnName": "farmLocationLng",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "farmAddressLine1",
+            "columnName": "farmAddressLine1",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "farmAddressLine2",
+            "columnName": "farmAddressLine2",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "farmCity",
+            "columnName": "farmCity",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "farmState",
+            "columnName": "farmState",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "farmPostalCode",
+            "columnName": "farmPostalCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "farmCountry",
+            "columnName": "farmCountry",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "verificationDocumentUrls",
+            "columnName": "verificationDocumentUrls",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gpsAccuracy",
+            "columnName": "gpsAccuracy",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "gpsTimestamp",
+            "columnName": "gpsTimestamp",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "submittedAt",
+            "columnName": "submittedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reviewedAt",
+            "columnName": "reviewedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reviewedBy",
+            "columnName": "reviewedBy",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rejectionReason",
+            "columnName": "rejectionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "verificationId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_farm_verifications_farmerId",
+            "unique": false,
+            "columnNames": [
+              "farmerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_farm_verifications_farmerId` ON `${TABLE_NAME}` (`farmerId`)"
+          },
+          {
+            "name": "index_farm_verifications_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_farm_verifications_status` ON `${TABLE_NAME}` (`status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "users",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "farmerId"
+            ],
+            "referencedColumns": [
+              "userId"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cceb9de42c1ca5b81c2c78051161dd24')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '65eb0bb7d7ba99d418b5717a546cf565')"
     ]
   }
 }

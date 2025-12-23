@@ -11,6 +11,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.repository.ProductRepository
@@ -36,17 +38,20 @@ class FarmerProfileViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     init {
         loadProfile()
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun loadProfile() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             userRepository.getCurrentUser()
                 // Actually, assuming userRepo.getCurrentUser() returns Flow<Resource<UserEntity?>>
-                .kotlinx.coroutines.flow.flatMapLatest { userRes ->
-                    if (userRes is Resource.Success && userRes.data != null) {
+                .flatMapLatest { userRes ->
+                    if (userRes is Resource.Success<UserEntity?> && userRes.data != null) {
                         val user = userRes.data
                         
                         // Combine flows to update state with fresh user data
@@ -65,7 +70,7 @@ class FarmerProfileViewModel @Inject constructor(
                         }
                     } else {
                         // Propagate loading state or error, keeping existing data if desired or resetting
-                        kotlinx.coroutines.flow.flowOf(
+                        flowOf(
                             _uiState.value.copy(isLoading = userRes is Resource.Loading)
                         )
                     }

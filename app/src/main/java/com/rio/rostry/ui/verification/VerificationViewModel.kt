@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -85,7 +87,6 @@ class VerificationViewModel @Inject constructor(
     private val gson = Gson()
     
     private val _requirements = MutableStateFlow(VerificationRequirements(emptyList(), emptyList()))
-    private val _showLocationPicker = MutableStateFlow(false)
     private val _userData = MutableStateFlow<UserEntity?>(null)
     private val _validationErrors = MutableStateFlow<Map<String, String>>(emptyMap())
 
@@ -101,9 +102,8 @@ class VerificationViewModel @Inject constructor(
         _formState,
         _userData,
         _validationErrors,
-        _requirements,
-        _showLocationPicker
-    ) { form: VerificationFormState, user: UserEntity?, validationErrors: Map<String, String>, reqs: VerificationRequirements, showPicker: Boolean ->
+        _requirements
+    ) { form: VerificationFormState, user: UserEntity?, validationErrors: Map<String, String>, reqs: VerificationRequirements ->
         UiState(
             isLoading = user == null,
             user = user,
@@ -120,7 +120,7 @@ class VerificationViewModel @Inject constructor(
             uploadedDocTypes = form.uploadedDocTypes,
             uploadedImageTypes = form.uploadedImageTypes,
             selectedPlace = form.farmLocation,
-            showLocationPicker = showPicker || (form.farmLocation == null && user?.farmLocationLat == null && user?.farmLocationLng == null),
+            showLocationPicker = form.showLocationPicker || (form.farmLocation == null && user?.farmLocationLat == null && user?.farmLocationLng == null),
             upgradeType = form.upgradeType,
             currentRole = user?.role,
             requiredDocuments = reqs.requiredDocuments,
@@ -150,13 +150,17 @@ class VerificationViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            userRepository.getCurrentUser().collectLatest { resource ->
-                if (resource is Resource.Success) {
-                    val user = resource.data
-                    _userData.value = user
-                    user?.let { determineUpgradeType(it) }
+            // Debounce user data to prevent rapid UI updates during profile changes
+            userRepository.getCurrentUser()
+                .debounce(300L)
+                .distinctUntilChanged()
+                .collectLatest { resource ->
+                    if (resource is Resource.Success) {
+                        val user = resource.data
+                        _userData.value = user
+                        user?.let { determineUpgradeType(it) }
+                    }
                 }
-            }
         }
     }
     
@@ -173,16 +177,15 @@ class VerificationViewModel @Inject constructor(
 
     fun onPlaceSelected(place: Place) {
         val location = mapPlaceToFarmLocation(place)
-        updateFormState { it.copy(farmLocation = location) }
-        _showLocationPicker.value = false
+        updateFormState { it.copy(farmLocation = location, showLocationPicker = false) }
     }
 
     fun changeLocation() {
-        _showLocationPicker.value = true
+        updateFormState { it.copy(showLocationPicker = true) }
     }
 
     fun cancelLocationChange() {
-        _showLocationPicker.value = false
+        updateFormState { it.copy(showLocationPicker = false) }
     }
 
     fun setUpgradeType(type: UpgradeType) {
@@ -216,6 +219,25 @@ class VerificationViewModel @Inject constructor(
     // (Rest of file updates)
 
 
+    private suspend fun cacheFileLocally(uriString: String): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val uri = android.net.Uri.parse(uriString)
+            val extension = getFileExtension(uri) ?: "jpg"
+            val file = java.io.File.createTempFile("upload_${UUID.randomUUID()}", ".$extension", appContext.cacheDir)
+            
+            appContext.contentResolver.openInputStream(uri)?.use { input ->
+                java.io.FileOutputStream(file).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return@withContext null
+            
+            file.absolutePath
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     fun uploadDocument(localUri: String, documentType: String, upgradeType: UpgradeType) {
         viewModelScope.launch {
             val user = _userData.value ?: userRepository.getCurrentUser().firstOrNull()?.data ?: run {
@@ -238,11 +260,19 @@ class VerificationViewModel @Inject constructor(
                  it.copy(uploadProgress = it.uploadProgress + (remotePath to 0))
              }
 
+             // Cache file locally to ensure worker can access it even if permission is lost
+             val cachedPath = cacheFileLocally(localUri)
+             if (cachedPath == null) {
+                 updateFormState { it.copy(uploadError = "Failed to process file for upload") }
+                 return@launch
+             }
+
              val ctx = JSONObject().apply { 
                  put("docType", documentType)
                  put("upgradeType", upgradeType.name)
              }.toString()
-             mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath, contextJson = ctx)
+             // Pass the cached local path (file://) instead of content:// URI
+             mediaUploadManager.enqueueToOutbox(localPath = "file://$cachedPath", remotePath = remotePath, contextJson = ctx)
         }
     }
 
@@ -280,7 +310,15 @@ class VerificationViewModel @Inject constructor(
                  it.copy(uploadProgress = it.uploadProgress + (remotePath to 0))
             }
             
-            mediaUploadManager.enqueueToOutbox(localPath = localUri, remotePath = remotePath)
+            // Cache file locally to ensure worker can access it even if permission is lost
+            val cachedPath = cacheFileLocally(localUri)
+            if (cachedPath == null) {
+                 updateFormState { it.copy(uploadError = "Failed to process file for upload") }
+                 return@launch
+            }
+
+            // Pass the cached local path (file://) instead of content:// URI
+            mediaUploadManager.enqueueToOutbox(localPath = "file://$cachedPath", remotePath = remotePath)
         }
     }
 
@@ -350,6 +388,11 @@ class VerificationViewModel @Inject constructor(
     }
 
     fun submitKycWithDocuments(upgradeType: UpgradeType, enthusiastLevel: Int? = null) {
+        // Guard against double-submission (e.g., rapid taps)
+        if (_formState.value.isSubmitting) {
+            return
+        }
+        
         viewModelScope.launch {
             updateFormState { it.copy(isSubmitting = true, error = null, submissionSuccess = false) }
             val user = _userData.value ?: run {
@@ -390,6 +433,8 @@ class VerificationViewModel @Inject constructor(
             val updatedUser = user.copy(
                 farmLocationLat = lat,
                 farmLocationLng = lng,
+                verificationStatus = VerificationStatus.PENDING,
+                locationVerified = false,
                 updatedAt = java.util.Date()
             ).let { u ->
                 // Apply address updates if present in form
@@ -408,8 +453,18 @@ class VerificationViewModel @Inject constructor(
                 } else u
             }
 
-            // 1. Update Profile
-            userRepository.updateUserProfile(updatedUser)
+            // 1. Update Profile - IMPORTANT: Check result to prevent proceeding on failure
+            val profileResult = userRepository.updateUserProfile(updatedUser)
+            if (profileResult is Resource.Error) {
+                val errorMsg = profileResult.message ?: "Failed to update user profile"
+                val displayMsg = if (errorMsg.contains("PERMISSION_DENIED", ignoreCase = true)) {
+                    "Permission denied for profile update. Your session might be stale. Please try again or re-login."
+                } else {
+                    "Profile Update Error: $errorMsg"
+                }
+                updateFormState { it.copy(isSubmitting = false, error = displayMsg) }
+                return@launch
+            }
             
             // 2. Audit Log
              auditLogDao.insert(AuditLogEntity(
@@ -431,6 +486,7 @@ class VerificationViewModel @Inject constructor(
                 documentUrls = form.uploadedDocuments,
                 imageUrls = form.uploadedImages,
                 docTypes = form.uploadedDocTypes,
+                imageTypes = form.uploadedImageTypes,
                 upgradeType = upgradeType,
                 currentRole = user.role,
                 targetRole = targetRole,
@@ -443,7 +499,13 @@ class VerificationViewModel @Inject constructor(
                  // Notify
                  runCatching { verificationNotificationService.notifyVerificationPending(user.userId) }
             } else {
-                 updateFormState { it.copy(isSubmitting = false, error = result.message) }
+                 val errorMsg = result.message ?: "Verification submission failed"
+                 val displayMsg = if (errorMsg.contains("PERMISSION_DENIED", ignoreCase = true)) {
+                     "Permission denied. Your session may have expired or you don't have permission to write this submission. Please logout and login again."
+                 } else {
+                     errorMsg
+                 }
+                 updateFormState { it.copy(isSubmitting = false, error = displayMsg) }
             }
         }
     }

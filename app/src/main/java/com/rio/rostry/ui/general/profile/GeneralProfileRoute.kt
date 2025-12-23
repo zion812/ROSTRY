@@ -173,22 +173,25 @@ fun GeneralProfileRoute(
                 }
 
                 if (showUpgradeSheet) {
-                    UpgradeFarmerSheet(
-                        sheetState = upgradeSheetState,
-                        currentProfile = profile!!,
-                        onDismissRequest = { 
-                            // Only allow dismiss if not upgrading
-                            if (!isUpgrading) {
-                                showUpgradeSheet = false
+                    uiState.profile?.let { currentProfile ->
+                        val profileSnapshot = remember(currentProfile.updatedAt) { currentProfile }
+                        
+                        UpgradeFarmerSheet(
+                            sheetState = upgradeSheetState,
+                            currentProfile = profileSnapshot,
+                            isUpgrading = isUpgrading,
+                            onDismissRequest = { 
+                                if (!isUpgrading) {
+                                    showUpgradeSheet = false
+                                }
+                            },
+                            onUpgrade = { address, count, type, since, breed, lat, lng ->
+                                android.util.Log.d("GeneralProfileRoute", "onUpgrade callback called: address='$address', count=$count, loc=[$lat, $lng]")
+                                viewModel.upgradeToFarmer(address, count, type, since, breed, lat, lng)
+                                android.util.Log.d("GeneralProfileRoute", "upgradeToFarmer called")
                             }
-                        },
-                        onUpgrade = { address, count, type, since, breed, lat, lng ->
-                            android.util.Log.d("GeneralProfileRoute", "onUpgrade callback called: address='$address', count=$count, loc=[$lat, $lng]")
-                            viewModel.upgradeToFarmer(address, count, type, since, breed, lat, lng)
-                            android.util.Log.d("GeneralProfileRoute", "upgradeToFarmer called")
-                            // Don't close sheet here - wait for success event
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }

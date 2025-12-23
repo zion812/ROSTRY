@@ -11,16 +11,20 @@ import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 
 @HiltViewModel
 class GeneralProfileViewModel @Inject constructor(
@@ -79,6 +83,8 @@ class GeneralProfileViewModel @Inject constructor(
 
     private val userFlow: StateFlow<Resource<UserEntity?>> = userRepository
         .getCurrentUser()
+        .debounce(300)
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -177,11 +183,19 @@ class GeneralProfileViewModel @Inject constructor(
             try {
                 android.util.Log.e("GeneralProfileViewModel", "Coroutine started on thread: ${Thread.currentThread().name}")
                 _isUpgrading.value = true
+                
+                // CRITICAL: Set upgrade flag BEFORE any database updates
+                // This prevents SessionViewModel from reacting to role changes
+                sessionManager.setUpgradeInProgress(true)
+                android.util.Log.e("GeneralProfileViewModel", "Set upgradeInProgress=true")
 
                 // Auto-verify location if GPS coordinates are provided
                 val isLocationVerified = lat != null && lng != null
 
-                val updated = current.copy(
+                // Update profile with ALL farmer data INCLUDING userType
+                // ZERO-COST ARCHITECTURE: We no longer need Cloud Functions for custom claims
+                // Firestore security rules now read userType directly from the user document
+                val updatedProfile = current.copy(
                     address = address,
                     chickenCount = chickenCount,
                     farmerType = farmerType,
@@ -191,48 +205,38 @@ class GeneralProfileViewModel @Inject constructor(
                     farmLocationLat = lat,
                     farmLocationLng = lng,
                     locationVerified = isLocationVerified,
-                    // Standard status updates
+                    // Update both verification status AND userType
                     verificationStatus = com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
                     userType = com.rio.rostry.domain.model.UserType.FARMER.name
                 )
 
-                android.util.Log.e("GeneralProfileViewModel", "Calling updateUserProfile...")
-                val result = userRepository.updateUserProfile(updated)
-                android.util.Log.e("GeneralProfileViewModel", "updateUserProfile returned: $result")
+                android.util.Log.e("GeneralProfileViewModel", "Saving profile with userType=FARMER...")
+                val saveResult = userRepository.updateUserProfile(updatedProfile)
+                
+                if (saveResult is Resource.Error) {
+                    android.util.Log.e("GeneralProfileViewModel", "Failed to save profile: ${saveResult.message}")
+                    _upgradeEvent.emit(UpgradeEvent.Error(saveResult.message ?: "Failed to save profile data"))
+                    return@launch
+                }
 
-                when (result) {
-                    is Resource.Success -> {
-                        android.util.Log.e("GeneralProfileViewModel", "SUCCESS! Updating SessionManager...")
-                        try {
-                            // Use markAuthenticated to refresh the session timestamp.
-                            // Farmers have a shorter session timeout (7 days) vs General (30 days).
-                            // If we don't refresh the timestamp, an old session might immediately expire upon upgrade.
-                            sessionManager.markAuthenticated(
-                                nowMillis = System.currentTimeMillis(),
-                                userType = com.rio.rostry.domain.model.UserType.FARMER
-                            )
-                            
-                            // Force refresh of ID token to propagate new role claims to backend/security rules
-                            try {
-                                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()
-                                android.util.Log.e("GeneralProfileViewModel", "Auth token refreshed successfully.")
-                            } catch (e: Exception) {
-                                android.util.Log.e("GeneralProfileViewModel", "Failed to refresh auth token: ${e.message}")
-                            }
+                android.util.Log.e("GeneralProfileViewModel", "Profile saved successfully!")
 
-                            android.util.Log.e("GeneralProfileViewModel", "SessionManager updated. Emitting UpgradeEvent.Success")
-                            _upgradeEvent.emit(UpgradeEvent.Success(com.rio.rostry.domain.model.UserType.FARMER))
-                        } catch (e: Exception) {
-                            android.util.Log.e("GeneralProfileViewModel", "Failed to update SessionManager: ${e.message}", e)
-                            _upgradeEvent.emit(UpgradeEvent.Error("Failed to update session: ${e.message}"))
-                        }
-                    }
-                    is Resource.Error -> {
-                        android.util.Log.e("GeneralProfileViewModel", "ERROR! ${result.message}")
-                        _upgradeEvent.emit(UpgradeEvent.Error(result.message ?: "Failed to upgrade profile"))
-                    }
-                    else -> {
-                        android.util.Log.e("GeneralProfileViewModel", "Resource.Loading or other state: $result")
+                // ZERO-COST ARCHITECTURE: No more waiting for Cloud Functions!
+                // The Firestore security rules now read userType directly from the document.
+                // We can update the session role immediately without waiting for custom claims.
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    try {
+                        android.util.Log.e("GeneralProfileViewModel", "Updating SessionManager with FARMER role...")
+                        sessionManager.markAuthenticated(
+                            nowMillis = System.currentTimeMillis(),
+                            userType = com.rio.rostry.domain.model.UserType.FARMER
+                        )
+
+                        android.util.Log.e("GeneralProfileViewModel", "Upgrade complete! Emitting success event.")
+                        _upgradeEvent.emit(UpgradeEvent.Success(com.rio.rostry.domain.model.UserType.FARMER))
+                    } catch (e: Exception) {
+                        android.util.Log.e("GeneralProfileViewModel", "Failed to finalize Farmer upgrade: ${e.message}", e)
+                        _upgradeEvent.emit(UpgradeEvent.Error("Failed to update session: ${e.message}"))
                     }
                 }
             } catch (t: Throwable) {
@@ -240,11 +244,18 @@ class GeneralProfileViewModel @Inject constructor(
                 android.util.Log.e("GeneralProfileViewModel", "CRITICAL EXCEPTION in upgradeToFarmer: ${t.message}", t)
                 _upgradeEvent.emit(UpgradeEvent.Error("Critical Error: ${t.message}"))
             } finally {
-                android.util.Log.e("GeneralProfileViewModel", "Setting isUpgrading=false")
+                android.util.Log.e("GeneralProfileViewModel", "Setting isUpgrading=false and upgradeInProgress=false")
                 _isUpgrading.value = false
+                // CRITICAL: Clear the upgrade flag so SessionViewModel can sync again
+                sessionManager.setUpgradeInProgress(false)
             }
         }
     }
+
+    // REMOVED: waitForCustomClaims function
+    // ZERO-COST ARCHITECTURE: We no longer wait for Cloud Functions to set custom claims.
+    // Firestore security rules now read userType directly from user documents.
+
     fun clearMessages() {
         error.value = null
         success.value = null

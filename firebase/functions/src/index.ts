@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import {onDocumentWritten} from "firebase-functions/v2/firestore";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
 // Initialize Firebase Admin
@@ -12,67 +13,71 @@ admin.initializeApp();
  * - role: User's current role (GENERAL, FARMER, ENTHUSIAST)
  * - verified: Whether user is verified (VERIFIED status)
  */
-export const setUserRoleClaim = functions.firestore
-    .document("users/{userId}")
-    .onWrite(async (change, context) => {
-        const userId = context.params.userId;
+export const setUserRoleClaim = onDocumentWritten("users/{userId}", async (event) => {
+    const userId = event.params.userId;
 
-        // If document was deleted, remove custom claims
-        if (!change.after.exists) {
-            await admin.auth().setCustomUserClaims(userId, {});
-            console.log(`Removed custom claims for deleted user: ${userId}`);
-            return;
-        }
+    // Check if event.data exists
+    if (!event.data) {
+        console.log(`No data for event: ${userId}`);
+        return;
+    }
 
-        const userData = change.after.data();
-        if (!userData) return;
+    // If document was deleted, remove custom claims
+    if (!event.data.after.exists) {
+        await admin.auth().setCustomUserClaims(userId, {});
+        console.log(`Removed custom claims for deleted user: ${userId}`);
+        return;
+    }
 
-        const role = userData.userType || "GENERAL";
-        const verified = userData.verificationStatus === "VERIFIED";
+    const userData = event.data.after.data();
+    if (!userData) return;
 
-        try {
-            // Set custom claims
-            await admin.auth().setCustomUserClaims(userId, {
-                role: role,
-                verified: verified,
-            });
+    const role = userData.userType || "GENERAL";
+    const verified = userData.verificationStatus === "VERIFIED";
 
-            console.log(
-                `Set custom claims for ${userId}: role=${role}, verified=${verified}`
-            );
+    try {
+        // Set custom claims
+        await admin.auth().setCustomUserClaims(userId, {
+            role: role,
+            verified: verified,
+        });
 
-            // Update the user document with a timestamp of when claims were set
-            // This helps with debugging and can trigger client token refresh
-            await change.after.ref.update({
-                customClaimsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-        } catch (error) {
-            console.error(`Error setting custom claims for ${userId}:`, error);
-            throw error;
-        }
-    });
+        console.log(
+            `Set custom claims for ${userId}: role=${role}, verified=${verified}`
+        );
+
+        // Update the user document with a timestamp of when claims were set
+        // This helps with debugging and can trigger client token refresh
+        await event.data.after.ref.update({
+            customClaimsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (error) {
+        console.error(`Error setting custom claims for ${userId}:`, error);
+        throw error;
+    }
+});
 
 /**
  * Callable function to manually refresh custom claims.
  * Can be called from the client to force a custom claims update.
  */
-export const refreshUserClaims = functions.https.onCall(async (data, context) => {
+export const refreshUserClaims = onCall(async (request) => {
     // Ensure user is authenticated
-    if (!context.auth) {
-        throw new functions.https.HttpsError(
+    if (!request.auth) {
+        throw new HttpsError(
             "unauthenticated",
             "Must be authenticated to refresh claims"
         );
     }
 
-    const userId = context.auth.uid;
+    const userId = request.auth.uid;
 
     try {
         // Fetch user document from Firestore
         const userDoc = await admin.firestore().collection("users").doc(userId).get();
 
         if (!userDoc.exists) {
-            throw new functions.https.HttpsError(
+            throw new HttpsError(
                 "not-found",
                 "User document not found"
             );
@@ -97,6 +102,6 @@ export const refreshUserClaims = functions.https.onCall(async (data, context) =>
         };
     } catch (error: any) {
         console.error(`Error refreshing claims for ${userId}:`, error);
-        throw new functions.https.HttpsError("internal", error.message);
+        throw new HttpsError("internal", error.message);
     }
 });

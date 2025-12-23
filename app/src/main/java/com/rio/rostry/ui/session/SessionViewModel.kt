@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -54,6 +56,11 @@ class SessionViewModel @Inject constructor(
     private var sessionJob: Job? = null
     private var userCollectionJob: Job? = null
     private var expiryCheckJob: Job? = null
+    
+    // Track recent role changes to prevent synchronizeRole from overriding an in-progress upgrade
+    @Volatile
+    private var lastRoleSyncTime: Long = 0L
+    private val roleSyncDebounceMs = 3000L // Don't re-sync role within 3 seconds of last sync
 
     init {
         observeSession()
@@ -155,7 +162,11 @@ class SessionViewModel @Inject constructor(
                 scheduleSessionExpiryCheck()
                 return@launch
             }
-            userRepository.getCurrentUser().collectLatest { resource ->
+            // Debounce user flow to prevent rapid updates during upgrade
+            userRepository.getCurrentUser()
+                .debounce(500L) // Wait 500ms for changes to stabilize
+                .distinctUntilChangedBy { (it as? Resource.Success)?.data?.userType } // Only react to actual role changes
+                .collectLatest { resource ->
                 when (resource) {
                     is Resource.Error -> {
                         Timber.e("Sync role failed: ${resource.message}")
@@ -176,7 +187,24 @@ class SessionViewModel @Inject constructor(
                             ?: rolePreferences.role.value
                             ?: UserType.GENERAL
                         
-                        sessionManager.markAuthenticated(System.currentTimeMillis(), role)
+                        // CRITICAL: Skip role sync if an upgrade is in progress
+                        // This prevents premature navigation during role transitions
+                        if (sessionManager.upgradeInProgress.value) {
+                            Timber.d("SessionVM: Upgrade in progress, skipping role sync")
+                            return@collectLatest
+                        }
+                        
+                        // Check if we recently synced (within debounce window)
+                        // This prevents SessionViewModel from overriding an in-progress upgrade
+                        val now = System.currentTimeMillis()
+                        val timeSinceLastSync = now - lastRoleSyncTime
+                        if (timeSinceLastSync < roleSyncDebounceMs && _uiState.value.role == role) {
+                            Timber.d("SessionVM: Skipping role sync, recently synced (${timeSinceLastSync}ms ago)")
+                            return@collectLatest
+                        }
+                        lastRoleSyncTime = now
+                        
+                        sessionManager.markAuthenticated(now, role)
                         rolePreferences.persist(role)
                         val navConfig = startDestinationProvider.configFor(role)
                         _uiState.value = _uiState.value.copy(

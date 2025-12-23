@@ -62,10 +62,14 @@ fun UploadedItem(url: String, onDelete: () -> Unit, isImage: Boolean, readOnly: 
     var imageLoadError by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    // Request only the size needed for the thumbnail (60dp * ~3x density = ~180px)
+    // This prevents Coil from loading a multi-megabyte image into memory
     val model = remember(url) {
         ImageRequest.Builder(context)
             .data(url)
+            .size(180) // Request only 180x180 pixels max
             .crossfade(true)
+            .memoryCacheKey("thumb_$url") // Separate cache key for thumbnails
             .build()
     }
 

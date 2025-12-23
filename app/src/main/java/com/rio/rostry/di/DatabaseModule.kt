@@ -24,6 +24,7 @@ import com.rio.rostry.data.database.dao.ProductTrackingDao
 import com.rio.rostry.data.database.dao.FamilyTreeDao
 import com.rio.rostry.data.database.dao.ChatMessageDao
 import com.rio.rostry.data.database.dao.SyncStateDao
+import com.rio.rostry.data.database.dao.FarmVerificationDao
 import com.rio.rostry.data.database.dao.BreedingRecordDao
 import com.rio.rostry.data.database.dao.TraitDao
 import com.rio.rostry.data.database.dao.ProductTraitDao
@@ -120,7 +121,11 @@ object DatabaseModule {
             AppDatabase.MIGRATION_42_43,
             AppDatabase.MIGRATION_43_44,
             AppDatabase.MIGRATION_44_45,
-            AppDatabase.MIGRATION_45_46
+            AppDatabase.MIGRATION_45_46,
+            AppDatabase.MIGRATION_46_47,
+            AppDatabase.MIGRATION_47_48,
+            AppDatabase.MIGRATION_48_49,
+            AppDatabase.MIGRATION_49_50
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -193,6 +198,10 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSyncStateDao(appDatabase: AppDatabase): SyncStateDao = appDatabase.syncStateDao()
+
+    @Provides
+    @Singleton
+    fun provideFarmVerificationDao(appDatabase: AppDatabase): FarmVerificationDao = appDatabase.farmVerificationDao()
 
     @Provides
     @Singleton
@@ -431,4 +440,16 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideBreedDao(db: AppDatabase): com.rio.rostry.data.database.dao.BreedDao = db.breedDao()
+
+    @Provides
+    @Singleton
+    fun provideFarmAssetDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmAssetDao = db.farmAssetDao()
+
+    @Provides
+    @Singleton
+    fun provideInventoryItemDao(db: AppDatabase): com.rio.rostry.data.database.dao.InventoryItemDao = db.inventoryItemDao()
+
+    @Provides
+    @Singleton
+    fun provideMarketListingDao(db: AppDatabase): com.rio.rostry.data.database.dao.MarketListingDao = db.marketListingDao()
 }

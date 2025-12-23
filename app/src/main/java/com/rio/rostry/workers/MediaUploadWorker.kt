@@ -41,14 +41,25 @@ class MediaUploadWorker @AssistedInject constructor(
 
                     // Validate file exists (avoid inline lambda with continue)
                     val uri = android.net.Uri.parse(task.localPath)
-                    val stream = applicationContext.contentResolver.openInputStream(uri)
-                    if (stream == null) {
-                        Timber.w("UploadWorker: file not found ${task.localPath}")
-                        uploadTaskDao.markFailed(task.taskId, "File not found", System.currentTimeMillis())
-                        continue
-                    } else {
-                        stream.close()
+                    var isAccessible = false
+                    try {
+                        val stream = applicationContext.contentResolver.openInputStream(uri)
+                        if (stream != null) {
+                            stream.close()
+                            isAccessible = true
+                        } else {
+                            Timber.w("UploadWorker: file not found or inaccessible ${task.localPath}")
+                            uploadTaskDao.markFailed(task.taskId, "File not found/inaccessible", System.currentTimeMillis())
+                        }
+                    } catch (e: SecurityException) {
+                        Timber.e(e, "UploadWorker: Permission denied for ${task.localPath}")
+                        uploadTaskDao.markFailed(task.taskId, "Permission denied", System.currentTimeMillis())
+                    } catch (e: Exception) {
+                        Timber.e(e, "UploadWorker: Error opening file ${task.localPath}")
+                        uploadTaskDao.markFailed(task.taskId, "File error: ${e.message}", System.currentTimeMillis())
                     }
+
+                    if (!isAccessible) continue
 
                     val start = System.currentTimeMillis()
                     Timber.i("UploadWorker: start taskId=${task.taskId} path=${task.remotePath}")

@@ -857,17 +857,7 @@ private fun RoleNavGraph(
         composable(Routes.FarmerNav.MARKET) {
             val vm: com.rio.rostry.ui.farmer.FarmerMarketViewModel = hiltViewModel()
             val state by vm.ui.collectAsState()
-            fun map(e: com.rio.rostry.data.database.entity.ProductEntity): com.rio.rostry.ui.farmer.Listing =
-                com.rio.rostry.ui.farmer.Listing(
-                    id = e.productId,
-                    title = e.name.ifBlank { e.category },
-                    price = e.price,
-                    views = 0,
-                    inquiries = 0,
-                    orders = 0,
-                    isBatch = e.isBatch ?: false,
-                    quantity = e.quantity.toInt()
-                )
+            
             FarmerMarketScreen(
                 onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
                 onEditListing = { id -> navController.navigate(Routes.FarmerNav.CREATE) },
@@ -882,8 +872,8 @@ private fun RoleNavGraph(
                 metricsViews = state.metricsViews,
                 isLoadingBrowse = state.isLoadingBrowse,
                 isLoadingMine = state.isLoadingMine,
-                browse = state.filteredBrowse.map(::map),
-                mine = state.mine.map(::map),
+                browse = state.filteredBrowse,
+                mine = state.mine,
                 onRefresh = { vm.refresh() },
                 onApplyPriceBreed = { min, max, breed -> vm.applyPriceBreed(min, max, breed) },
                 onApplyDateFilter = { s, e -> vm.applyDateFilter(s, e) },

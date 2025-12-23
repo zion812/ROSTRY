@@ -7,6 +7,8 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.ProductMarketplaceRepository
+import com.rio.rostry.data.repository.MarketListingRepository
+import com.rio.rostry.data.repository.FarmAssetRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTracker
@@ -17,11 +19,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import com.rio.rostry.ui.farmer.Listing
 
 @HiltViewModel
 class FarmerMarketViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val marketplaceRepository: ProductMarketplaceRepository,
+    private val marketListingRepository: MarketListingRepository,
+    private val farmAssetRepository: FarmAssetRepository,
     private val userRepository: UserRepository,
     private val analytics: GeneralAnalyticsTracker,
     private val analyticsRepository: AnalyticsRepository,
@@ -31,9 +37,9 @@ class FarmerMarketViewModel @Inject constructor(
     data class UiState(
         val isLoadingBrowse: Boolean = false,
         val isLoadingMine: Boolean = false,
-        val browse: List<ProductEntity> = emptyList(),
-        val filteredBrowse: List<ProductEntity> = emptyList(),
-        val mine: List<ProductEntity> = emptyList(),
+        val browse: List<Listing> = emptyList(),
+        val filteredBrowse: List<Listing> = emptyList(),
+        val mine: List<Listing> = emptyList(),
         val categoryFilter: CategoryFilter = CategoryFilter.All,
         val traceFilter: TraceFilter = TraceFilter.All,
         val minPrice: Double? = null,
@@ -96,42 +102,83 @@ class FarmerMarketViewModel @Inject constructor(
         _ui.value = _ui.value.copy(filteredBrowse = filtered)
     }
 
-    private suspend fun loadBrowse() {
-        _ui.value = _ui.value.copy(isLoadingBrowse = true, error = null)
-        when (val res = productRepository.getAllProducts().first()) {
-            is Resource.Success -> {
-                val base = res.data ?: emptyList()
+    private fun loadBrowse() {
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isLoadingBrowse = true)
+            combine(
+                productRepository.getAllProducts(),
+                marketListingRepository.getPublicListings()
+            ) { legacy, new ->
+                val combined = mutableListOf<Listing>()
+                // Map legacy Products
+                (legacy.data ?: emptyList()).filter { it.isPublic }.forEach { 
+                    combined.add(mapProductToListing(it))
+                }
+                // Map new MarketListings
+                (new.data ?: emptyList()).forEach { 
+                    combined.add(mapMarketListingToListing(it))
+                }
+                combined.distinctBy { it.id }
+            }.collect { combined ->
                 _ui.value = _ui.value.copy(
                     isLoadingBrowse = false,
-                    browse = base,
-                    filteredBrowse = applyFilters(base, _ui.value.categoryFilter, _ui.value.traceFilter, _ui.value.query)
+                    browse = combined,
+                    filteredBrowse = applyFilters(combined, _ui.value.categoryFilter, _ui.value.traceFilter, _ui.value.query)
                 )
             }
-            is Resource.Error -> _ui.value = _ui.value.copy(isLoadingBrowse = false, error = res.message)
-            is Resource.Loading -> _ui.value = _ui.value.copy(isLoadingBrowse = true)
         }
     }
 
-    private suspend fun loadMine() {
-        val current = getCurrentUserOrNull() ?: run {
-            _ui.value = _ui.value.copy(isLoadingMine = false, error = "Not authenticated")
-            return
-        }
-        _ui.value = _ui.value.copy(isLoadingMine = true, error = null)
-        when (val res = productRepository.getProductsBySeller(current.userId).first()) {
-            is Resource.Success -> _ui.value = _ui.value.copy(
-                isLoadingMine = false, 
-                mine = res.data ?: emptyList(),
-                verificationStatus = current.verificationStatus
-            )
-            is Resource.Error -> _ui.value = _ui.value.copy(isLoadingMine = false, error = res.message)
-            is Resource.Loading -> _ui.value = _ui.value.copy(isLoadingMine = true)
+    private fun loadMine() {
+        viewModelScope.launch {
+            val current = getCurrentUserOrNull() ?: return@launch
+            _ui.value = _ui.value.copy(isLoadingMine = true, verificationStatus = current.verificationStatus)
+            combine(
+                productRepository.getProductsBySeller(current.userId),
+                marketListingRepository.getListingsBySeller(current.userId)
+            ) { legacy, new ->
+                val combined = mutableListOf<Listing>()
+                (legacy.data ?: emptyList()).forEach { combined.add(mapProductToListing(it)) }
+                (new.data ?: emptyList()).forEach { combined.add(mapMarketListingToListing(it)) }
+                combined.distinctBy { it.id }
+            }.collect { combined ->
+                _ui.value = _ui.value.copy(
+                    isLoadingMine = false,
+                    mine = combined
+                )
+            }
         }
     }
+
+    private fun mapProductToListing(e: ProductEntity): Listing = Listing(
+        id = e.productId,
+        title = e.name.ifBlank { e.category },
+        price = e.price,
+        views = 0, // Mock for now
+        inquiries = 0,
+        orders = 0,
+        isBatch = e.isBatch ?: false,
+        quantity = e.quantity.toInt(),
+        category = e.category ?: "",
+        isTraceable = e.familyTreeId != null
+    )
+
+    private fun mapMarketListingToListing(e: com.rio.rostry.data.database.entity.MarketListingEntity): Listing = Listing(
+        id = e.listingId,
+        title = e.title,
+        price = e.price,
+        views = e.viewsCount,
+        inquiries = e.inquiriesCount,
+        orders = 0, // Needs order repository link
+        isBatch = false, // Add to entity if needed
+        quantity = 1, // Needs inventory lookup
+        category = e.category,
+        isTraceable = true
+    )
 
     private suspend fun getCurrentUserOrNull(): UserEntity? {
         return when (val res = userRepository.getCurrentUser().first()) {
-            is Resource.Success -> res.data
+            is com.rio.rostry.utils.Resource.Success -> res.data
             else -> null
         }
     }
@@ -140,32 +187,25 @@ class FarmerMarketViewModel @Inject constructor(
     enum class CategoryFilter { All, Meat, Adoption }
     enum class TraceFilter { All, Traceable, NonTraceable }
 
-    private fun applyFilters(source: List<ProductEntity>, c: CategoryFilter, t: TraceFilter, query: String = ""): List<ProductEntity> {
+    private fun applyFilters(source: List<Listing>, c: CategoryFilter, t: TraceFilter, query: String = ""): List<Listing> {
         return source.asSequence()
-            // Exclude farm-only private items from marketplace
-            .filter { p -> p.status?.equals("private", ignoreCase = true) != true }
-            .filter { p -> p.status?.equals("SPLIT", ignoreCase = true) != true }
-            // Exclude quarantined items
-            .filter { p -> p.lifecycleStatus?.equals("QUARANTINE", ignoreCase = true) != true }
-            .filter { p ->
+            .filter { 
+                if (query.isBlank()) true else {
+                    it.title.contains(query, ignoreCase = true)
+                }
+            }
+            .filter {
                 when (c) {
                     CategoryFilter.All -> true
-                    CategoryFilter.Meat -> p.category.equals("Meat", ignoreCase = true)
-                    CategoryFilter.Adoption -> p.category.equals("Adoption", ignoreCase = true)
+                    CategoryFilter.Meat -> it.category.contains("MEAT", ignoreCase = true) || it.category.equals("Meat", ignoreCase = true)
+                    CategoryFilter.Adoption -> it.category.contains("ADOPTION", ignoreCase = true) || it.category.equals("Adoption", ignoreCase = true)
                 }
             }
-            .filter { p ->
+            .filter {
                 when (t) {
                     TraceFilter.All -> true
-                    TraceFilter.Traceable -> p.condition?.equals("traceable", ignoreCase = true) == true
-                    TraceFilter.NonTraceable -> p.condition?.equals("traceable", ignoreCase = true) != true
-                }
-            }
-            .filter { p ->
-                if (query.isBlank()) true else {
-                    p.name.contains(query, ignoreCase = true) ||
-                    (p.description?.contains(query, ignoreCase = true) == true) ||
-                    p.breed?.contains(query, ignoreCase = true) == true
+                    TraceFilter.Traceable -> it.isTraceable
+                    TraceFilter.NonTraceable -> !it.isTraceable
                 }
             }
             .toList()
@@ -194,7 +234,7 @@ class FarmerMarketViewModel @Inject constructor(
             _ui.value = _ui.value.copy(isLoadingBrowse = true)
             when (val res = marketplaceRepository.filterByPriceBreed(lower, upper, breed?.takeIf { it.isNotBlank() })) {
                 is Resource.Success -> {
-                    val base = res.data ?: emptyList()
+                    val base = (res.data ?: emptyList()).map { mapProductToListing(it) }
                     // Apply category/trace filters on top of repo price/breed filtering
                     val filtered = applyFilters(base, _ui.value.categoryFilter, _ui.value.traceFilter, _ui.value.query)
                     _ui.value = _ui.value.copy(isLoadingBrowse = false, browse = base, filteredBrowse = filtered, minPrice = min, maxPrice = max, breed = breed)
@@ -219,7 +259,7 @@ class FarmerMarketViewModel @Inject constructor(
             _ui.value = _ui.value.copy(isLoadingBrowse = true)
             when (val res = marketplaceRepository.filterByDateRange(startDate, endDate)) {
                 is Resource.Success -> {
-                    val base = res.data ?: emptyList()
+                    val base = (res.data ?: emptyList()).map { mapProductToListing(it) }
                     val filtered = applyFilters(base, _ui.value.categoryFilter, _ui.value.traceFilter, _ui.value.query)
                     _ui.value = _ui.value.copy(
                         isLoadingBrowse = false,

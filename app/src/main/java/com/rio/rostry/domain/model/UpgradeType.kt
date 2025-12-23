@@ -2,6 +2,14 @@ package com.rio.rostry.domain.model
 
 /**
  * Categorizes different types of verification/upgrade requests in the system.
+ * 
+ * Photo types:
+ * - SELFIE_WITH_CHICKEN: User's photo holding or standing with their chicken
+ * - FARM_PHOTO: Overview photo of the farm/poultry area
+ * - CHICKENS_PHOTO: Photo showing the chickens/birds
+ * 
+ * Document types:
+ * - GOVT_ID: Any government ID (Aadhar, Voter ID, Job Card, PAN, etc.)
  */
 enum class UpgradeType(
     val displayName: String,
@@ -11,22 +19,24 @@ enum class UpgradeType(
 ) {
     /**
      * Documents for upgrading from General to Farmer role.
+     * Requires: Selfie with chicken + Any Government ID
      */
     GENERAL_TO_FARMER(
         displayName = "Become a Farmer",
         description = "Upgrade your account to access farming features",
-        requiredDocuments = listOf("FARM_OWNERSHIP_PROOF", "IDENTITY_PROOF"),
-        requiredImages = listOf("FARM_PHOTO", "SELFIE_WITH_ID")
+        requiredDocuments = listOf("GOVT_ID"),
+        requiredImages = listOf("SELFIE_WITH_CHICKEN", "FARM_PHOTO", "CHICKENS_PHOTO")
     ),
 
     /**
      * Documents for verifying an unverified/pending Farmer.
+     * Requires: Photos of user with chickens, farm, and chickens + Any Government ID
      */
     FARMER_VERIFICATION(
         displayName = "Verify Farm",
         description = "Verify your farm to unlock marketplace listing",
-        requiredDocuments = listOf("LAND_RECORD", "GOVT_ID"),
-        requiredImages = listOf("FARM_ENTRANCE", "LIVESTOCK_PHOTO")
+        requiredDocuments = listOf("GOVT_ID"),
+        requiredImages = listOf("SELFIE_WITH_CHICKEN", "FARM_PHOTO", "CHICKENS_PHOTO")
     ),
 
     /**
@@ -39,3 +49,4 @@ enum class UpgradeType(
         requiredImages = listOf("PRIZE_WINNING_STOCK", "FACILITY_PHOTO")
     );
 }
+

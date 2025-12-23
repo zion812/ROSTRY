@@ -65,6 +65,14 @@ import com.rio.rostry.data.repository.monitoring.DailyLogRepository
 import com.rio.rostry.data.repository.monitoring.DailyLogRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.TaskRepository
 import com.rio.rostry.data.repository.monitoring.TaskRepositoryImpl
+import com.rio.rostry.data.repository.FarmVerificationRepository
+import com.rio.rostry.data.repository.FarmVerificationRepositoryImpl
+import com.rio.rostry.data.repository.FarmAssetRepository
+import com.rio.rostry.data.repository.FarmAssetRepositoryImpl
+import com.rio.rostry.data.repository.InventoryRepository
+import com.rio.rostry.data.repository.InventoryRepositoryImpl
+import com.rio.rostry.data.repository.MarketListingRepository
+import com.rio.rostry.data.repository.MarketListingRepositoryImpl
 import com.rio.rostry.marketplace.payment.DefaultPaymentGateway
 import com.rio.rostry.marketplace.payment.PaymentGateway
 
@@ -239,6 +247,22 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindFeedbackRepository(impl: com.rio.rostry.data.repository.FeedbackRepositoryImpl): com.rio.rostry.data.repository.FeedbackRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmVerificationRepository(impl: com.rio.rostry.data.repository.FarmVerificationRepositoryImpl): com.rio.rostry.data.repository.FarmVerificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmAssetRepository(impl: com.rio.rostry.data.repository.FarmAssetRepositoryImpl): com.rio.rostry.data.repository.FarmAssetRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInventoryRepository(impl: com.rio.rostry.data.repository.InventoryRepositoryImpl): com.rio.rostry.data.repository.InventoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMarketListingRepository(impl: com.rio.rostry.data.repository.MarketListingRepositoryImpl): com.rio.rostry.data.repository.MarketListingRepository
 
 }
 

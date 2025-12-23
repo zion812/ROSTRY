@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -154,7 +155,6 @@ class FarmerHomeViewModel @Inject constructor(
             val weekStart = now - TimeUnit.DAYS.toMillis(7)
             val weekEnd = now + TimeUnit.DAYS.toMillis(7)
             val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
-            val startNs = System.nanoTime()
             combine(
                 vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay).orDefault(0),
                 vaccinationRecordDao.observeOverdueForFarmer(id, now).orDefault(0),
@@ -187,6 +187,7 @@ class FarmerHomeViewModel @Inject constructor(
                 }.orDefault(com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED),
                 farmOnboardingRepository.observeRecentOnboardingActivity(id, 7).orDefault(emptyList())
             ) { values: Array<Any?> ->
+                val startNs = System.nanoTime() // FRESH timing for each emission
                 val vacDue = values[0] as? Int ?: 0
                 val vacOverdue = values[1] as? Int ?: 0
                 val growth = values[2] as? Int ?: 0
@@ -220,8 +221,8 @@ class FarmerHomeViewModel @Inject constructor(
                 val recentActivityList = values[25] as? List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> ?: emptyList()
 
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
-                if (elapsedMs > 3000) {
-                    Timber.w("FarmerHome combine slow: %d ms", elapsedMs)
+                if (elapsedMs > 500) { // Reduced threshold for better diagnosing
+                    Timber.w("FarmerHome combine execution: %d ms", elapsedMs)
                 }
 
                 val baseState = FarmerHomeUiState(
@@ -258,7 +259,7 @@ class FarmerHomeViewModel @Inject constructor(
                 
                 // Generate dynamic widgets based on the computed state
                 baseState.copy(widgets = generateWidgets(baseState))
-            }
+            }.debounce(300) // Prevent rapid UI updates during syncs
         }
     }.stateIn(
         scope = viewModelScope,

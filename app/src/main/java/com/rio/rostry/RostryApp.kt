@@ -46,6 +46,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
@@ -221,7 +222,12 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
             userSessionManager.isUserLoggedIn.collect { isLoggedIn ->
                 val workManager = WorkManager.getInstance(this@RostryApp)
                 if (isLoggedIn) {
-                    Timber.i("User is logged in, scheduling background workers.")
+                    // ZERO-COST ARCHITECTURE: No more waiting for Cloud Functions claims!
+                    // Firestore security rules now read userType directly from user documents.
+                    // Just add a small delay for app initialization stability.
+                    Timber.i("User is logged in. Scheduling workers...")
+                    delay(2000)
+                    
                     scheduleAllWorkers(workManager)
                 } else {
                     Timber.i("User is logged out, cancelling session workers.")

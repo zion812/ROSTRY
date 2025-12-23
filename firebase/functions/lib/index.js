@@ -24,7 +24,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.refreshUserClaims = exports.setUserRoleClaim = void 0;
-const functions = __importStar(require("firebase-functions"));
+const firestore_1 = require("firebase-functions/v2/firestore");
+const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -36,17 +37,20 @@ admin.initializeApp();
  * - role: User's current role (GENERAL, FARMER, ENTHUSIAST)
  * - verified: Whether user is verified (VERIFIED status)
  */
-exports.setUserRoleClaim = functions.firestore
-    .document("users/{userId}")
-    .onWrite(async (change, context) => {
-    const userId = context.params.userId;
+exports.setUserRoleClaim = (0, firestore_1.onDocumentWritten)("users/{userId}", async (event) => {
+    const userId = event.params.userId;
+    // Check if event.data exists
+    if (!event.data) {
+        console.log(`No data for event: ${userId}`);
+        return;
+    }
     // If document was deleted, remove custom claims
-    if (!change.after.exists) {
+    if (!event.data.after.exists) {
         await admin.auth().setCustomUserClaims(userId, {});
         console.log(`Removed custom claims for deleted user: ${userId}`);
         return;
     }
-    const userData = change.after.data();
+    const userData = event.data.after.data();
     if (!userData)
         return;
     const role = userData.userType || "GENERAL";
@@ -60,7 +64,7 @@ exports.setUserRoleClaim = functions.firestore
         console.log(`Set custom claims for ${userId}: role=${role}, verified=${verified}`);
         // Update the user document with a timestamp of when claims were set
         // This helps with debugging and can trigger client token refresh
-        await change.after.ref.update({
+        await event.data.after.ref.update({
             customClaimsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
@@ -73,17 +77,17 @@ exports.setUserRoleClaim = functions.firestore
  * Callable function to manually refresh custom claims.
  * Can be called from the client to force a custom claims update.
  */
-exports.refreshUserClaims = functions.https.onCall(async (data, context) => {
+exports.refreshUserClaims = (0, https_1.onCall)(async (request) => {
     // Ensure user is authenticated
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "Must be authenticated to refresh claims");
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Must be authenticated to refresh claims");
     }
-    const userId = context.auth.uid;
+    const userId = request.auth.uid;
     try {
         // Fetch user document from Firestore
         const userDoc = await admin.firestore().collection("users").doc(userId).get();
         if (!userDoc.exists) {
-            throw new functions.https.HttpsError("not-found", "User document not found");
+            throw new https_1.HttpsError("not-found", "User document not found");
         }
         const userData = userDoc.data();
         const role = (userData === null || userData === void 0 ? void 0 : userData.userType) || "GENERAL";
@@ -102,7 +106,7 @@ exports.refreshUserClaims = functions.https.onCall(async (data, context) => {
     }
     catch (error) {
         console.error(`Error refreshing claims for ${userId}:`, error);
-        throw new functions.https.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("internal", error.message);
     }
 });
 //# sourceMappingURL=index.js.map

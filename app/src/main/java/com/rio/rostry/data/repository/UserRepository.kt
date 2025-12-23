@@ -12,6 +12,8 @@ interface UserRepository {
 
     fun getCurrentUser(): Flow<Resource<UserEntity?>>
 
+    suspend fun getCurrentUserSuspend(): UserEntity?
+
     suspend fun refreshCurrentUser(userId: String): Resource<Unit>
 
     suspend fun updateUserProfile(userEntity: UserEntity): Resource<Unit>
@@ -39,6 +41,7 @@ interface UserRepository {
         documentUrls: List<String>, 
         imageUrls: List<String>, 
         docTypes: Map<String, String> = emptyMap(),
+        imageTypes: Map<String, String> = emptyMap(),
         upgradeType: UpgradeType = UpgradeType.GENERAL_TO_FARMER,
         currentRole: UserType = UserType.GENERAL,
         targetRole: UserType? = null,

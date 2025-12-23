@@ -4,7 +4,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.data.database.entity.FarmAssetEntity
 import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.data.repository.FarmAssetRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.VerificationStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,8 +32,9 @@ sealed interface DigitalFarmUiState {
 
 @HiltViewModel
 class DigitalFarmViewModel @Inject constructor(
-    productRepository: ProductRepository,
-    userRepository: UserRepository
+    private val productRepository: ProductRepository,
+    private val farmAssetRepository: FarmAssetRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -39,30 +42,29 @@ class DigitalFarmViewModel @Inject constructor(
         .flatMapLatest { userResource ->
             val user = userResource.data
             if (user == null || user.userId.isBlank()) {
-                val loading = com.rio.rostry.utils.Resource.Loading<List<ProductEntity>>()
-                flowOf(Pair(loading, false))
+                flowOf(DigitalFarmUiState.Empty)
             } else {
-                productRepository.getProductsBySeller(user.userId).map { productsResource ->
-                    Pair(productsResource, user.verificationStatus == VerificationStatus.VERIFIED)
-                }
-            }
-        }.map { (productsResource, isVerified) ->
-            when {
-                productsResource is com.rio.rostry.utils.Resource.Loading -> DigitalFarmUiState.Loading
-                productsResource is com.rio.rostry.utils.Resource.Error -> DigitalFarmUiState.Error
-                else -> {
-                    val products = productsResource.data ?: emptyList()
-                    if (products.isEmpty()) {
-                        DigitalFarmUiState.Empty
-                    } else {
-                        val visualBirds = products
-                            .filter {
-                                val status = it.lifecycleStatus ?: "ACTIVE"
-                                status == "ACTIVE" || status == "QUARANTINE"
-                            }
-                            .map { it.toVisualBird() }
-                        DigitalFarmUiState.Success(visualBirds, isVerified)
-                    }
+                combine(
+                    productRepository.getProductsBySeller(user.userId),
+                    farmAssetRepository.getAssetsByFarmer(user.userId)
+                ) { legacyRes, newRes ->
+                    val isVerified = user.verificationStatus == VerificationStatus.VERIFIED
+                    
+                    val legacyBirds = (legacyRes.data ?: emptyList())
+                        .filter { 
+                            val status = it.lifecycleStatus ?: "ACTIVE"
+                            status == "ACTIVE" || status == "QUARANTINE"
+                        }
+                        .map { it.toVisualBird() }
+                        
+                    val newBirds = (newRes.data ?: emptyList())
+                        .filter { it.status == "ACTIVE" || it.status == "QUARANTINE" || it.status == "READY_TO_SELL" }
+                        .map { it.toVisualBird() }
+                    
+                    val allBirds = (legacyBirds + newBirds).distinctBy { it.id }
+                    
+                    if (allBirds.isEmpty()) DigitalFarmUiState.Empty
+                    else DigitalFarmUiState.Success(allBirds, isVerified)
                 }
             }
         }
@@ -151,5 +153,49 @@ class DigitalFarmViewModel @Inject constructor(
         } catch (e: Exception) {
             Color.White
         }
+    }
+
+    private fun FarmAssetEntity.toVisualBird(): VisualBird {
+        val hash = this.assetId.hashCode()
+        val rawX = (abs(hash * 31) % 1000) / 1000f
+        val rawY = (abs(hash * 17) % 1000) / 1000f
+
+        val effectiveLocation = if (this.status == "QUARANTINE") "Quarantine" else this.locationName ?: "Free Range"
+
+        val (finalX, finalY) = when (effectiveLocation) {
+            "Coop" -> Pair(rawX * 0.5f, rawY * 0.5f)
+            "Quarantine" -> Pair(0.5f + (rawX * 0.5f), rawY * 0.5f)
+            "Free Range" -> Pair(rawX, 0.5f + (rawY * 0.5f))
+            else -> Pair(rawX, 0.5f + (rawY * 0.5f))
+        }
+
+        val stage = when {
+            (this.ageWeeks ?: 0) < 5 -> BirdStage.CHICK
+            (this.ageWeeks ?: 0) < 20 -> BirdStage.JUVENILE
+            else -> BirdStage.ADULT
+        }
+
+        val sizeRadius = when (stage) {
+            BirdStage.CHICK -> 10f
+            BirdStage.JUVENILE -> 15f
+            else -> 20f
+        }
+
+        val birdColor = parseColor(this.color)
+
+        return VisualBird(
+            id = this.assetId,
+            color = birdColor,
+            sizeRadius = sizeRadius,
+            x = finalX,
+            y = finalY,
+            label = this.assetId.take(4).uppercase(),
+            stage = stage,
+            details = "${this.assetType}\nAge: ${this.ageWeeks ?: 0} weeks\nLoc: ${this.locationName}\nStatus: ${this.status}",
+            location = this.locationName ?: "Free Range",
+            isSick = this.status == "QUARANTINE",
+            status = if (this.status == "READY_TO_SELL") BirdHealthStatus.READY_TO_SELL else BirdHealthStatus.NORMAL,
+            isNew = (System.currentTimeMillis() - (this.createdAt)) < 24 * 60 * 60 * 1000
+        )
     }
 }

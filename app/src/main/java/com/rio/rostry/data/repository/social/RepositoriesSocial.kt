@@ -12,8 +12,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.first
 import android.content.Context
 import android.net.Uri
 import java.util.UUID
@@ -463,37 +465,65 @@ class MessagingRepositoryImpl @Inject constructor(
     // Unread heuristic with timestamps if available:
     // dm_meta/<threadId>/lastMsgTs and dm_meta/<threadId>/lastSeenTs/<userId>
     // If lastMsgTs > lastSeenTs => unread. Fallback: seen flag not true.
-    override fun streamUnreadCount(userId: String): Flow<Int> = callbackFlow {
+    override fun streamUnreadCount(userId: String): Flow<Int> = flow {
         val indexRef = firebaseDb.getReference("user_dm_index/$userId")
         val metaRef = firebaseDb.getReference("dm_meta")
-        val indexListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val threads = snapshot.children.mapNotNull { it.key }.toSet()
-                metaRef.addListenerForSingleValueEvent(object: ValueEventListener {
-                    override fun onDataChange(metaSnap: DataSnapshot) {
-                        val c = threads.count { t ->
-                            val meta = metaSnap.child(t)
-                            val lastMsgTs = meta.child("lastMsgTs").getValue(Long::class.java)
-                            val lastSeenTs = meta.child("lastSeenTs").child(userId).getValue(Long::class.java)
-                            if (lastMsgTs != null && lastSeenTs != null) {
-                                lastMsgTs > lastSeenTs
-                            } else {
-                                meta.child("seen").child(userId).getValue(Boolean::class.java) != true
-                            }
-                        }
-                        trySend(c)
-                    }
-                    override fun onCancelled(error: DatabaseError) { /* ignore */ }
-                })
+        
+        // OPTION 2: Defer Messaging Listener Attachment
+        // Check if index exists once before streaming
+        try {
+            val checkSnapshot = indexRef.get().await()
+            if (!checkSnapshot.exists()) {
+                emit(0) // No threads yet, return 0 and don't attach expensive listener
+                return@flow
             }
-            override fun onCancelled(error: DatabaseError) { 
-                timber.log.Timber.e(error.toException(), "streamUnreadCount cancelled")
-                trySend(0)
-                close() 
+        } catch (e: Exception) {
+            // If get() fails with permission error, user likely has no data yet
+            if (e.message?.contains("permission", ignoreCase = true) == true) {
+                emit(0)
+                return@flow
             }
         }
-        indexRef.addValueEventListener(indexListener)
-        awaitClose { indexRef.removeEventListener(indexListener) }
+
+        emitAll(callbackFlow {
+            val indexListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val threads = snapshot.children.mapNotNull { it.key }.toSet()
+                    if (threads.isEmpty()) {
+                        trySend(0)
+                        return
+                    }
+                    metaRef.addListenerForSingleValueEvent(object: ValueEventListener {
+                        override fun onDataChange(metaSnap: DataSnapshot) {
+                            val c = threads.count { t ->
+                                val meta = metaSnap.child(t)
+                                val lastMsgTs = meta.child("lastMsgTs").getValue(Long::class.java)
+                                val lastSeenTs = meta.child("lastSeenTs").child(userId).getValue(Long::class.java)
+                                if (lastMsgTs != null && lastSeenTs != null) {
+                                    lastMsgTs > lastSeenTs
+                                } else {
+                                    meta.child("seen").child(userId).getValue(Boolean::class.java) != true
+                                }
+                            }
+                            trySend(c)
+                        }
+                        override fun onCancelled(error: DatabaseError) { /* ignore */ }
+                    })
+                }
+                override fun onCancelled(error: DatabaseError) { 
+                    val isPermissionError = error.code == DatabaseError.PERMISSION_DENIED
+                    if (isPermissionError) {
+                        timber.log.Timber.w("streamUnreadCount: Permission denied - user may not have access to dm_meta")
+                    } else {
+                        timber.log.Timber.e(error.toException(), "streamUnreadCount cancelled")
+                    }
+                    trySend(0)
+                    close() 
+                }
+            }
+            indexRef.addValueEventListener(indexListener)
+            awaitClose { indexRef.removeEventListener(indexListener) }
+        })
     }
 
     // Context-aware messaging implementations

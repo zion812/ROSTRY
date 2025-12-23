@@ -46,13 +46,10 @@ class MainViewModel @Inject constructor(
                             userName = user?.fullName,
                             email = user?.email
                         )
-                        // Sync role to SessionManager to ensure persistence
-                        user?.userType?.let { typeStr ->
-                            val type = runCatching { com.rio.rostry.domain.model.UserType.valueOf(typeStr) }.getOrNull()
-                            if (type != null) {
-                                sessionManager.updateRole(type)
-                            }
-                        }
+                        // NOTE: Removed automatic role sync here.
+                        // The role should be updated by GeneralProfileViewModel AFTER claims are verified.
+                        // Syncing here causes a race condition where navigation happens before
+                        // the Firebase ID token is refreshed with the new role claims.
                     }
                     is Resource.Error -> {
                         _userProfileState.value = UserProfileUiState(

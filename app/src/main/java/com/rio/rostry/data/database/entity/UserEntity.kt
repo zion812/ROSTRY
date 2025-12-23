@@ -43,9 +43,14 @@ data class UserEntity(
     
     val kycVerifiedAt: Long? = null,
     val kycRejectionReason: String? = null,
+    val verificationRejectionReason: String? = null,
+    val latestVerificationId: String? = null,
+    val latestVerificationRef: String? = null,
+    val verificationSubmittedAt: Date? = null,
     // Common audit
     val createdAt: Date? = null,
-    val updatedAt: Date? = null
+    val updatedAt: Date? = null,
+    val customClaimsUpdatedAt: Date? = null
 ) {
     @get:Exclude
     val role: UserType
