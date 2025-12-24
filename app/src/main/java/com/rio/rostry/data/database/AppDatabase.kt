@@ -103,9 +103,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Reviews & Ratings
         ReviewEntity::class,
         ReviewHelpfulEntity::class,
-        RatingStatsEntity::class
+        RatingStatsEntity::class,
+        // Evidence-Based Order System
+        OrderEvidenceEntity::class,
+        OrderQuoteEntity::class,
+        OrderPaymentEntity::class,
+        DeliveryConfirmationEntity::class,
+        OrderDisputeEntity::class,
+        OrderAuditLogEntity::class
     ],
-    version = 52, // 52: Reviews & Ratings system; 51: Farm-Market Separation indexes
+    version = 53, // 53: Evidence-Based Order System; 52: Reviews & Ratings
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -176,6 +183,14 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Reviews & Ratings DAO
     abstract fun reviewDao(): ReviewDao
+
+    // Evidence-Based Order System DAOs
+    abstract fun orderEvidenceDao(): OrderEvidenceDao
+    abstract fun orderQuoteDao(): OrderQuoteDao
+    abstract fun orderPaymentDao(): OrderPaymentDao
+    abstract fun deliveryConfirmationDao(): DeliveryConfirmationDao
+    abstract fun orderDisputeDao(): OrderDisputeDao
+    abstract fun orderAuditLogDao(): OrderAuditLogDao
 
     // Gamification DAOs
     abstract fun achievementsDefDao(): com.rio.rostry.data.database.dao.AchievementDao
@@ -499,6 +514,210 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_rating_stats_sellerId` ON `rating_stats` (`sellerId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_rating_stats_productId` ON `rating_stats` (`productId`)")
+            }
+        }
+
+        // Evidence-Based Order System tables (52 -> 53)
+        val MIGRATION_52_53 = object : Migration(52, 53) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create order_evidence table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `order_evidence` (
+                        `evidenceId` TEXT NOT NULL PRIMARY KEY,
+                        `orderId` TEXT NOT NULL,
+                        `evidenceType` TEXT NOT NULL,
+                        `uploadedBy` TEXT NOT NULL,
+                        `uploadedByRole` TEXT NOT NULL,
+                        `imageUri` TEXT,
+                        `videoUri` TEXT,
+                        `textContent` TEXT,
+                        `geoLatitude` REAL,
+                        `geoLongitude` REAL,
+                        `geoAddress` TEXT,
+                        `isVerified` INTEGER NOT NULL DEFAULT 0,
+                        `verifiedBy` TEXT,
+                        `verifiedAt` INTEGER,
+                        `verificationNote` TEXT,
+                        `deviceTimestamp` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `isDeleted` INTEGER NOT NULL DEFAULT 0,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_evidence_orderId` ON `order_evidence` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_evidence_uploadedBy` ON `order_evidence` (`uploadedBy`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_evidence_evidenceType` ON `order_evidence` (`evidenceType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_evidence_createdAt` ON `order_evidence` (`createdAt`)")
+
+                // Create order_quotes table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `order_quotes` (
+                        `quoteId` TEXT NOT NULL PRIMARY KEY,
+                        `orderId` TEXT NOT NULL,
+                        `buyerId` TEXT NOT NULL,
+                        `sellerId` TEXT NOT NULL,
+                        `productId` TEXT NOT NULL,
+                        `productName` TEXT NOT NULL,
+                        `quantity` REAL NOT NULL,
+                        `unit` TEXT NOT NULL,
+                        `basePrice` REAL NOT NULL,
+                        `totalProductPrice` REAL NOT NULL,
+                        `deliveryCharge` REAL NOT NULL,
+                        `packingCharge` REAL NOT NULL DEFAULT 0.0,
+                        `platformFee` REAL NOT NULL DEFAULT 0.0,
+                        `discount` REAL NOT NULL DEFAULT 0.0,
+                        `finalTotal` REAL NOT NULL,
+                        `deliveryType` TEXT NOT NULL,
+                        `deliveryDistance` REAL,
+                        `deliveryAddress` TEXT,
+                        `deliveryLatitude` REAL,
+                        `deliveryLongitude` REAL,
+                        `pickupAddress` TEXT,
+                        `pickupLatitude` REAL,
+                        `pickupLongitude` REAL,
+                        `paymentType` TEXT NOT NULL,
+                        `advanceAmount` REAL,
+                        `balanceAmount` REAL,
+                        `status` TEXT NOT NULL,
+                        `buyerAgreedAt` INTEGER,
+                        `sellerAgreedAt` INTEGER,
+                        `lockedAt` INTEGER,
+                        `expiresAt` INTEGER,
+                        `version` INTEGER NOT NULL DEFAULT 1,
+                        `previousQuoteId` TEXT,
+                        `buyerNotes` TEXT,
+                        `sellerNotes` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_quotes_orderId` ON `order_quotes` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_quotes_buyerId` ON `order_quotes` (`buyerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_quotes_sellerId` ON `order_quotes` (`sellerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_quotes_status` ON `order_quotes` (`status`)")
+
+                // Create order_payments table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `order_payments` (
+                        `paymentId` TEXT NOT NULL PRIMARY KEY,
+                        `orderId` TEXT NOT NULL,
+                        `quoteId` TEXT NOT NULL,
+                        `payerId` TEXT NOT NULL,
+                        `receiverId` TEXT NOT NULL,
+                        `paymentPhase` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `currency` TEXT NOT NULL DEFAULT 'INR',
+                        `method` TEXT NOT NULL,
+                        `upiId` TEXT,
+                        `bankDetails` TEXT,
+                        `status` TEXT NOT NULL,
+                        `proofEvidenceId` TEXT,
+                        `transactionRef` TEXT,
+                        `verifiedAt` INTEGER,
+                        `verifiedBy` TEXT,
+                        `rejectionReason` TEXT,
+                        `refundedAmount` REAL,
+                        `refundedAt` INTEGER,
+                        `refundReason` TEXT,
+                        `dueAt` INTEGER NOT NULL,
+                        `expiredAt` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_payments_orderId` ON `order_payments` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_payments_payerId` ON `order_payments` (`payerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_payments_paymentPhase` ON `order_payments` (`paymentPhase`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_payments_status` ON `order_payments` (`status`)")
+
+                // Create delivery_confirmations table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `delivery_confirmations` (
+                        `confirmationId` TEXT NOT NULL PRIMARY KEY,
+                        `orderId` TEXT NOT NULL,
+                        `buyerId` TEXT NOT NULL,
+                        `sellerId` TEXT NOT NULL,
+                        `deliveryOtp` TEXT NOT NULL,
+                        `otpGeneratedAt` INTEGER NOT NULL,
+                        `otpExpiresAt` INTEGER NOT NULL,
+                        `otpAttempts` INTEGER NOT NULL DEFAULT 0,
+                        `maxOtpAttempts` INTEGER NOT NULL DEFAULT 3,
+                        `status` TEXT NOT NULL,
+                        `confirmationMethod` TEXT,
+                        `deliveryPhotoEvidenceId` TEXT,
+                        `buyerConfirmationEvidenceId` TEXT,
+                        `gpsEvidenceId` TEXT,
+                        `confirmedAt` INTEGER,
+                        `confirmedBy` TEXT,
+                        `deliveryNotes` TEXT,
+                        `balanceCollected` INTEGER NOT NULL DEFAULT 0,
+                        `balanceCollectedAt` INTEGER,
+                        `balanceEvidenceId` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_delivery_confirmations_orderId` ON `delivery_confirmations` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_delivery_confirmations_status` ON `delivery_confirmations` (`status`)")
+
+                // Create order_disputes table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `order_disputes` (
+                        `disputeId` TEXT NOT NULL PRIMARY KEY,
+                        `orderId` TEXT NOT NULL,
+                        `raisedBy` TEXT NOT NULL,
+                        `raisedByRole` TEXT NOT NULL,
+                        `againstUserId` TEXT NOT NULL,
+                        `reason` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `requestedResolution` TEXT,
+                        `claimedAmount` REAL,
+                        `evidenceIds` TEXT,
+                        `status` TEXT NOT NULL,
+                        `resolvedAt` INTEGER,
+                        `resolvedBy` TEXT,
+                        `resolutionType` TEXT,
+                        `resolutionNotes` TEXT,
+                        `refundedAmount` REAL,
+                        `lastResponseAt` INTEGER,
+                        `responseCount` INTEGER NOT NULL DEFAULT 0,
+                        `escalatedAt` INTEGER,
+                        `escalationReason` TEXT,
+                        `adminNotes` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_disputes_orderId` ON `order_disputes` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_disputes_raisedBy` ON `order_disputes` (`raisedBy`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_disputes_status` ON `order_disputes` (`status`)")
+
+                // Create order_audit_logs table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `order_audit_logs` (
+                        `logId` TEXT NOT NULL PRIMARY KEY,
+                        `orderId` TEXT NOT NULL,
+                        `action` TEXT NOT NULL,
+                        `fromState` TEXT,
+                        `toState` TEXT,
+                        `performedBy` TEXT NOT NULL,
+                        `performedByRole` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `metadata` TEXT,
+                        `evidenceId` TEXT,
+                        `ipAddress` TEXT,
+                        `deviceInfo` TEXT,
+                        `timestamp` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_audit_logs_orderId` ON `order_audit_logs` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_audit_logs_performedBy` ON `order_audit_logs` (`performedBy`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_audit_logs_timestamp` ON `order_audit_logs` (`timestamp`)")
             }
         }
         

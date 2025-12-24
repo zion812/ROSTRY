@@ -269,6 +269,11 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindReviewRepository(impl: com.rio.rostry.data.repository.ReviewRepositoryImpl): com.rio.rostry.data.repository.ReviewRepository
 
+    // Evidence-Based Order System
+    @Binds
+    @Singleton
+    abstract fun bindEvidenceOrderRepository(impl: com.rio.rostry.data.repository.EvidenceOrderRepositoryImpl): com.rio.rostry.data.repository.EvidenceOrderRepository
+
 }
 
 @Module
