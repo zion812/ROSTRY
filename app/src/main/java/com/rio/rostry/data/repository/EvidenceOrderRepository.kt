@@ -147,10 +147,12 @@ interface EvidenceOrderRepository {
     fun getSellerActiveQuotes(sellerId: String): Flow<List<OrderQuoteEntity>>
     fun getOrderAuditTrail(orderId: String): Flow<List<OrderAuditLogEntity>>
     fun getPaymentsAwaitingVerification(sellerId: String): Flow<List<OrderPaymentEntity>>
+    fun getPendingPaymentsForBuyer(buyerId: String): Flow<List<OrderPaymentEntity>>
     
     // Timeout handlers
-    suspend fun expireOldQuotes()
+    suspend fun expireOldQuotes(now: Long = System.currentTimeMillis()): Resource<Int>
     suspend fun expireOverduePayments()
+    suspend fun escalateDispute(disputeId: String): Resource<Unit>
 }
 
 @Singleton
@@ -907,17 +909,50 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
     
     override fun getPaymentsAwaitingVerification(sellerId: String): Flow<List<OrderPaymentEntity>> =
         paymentDao.getPaymentsAwaitingVerification(sellerId)
+    
+    override fun getPendingPaymentsForBuyer(buyerId: String): Flow<List<OrderPaymentEntity>> =
+        paymentDao.getPendingPaymentsForBuyer(buyerId)
 
     // ==================== TIMEOUT HANDLERS ====================
     
-    override suspend fun expireOldQuotes() {
-        val now = System.currentTimeMillis()
-        quoteDao.expireOldQuotes(now)
+    override suspend fun expireOldQuotes(now: Long): Resource<Int> {
+        return try {
+            val expiredCount = quoteDao.expireOldQuotes(now)
+            Resource.Success(expiredCount)
+        } catch (e: Exception) {
+            Resource.Error("Failed to expire quotes: ${e.message}")
+        }
     }
     
     override suspend fun expireOverduePayments() {
         val now = System.currentTimeMillis()
         paymentDao.expireOverduePayments(now)
+    }
+    
+    override suspend fun escalateDispute(disputeId: String): Resource<Unit> {
+        return try {
+            val dispute = disputeDao.findById(disputeId) ?: return Resource.Error("Dispute not found")
+            
+            disputeDao.escalate(
+                disputeId = disputeId,
+                reason = "Auto-escalated after 3 days without resolution",
+                escalatedAt = System.currentTimeMillis()
+            )
+            
+            logAction(
+                orderId = dispute.orderId,
+                action = "DISPUTE_ESCALATED",
+                fromState = dispute.status,
+                toState = "ESCALATED",
+                performedBy = "SYSTEM",
+                performedByRole = "SYSTEM",
+                description = "Dispute automatically escalated after 3 days without resolution"
+            )
+            
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error("Failed to escalate dispute: ${e.message}")
+        }
     }
 
     // ==================== HELPERS ====================

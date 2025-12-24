@@ -32,6 +32,8 @@ import com.rio.rostry.data.repository.analytics.ActionableInsight
 import androidx.compose.ui.text.style.TextAlign
 import com.rio.rostry.ui.components.OnboardingChecklistCard
 import com.rio.rostry.ui.onboarding.OnboardingChecklistViewModel
+import com.rio.rostry.ui.order.evidence.PendingVerificationsWidget
+import com.rio.rostry.ui.order.evidence.IncomingEnquiriesWidget
 
 data class FetcherCard(
     val title: String,
@@ -58,6 +60,10 @@ fun FarmerHomeScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val refreshingState = rememberSwipeRefreshState(isRefreshing = isRefreshing)
     val colorScheme = MaterialTheme.colorScheme
+
+    // Evidence Order System data
+    val incomingEnquiries by viewModel.incomingEnquiries.collectAsState()
+    val paymentsToVerify by viewModel.paymentsToVerify.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     val onboardingViewModel: OnboardingChecklistViewModel = hiltViewModel()
@@ -165,6 +171,34 @@ fun FarmerHomeScreen(
                     )
                 }
             }
+            
+            // Evidence Order System Widgets
+            // Pending Payments Verification (for sellers)
+            if (paymentsToVerify.isNotEmpty()) {
+                item {
+                    PendingVerificationsWidget(
+                        payments = paymentsToVerify,
+                        onViewAll = { onNavigateRoute(Routes.Order.MY_ORDERS_FARMER) },
+                        onVerifyPayment = { paymentId -> 
+                            onNavigateRoute(Routes.Order.paymentVerify(paymentId))
+                        }
+                    )
+                }
+            }
+            
+            // Incoming Enquiries Widget (for sellers)
+            if (incomingEnquiries.isNotEmpty()) {
+                item {
+                    IncomingEnquiriesWidget(
+                        quotes = incomingEnquiries,
+                        onViewAll = { onNavigateRoute(Routes.Order.MY_ORDERS_FARMER) },
+                        onQuoteClick = { quoteId -> 
+                            onNavigateRoute(Routes.Order.quoteNegotiation(quoteId, false))
+                        }
+                    )
+                }
+            }
+            
             // Weekly KPI Cards
             uiState.weeklySnapshot?.let { snapshot ->
                 item {
@@ -346,8 +380,11 @@ fun FarmerHomeScreen(
                     WidgetType.TRANSFERS -> Icons.Filled.Send to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("ELIGIBLE")) }
                     WidgetType.TRANSFERS_PENDING -> Icons.Filled.PendingActions to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("PENDING")) }
                     WidgetType.TRANSFERS_VERIFICATION -> Icons.Filled.VerifiedUser to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("AWAITING_VERIFICATION")) }
-                    WidgetType.TRANSFERS_VERIFICATION -> Icons.Filled.VerifiedUser to { viewModel.navigateToModule(Routes.Builders.transfersWithFilter("AWAITING_VERIFICATION")) }
                     WidgetType.COMPLIANCE -> Icons.Filled.Warning to { viewModel.navigateToCompliance() }
+                    // Evidence Order widgets
+                    WidgetType.INCOMING_ENQUIRIES -> Icons.Filled.Mail to { onNavigateRoute(Routes.Order.MY_ORDERS_FARMER) }
+                    WidgetType.PAYMENTS_TO_VERIFY -> Icons.Filled.Payment to { onNavigateRoute(Routes.Order.MY_ORDERS_FARMER) }
+                    WidgetType.ACTIVE_ORDERS -> Icons.Filled.ShoppingCart to { onNavigateRoute(Routes.Order.MY_ORDERS) }
                 }
                 
                 // Add Digital Farm Card manually if not in widgets list (or assume it's a static addition for now)

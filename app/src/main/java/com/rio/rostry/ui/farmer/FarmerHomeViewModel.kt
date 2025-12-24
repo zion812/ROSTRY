@@ -15,6 +15,9 @@ import com.rio.rostry.data.repository.TransferRepository
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.repository.EvidenceOrderRepository
+import com.rio.rostry.data.database.entity.OrderQuoteEntity
+import com.rio.rostry.data.database.entity.OrderPaymentEntity
 import com.rio.rostry.data.repository.analytics.DailyGoal
 import com.rio.rostry.data.repository.analytics.ActionableInsight
 import timber.log.Timber
@@ -72,7 +75,11 @@ data class FarmerHomeUiState(
     val verificationStatus: com.rio.rostry.domain.model.VerificationStatus = com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
     val recentActivity: List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> = emptyList(),
     val widgets: List<DashboardWidget> = emptyList(),
-    val farmAssetCount: Int = 0 // NEW: Count of farm assets for My Farm card
+    val farmAssetCount: Int = 0, // Count of farm assets for My Farm card
+    // Evidence Order System fields
+    val incomingEnquiries: List<OrderQuoteEntity> = emptyList(),
+    val paymentsToVerify: List<OrderPaymentEntity> = emptyList(),
+    val pendingPaymentsCount: Int = 0
 )
 
 data class DashboardWidget(
@@ -89,7 +96,9 @@ enum class AlertLevel { NORMAL, INFO, WARNING, CRITICAL }
 enum class WidgetType {
     DAILY_LOG, TASKS, VACCINATION, GROWTH, QUARANTINE, HATCHING, 
     MORTALITY, BREEDING, READY_TO_LIST, NEW_LISTING, TRANSFERS, COMPLIANCE,
-    TRANSFERS_PENDING, TRANSFERS_VERIFICATION
+    TRANSFERS_PENDING, TRANSFERS_VERIFICATION,
+    // Evidence Order widgets
+    INCOMING_ENQUIRIES, PAYMENTS_TO_VERIFY, ACTIVE_ORDERS
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -113,7 +122,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val analyticsRepository: AnalyticsRepository,
     private val userRepository: UserRepository,
     private val farmOnboardingRepository: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository,
-    private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository // NEW: For farm asset count
+    private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
+    private val evidenceOrderRepository: EvidenceOrderRepository // Evidence Order System
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -125,6 +135,37 @@ class FarmerHomeViewModel @Inject constructor(
     // Pull-to-refresh indicator
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
+
+    // Evidence Order System - managed separately to avoid combine() limits
+    private val _incomingEnquiries = MutableStateFlow<List<OrderQuoteEntity>>(emptyList())
+    val incomingEnquiries: StateFlow<List<OrderQuoteEntity>> = _incomingEnquiries
+
+    private val _paymentsToVerify = MutableStateFlow<List<OrderPaymentEntity>>(emptyList())
+    val paymentsToVerify: StateFlow<List<OrderPaymentEntity>> = _paymentsToVerify
+
+    init {
+        loadEvidenceOrderData()
+    }
+
+    private fun loadEvidenceOrderData() {
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { userId ->
+                // Load incoming enquiries (quotes in DRAFT status)
+                evidenceOrderRepository.getSellerActiveQuotes(userId).collect { quotes ->
+                    _incomingEnquiries.value = quotes.filter { it.status == "DRAFT" }
+                }
+            }
+        }
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { userId ->
+                // Load payments awaiting verification
+                evidenceOrderRepository.getPaymentsAwaitingVerification(userId).collect { payments ->
+                    _paymentsToVerify.value = payments
+                }
+            }
+        }
+    }
+
 
 
     // Reactive farmerId from Firebase Auth (nullable). Emits null when signed out so UI can stop loading.

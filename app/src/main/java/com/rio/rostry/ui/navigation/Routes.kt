@@ -87,6 +87,10 @@ object Routes {
         const val DISPUTE_DETAILS = "dispute/{disputeId}"
         const val PAYMENT_VERIFY = "order/payment/{paymentId}/verify"
         
+        // Review routes
+        const val ORDER_REVIEW = "order/{orderId}/review"
+        const val SELLER_REVIEWS = "seller/{sellerId}/reviews"
+        
         // Helper functions
         fun createEnquiry(productId: String, sellerId: String) = 
             "order/enquiry/$productId/$sellerId"
@@ -99,6 +103,8 @@ object Routes {
         fun raiseDispute(orderId: String) = "order/$orderId/dispute"
         fun disputeDetails(disputeId: String) = "dispute/$disputeId"
         fun paymentVerify(paymentId: String) = "order/payment/$paymentId/verify"
+        fun orderReview(orderId: String) = "order/$orderId/review"
+        fun sellerReviews(sellerId: String) = "seller/$sellerId/reviews"
     }
 
     object Transfers {

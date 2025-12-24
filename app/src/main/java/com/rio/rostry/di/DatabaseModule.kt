@@ -453,4 +453,29 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideMarketListingDao(db: AppDatabase): com.rio.rostry.data.database.dao.MarketListingDao = db.marketListingDao()
+
+    // Evidence-Based Order System DAOs
+    @Provides
+    @Singleton
+    fun provideOrderEvidenceDao(db: AppDatabase): com.rio.rostry.data.database.dao.OrderEvidenceDao = db.orderEvidenceDao()
+
+    @Provides
+    @Singleton
+    fun provideOrderQuoteDao(db: AppDatabase): com.rio.rostry.data.database.dao.OrderQuoteDao = db.orderQuoteDao()
+
+    @Provides
+    @Singleton
+    fun provideOrderPaymentDao(db: AppDatabase): com.rio.rostry.data.database.dao.OrderPaymentDao = db.orderPaymentDao()
+
+    @Provides
+    @Singleton
+    fun provideDeliveryConfirmationDao(db: AppDatabase): com.rio.rostry.data.database.dao.DeliveryConfirmationDao = db.deliveryConfirmationDao()
+
+    @Provides
+    @Singleton
+    fun provideOrderDisputeDao(db: AppDatabase): com.rio.rostry.data.database.dao.OrderDisputeDao = db.orderDisputeDao()
+
+    @Provides
+    @Singleton
+    fun provideOrderAuditLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.OrderAuditLogDao = db.orderAuditLogDao()
 }

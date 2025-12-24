@@ -234,4 +234,25 @@ fun NavGraphBuilder.evidenceOrderNavGraph(
             onVerified = { navController.popBackStack() }
         )
     }
+
+    // Order Review
+    composable(
+        route = Routes.Order.ORDER_REVIEW,
+        arguments = listOf(
+            navArgument("orderId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+        
+        // In real app, fetch product and seller details from repository
+        OrderReviewScreen(
+            orderId = orderId,
+            productName = "Product Name", // Would come from repository
+            sellerName = "Seller Name", // Would come from repository
+            onNavigateBack = { navController.popBackStack() },
+            onReviewSubmitted = { 
+                navController.popBackStack()
+            }
+        )
+    }
 }

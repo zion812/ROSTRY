@@ -81,7 +81,7 @@ interface OrderQuoteDao {
     suspend fun sellerAgree(quoteId: String, agreedAt: Long)
     
     @Query("UPDATE order_quotes SET status = 'EXPIRED', updatedAt = :expiredAt, dirty = 1 WHERE expiresAt < :expiredAt AND status NOT IN ('LOCKED', 'EXPIRED', 'REJECTED')")
-    suspend fun expireOldQuotes(expiredAt: Long)
+    suspend fun expireOldQuotes(expiredAt: Long): Int
     
     @Query("SELECT * FROM order_quotes WHERE dirty = 1")
     suspend fun getDirtyRecords(): List<OrderQuoteEntity>
@@ -110,6 +110,9 @@ interface OrderPaymentDao {
     
     @Query("SELECT * FROM order_payments WHERE payerId = :payerId AND status = 'PENDING' ORDER BY dueAt")
     fun getPendingPayments(payerId: String): Flow<List<OrderPaymentEntity>>
+    
+    @Query("SELECT * FROM order_payments WHERE payerId = :buyerId AND status = 'PENDING' ORDER BY dueAt")
+    fun getPendingPaymentsForBuyer(buyerId: String): Flow<List<OrderPaymentEntity>>
     
     @Query("SELECT * FROM order_payments WHERE receiverId = :receiverId AND status = 'PROOF_SUBMITTED' ORDER BY updatedAt DESC")
     fun getPaymentsAwaitingVerification(receiverId: String): Flow<List<OrderPaymentEntity>>
