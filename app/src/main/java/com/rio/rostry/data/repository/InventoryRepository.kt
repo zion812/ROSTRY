@@ -27,4 +27,10 @@ interface InventoryRepository {
     ): Resource<String>
     
     suspend fun syncInventory(): Resource<Unit>
+    
+    /**
+     * Returns all inventory items as a Flow. Used for market listing conversion
+     * where we need to map inventory data (quantity, unit) to product entities.
+     */
+    fun getAllInventory(): Flow<Resource<List<InventoryItemEntity>>>
 }

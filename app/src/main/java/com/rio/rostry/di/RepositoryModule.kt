@@ -264,6 +264,11 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindMarketListingRepository(impl: com.rio.rostry.data.repository.MarketListingRepositoryImpl): com.rio.rostry.data.repository.MarketListingRepository
 
+    // Reviews & Ratings
+    @Binds
+    @Singleton
+    abstract fun bindReviewRepository(impl: com.rio.rostry.data.repository.ReviewRepositoryImpl): com.rio.rostry.data.repository.ReviewRepository
+
 }
 
 @Module

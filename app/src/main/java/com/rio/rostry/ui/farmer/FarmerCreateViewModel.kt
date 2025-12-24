@@ -248,15 +248,13 @@ class FarmerCreateViewModel @Inject constructor(
     }
 
     /**
-     * Load farm monitoring data to prefill the listing wizard when coming from farm screens
-     * Comment 1: Add guardrails for null/blank productId
+     * Load farm monitoring data to prefill the listing wizard when coming from farm screens.
+     * When productId is null/blank, this function silently returns as manual listing is intended.
+     * Only shows error when a valid productId is provided but the product cannot be loaded.
      */
     fun loadPrefillData(productId: String?) {
-        // Comment 1: Validate productId and show user-facing error if invalid
+        // If no productId provided, user intends to create listing manually - don't show error
         if (productId.isNullOrBlank()) {
-            _ui.value = _ui.value.copy(
-                error = "Invalid product selection. Please list manually or try again."
-            )
             return
         }
         

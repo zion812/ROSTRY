@@ -166,6 +166,12 @@ object Routes {
         const val COMMUNITY = "farmer/community"
         const val PROFILE = "farmer/profile"
         const val DIGITAL_FARM = "farmer/digital_farm"
+        
+        // NEW: Farm Asset Management Routes (Phase 1 of Farm-Market Separation)
+        const val FARM_ASSETS = "farmer/farm_assets"
+        const val ASSET_DETAILS = "farmer/asset/{assetId}"
+        const val CREATE_ASSET = "farmer/create_asset"
+        const val CREATE_LISTING_FROM_ASSET = "farmer/create_listing/{assetId}"
     }
 
     object EnthusiastNav {
@@ -212,9 +218,9 @@ object Routes {
         startDestination = FarmerNav.HOME,
         bottomNav = listOf(
             BottomNavDestination(FarmerNav.HOME, "Home"),
-            BottomNavDestination(FarmerNav.MARKET, "Market"),
-            BottomNavDestination(FarmerNav.COMMUNITY, "Community"),
-            BottomNavDestination(Analytics.FARMER, "Analytics"), // Replaces Create (moved to FAB)
+            BottomNavDestination(FarmerNav.FARM_ASSETS, "My Farm"), // NEW: Dedicated farm management tab
+            BottomNavDestination(FarmerNav.MARKET, "Market"), // Browse marketplace
+            BottomNavDestination(Analytics.FARMER, "Analytics"),
             BottomNavDestination(FarmerNav.PROFILE, "Profile")
         ),
         accessibleRoutes = setOf(
@@ -256,7 +262,12 @@ object Routes {
             Sync.ISSUES,
             Upgrade.WIZARD,
             Upgrade.POST_ONBOARDING,
-            FarmerNav.DIGITAL_FARM
+            FarmerNav.DIGITAL_FARM,
+            // NEW: Farm Asset Management routes
+            FarmerNav.FARM_ASSETS,
+            FarmerNav.ASSET_DETAILS,
+            FarmerNav.CREATE_ASSET,
+            FarmerNav.CREATE_LISTING_FROM_ASSET
         )
     )
 
@@ -594,6 +605,10 @@ object Routes {
         fun upgradePostOnboarding(newRole: UserType): String = "upgrade/post_onboarding/${newRole.name}"
 
         fun verificationWithType(upgradeType: com.rio.rostry.domain.model.UpgradeType): String = "verification/${upgradeType.name}"
+        
+        // NEW: Farm Asset Management builders
+        fun assetDetails(assetId: String): String = "farmer/asset/${URLEncoder.encode(assetId, "UTF-8")}"
+        fun createListingFromAsset(assetId: String): String = "farmer/create_listing/${URLEncoder.encode(assetId, "UTF-8")}"
     }
 
 } // Closing brace for object Routes

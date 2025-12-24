@@ -116,7 +116,7 @@ data class ReputationEntity(
     val updatedAt: Long,
 )
 
-@Entity(tableName = "outgoing_messages", indices = [Index("status"), Index("createdAt")])
+@Entity(tableName = "outgoing_messages", indices = [Index("status"), Index("createdAt"), Index("priority")])
 data class OutgoingMessageEntity(
     @PrimaryKey val id: String,
     val kind: String, // DM or GROUP
@@ -126,7 +126,14 @@ data class OutgoingMessageEntity(
     val bodyText: String?,
     val fileUri: String?,
     val fileName: String?,
-    val status: String, // PENDING, SENT, FAILED
+    val status: String, // PENDING, SENDING, SENT, DELIVERED, READ, FAILED
+    val priority: Int = 1, // 0=IMMEDIATE, 1=HIGH, 2=NORMAL, 3=LOW
+    val retryCount: Int = 0,
+    val maxRetries: Int = 3,
+    val lastError: String? = null,
+    val sentAt: Long? = null,
+    val deliveredAt: Long? = null,
+    val readAt: Long? = null,
     val createdAt: Long,
 )
 

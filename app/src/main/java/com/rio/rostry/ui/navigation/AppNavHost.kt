@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -85,6 +86,9 @@ import com.rio.rostry.ui.farmer.FarmerMarketScreen
 import com.rio.rostry.ui.farmer.FarmerCreateScreen
 import com.rio.rostry.ui.farmer.FarmerCommunityScreen
 import com.rio.rostry.ui.farmer.FarmerProfileScreen
+import com.rio.rostry.ui.farmer.asset.FarmAssetListScreen
+import com.rio.rostry.ui.farmer.asset.FarmAssetDetailScreen
+import com.rio.rostry.ui.farmer.listing.CreateListingScreen
 import com.rio.rostry.ui.screens.HomeGeneralScreen
 import com.rio.rostry.ui.screens.PlaceholderScreen
 import com.rio.rostry.ui.session.SessionViewModel
@@ -859,8 +863,12 @@ private fun RoleNavGraph(
             val state by vm.ui.collectAsState()
             
             FarmerMarketScreen(
-                onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
-                onEditListing = { id -> navController.navigate(Routes.FarmerNav.CREATE) },
+                // NEW: Route to asset selection first, then create listing from selected asset
+                onCreateListing = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
+                onEditListing = { listingId -> 
+                    // For edit, navigate to the listing details (could be asset-based in future)
+                    navController.navigate(Routes.Builders.productDetails(listingId))
+                },
                 onBoostListing = { _ -> /* Could open promo screen */ Unit },
                 onPauseListing = { _ -> /* Pause listing action */ Unit },
                 onOpenOrder = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
@@ -966,6 +974,86 @@ private fun RoleNavGraph(
                 onContactSupport = { /* open support */ }
             )
         }
+        
+        // ============ NEW: Farm Asset Management Routes (Phase 1 of Farm-Market Separation) ============
+        
+        // Farm Assets List - "My Farm" tab destination
+        composable(Routes.FarmerNav.FARM_ASSETS) {
+            FarmAssetListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAssetClick = { assetId -> 
+                    navController.navigate(Routes.Builders.assetDetails(assetId))
+                },
+                onAddAsset = { 
+                    navController.navigate(Routes.FarmerNav.CREATE_ASSET)
+                }
+            )
+        }
+        
+        // Farm Asset Detail - view/manage individual asset
+        composable(
+            route = Routes.FarmerNav.ASSET_DETAILS,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId")
+            if (assetId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                FarmAssetDetailScreen(
+                    assetId = assetId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onCreateListing = { 
+                        navController.navigate(Routes.Builders.createListingFromAsset(assetId))
+                    }
+                )
+            }
+        }
+        
+        // Create Asset - add new farm asset
+        composable(Routes.FarmerNav.CREATE_ASSET) {
+            if (isGuestMode) {
+                LaunchedEffect(Unit) {
+                    onGuestActionAttempt(Routes.FarmerNav.CREATE_ASSET)
+                    navController.popBackStack()
+                }
+            } else {
+                // TODO: Create FarmAssetCreateScreen - for now route to existing create
+                FarmerCreateScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    prefillProductId = null,
+                    pairId = null
+                )
+            }
+        }
+        
+        // Create Listing from Asset - publish asset to marketplace
+        composable(
+            route = Routes.FarmerNav.CREATE_LISTING_FROM_ASSET,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId")
+            if (assetId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                if (isGuestMode) {
+                    LaunchedEffect(Unit) {
+                        onGuestActionAttempt(Routes.FarmerNav.CREATE_LISTING_FROM_ASSET)
+                        navController.popBackStack()
+                    }
+                } else {
+                    CreateListingScreen(
+                        assetId = assetId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onListingCreated = { 
+                            navController.popBackStack(Routes.FarmerNav.FARM_ASSETS, inclusive = false)
+                        }
+                    )
+                }
+            }
+        }
+        
+        // ============ END: Farm Asset Management Routes ============
+        
         // Shared breeding management route for enthusiasts
         composable(
             route = Routes.MONITORING_BREEDING,
@@ -1925,6 +2013,7 @@ private fun iconForRoute(route: String): androidx.compose.ui.graphics.vector.Ima
     val base = route.substringBefore("/{")
     return when (base) {
         Routes.FarmerNav.HOME, Routes.EnthusiastNav.HOME -> Icons.Filled.Home
+        Routes.FarmerNav.FARM_ASSETS -> Icons.Filled.Pets // My Farm tab icon
         Routes.FarmerNav.MARKET -> Icons.Filled.Store
         Routes.FarmerNav.CREATE, Routes.EnthusiastNav.CREATE -> Icons.Filled.Add
         Routes.FarmerNav.COMMUNITY -> Icons.Filled.Groups

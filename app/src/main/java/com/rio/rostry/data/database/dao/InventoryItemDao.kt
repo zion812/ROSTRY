@@ -31,4 +31,11 @@ interface InventoryItemDao {
     // Sync Support
     @Query("SELECT * FROM farm_inventory WHERE updatedAt > :sinceTime LIMIT :limit")
     suspend fun getUpdatedSince(sinceTime: Long, limit: Int = 100): List<InventoryItemEntity>
+    
+    /**
+     * Returns all inventory items. Used for market listing conversion where we need
+     * to map inventory data (quantity, unit) to product entities.
+     */
+    @Query("SELECT * FROM farm_inventory")
+    fun getAllInventory(): Flow<List<InventoryItemEntity>>
 }

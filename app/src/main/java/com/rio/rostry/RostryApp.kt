@@ -23,6 +23,7 @@ import com.rio.rostry.workers.ReportingWorker
 import com.rio.rostry.workers.VaccinationReminderWorker
 import com.rio.rostry.workers.FarmPerformanceWorker
 import com.rio.rostry.workers.OrderStatusWorker
+import com.rio.rostry.workers.LegacyProductMigrationWorker
 import coil.Coil
 import coil.ImageLoader
 import coil.util.DebugLogger
@@ -275,6 +276,27 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         com.rio.rostry.workers.PersonalizationWorker.schedule(this)
         com.rio.rostry.workers.CommunityEngagementWorker.schedule(this)
         com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
+        
+        // One-time migration: Legacy ProductEntity → New Farm Asset Architecture
+        scheduleLegacyMigration(workManager)
+    }
+    
+    private fun scheduleLegacyMigration(workManager: WorkManager) {
+        val migrationRequest = OneTimeWorkRequestBuilder<LegacyProductMigrationWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .addTag("legacy_migration")
+            .build()
+        
+        workManager.enqueueUniqueWork(
+            LegacyProductMigrationWorker.WORK_NAME,
+            androidx.work.ExistingWorkPolicy.KEEP, // Only run once
+            migrationRequest
+        )
+        Timber.i("Scheduled LegacyProductMigrationWorker (one-time migration)")
     }
     
     private var isConnectivityCallbackRegistered = false

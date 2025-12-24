@@ -391,7 +391,18 @@ fun FarmerHomeScreen(
                 isLocked = false
             )
             
-            val allFetcherCards = listOf(digitalFarmCard) + fetcherCards
+            // Add My Farm (Farm Assets) Card - NEW entry point to asset management
+            val myFarmCard = FetcherCard(
+                title = "My Farm",
+                count = uiState.farmAssetCount, // Show asset count from ViewModel
+                badgeCount = 0,
+                icon = Icons.Filled.Pets, // Matches bottom nav icon
+                action = "Manage Assets",
+                onClick = { viewModel.navigateToModule(Routes.FarmerNav.FARM_ASSETS) },
+                isLocked = false
+            )
+            
+            val allFetcherCards = listOf(myFarmCard, digitalFarmCard) + fetcherCards
 
             // Convert grid to rows to avoid nested lazy layout with stable keys
             val fetcherRows = allFetcherCards.chunked(2)

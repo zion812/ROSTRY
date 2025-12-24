@@ -31,7 +31,9 @@ class GeneralMarketViewModel @Inject constructor(
     private val recommendationEngine: com.rio.rostry.ai.RecommendationEngine,
     private val currentUserProvider: CurrentUserProvider,
     private val analytics: GeneralAnalyticsTracker,
-    private val breedRepository: com.rio.rostry.data.repository.BreedRepository
+    private val breedRepository: com.rio.rostry.data.repository.BreedRepository,
+    private val marketListingRepository: com.rio.rostry.data.repository.MarketListingRepository, // NEW: for new listings
+    private val inventoryRepository: com.rio.rostry.data.repository.InventoryRepository // NEW: for inventory data lookup
 ) : ViewModel() {
 
     data class LatLong(val latitude: Double, val longitude: Double)
@@ -337,17 +339,83 @@ class GeneralMarketViewModel @Inject constructor(
 
     private fun observeProducts() {
         viewModelScope.launch {
-            productRepository.getAllProducts().collect { res ->
-                when (res) {
-                    is Resource.Loading -> isLoading.value = true
-                    is Resource.Success -> {
-                        baseProducts.value = res.data.orEmpty()
-                        isLoading.value = false
+            // Combine legacy ProductEntity stream, new MarketListingEntity stream, and Inventory stream
+            kotlinx.coroutines.flow.combine(
+                productRepository.getAllProducts(),
+                marketListingRepository.getPublicListings(),
+                inventoryRepository.getAllInventory()
+            ) { productRes, listingRes, inventoryRes ->
+                val legacyProducts = (productRes as? Resource.Success)?.data.orEmpty()
+                val newListings = (listingRes as? Resource.Success)?.data.orEmpty()
+                val inventoryItems = (inventoryRes as? Resource.Success)?.data.orEmpty()
+                
+                // Key inventory by inventoryId for O(1) lookup
+                val inventoryMap = inventoryItems.associateBy { it.inventoryId }
+                
+                // Convert MarketListingEntity to ProductEntity-like for UI compatibility
+                val convertedListings = newListings.mapNotNull { listing ->
+                    try {
+                        // Fetch inventory data for this listing
+                        val inventory = inventoryMap[listing.inventoryId]
+                        
+                        // Determine quantity and unit from inventory, fallback to listing data
+                        val quantity = inventory?.quantityAvailable ?: 0.0
+                        val unit = inventory?.unit ?: listing.priceUnit
+                        
+                        // Map listing.status to ProductEntity.status:
+                        // PUBLISHED + isActive = "available"
+                        // SOLD_OUT = "sold_out"
+                        // SUSPENDED = "suspended"
+                        // DRAFT or others = "private"
+                        val productStatus = when {
+                            listing.status == "PUBLISHED" && listing.isActive -> "available"
+                            listing.status == "SOLD_OUT" -> "sold_out"
+                            listing.status == "SUSPENDED" -> "suspended"
+                            else -> "private" // DRAFT or unknown
+                        }
+                        
+                        ProductEntity(
+                            productId = listing.listingId,
+                            sellerId = listing.sellerId,
+                            name = listing.title,
+                            description = listing.description,
+                            category = listing.category,
+                            quantity = quantity,
+                            unit = unit,
+                            price = listing.price,
+                            location = listing.locationName ?: "",
+                            latitude = listing.latitude,
+                            longitude = listing.longitude,
+                            imageUrls = listing.imageUrls,
+                            status = productStatus,
+                            createdAt = listing.createdAt,
+                            updatedAt = listing.updatedAt,
+                            // Delivery options from MarketListingEntity
+                            deliveryOptions = listing.deliveryOptions,
+                            deliveryCost = listing.deliveryCost,
+                            leadTimeDays = listing.leadTimeDays
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("GeneralMarketVM", "Failed to convert listing ${listing.listingId}", e)
+                        null // Skip malformed listings
                     }
-                    is Resource.Error -> {
-                        error.value = res.message
-                        isLoading.value = false
-                    }
+                }
+                
+                // Merge and de-duplicate by productId (prefer newer updatedAt)
+                val merged = (legacyProducts + convertedListings)
+                    .groupBy { it.productId }
+                    .map { (_, products) -> products.maxByOrNull { it.updatedAt } ?: products.first() }
+                
+                val isLoadingResult = productRes is Resource.Loading || 
+                                      listingRes is Resource.Loading || 
+                                      inventoryRes is Resource.Loading
+                Pair(isLoadingResult, merged)
+            }.collect { (isLoadingResult, mergedProducts) ->
+                if (isLoadingResult) {
+                    isLoading.value = true
+                } else {
+                    baseProducts.value = mergedProducts
+                    isLoading.value = false
                 }
             }
         }

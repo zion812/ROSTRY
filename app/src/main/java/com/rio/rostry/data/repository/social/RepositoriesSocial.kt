@@ -69,6 +69,16 @@ interface SocialRepository {
     
     // Reputation
     fun getReputation(userId: String): Flow<ReputationEntity?>
+    
+    // Profile stats - data-driven counts
+    fun getUserPostsCount(userId: String): Flow<Int>
+    fun getFollowersCount(userId: String): Flow<Int>
+    fun getFollowingCount(userId: String): Flow<Int>
+    
+    // Follow system
+    suspend fun follow(followerId: String, followedId: String)
+    suspend fun unfollow(followerId: String, followedId: String)
+    fun isFollowing(followerId: String, followedId: String): Flow<Boolean>
 }
 
 @Singleton
@@ -79,6 +89,7 @@ class SocialRepositoryImpl @Inject constructor(
     private val storiesDao: StoriesDao,
     private val reputationDao: ReputationDao,
     private val badgesDao: BadgesDao,
+    private val followsDao: FollowsDao,
     private val storage: FirebaseStorage,
     private val rateLimitDao: RateLimitDao,
     @ApplicationContext private val appContext: Context,
@@ -277,6 +288,58 @@ class SocialRepositoryImpl @Inject constructor(
         val rep = reputationDao.getByUserId(userId)
         trySend(rep)
         close()
+    }
+
+    // Profile stats - data-driven counts
+    override fun getUserPostsCount(userId: String): Flow<Int> {
+        return postsDao.countByAuthor(userId)
+    }
+
+    override fun getFollowersCount(userId: String): Flow<Int> {
+        return followsDao.followersCount(userId)
+    }
+
+    override fun getFollowingCount(userId: String): Flow<Int> {
+        return followsDao.followingCount(userId)
+    }
+
+    // Follow system implementation
+    override suspend fun follow(followerId: String, followedId: String) {
+        // Prevent self-follow
+        if (followerId == followedId) return
+        
+        // Rate limiting
+        checkRateLimit("follow", followerId, 1_000)
+        
+        // Check if already following
+        if (followsDao.isFollowingSuspend(followerId, followedId)) return
+        
+        val follow = FollowEntity(
+            followId = UUID.randomUUID().toString(),
+            followerId = followerId,
+            followedId = followedId,
+            createdAt = System.currentTimeMillis()
+        )
+        followsDao.upsert(follow)
+        
+        // Award reputation to the followed user (+2 for gaining a follower)
+        val rep = reputationDao.getByUserId(followedId)
+        reputationDao.upsert(
+            ReputationEntity(
+                repId = rep?.repId ?: UUID.randomUUID().toString(),
+                userId = followedId,
+                score = (rep?.score ?: 0) + 2,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    override suspend fun unfollow(followerId: String, followedId: String) {
+        followsDao.unfollow(followerId, followedId)
+    }
+
+    override fun isFollowing(followerId: String, followedId: String): Flow<Boolean> {
+        return followsDao.isFollowing(followerId, followedId)
     }
 }
 

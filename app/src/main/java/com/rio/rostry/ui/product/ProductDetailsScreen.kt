@@ -425,9 +425,9 @@ private fun ProductInfoSection(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "(${(product.productId.hashCode().absoluteValue % 100 + 10)} reviews)",
+                text = "(No reviews yet)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -461,13 +461,8 @@ private fun ProductInfoSection(
             fontWeight = FontWeight.Medium
         )
 
-        // View count
-        Text(
-            text = "👁 ${(product.productId.hashCode().absoluteValue % 500 + 50)} people viewed this today",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        // View count - hidden until real analytics are implemented
+        // TODO: Replace with real view count from analytics when available
     }
 }
 
@@ -527,8 +522,9 @@ private fun SellerInfoCard(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
-                        text = "${sellerRating(product.sellerId)} (${(product.sellerId.hashCode().absoluteValue % 50 + 10)} ratings)",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "New seller",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -941,11 +937,11 @@ private fun ProductActionBar(
     }
 }
 
+// TODO: Implement real seller rating system
+// This function should fetch actual ratings from a reviews table
 private fun sellerRating(sellerId: String): String {
-    if (sellerId.isBlank()) return "4.5"
-    val normalized = (sellerId.hashCode().absoluteValue % 20) / 10.0
-    val rating = 4.0 + normalized
-    return "%.1f".format(rating.coerceIn(4.0, 5.0))
+    // Return placeholder until real rating system is implemented
+    return "–" // Em dash indicates no rating yet
 }
 
 @Composable

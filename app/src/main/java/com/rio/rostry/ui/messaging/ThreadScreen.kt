@@ -31,7 +31,8 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
             TopAppBar(
                 title = {
                     Column {
-                        Text(metadata?.title ?: "Thread $threadId")
+                        // Show friendly fallback instead of raw UUID
+                        Text(metadata?.title ?: "New Conversation")
                         metadata?.context?.type?.let { contextType ->
                             Text(
                                 when (contextType) {

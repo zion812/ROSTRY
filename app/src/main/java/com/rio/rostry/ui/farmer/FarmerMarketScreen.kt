@@ -136,8 +136,8 @@ fun FarmerMarketScreen(
                     Tab(
                         selected = selectedTabIndex == 1,
                         onClick = { onSelectTab(1) },
-                        text = { Text("My Farm", fontWeight = FontWeight.SemiBold) },
-                        icon = { Icon(Icons.Outlined.Store, contentDescription = "My Farm Tab") }
+                        text = { Text("My Listings", fontWeight = FontWeight.SemiBold) },
+                        icon = { Icon(Icons.Outlined.Inventory, contentDescription = "My Listings Tab") }
                     )
                 }
             }

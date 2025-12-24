@@ -99,9 +99,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FarmVerificationEntity::class,
         FarmAssetEntity::class,
         InventoryItemEntity::class,
-        MarketListingEntity::class
+        MarketListingEntity::class,
+        // Reviews & Ratings
+        ReviewEntity::class,
+        ReviewHelpfulEntity::class,
+        RatingStatsEntity::class
     ],
-    version = 50, // 50: Add latestVerificationId/Ref to users; 49: Add customClaimsUpdatedAt to users
+    version = 52, // 52: Reviews & Ratings system; 51: Farm-Market Separation indexes
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -169,6 +173,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun analyticsDao(): AnalyticsDao
     abstract fun reportsDao(): ReportsDao
     abstract fun storiesDao(): StoriesDao
+
+    // Reviews & Ratings DAO
+    abstract fun reviewDao(): ReviewDao
 
     // Gamification DAOs
     abstract fun achievementsDefDao(): com.rio.rostry.data.database.dao.AchievementDao
@@ -418,6 +425,83 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `users` ADD COLUMN `latestVerificationRef` TEXT")
             }
         }
+
+        // Add Farm-Market Separation indexes (50 -> 51)
+        val MIGRATION_50_51 = object : Migration(50, 51) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add priority index to outgoing_messages for sync priority queue
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outgoing_messages_priority` ON `outgoing_messages` (`priority`)")
+                
+                // Add composite index for farm assets queries
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_farmerId_status` ON `farm_assets` (`farmerId`, `status`)")
+                
+                // Add composite index for market listings queries
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_market_listings_status_isActive` ON `market_listings` (`status`, `isActive`)")
+            }
+        }
+
+        // Create Reviews & Ratings tables (51 -> 52)
+        val MIGRATION_51_52 = object : Migration(51, 52) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create reviews table
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `reviews` (
+                        `reviewId` TEXT NOT NULL PRIMARY KEY,
+                        `productId` TEXT,
+                        `sellerId` TEXT NOT NULL,
+                        `orderId` TEXT,
+                        `reviewerId` TEXT NOT NULL,
+                        `rating` INTEGER NOT NULL,
+                        `title` TEXT,
+                        `content` TEXT,
+                        `isVerifiedPurchase` INTEGER NOT NULL,
+                        `helpfulCount` INTEGER NOT NULL DEFAULT 0,
+                        `responseFromSeller` TEXT,
+                        `responseAt` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `isDeleted` INTEGER NOT NULL DEFAULT 0,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_productId` ON `reviews` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_sellerId` ON `reviews` (`sellerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_reviewerId` ON `reviews` (`reviewerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reviews_createdAt` ON `reviews` (`createdAt`)")
+
+                // Create review_helpful table
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `review_helpful` (
+                        `reviewId` TEXT NOT NULL,
+                        `userId` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`reviewId`, `userId`)
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_review_helpful_reviewId` ON `review_helpful` (`reviewId`)")
+
+                // Create rating_stats table
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `rating_stats` (
+                        `statsId` TEXT NOT NULL PRIMARY KEY,
+                        `sellerId` TEXT,
+                        `productId` TEXT,
+                        `averageRating` REAL NOT NULL,
+                        `totalReviews` INTEGER NOT NULL,
+                        `rating5Count` INTEGER NOT NULL,
+                        `rating4Count` INTEGER NOT NULL,
+                        `rating3Count` INTEGER NOT NULL,
+                        `rating2Count` INTEGER NOT NULL,
+                        `rating1Count` INTEGER NOT NULL,
+                        `verifiedPurchaseCount` INTEGER NOT NULL,
+                        `lastUpdated` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_rating_stats_sellerId` ON `rating_stats` (`sellerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_rating_stats_productId` ON `rating_stats` (`productId`)")
+            }
+        }
+        
         // Add daily_logs and tasks tables; add lifecycle columns to products
         val MIGRATION_27_28 = object : Migration(27, 28) {
             override fun migrate(db: SupportSQLiteDatabase) {

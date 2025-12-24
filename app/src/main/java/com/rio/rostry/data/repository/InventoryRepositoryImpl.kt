@@ -92,4 +92,8 @@ class InventoryRepositoryImpl @Inject constructor(
              Resource.Error(e.message ?: "Failed")
          }
     }
+    
+    override fun getAllInventory(): Flow<Resource<List<InventoryItemEntity>>> {
+        return dao.getAllInventory().map { Resource.Success(it) }
+    }
 }

@@ -37,6 +37,10 @@ interface PostsDao {
     // Get replies for a post (1 level deep threading)
     @Query("SELECT * FROM posts WHERE parentPostId = :parentId ORDER BY createdAt ASC")
     fun getReplies(parentId: String): Flow<List<PostEntity>>
+
+    // Count posts by author for profile stats
+    @Query("SELECT COUNT(*) FROM posts WHERE authorId = :authorId")
+    fun countByAuthor(authorId: String): Flow<Int>
 }
 
 
@@ -91,6 +95,12 @@ interface FollowsDao {
 
     @Query("SELECT followedId FROM follows WHERE followerId = :userId")
     fun followingIds(userId: String): Flow<List<String>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM follows WHERE followerId = :followerId AND followedId = :followedId)")
+    fun isFollowing(followerId: String, followedId: String): Flow<Boolean>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM follows WHERE followerId = :followerId AND followedId = :followedId)")
+    suspend fun isFollowingSuspend(followerId: String, followedId: String): Boolean
 }
 
 @Dao
