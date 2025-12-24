@@ -112,7 +112,15 @@ data class ProductEntity(
     // Delivery & Logistics
     val deliveryOptions: List<String> = emptyList(), // e.g., "SELF_PICKUP", "FARMER_DELIVERY"
     val deliveryCost: Double? = null,
-    val leadTimeDays: Int? = null // Days notice required
+    val leadTimeDays: Int? = null, // Days notice required
+
+    // Digital Farm - Evolutionary Visuals (Enthusiast Feature)
+    val motherId: String? = null, // Links chicks to their mother hen for nursery scene
+    val isBreedingUnit: Boolean = false, // Marks this as part of a breeding group
+    val eggsCollectedToday: Int = 0, // For "Ghost Eggs" feature
+    val lastEggLogDate: Long? = null, // Track when eggs were last logged
+    val readyForSale: Boolean = false, // Triggers gold star display
+    val targetWeight: Double? = null // Weight goal for ready status
 ) {
     /**
      * Returns true if this product is a public market listing (requires verification to create).

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 53,
-    "identityHash": "736718aaf03bae859daa69901059f2ee",
+    "identityHash": "4c6bcc01dadcfba3d41ce784ffd2b127",
     "entities": [
       {
         "tableName": "users",
@@ -181,7 +181,7 @@
       },
       {
         "tableName": "products",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `price` REAL NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT NOT NULL, `location` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `imageUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `condition` TEXT, `harvestDate` INTEGER, `expiryDate` INTEGER, `birthDate` INTEGER, `vaccinationRecordsJson` TEXT, `weightGrams` REAL, `heightCm` REAL, `gender` TEXT, `color` TEXT, `breed` TEXT, `healthStatus` TEXT, `birdCode` TEXT, `colorTag` TEXT, `familyTreeId` TEXT, `parentIdsJson` TEXT, `breedingStatus` TEXT, `transferHistoryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `stage` TEXT, `lifecycleStatus` TEXT, `parentMaleId` TEXT, `parentFemaleId` TEXT, `ageWeeks` INTEGER, `lastStageTransitionAt` INTEGER, `breederEligibleAt` INTEGER, `isBatch` INTEGER, `batchId` TEXT, `splitAt` INTEGER, `splitIntoIds` TEXT, `documentUrls` TEXT NOT NULL, `qrCodeUrl` TEXT, `customStatus` TEXT, `debug` INTEGER NOT NULL, `deliveryOptions` TEXT NOT NULL, `deliveryCost` REAL, `leadTimeDays` INTEGER, PRIMARY KEY(`productId`), FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `price` REAL NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT NOT NULL, `location` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `imageUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `condition` TEXT, `harvestDate` INTEGER, `expiryDate` INTEGER, `birthDate` INTEGER, `vaccinationRecordsJson` TEXT, `weightGrams` REAL, `heightCm` REAL, `gender` TEXT, `color` TEXT, `breed` TEXT, `healthStatus` TEXT, `birdCode` TEXT, `colorTag` TEXT, `familyTreeId` TEXT, `parentIdsJson` TEXT, `breedingStatus` TEXT, `transferHistoryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `stage` TEXT, `lifecycleStatus` TEXT, `parentMaleId` TEXT, `parentFemaleId` TEXT, `ageWeeks` INTEGER, `lastStageTransitionAt` INTEGER, `breederEligibleAt` INTEGER, `isBatch` INTEGER, `batchId` TEXT, `splitAt` INTEGER, `splitIntoIds` TEXT, `documentUrls` TEXT NOT NULL, `qrCodeUrl` TEXT, `customStatus` TEXT, `debug` INTEGER NOT NULL, `deliveryOptions` TEXT NOT NULL, `deliveryCost` REAL, `leadTimeDays` INTEGER, `motherId` TEXT, `isBreedingUnit` INTEGER NOT NULL, `eggsCollectedToday` INTEGER NOT NULL, `lastEggLogDate` INTEGER, `readyForSale` INTEGER NOT NULL, `targetWeight` REAL, PRIMARY KEY(`productId`), FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "productId",
@@ -471,6 +471,39 @@
             "fieldPath": "leadTimeDays",
             "columnName": "leadTimeDays",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "motherId",
+            "columnName": "motherId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isBreedingUnit",
+            "columnName": "isBreedingUnit",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eggsCollectedToday",
+            "columnName": "eggsCollectedToday",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastEggLogDate",
+            "columnName": "lastEggLogDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "readyForSale",
+            "columnName": "readyForSale",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetWeight",
+            "columnName": "targetWeight",
+            "affinity": "REAL"
           }
         ],
         "primaryKey": {
@@ -9677,7 +9710,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '736718aaf03bae859daa69901059f2ee')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4c6bcc01dadcfba3d41ce784ffd2b127')"
     ]
   }
 }

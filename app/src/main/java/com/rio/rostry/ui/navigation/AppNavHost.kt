@@ -1200,6 +1200,23 @@ private fun RoleNavGraph(
             )
         }
 
+        // Enthusiast Digital Farm - Evolutionary Visuals
+        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
+            com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> 
+                    navController.navigate(Routes.Builders.productDetails(productId)) 
+                },
+                onNavigateToListProduct = { productId ->
+                    // Navigate to create listing with pre-filled product
+                    navController.navigate(Routes.FarmerNav.CREATE_WITH_PREFILL.replace("{prefillProductId}", productId))
+                },
+                onNavigateToLogEggs = { unitId ->
+                    navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION)
+                }
+            )
+        }
+
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },

@@ -217,6 +217,7 @@ object Routes {
         const val DASHBOARD = "enthusiast/dashboard"
         const val TRANSFERS = "enthusiast/transfers"
         const val EGG_COLLECTION = "enthusiast/egg_collection"
+        const val DIGITAL_FARM = "enthusiast/digital_farm" // Evolutionary Visuals Feature
     }
 
     object Sync {
