@@ -66,9 +66,39 @@ object Routes {
 
     /**
      * Order routes for displaying order details, tracking, and status.
+     * Includes Evidence-Based Order System routes.
      */
     object Order {
         const val DETAILS = "order/{orderId}"
+        
+        // Evidence-Based Order System Routes
+        const val MY_ORDERS = "orders"
+        const val MY_ORDERS_FARMER = "orders/farmer"
+        const val CREATE_ENQUIRY = "order/enquiry/{productId}/{sellerId}"
+        const val QUOTE_NEGOTIATION = "order/quote/{quoteId}"
+        const val QUOTE_NEGOTIATION_BUYER = "order/quote/{quoteId}/buyer"
+        const val QUOTE_NEGOTIATION_SELLER = "order/quote/{quoteId}/seller"
+        const val PAYMENT_PROOF = "order/payment/{paymentId}/proof"
+        const val DELIVERY_OTP_BUYER = "order/{orderId}/delivery/otp/buyer"
+        const val DELIVERY_OTP_SELLER = "order/{orderId}/delivery/otp/seller"
+        const val ORDER_TRACKING = "order/{orderId}/tracking"
+        const val RAISE_DISPUTE = "order/{orderId}/dispute"
+        const val MY_DISPUTES = "orders/disputes"
+        const val DISPUTE_DETAILS = "dispute/{disputeId}"
+        const val PAYMENT_VERIFY = "order/payment/{paymentId}/verify"
+        
+        // Helper functions
+        fun createEnquiry(productId: String, sellerId: String) = 
+            "order/enquiry/$productId/$sellerId"
+        fun quoteNegotiation(quoteId: String, isBuyer: Boolean) = 
+            if (isBuyer) "order/quote/$quoteId/buyer" else "order/quote/$quoteId/seller"
+        fun paymentProof(paymentId: String) = "order/payment/$paymentId/proof"
+        fun deliveryOtp(orderId: String, isBuyer: Boolean) = 
+            if (isBuyer) "order/$orderId/delivery/otp/buyer" else "order/$orderId/delivery/otp/seller"
+        fun orderTracking(orderId: String) = "order/$orderId/tracking"
+        fun raiseDispute(orderId: String) = "order/$orderId/dispute"
+        fun disputeDetails(disputeId: String) = "dispute/$disputeId"
+        fun paymentVerify(paymentId: String) = "order/payment/$paymentId/verify"
     }
 
     object Transfers {
