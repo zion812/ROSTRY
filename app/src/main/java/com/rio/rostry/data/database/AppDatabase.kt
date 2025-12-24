@@ -112,7 +112,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OrderDisputeEntity::class,
         OrderAuditLogEntity::class
     ],
-    version = 53, // 53: Evidence-Based Order System; 52: Reviews & Ratings
+    version = 54, // 54: Digital Farm; 53: Evidence-Based Order System; 52: Reviews & Ratings
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -718,6 +718,24 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_audit_logs_orderId` ON `order_audit_logs` (`orderId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_audit_logs_performedBy` ON `order_audit_logs` (`performedBy`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_order_audit_logs_timestamp` ON `order_audit_logs` (`timestamp`)")
+            }
+        }
+
+        // Digital Farm - Evolutionary Visuals fields for products (53 -> 54)
+        val MIGRATION_53_54 = object : Migration(53, 54) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add Digital Farm lifecycle tracking fields to products
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `motherId` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `isBreedingUnit` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `eggsCollectedToday` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `lastEggLogDate` INTEGER")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `readyForSale` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `targetWeight` REAL")
+                
+                // Add index for motherId to optimize nursery grouping queries
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_motherId` ON `products` (`motherId`)")
+                // Add index for isBreedingUnit to optimize breeding unit queries
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_isBreedingUnit` ON `products` (`isBreedingUnit`)")
             }
         }
         
