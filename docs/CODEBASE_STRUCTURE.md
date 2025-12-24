@@ -1,670 +1,515 @@
 # ROSTRY Codebase Structure
 
-**Version:** 1.0
-**Last Updated:** 2025-01-15
-**Audience:** Developers
-**Purpose:** Detailed package-by-package navigation guide with file locations, naming conventions, and implementation details. Complements SYSTEM_BLUEPRINT.md which covers high-level architecture.
+**Document Type**: Developer Reference  
+**Version**: 4.0  
+**Last Updated**: 2025-12-25  
+**Purpose**: Comprehensive code navigation guide for developers
+
+---
 
 ## Overview
 
-**Scope:** This document provides detailed package-by-package navigation of the ROSTRY codebase, including file locations, naming conventions, and detailed descriptions. For high-level architecture, design patterns, and system-wide concerns, see `SYSTEM_BLUEPRINT.md`.
+This document provides a complete map of the ROSTRY codebase, organized by architectural layer and feature domain. Use this as your primary reference for code navigation.
 
-This document provides a comprehensive breakdown of the ROSTRY codebase structure, explaining the purpose and contents of each package and major file. This complements the SYSTEM_BLUEPRINT.md by providing detailed navigation information.
+---
 
-## Project Root Structure
+## Root Structure
 
 ```
 ROSTRY/
-├── app/                          # Main application module
-├── docs/                         # Documentation
+├── app/                          # Android application module
+├── docs/                         # Documentation (82 files)
 ├── firebase/                     # Firebase configuration
-├── gradle/                       # Gradle wrapper and version catalog
-├── .github/                      # GitHub workflows and templates
-├── build.gradle.kts             # Root build configuration
-├── settings.gradle.kts          # Gradle settings
-├── gradle.properties            # Gradle properties
-├── local.properties.template    # Template for local configuration
-├── README.md                    # Main project README
-├── SYSTEM_BLUEPRINT.md          # Comprehensive SINF document
-└── [Other root documentation files]
-```
-
-## Application Module Structure
-
-### Source Code (`app/src/main/java/com/rio/rostry/`)
-
-#### Top-Level Files
-
-**RostryApp.kt**
-- Application class
-- Hilt initialization
-- WorkManager scheduling
-- Firebase initialization
-- Timber logging setup
-- Root detection integration
-
-**MainActivity.kt**
-- Single activity architecture
-- Hosts Compose navigation
-- Theme application
-- Deep link handling
-
-#### Package Breakdown
-
-### `accessibility/`
-**Purpose:** Accessibility features and TalkBack support
-
-**Key Files:**
-- Accessibility utilities
-- Screen reader support
-- High contrast themes
-- Font scaling support
-
-**Related Documentation:** `docs/accessibility-implementation.md`
-
----
-
-### `ai/`
-**Purpose:** AI-powered personalization and recommendations
-
-**Key Files:**
-- Recommendation engine
-- Interest scoring algorithms
-- Content personalization
-- ML model integration
-
-**Related Documentation:** `docs/ai-personalization.md`
-
----
-
-### `community/`
-**Purpose:** Community engagement features
-
-**Key Files:**
-- Community engagement service
-- Recommendation generation
-- Interest tracking
-- Expert matching
-
-**Related Documentation:** `docs/social-platform.md`
-
----
-
-### `data/`
-**Purpose:** Data layer - repositories, database, synchronization
-
-#### `data/auth/`
-**Purpose:** Authentication data sources and repositories
-
-**Key Files:**
-- `AuthRepository.kt` - Interface
-- `AuthRepositoryImpl.kt` - Implementation
-- Firebase Auth integration
-- Phone OTP handling
-- Session token management
-
-#### `data/base/`
-**Purpose:** Base classes for data layer
-
-**Key Files:**
-- `BaseRepository.kt` - Common repository functionality
-- Resource wrappers
-- Error handling patterns
-
-#### `data/database/`
-**Purpose:** Room database, entities, DAOs, migrations
-
-**Structure:**
-```
-database/
-├── AppDatabase.kt              # Main database class
-├── LifecycleConverters.kt      # Type converters
-├── entity/                     # All entity classes (60+)
-│   ├── UserEntity.kt
-│   ├── ProductEntity.kt
-│   ├── OrderEntity.kt
-│   ├── TransferEntity.kt
-│   ├── PostEntity.kt
-│   ├── [50+ more entities]
-├── dao/                        # Data Access Objects
-│   ├── UserDao.kt
-│   ├── ProductDao.kt
-│   ├── OrderDao.kt
-│   ├── [20+ more DAOs]
-└── migrations/                 # Database migrations (v1-v40)
-```
-
-**Key Entities:**
-- User management: `UserEntity`, `UserProfileEntity`
-- Products: `ProductEntity`, `ProductTrackingEntity`
-- Orders: `OrderEntity`, `OrderItemEntity`, `PaymentEntity`
-- Transfers: `TransferEntity`, `TransferVerificationEntity`, `DisputeEntity`
-- Social: `PostEntity`, `CommentEntity`, `LikeEntity`, `GroupEntity`
-- Farm: `FarmMonitoringEntities`, `VaccinationRecord`, `MortalityRecord`
-- Analytics: `AnalyticsDailyEntity`, `ReportEntity`
-- Traceability: `FamilyTreeEntity`, `ProductTrackingEntity`
-
-**Related Documentation:** `docs/data-contracts.md`, `docs/database-migrations.md`
-
-#### `data/repository/`
-**Purpose:** Repository implementations
-
-**Key Repositories:**
-- `UserRepository` / `UserRepositoryImpl`
-- `ProductRepository` / `ProductRepositoryImpl`
-- `OrderRepository` / `OrderRepositoryImpl`
-- `TransferRepository` / `TransferRepositoryImpl`
-- `SocialRepository` / `SocialRepositoryImpl`
-- `FarmMonitoringRepository` / `FarmMonitoringRepositoryImpl`
-- `AnalyticsRepository` / `AnalyticsRepositoryImpl`
-- [15+ more repositories]
-
-**Pattern:** Interface + Implementation for testability
-
-#### `data/session/`
-**Purpose:** Session management
-
-**Key Files:**
-- `SessionManager.kt` - Session state management
-- `SessionDataStore.kt` - Persistent session storage
-- Token refresh logic
-- Session validation
-
-#### `data/sync/`
-**Purpose:** Offline-first synchronization
-
-**Key Files:**
-- `SyncManager.kt` - Orchestrates sync operations
-- `FirestoreService.kt` - Firebase sync with timeouts
-- `ConflictResolver.kt` - Handles sync conflicts
-- Sync strategies and policies
-
-**Related Documentation:** `docs/adrs/adr-002-offline-first-sync.md`
-
----
-
-### `di/`
-**Purpose:** Hilt dependency injection modules
-
-**Key Modules:**
-- `AppModule.kt` - Application-level dependencies
-- `NetworkModule.kt` - Retrofit, OkHttp, Firebase
-- `DatabaseModule.kt` - Room database, DAOs
-- `RepositoryModule.kt` - Repository bindings
-- `ViewModelModule.kt` - ViewModel factories
-- `WorkerModule.kt` - WorkManager dependencies
-- `HttpModule.kt` - HTTP client with certificate pinning
-- `FirebaseModule.kt` - Firebase services
-- `PlacesModule.kt` - Google Places SDK (lazy initialization)
-- `CoilModule.kt` - Image loading configuration
-
-**Related Documentation:** `docs/dependency-injection.md`
-
----
-
-### `domain/`
-**Purpose:** Domain layer - use cases and business logic
-
-**Structure:**
-```
-domain/
-├── auth/                       # Authentication use cases
-├── product/                    # Product business logic
-├── order/                      # Order processing
-├── transfer/                   # Transfer workflows
-└── [other domain packages]
+├── .github/                      # CI/CD workflows
+├── gradle/                       # Gradle wrapper
+├── README.md                     # Project overview
+├── SYSTEM_BLUEPRINT.md           # Complete system reference
+├── CHANGELOG.md                  # Release history
+├── CODE_STYLE.md                 # Coding standards
+├── CONTRIBUTING.md               # Contribution guide
+├── SECURITY.md                   # Security policy
+├── ROADMAP.md                    # Future plans
+└── firestore.rules               # Firestore security rules
 ```
 
 ---
 
-### `feedback/`
-**Purpose:** User feedback system
+## Application Module (`app/src/main/java/com/rio/rostry/`)
 
-**Key Files:**
-- Feedback collection
-- Bug reporting
-- Feature requests
-- User satisfaction surveys
+### Entry Points
 
----
-
-### `gamification/`
-**Purpose:** Achievement and reward system
-
-**Key Files:**
-- Achievement engine
-- Badge management
-- Reputation scoring
-- Leaderboard logic
-
-**Related Documentation:** `docs/gamification.md`
+| File | Purpose | Key Responsibilities |
+|------|---------|---------------------|
+| `RostryApp.kt` | Application class | Hilt, Timber, WorkManager, Firebase init |
+| `MainActivity.kt` | Single Activity | NavHost, theme, session bootstrap |
 
 ---
 
-### `insights/`
-**Purpose:** Analytics and insights generation
+## Presentation Layer (`ui/`)
 
-**Key Files:**
-- Data aggregation
-- Insight generation
-- Trend analysis
-- Recommendation algorithms
+### Navigation (`ui/navigation/`)
 
----
+| File | Purpose |
+|------|---------|
+| `Routes.kt` | All route definitions, deep links |
+| `AppNavHost.kt` | Navigation graph, composable destinations |
+| `NavExtensions.kt` | Navigation utility functions |
+| `EvidenceOrderNavGraph.kt` | Order sub-navigation |
 
-### `monitoring/`
-**Purpose:** Farm monitoring features
+### Theme (`ui/theme/`)
 
-**Key Files:**
-- Health monitoring
-- Growth tracking
-- Alert generation
-- Performance metrics
+| File | Purpose |
+|------|---------|
+| `Theme.kt` | Material 3 theme configuration |
+| `Color.kt` | Color palette |
+| `Typography.kt` | Text styles |
+| `Shapes.kt` | Shape definitions |
 
-**Related Documentation:** `docs/farm-monitoring.md`
+### Components (`ui/components/`)
 
----
+Reusable UI components (22 files):
 
-### `notifications/`
-**Purpose:** Notification system
+| Component | Description |
+|-----------|-------------|
+| `LoadingIndicator.kt` | Loading states |
+| `ErrorView.kt` | Error display |
+| `EmptyState.kt` | Empty content |
+| `ProductCard.kt` | Product display card |
+| `SearchBar.kt` | Search input |
+| `FilterChips.kt` | Filter selection |
+| `BirdSelectionSheet.kt` | Bird/batch selection |
+| `StatCard.kt` | Statistics display |
+| `Timeline.kt` | Event timeline |
+| `WizardStepper.kt` | Multi-step wizard |
 
-**Key Files:**
-- Notification manager
-- FCM integration
-- Local notifications
-- Deep link handling
-- Notification preferences
+### Feature Screens
 
-**Related Documentation:** `docs/notification-system.md`
-
----
-
-### `performance/`
-**Purpose:** Performance monitoring and optimization
-
-**Key Files:**
-- Performance tracking
-- Metrics collection
-- Firebase Performance integration
-- Startup optimization
-
----
-
-### `security/`
-**Purpose:** Security utilities and features
-
-**Key Files:**
-- `RootDetection.kt` - Device root detection
-- `EncryptionUtils.kt` - Encryption helpers
-- `BiometricAuth.kt` - Biometric authentication
-- Certificate pinning configuration
-
-**Related Documentation:** `docs/security-encryption.md`
-
----
-
-### `services/`
-**Purpose:** Android services
-
-**Key Files:**
-- `AppFirebaseMessagingService.kt` - FCM message handling
-- Background services
-- Foreground services
-
----
-
-### `session/`
-**Purpose:** Session management (duplicate of data/session?)
-
-**Note:** May be consolidated with `data/session/`
-
----
-
-### `support/`
-**Purpose:** User support features
-
-**Key Files:**
-- Help center
-- FAQ
-- Contact support
-- Troubleshooting guides
-
----
-
-### `ui/`
-**Purpose:** UI layer - Compose screens and ViewModels
-
-**Structure:**
+#### Authentication (`ui/auth/`)
 ```
-ui/
-├── accessibility/              # Accessibility screens
-├── analytics/                  # Analytics dashboards
-├── animations/                 # Animation components
-├── auction/                    # Auction screens
-├── auth/                       # Authentication screens
-│   ├── WelcomeScreen.kt
-│   ├── PhoneInputScreen.kt
-│   ├── OtpVerificationScreen.kt
-│   └── AuthViewModel.kt
-├── base/                       # Base classes
-│   └── BaseViewModel.kt
-├── community/                  # Community screens
-├── components/                 # Reusable UI components
-│   ├── FormValidationHelpers.kt
-│   ├── LoadingStates.kt
-│   ├── OnboardingTooltips.kt
-│   ├── SuccessAnimations.kt
-│   └── HelpComponents.kt
-├── enthusiast/                 # Enthusiast-specific screens
-├── events/                     # Event screens
-├── expert/                     # Expert consultation screens
-├── farmer/                     # Farmer-specific screens
-├── feedback/                   # Feedback screens
-├── gamification/               # Gamification UI
-├── general/                    # General user screens
-├── insights/                   # Insights screens
-├── main/                       # Main app screens
-├── marketplace/                # Marketplace screens
-├── messaging/                  # Messaging screens
-│   ├── ThreadViewModel.kt
-│   ├── GroupChatViewModel.kt
-│   └── [messaging screens]
-├── moderation/                 # Moderation screens
-├── monitoring/                 # Farm monitoring screens
-├── navigation/                 # Navigation
-│   ├── AppNavHost.kt
-│   ├── Routes.kt
-│   └── [navigation graphs]
-├── notifications/              # Notification screens
-├── onboarding/                 # Onboarding flows
-├── order/                      # Order screens
-├── product/                    # Product screens
-├── profile/                    # Profile screens
-├── scan/                       # QR scanning screens
-├── screens/                    # General screens
-├── session/                    # Session screens
-├── settings/                   # Settings screens
-├── social/                     # Social platform screens
-├── splash/                     # Splash screen
-├── start/                      # Start screen
-├── support/                    # Support screens
-├── sync/                       # Sync status screens
-├── theme/                      # Material 3 theme
-│   ├── Color.kt
-│   ├── Theme.kt
-│   └── Type.kt
-├── traceability/               # Traceability screens
-├── transfer/                   # Transfer screens
-├── upgrade/                    # App upgrade screens
-└── verification/               # Verification screens
+ui/auth/
+├── LoginScreen.kt
+├── OtpScreen.kt
+├── AuthViewModel.kt
+├── PhoneLinkScreen.kt
+└── ...
 ```
 
-**Key Patterns:**
-- Each feature has its own package
-- ViewModels co-located with screens
-- Reusable components in `components/`
-- Navigation centralized in `navigation/`
-- Theme in `theme/`
-
-**Related Documentation:** `docs/user-experience-guidelines.md`
-
----
-
-### `util/` and `utils/`
-**Purpose:** Utility classes and helper functions
-
-**Note:** These two packages may need consolidation
-
-**Key Utilities:**
-- Validation utilities
-- Date/time formatters
-- String extensions
-- Network utilities
-- File utilities
-- Compression utilities
-- Encryption helpers
-
----
-
-### `workers/`
-**Purpose:** WorkManager background jobs
-
-**Key Workers:**
-- `SyncWorker.kt` - Data synchronization
-- `FarmMonitoringWorker.kt` - Daily farm checks
-- `VaccinationReminderWorker.kt` - Vaccination alerts
-- `PersonalizationWorker.kt` - Recommendation updates (6-hour intervals)
-- `ModerationWorker.kt` - Content moderation
-- `MediaUploadWorker.kt` - Background media uploads
-- `AnalyticsAggregationWorker.kt` - Data aggregation
-- `OutboxSyncWorker.kt` - Outbox pattern sync
-- `PullSyncWorker.kt` - Pull-only sync
-- [10+ more workers]
-
-**Related Documentation:** `docs/worker-catalog.md`, `docs/background-jobs.md`
-
----
-
-## Resources (`app/src/main/res/`)
-
+#### Farmer Features (`ui/farmer/`)
 ```
-res/
-├── drawable/                   # Vector drawables and images
-├── layout/                     # XML layouts (if any)
-├── mipmap/                     # App icons
-├── values/                     # Resource values
-│   ├── strings.xml            # String resources
-│   ├── colors.xml             # Color definitions
-│   ├── themes.xml             # Material themes
-│   └── dimens.xml             # Dimension values
-└── xml/                        # XML configurations
-    ├── network_security_config.xml
-    └── backup_rules.xml
+ui/farmer/
+├── FarmerHomeScreen.kt
+├── FarmerHomeViewModel.kt
+├── FarmerMarketScreen.kt
+├── asset/
+│   ├── FarmAssetDetailScreen.kt
+│   └── FarmAssetDetailViewModel.kt
+├── compliance/
+├── dashboard/
+├── inventory/
+├── listing/
+└── ...
+```
+
+#### Enthusiast Features (`ui/enthusiast/`)
+```
+ui/enthusiast/
+├── EnthusiastHomeScreen.kt
+├── EnthusiastHomeViewModel.kt
+├── digitalfarm/
+│   ├── DigitalFarmScreen.kt          # Canvas-based farm visualization
+│   ├── DigitalFarmViewModel.kt       # Zone grouping, interactions
+│   └── FarmCanvasRenderer.kt         # 2.5D rendering engine
+├── breeding/
+├── eggcollection/
+├── shows/
+└── ...
+```
+
+#### Monitoring (`ui/monitoring/`)
+```
+ui/monitoring/
+├── GrowthTrackingScreen.kt
+├── VaccinationScheduleScreen.kt
+├── HatcheryManagementScreen.kt
+├── BreedingManagementScreen.kt
+├── QuarantineManagementScreen.kt
+├── WeightLogScreen.kt
+└── ...
+```
+
+#### Social (`ui/social/`)
+```
+ui/social/
+├── feed/
+│   ├── FeedScreen.kt
+│   └── FeedViewModel.kt
+├── profile/
+│   ├── SocialProfileScreen.kt
+│   └── SocialProfileViewModel.kt
+├── groups/
+├── events/
+├── messaging/
+└── ...
+```
+
+#### Orders (`ui/order/`)
+```
+ui/order/
+├── MyOrdersScreen.kt
+├── OrderDetailScreen.kt
+├── evidence/
+│   ├── CreateOrderScreen.kt
+│   ├── OrderChatIntegration.kt
+│   ├── PaymentDeliveryScreens.kt
+│   ├── PaymentVerifyScreen.kt
+│   └── DisputeScreens.kt
+└── ...
+```
+
+#### Analytics (`ui/analytics/`)
+```
+ui/analytics/
+├── AnalyticsDashboardScreen.kt
+├── PerformanceInsightsScreen.kt
+├── ExportScreen.kt
+├── RecommendationsScreen.kt
+└── ...
+```
+
+#### Traceability (`ui/traceability/`)
+```
+ui/traceability/
+├── FamilyTreeScreen.kt
+├── LineageDetailScreen.kt
+├── TransferHistoryScreen.kt
+└── ...
+```
+
+#### Verification (`ui/verification/`)
+```
+ui/verification/
+├── FarmerLocationVerificationScreen.kt
+├── VerificationViewModel.kt
+├── DocumentUploadScreen.kt
+└── ...
 ```
 
 ---
 
-## Test Structure
+## Domain Layer (`domain/`)
 
-### Unit Tests (`app/src/test/java/`)
+### Models (`domain/model/`)
 
-```
-test/
-├── ui/                         # ViewModel tests
-│   ├── ProductViewModelTest.kt
-│   └── [other ViewModel tests]
-├── data/repository/            # Repository tests
-│   ├── ProductRepositoryTest.kt
-│   └── [other repository tests]
-└── util/                       # Utility tests
-    └── ValidationUtilsTest.kt
-```
+| File | Contents |
+|------|----------|
+| `User.kt` | User domain models |
+| `Product.kt` | Product domain models |
+| `Order.kt` | Order domain models |
+| `Transfer.kt` | Transfer domain models |
+| `DigitalFarmModels.kt` | Farm visualization models |
+| `SocialModels.kt` | Social platform models |
+| `AnalyticsModels.kt` | Analytics domain models |
 
-### Instrumented Tests (`app/src/androidTest/java/`)
+### Use Cases (`domain/usecase/`)
 
-```
-androidTest/
-├── ui/                         # UI tests
-│   └── ProductListScreenTest.kt
-├── data/                       # Database tests
-│   └── MigrationTest.kt
-└── navigation/                 # Navigation tests
-    └── NavigationTest.kt
-```
+| File | Purpose |
+|------|---------|
+| `AuthUseCase.kt` | Authentication logic |
+| `ProductUseCase.kt` | Product operations |
 
-**Related Documentation:** `docs/testing-strategy.md`
+### Auth (`domain/auth/`)
 
----
+| File | Purpose |
+|------|---------|
+| `AuthState.kt` | Authentication state |
+| `AuthResult.kt` | Auth operation results |
+| `Credentials.kt` | User credentials |
 
-## Build Configuration
+### RBAC (`domain/rbac/`)
 
-### Root Level
-
-**build.gradle.kts**
-- Plugin configuration
-- Dokka setup for API documentation
-- Multi-module configuration
-
-**settings.gradle.kts**
-- Module inclusion
-- Plugin management
-- Dependency resolution
-
-**gradle.properties**
-- Build properties
-- JVM settings
-- Android build options
-
-### App Module
-
-**app/build.gradle.kts**
-- Dependencies (60+ libraries)
-- Build variants (debug, release)
-- ProGuard configuration
-- ABI splits
-- Version management
-- JaCoCo coverage
-- Custom tasks (version bump, APK size check)
-
-**app/proguard-rules.pro**
-- ProGuard/R8 rules
-- Keep rules for Hilt, Room, Compose
-- Obfuscation rules
-
-### Version Catalog
-
-**gradle/libs.versions.toml**
-- Centralized version management
-- Library definitions
-- Plugin definitions
+| File | Purpose |
+|------|---------|
+| `Permission.kt` | Permission definitions |
+| `RolePermissions.kt` | Role-permission mapping |
 
 ---
 
-## Firebase Configuration
+## Data Layer (`data/`)
 
-**firebase/**
-- `firebase.json` - Firebase project configuration
-- `firestore.indexes.json` - Firestore index definitions
-- `firestore.rules` - Security rules
-- `storage.rules` - Storage security rules
+### Database (`data/database/`)
 
-**app/google-services.json**
-- Firebase project credentials
-- API keys
-- Project IDs
+#### Entities (`data/database/entity/`)
 
-**Note:** Use `google-services.json.template` for version control
+| File | Tables |
+|------|--------|
+| `UserEntity.kt` | users |
+| `ProductEntity.kt` | products (60+ fields) |
+| `OrderEntity.kt` | orders |
+| `SocialEntities.kt` | posts, comments, follows, messages |
+| `EvidenceOrderEntities.kt` | order_quotes, order_payments, delivery_confirmations, order_evidence, order_disputes, order_audit_logs |
+| `FarmAssetEntity.kt` | farm_assets |
+| `VaccinationRecordEntity.kt` | vaccination_records |
+| `DailyLogEntity.kt` | daily_logs |
+| `TaskEntity.kt` | tasks |
+| `FamilyTreeEntity.kt` | family_trees |
+| `TransferEntity.kt` | transfers |
+| `AnalyticsEntities.kt` | analytics tables |
+| `CommunityEntities.kt` | community features |
+
+#### DAOs (`data/database/dao/`)
+
+| File | Operations |
+|------|------------|
+| `UserDao.kt` | User CRUD |
+| `ProductDao.kt` | Product queries |
+| `OrderDao.kt` | Order management |
+| `SocialDaos.kt` | Social platform |
+| `EvidenceOrderDaos.kt` | Evidence-based orders |
+| `FarmAssetDao.kt` | Farm assets |
+| `VaccinationDao.kt` | Vaccination records |
+| `DailyLogDao.kt` | Daily logs |
+| `TaskDao.kt` | Task management |
+| `AnalyticsDaos.kt` | Analytics queries |
+
+#### Database Configuration
+
+| File | Purpose |
+|------|---------|
+| `AppDatabase.kt` | Database definition, migrations (v2→54) |
+| `Converters.kt` | Type converters |
+
+### Repositories (`data/repository/`)
+
+46+ repository implementations:
+
+| Repository | Domain |
+|------------|--------|
+| `AuthRepositoryImpl.kt` | Authentication |
+| `UserRepositoryImpl.kt` | User management |
+| `ProductRepositoryImpl.kt` | Products |
+| `OrderRepositoryImpl.kt` | Orders |
+| `EvidenceOrderRepositoryImpl.kt` | Evidence-based orders |
+| `SocialRepositoryImpl.kt` | Social platform |
+| `TransferWorkflowRepositoryImpl.kt` | Ownership transfers |
+| `FarmAssetRepositoryImpl.kt` | Farm assets |
+| `VaccinationRepositoryImpl.kt` | Vaccinations |
+| `AnalyticsRepositoryImpl.kt` | Analytics |
+| `TraceabilityRepositoryImpl.kt` | Lineage tracking |
+| `GamificationRepositoryImpl.kt` | Achievements |
+| `BreedingRepositoryImpl.kt` | Breeding management |
+| `CommunityRepositoryImpl.kt` | Community features |
+
+### Auth (`data/auth/`)
+
+| File | Purpose |
+|------|---------|
+| `AuthRepositoryImpl.kt` | Firebase Auth integration |
+| `PhoneAuthManager.kt` | Phone verification |
+| `SessionStore.kt` | Session persistence |
+
+### Sync (`data/sync/`)
+
+| File | Purpose |
+|------|---------|
+| `SyncManager.kt` | Sync orchestration |
+| `Outbox.kt` | Offline queue |
 
 ---
 
-## Documentation Structure
+## Dependency Injection (`di/`)
 
-See `docs/README-docs.md` for complete documentation organization.
+20 Hilt modules:
 
-**Key Documentation:**
-- `SYSTEM_BLUEPRINT.md` - Comprehensive SINF document
-- `docs/architecture.md` - Architecture details
-- `docs/README-docs.md` - Documentation index
-- `docs/developer-onboarding.md` - Getting started
-- Feature-specific guides in `docs/`
-- ADRs in `docs/adrs/`
-
----
-
-## GitHub Configuration
-
-**.github/**
-- `workflows/` - CI/CD pipelines
-- `ISSUE_TEMPLATE/` - Issue templates
-- `PULL_REQUEST_TEMPLATE.md` - PR template
+| Module | Bindings |
+|--------|----------|
+| `AppModule.kt` | App-level singletons |
+| `DatabaseModule.kt` | Room, DAOs, migrations |
+| `NetworkModule.kt` | Retrofit, OkHttp, Firebase |
+| `RepositoryModule.kt` | Repository bindings |
+| `AuthModule.kt` | Auth components |
+| `WorkerModule.kt` | WorkManager |
+| `PlacesModule.kt` | Google Places |
+| `LocationModule.kt` | Location services |
+| `AnalyticsModule.kt` | Analytics bindings |
+| `SocialModule.kt` | Social bindings |
 
 ---
 
-## Navigation Map
+## Workers (`workers/`)
 
-### Finding Specific Functionality
+24 background workers:
 
-**Authentication:**
-- UI: `ui/auth/`
-- Data: `data/auth/`
-- ViewModel: `ui/auth/AuthViewModel.kt`
+| Worker | Schedule | Purpose |
+|--------|----------|---------|
+| `SyncWorker.kt` | 6 hours | Room/Firebase sync |
+| `OutboxSyncWorker.kt` | On connectivity | Pending uploads |
+| `FarmMonitoringWorker.kt` | Daily | Health checks |
+| `VaccinationReminderWorker.kt` | Daily | Vaccine reminders |
+| `LifecycleWorker.kt` | Daily | Milestone reminders |
+| `ModerationWorker.kt` | Periodic | Content scanning |
+| `OutgoingMessageWorker.kt` | On demand | Message delivery |
+| `TransferTimeoutWorker.kt` | Periodic | SLA enforcement |
+| `AnalyticsAggregationWorker.kt` | Daily | Metrics aggregation |
+| `MediaUploadWorker.kt` | On demand | Media uploads |
+| `EvidenceOrderWorker.kt` | On demand | Order processing |
+| `PrefetchWorker.kt` | Conditional | Content caching |
+| `CommunityEngagementWorker.kt` | 12 hours | Recommendations |
 
-**Products:**
-- UI: `ui/product/`, `ui/marketplace/`
-- Data: `data/repository/ProductRepository.kt`
-- Entity: `data/database/entity/ProductEntity.kt`
-- DAO: `data/database/dao/ProductDao.kt`
+---
 
-**Transfers:**
-- UI: `ui/transfer/`
-- Data: `data/repository/TransferRepository.kt`
-- Entity: `data/database/entity/TransferEntity.kt`
-- Workflow: See `docs/transfer-workflow.md`
+## Utilities (`utils/`)
 
-**Social Features:**
-- UI: `ui/social/`, `ui/messaging/`, `ui/community/`
-- Data: `data/repository/SocialRepository.kt`
-- Entities: `PostEntity`, `CommentEntity`, `GroupEntity`, etc.
+48 utility files:
 
-**Farm Monitoring:**
-- UI: `ui/monitoring/`
-- Data: `data/repository/FarmMonitoringRepository.kt`
-- Workers: `workers/FarmMonitoringWorker.kt`
-- Entities: `FarmMonitoringEntities.kt`
+### Validation
+| File | Purpose |
+|------|---------|
+| `ValidationUtils.kt` | Input validation |
+| `PhoneValidator.kt` | Phone number validation |
+| `EmailValidator.kt` | Email validation |
+
+### Media
+| File | Purpose |
+|------|---------|
+| `ImageCompressor.kt` | Image compression |
+| `MediaUploadManager.kt` | Upload orchestration |
+| `ThumbnailGenerator.kt` | Thumbnail creation |
+
+### Export
+| File | Purpose |
+|------|---------|
+| `CsvExporter.kt` | CSV generation |
+| `PdfExporter.kt` | PDF generation |
+| `ExportManager.kt` | Export orchestration |
+
+### Common
+| File | Purpose |
+|------|---------|
+| `DateUtils.kt` | Date formatting |
+| `CurrencyUtils.kt` | Currency formatting |
+| `NetworkUtils.kt` | Connectivity checks |
+| `Extensions.kt` | Kotlin extensions |
+
+---
+
+## Security (`security/`)
+
+| File | Purpose |
+|------|---------|
+| `RootDetector.kt` | Device compromise detection |
+| `SecurePreferences.kt` | Encrypted preferences |
+
+---
+
+## Session (`session/`)
+
+| File | Purpose |
+|------|---------|
+| `SessionManager.kt` | Session lifecycle |
+| `CurrentUserProvider.kt` | Current user access |
+| `TokenManager.kt` | Token management |
+
+---
+
+## Key Configuration Files
+
+### Build Configuration
+
+| File | Purpose |
+|------|---------|
+| `app/build.gradle.kts` | App module config, dependencies |
+| `build.gradle.kts` | Project-level config |
+| `settings.gradle.kts` | Module settings |
+| `gradle.properties` | Gradle properties |
+
+### Firebase
+
+| File | Purpose |
+|------|---------|
+| `app/google-services.json` | Firebase config (gitignored) |
+| `firebase/firestore.indexes.json` | Firestore indexes |
+| `firestore.rules` | Security rules |
+
+### ProGuard
+
+| File | Purpose |
+|------|---------|
+| `app/proguard-rules.pro` | Release obfuscation rules |
+
+---
+
+## Documentation (`docs/`)
+
+### Architecture
+- `architecture.md` - Technical architecture
+- `PROJECT_OVERVIEW.md` - Enterprise overview
+- `CODEBASE_STRUCTURE.md` - This file
+- `state-management.md` - State patterns
+- `dependency-injection.md` - Hilt guide
+- `error-handling.md` - Error patterns
+
+### Features
+- `EVIDENCE_ORDER_SYSTEM.md` - Order system
+- `social-platform.md` - Social features
+- `farm-monitoring.md` - Farm management
+- `traceability.md` - Lineage tracking
+- `gamification.md` - Achievements
+- `ai-personalization.md` - AI features
+
+### Operations
+- `firebase-setup.md` - Firebase config
+- `database-migrations.md` - Migration guide
+- `deployment.md` - Deployment process
+- `testing-strategy.md` - Testing approach
+- `troubleshooting.md` - Common issues
 
 ---
 
 ## File Naming Conventions
 
-**Entities:** `*Entity.kt` (e.g., `UserEntity.kt`)
-**DAOs:** `*Dao.kt` (e.g., `UserDao.kt`)
-**Repositories:** `*Repository.kt` (interface), `*RepositoryImpl.kt` (implementation)
-**ViewModels:** `*ViewModel.kt` (e.g., `ProductListViewModel.kt`)
-**Screens:** `*Screen.kt` (e.g., `ProductListScreen.kt`)
-**Workers:** `*Worker.kt` (e.g., `SyncWorker.kt`)
-**Modules:** `*Module.kt` (e.g., `NetworkModule.kt`)
+| Type | Pattern | Example |
+|------|---------|---------|
+| Screen | `<Feature>Screen.kt` | `FarmerHomeScreen.kt` |
+| ViewModel | `<Feature>ViewModel.kt` | `FarmerHomeViewModel.kt` |
+| Entity | `<Name>Entity.kt` | `ProductEntity.kt` |
+| DAO | `<Name>Dao.kt` | `ProductDao.kt` |
+| Repository | `<Name>RepositoryImpl.kt` | `ProductRepositoryImpl.kt` |
+| Worker | `<Name>Worker.kt` | `SyncWorker.kt` |
+| Module | `<Name>Module.kt` | `DatabaseModule.kt` |
 
 ---
 
-## Code Organization Principles
+## Search Shortcuts
 
-1. **Feature-based packaging** in UI layer
-2. **Layer-based packaging** in data layer
-3. **Separation of concerns** - clear boundaries between layers
-4. **Interface-based design** - repositories use interfaces
-5. **Dependency injection** - Hilt manages all dependencies
-6. **Offline-first** - Room as source of truth
-7. **Reactive** - Flow and StateFlow for data streams
+### Find by functionality
 
----
+```bash
+# Find all ViewModels
+grep -r "class.*ViewModel" --include="*.kt"
 
-## Related Documentation
+# Find all Workers
+grep -r "class.*Worker" --include="*.kt"
 
-- **SYSTEM_BLUEPRINT.md** - High-level architecture, design patterns, feature catalog, and data flows (complements this document's detailed package navigation)
-- **docs/architecture.md` - Architecture patterns and principles
-- **docs/data-contracts.md** - Database schema and API contracts
-- **docs/dependency-injection.md** - DI structure and patterns
-- **docs/README-docs.md** - Documentation index
+# Find all Entities
+grep -r "@Entity" --include="*.kt"
 
----
+# Find all DAOs
+grep -r "@Dao" --include="*.kt"
 
-## Maintenance Notes
-
-**When adding new features:**
-1. Create feature package in appropriate layer
-2. Follow existing naming conventions
-3. Update this document
-4. Update SYSTEM_BLUEPRINT.md
-5. Create feature documentation in `docs/`
-
-**When refactoring:**
-1. Update affected documentation
-2. Update diagrams if architecture changes
-3. Create ADR for significant decisions
-4. Update CHANGELOG.md
+# Find all Repositories
+grep -r "interface.*Repository" --include="*.kt"
+```
 
 ---
 
-**Last Updated:** 2025-01-15
-**Maintainers:** ROSTRY Development Team
-**Questions:** See `docs/troubleshooting.md` or open an issue
+## Document History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 4.0 | 2025-12-25 | Complete restructure, Digital Farm, Evidence Orders |
+| 3.0 | 2025-01-15 | Social platform, community features |
+| 2.0 | 2024-12-01 | Initial comprehensive mapping |
+
+---
+
+*Navigate with confidence. When in doubt, check the architecture docs.*

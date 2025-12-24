@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Digital Farm - Evolutionary Visuals (2025-12-25)
+- Interactive 2.5D isometric farm visualization for Enthusiast users
+- Canvas-based rendering with low-poly graphics (sky, clouds, trees, ground, fences)
+- Zone-based bird grouping: Nursery, Breeding Unit, Free-Range, Grow-Out, Ready Display, Market Stand
+- Idle animations: bird bobbing, cloud parallax, chick orbiting, gold star pulsing
+- Hit testing system for tap interactions on birds, huts, and market stand
+- Ghost Eggs reminder for breeding units needing egg logs
+- Gold star badges for ready-for-sale birds
+- Gamified stats bar showing birds, eggs, ready count, and coins
+- BirdStatsBubble popup with weight, age, breed, and quick actions
+- Database migration 53→54 with 6 new ProductEntity fields
+- New files: `DigitalFarmScreen.kt`, `DigitalFarmViewModel.kt`, `FarmCanvasRenderer.kt`, `DigitalFarmModels.kt`
+- Documentation: `digital-farm.md`
+
+#### Evidence-Based Order System
+- Complete order lifecycle with quotes, payments, delivery confirmation
+- Buyer/seller negotiation flow with advance and balance payments
+- Delivery OTP verification system
+- Evidence collection for payment proofs and delivery photos
+- Dispute resolution workflow with admin mediation
+- Comprehensive audit logging
+- Documentation: `EVIDENCE_ORDER_SYSTEM.md`
+
 #### Community Engagement System
 - Messenger-like community hub with 4-tab interface (Messages, Discover, Feed, My Groups)
 - Context-aware messaging with 4 types: PRODUCT_INQUIRY, EXPERT_CONSULT, BREEDING_DISCUSSION, GENERAL

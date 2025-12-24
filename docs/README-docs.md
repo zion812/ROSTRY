@@ -4,8 +4,8 @@
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2025-01-15  
-**Documentation Version**: 3.2
+**Last Updated**: 2025-12-25  
+**Documentation Version**: 4.0
 
 📘 **NEW: Complete System Reference** - See `SYSTEM_BLUEPRINT.md` for the comprehensive System Information and Functionality (SINF) document that provides end-to-end coverage of the entire codebase.
 
@@ -71,6 +71,8 @@ Understanding the ROSTRY implementation details:
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| `PROJECT_OVERVIEW.md` | **Enterprise overview** with architecture, modules, features | ✅ NEW |
+| `CODEBASE_STRUCTURE.md` | Complete code navigation map | ✅ Updated |
 | `architecture.md` | Layers, navigation, background jobs, integrations, diagrams | ✅ Up-to-date |
 | `state-management.md` | StateFlow, hoisting, SavedStateHandle, DataStore | ✅ Up-to-date |
 | `dependency-injection.md` | Hilt modules, scopes, testing, qualifiers | ✅ Up-to-date |
@@ -114,6 +116,7 @@ Essential guides for developers working on ROSTRY:
 |----------|-------------|
 | `farm-monitoring.md` | Monitoring modules, workers, analytics, alerts |
 | `analytics-dashboard.md` | Role-specific dashboards, data pipelines, AI recommendations |
+| `enthusiast-role-guide.md` | Enthusiast features, Digital Farm, breeding management |
 
 ### Infrastructure
 
