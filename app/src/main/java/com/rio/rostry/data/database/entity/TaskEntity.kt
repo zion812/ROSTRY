@@ -29,14 +29,14 @@ import androidx.room.PrimaryKey
  * Task conflicts are resolved by preferring the most recent `updatedAt` timestamp.
  */
 data class TaskEntity(
-    @PrimaryKey val taskId: String,
-    val farmerId: String,
+    @PrimaryKey val taskId: String = "",
+    val farmerId: String = "",
     val productId: String? = null,
     val batchId: String? = null,
-    val taskType: String, // VACCINATION, GROWTH_UPDATE, QUARANTINE_CHECK, INCUBATION_CHECK, HATCH_CHECK, BREEDING, FEED_SCHEDULE, MEDICATION
-    val title: String,
+    val taskType: String = "", // VACCINATION, GROWTH_UPDATE, QUARANTINE_CHECK, INCUBATION_CHECK, HATCH_CHECK, BREEDING, FEED_SCHEDULE, MEDICATION
+    val title: String = "",
     val description: String? = null,
-    val dueAt: Long,
+    val dueAt: Long = 0L,
     val completedAt: Long? = null,
     val completedBy: String? = null,
     val priority: String = "MEDIUM", // LOW, MEDIUM, HIGH, URGENT

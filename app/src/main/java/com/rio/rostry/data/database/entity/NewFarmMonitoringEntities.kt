@@ -82,6 +82,7 @@ data class FarmerDashboardSnapshotEntity(
     val dailyGoalsCompletedCount: Int = 0,
     val analyticsInsightsCount: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
     val syncedAt: Long? = null
 )

@@ -25,16 +25,16 @@ import com.rio.rostry.domain.model.LifecycleStage
     ]
 )
 data class FarmAssetEntity(
-    @PrimaryKey val assetId: String,
-    val farmerId: String, // Owner
-    val name: String, // e.g., "Batch 203 - Layers", "Tractor A"
+    @PrimaryKey val assetId: String = "",
+    val farmerId: String = "", // Owner
+    val name: String = "", // e.g., "Batch 203 - Layers", "Tractor A"
     
     // Categorization
-    val assetType: String, // FLOCK, BATCH, ANIMAL, EQUIPMENT, FEED, STRUCTURE
-    val category: String, // Sub-category e.g., "Chicken", "Goat", "Tools"
+    val assetType: String = "", // FLOCK, BATCH, ANIMAL, EQUIPMENT, FEED, STRUCTURE
+    val category: String = "", // Sub-category e.g., "Chicken", "Goat", "Tools"
     
     // Status & Visibility
-    val status: String, // ACTIVE, QUARANTINED, ARCHIVED, CONSUMED, SOLD_OUT
+    val status: String = "ACTIVE", // ACTIVE, QUARANTINED, ARCHIVED, CONSUMED, SOLD_OUT
     val isShowcase: Boolean = false, // If true, visible on public farm profile (read-only)
     
     // Location
