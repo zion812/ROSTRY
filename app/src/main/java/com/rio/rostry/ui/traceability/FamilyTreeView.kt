@@ -137,8 +137,8 @@ fun FamilyTreeView(
                                         val meta = nodeMetadata[id]
                                         val bgColor = when (meta?.stage) {
                                             LifecycleStage.CHICK -> Color(0xFFE3F2FD)
-                                            LifecycleStage.JUVENILE -> Color(0xFFE8F5E9)
-                                            LifecycleStage.ADULT -> Color(0xFFFFF9C4)
+                                            LifecycleStage.GROWER -> Color(0xFFE8F5E9)
+                                            LifecycleStage.LAYER -> Color(0xFFFFF9C4)
                                             LifecycleStage.BREEDER -> Color(0xFFF3E5F5)
                                             else -> Color(0xFFE3F2FD)
                                         }
@@ -185,8 +185,8 @@ fun FamilyTreeView(
                 val rootMeta = nodeMetadata[rootId]
                 val rootBgColor = when (rootMeta?.stage) {
                     LifecycleStage.CHICK -> Color(0xFFE3F2FD)
-                    LifecycleStage.JUVENILE -> Color(0xFFE8F5E9)
-                    LifecycleStage.ADULT -> Color(0xFFFFF9C4)
+                    LifecycleStage.GROWER -> Color(0xFFE8F5E9)
+                    LifecycleStage.LAYER -> Color(0xFFFFF9C4)
                     LifecycleStage.BREEDER -> Color(0xFFF3E5F5)
                     else -> Color(0xFFF1F8E9)
                 }
@@ -253,8 +253,8 @@ fun FamilyTreeView(
                                         val meta = nodeMetadata[id]
                                         val bgColor = when (meta?.stage) {
                                             LifecycleStage.CHICK -> Color(0xFFE3F2FD)
-                                            LifecycleStage.JUVENILE -> Color(0xFFE8F5E9)
-                                            LifecycleStage.ADULT -> Color(0xFFFFF9C4)
+                                            LifecycleStage.GROWER -> Color(0xFFE8F5E9)
+                                            LifecycleStage.LAYER -> Color(0xFFFFF9C4)
                                             LifecycleStage.BREEDER -> Color(0xFFF3E5F5)
                                             else -> Color(0xFFFFF3E0)
                                         }

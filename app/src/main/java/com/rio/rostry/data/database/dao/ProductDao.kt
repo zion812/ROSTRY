@@ -152,4 +152,18 @@ interface ProductDao {
 
     @Query("UPDATE products SET quantity = quantity - :amount, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId AND quantity >= :amount")
     suspend fun decrementQuantity(productId: String, amount: Int, updatedAt: Long)
+
+    @Query("SELECT stage, COUNT(*) as count FROM products WHERE sellerId = :farmerId AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND isDeleted = 0 GROUP BY stage")
+    fun observeStageCounts(farmerId: String): Flow<List<StageCount>>
+
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND stage = 'CHICK' AND ageWeeks >= 8 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND isDeleted = 0")
+    fun observeReadyToGrowCount(farmerId: String): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND stage = 'GROWER' AND ageWeeks >= 18 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND isDeleted = 0")
+    fun observeReadyToLayCount(farmerId: String): Flow<Int>
 }
+
+data class StageCount(
+    val stage: LifecycleStage?,
+    val count: Int
+)

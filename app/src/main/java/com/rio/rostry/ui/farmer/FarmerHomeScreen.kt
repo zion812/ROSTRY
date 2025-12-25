@@ -132,6 +132,20 @@ fun FarmerHomeScreen(
                     }
                 }
             }
+
+            // Digital Farm Pipeline (Live Status)
+            item {
+                com.rio.rostry.ui.farmer.digital.DigitalFarmPipeline(
+                    onStageClick = { stage -> 
+                        // Navigate to filtered view for stage
+                        viewModel.navigateToModule(Routes.Builders.productsWithFilter(stage.name))
+                    },
+                    onNavigate = { route ->
+                        onNavigateRoute(route)
+                    }
+                )
+            }
+
             // Compliance Banner
             if (!uiState.kycVerified || uiState.complianceAlertsCount > 0) {
                 item {
@@ -417,17 +431,6 @@ fun FarmerHomeScreen(
                 )
             }
             
-            // Add Digital Farm Card
-            val digitalFarmCard = FetcherCard(
-                title = "Digital Farm",
-                count = 0, // Dynamic count not needed for entry point
-                badgeCount = 0,
-                icon = Icons.Filled.Landscape, // Use a relevant icon
-                action = "View Farm",
-                onClick = { viewModel.navigateToModule(Routes.FarmerNav.DIGITAL_FARM) },
-                isLocked = false
-            )
-            
             // Add My Farm (Farm Assets) Card - NEW entry point to asset management
             val myFarmCard = FetcherCard(
                 title = "My Farm",
@@ -439,7 +442,7 @@ fun FarmerHomeScreen(
                 isLocked = false
             )
             
-            val allFetcherCards = listOf(myFarmCard, digitalFarmCard) + fetcherCards
+            val allFetcherCards = listOf(myFarmCard) + fetcherCards
 
             // Convert grid to rows to avoid nested lazy layout with stable keys
             val fetcherRows = allFetcherCards.chunked(2)

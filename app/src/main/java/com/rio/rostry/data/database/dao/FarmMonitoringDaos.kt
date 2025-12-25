@@ -167,6 +167,9 @@ interface HatchingBatchDao {
     @Query("SELECT * FROM hatching_batches WHERE farmerId = :farmerId AND status = 'ACTIVE' AND expectedHatchAt BETWEEN :start AND :end ORDER BY expectedHatchAt ASC")
     suspend fun getHatchingDueSoon(farmerId: String, start: Long, end: Long): List<HatchingBatchEntity>
 
+    @Query("SELECT SUM(eggsCount) FROM hatching_batches WHERE farmerId = :farmerId AND status != 'COMPLETED' AND expectedHatchAt IS NOT NULL AND expectedHatchAt > :now")
+    fun observeTotalActiveEggs(farmerId: String, now: Long): Flow<Int?>
+
     // Fetch batches created from specific egg collections
     @Query("SELECT * FROM hatching_batches WHERE sourceCollectionId IN (:collectionIds)")
     suspend fun getBySourceCollectionIds(collectionIds: List<String>): List<HatchingBatchEntity>

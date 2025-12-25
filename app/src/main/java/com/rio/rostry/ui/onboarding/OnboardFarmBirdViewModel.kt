@@ -471,7 +471,7 @@ class OnboardFarmBirdViewModel @Inject constructor(
 
 private fun mapAgeGroupToStage(age: OnboardingValidator.AgeGroup): LifecycleStage = when (age) {
     OnboardingValidator.AgeGroup.CHICK -> LifecycleStage.CHICK
-    OnboardingValidator.AgeGroup.JUVENILE -> LifecycleStage.JUVENILE
-    OnboardingValidator.AgeGroup.ADULT -> LifecycleStage.ADULT
+    OnboardingValidator.AgeGroup.JUVENILE -> LifecycleStage.GROWER
+    OnboardingValidator.AgeGroup.ADULT -> LifecycleStage.LAYER
     OnboardingValidator.AgeGroup.BREEDER -> LifecycleStage.BREEDER
 }

@@ -150,7 +150,7 @@ class LifecycleWorker @AssistedInject constructor(
                         notes = "Vaccination checkpoint (week $week)"
                     )
                 }
-                if (stage == LifecycleStage.JUVENILE) {
+                if (stage == LifecycleStage.GROWER) {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
@@ -160,14 +160,14 @@ class LifecycleWorker @AssistedInject constructor(
                         notes = "Weekly growth update"
                     )
                 }
-                if (stage == LifecycleStage.ADULT && (week == 20 || week == 30 || week == 40)) {
+                if (stage == LifecycleStage.LAYER && (week == 20 || week == 30 || week == 40)) {
                     milestones += LifecycleEventEntity(
                         eventId = UUID.randomUUID().toString(),
                         productId = p.productId,
                         week = week,
                         stage = stage.name,
                         type = "MILESTONE",
-                        notes = "Adult stage milestone (week $week)"
+                        notes = "Layer stage milestone (week $week)"
                     )
                 }
                 if (stage == LifecycleStage.BREEDER && week == 52) {
