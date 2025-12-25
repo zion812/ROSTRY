@@ -45,6 +45,7 @@ fun OrderTrackingScreen(
     onPaymentProof: (String) -> Unit,
     onDeliveryOtp: () -> Unit,
     onRaiseDispute: () -> Unit,
+    onReviewOrder: () -> Unit = {},
     viewModel: EvidenceOrderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -141,6 +142,16 @@ fun OrderTrackingScreen(
                     OrderTimeline(
                         currentStatus = EvidenceOrderStatus.fromString(q.status),
                         auditTrail = auditTrail
+                    )
+                }
+            }
+
+            // Review Prompt (if matched)
+            if (quote?.status == EvidenceOrderStatus.COMPLETED.value && quote.buyerId == currentUserId) {
+                item {
+                    ReviewPromptCard(
+                        productName = quote.productName,
+                        onReviewClick = onReviewOrder
                     )
                 }
             }

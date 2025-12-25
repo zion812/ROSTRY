@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 54,
-    "identityHash": "4c6bcc01dadcfba3d41ce784ffd2b127",
+    "identityHash": "b987c33b715265fa49ed375073e51ddc",
     "entities": [
       {
         "tableName": "users",
@@ -6514,7 +6514,7 @@
       },
       {
         "tableName": "farmer_dashboard_snapshots",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`snapshotId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `weekStartAt` INTEGER NOT NULL, `weekEndAt` INTEGER NOT NULL, `revenueInr` REAL NOT NULL, `ordersCount` INTEGER NOT NULL, `hatchSuccessRate` REAL NOT NULL, `mortalityRate` REAL NOT NULL, `deathsCount` INTEGER NOT NULL, `vaccinationCompletionRate` REAL NOT NULL, `growthRecordsCount` INTEGER NOT NULL, `quarantineActiveCount` INTEGER NOT NULL, `productsReadyToListCount` INTEGER NOT NULL, `avgFeedKg` REAL, `medicationUsageCount` INTEGER, `dailyLogComplianceRate` REAL, `actionSuggestions` TEXT, `transfersInitiatedCount` INTEGER NOT NULL, `transfersCompletedCount` INTEGER NOT NULL, `complianceScore` REAL NOT NULL, `onboardingCount` INTEGER NOT NULL, `dailyGoalsCompletedCount` INTEGER NOT NULL, `analyticsInsightsCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`snapshotId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`snapshotId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `weekStartAt` INTEGER NOT NULL, `weekEndAt` INTEGER NOT NULL, `revenueInr` REAL NOT NULL, `ordersCount` INTEGER NOT NULL, `hatchSuccessRate` REAL NOT NULL, `mortalityRate` REAL NOT NULL, `deathsCount` INTEGER NOT NULL, `vaccinationCompletionRate` REAL NOT NULL, `growthRecordsCount` INTEGER NOT NULL, `quarantineActiveCount` INTEGER NOT NULL, `productsReadyToListCount` INTEGER NOT NULL, `avgFeedKg` REAL, `medicationUsageCount` INTEGER, `dailyLogComplianceRate` REAL, `actionSuggestions` TEXT, `transfersInitiatedCount` INTEGER NOT NULL, `transfersCompletedCount` INTEGER NOT NULL, `complianceScore` REAL NOT NULL, `onboardingCount` INTEGER NOT NULL, `dailyGoalsCompletedCount` INTEGER NOT NULL, `analyticsInsightsCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`snapshotId`))",
         "fields": [
           {
             "fieldPath": "snapshotId",
@@ -6653,6 +6653,12 @@
           {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -9710,7 +9716,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4c6bcc01dadcfba3d41ce784ffd2b127')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b987c33b715265fa49ed375073e51ddc')"
     ]
   }
 }

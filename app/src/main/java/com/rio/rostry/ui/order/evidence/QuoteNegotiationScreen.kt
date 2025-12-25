@@ -29,7 +29,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.data.database.entity.OrderQuoteEntity
 import com.rio.rostry.domain.model.OrderDeliveryType
 import com.rio.rostry.domain.model.OrderPaymentType
-import java.text.NumberFormat
+import com.rio.rostry.domain.model.QuoteStatus
+import com.rio.rostry.utils.CurrencyUtils
 import java.util.*
 
 /**
@@ -67,7 +68,7 @@ fun QuoteNegotiationScreen(
     val warningColor = Color(0xFFF59E0B)
 
     LaunchedEffect(successMessage) {
-        if (successMessage != null && quote?.status == "LOCKED") {
+        if (successMessage != null && quote?.status == QuoteStatus.LOCKED.value) {
             onProceedToPayment(quote.orderId)
         }
     }
@@ -122,14 +123,14 @@ fun QuoteNegotiationScreen(
             }
 
             // Price Breakdown Card (for buyer viewing quote)
-            if (isBuyer && quote?.status != "DRAFT") {
+            if (isBuyer && quote?.status != QuoteStatus.DRAFT.value) {
                 item {
                     PriceBreakdownCard(quote = quote)
                 }
             }
 
             // Seller Quote Form
-            if (!isBuyer && (quote?.status == "DRAFT" || quote?.status == "NEGOTIATING")) {
+            if (!isBuyer && (quote?.status == QuoteStatus.DRAFT.value || quote?.status == QuoteStatus.NEGOTIATING.value)) {
                 item {
                     SellerQuoteForm(
                         form = quoteForm,
@@ -193,7 +194,7 @@ fun QuoteNegotiationScreen(
                     AgreementStatusCard(
                         buyerAgreed = q.buyerAgreedAt != null,
                         sellerAgreed = q.sellerAgreedAt != null,
-                        isLocked = q.status == "LOCKED",
+                        isLocked = q.status == QuoteStatus.LOCKED.value,
                         lockedAt = q.lockedAt
                     )
                 }
@@ -231,13 +232,13 @@ private fun QuoteStatusBanner(
     sellerAgreed: Boolean
 ) {
     val (backgroundColor, icon, text) = when (status) {
-        "DRAFT" -> Triple(Color(0xFFFEF3C7), Icons.Default.Edit, "Draft - Waiting for seller quote")
-        "SENT" -> Triple(Color(0xFFDCFCE7), Icons.Default.Send, "Quote sent - Awaiting response")
-        "NEGOTIATING" -> Triple(Color(0xFFFEF3C7), Icons.Default.SwapHoriz, "Negotiating - Counter offer made")
-        "BUYER_AGREED" -> Triple(Color(0xFFDCFCE7), Icons.Default.CheckCircle, "Buyer agreed - Waiting for seller")
-        "SELLER_AGREED" -> Triple(Color(0xFFDCFCE7), Icons.Default.CheckCircle, "Seller agreed - Waiting for buyer")
-        "LOCKED" -> Triple(Color(0xFF10B981), Icons.Default.Lock, "Agreement Locked! Price is final")
-        "EXPIRED" -> Triple(Color(0xFFFEE2E2), Icons.Default.Warning, "Quote expired")
+        QuoteStatus.DRAFT.value -> Triple(Color(0xFFFEF3C7), Icons.Default.Edit, "Draft - Waiting for seller quote")
+        QuoteStatus.SENT.value -> Triple(Color(0xFFDCFCE7), Icons.Default.Send, "Quote sent - Awaiting response")
+        QuoteStatus.NEGOTIATING.value -> Triple(Color(0xFFFEF3C7), Icons.Default.SwapHoriz, "Negotiating - Counter offer made")
+        QuoteStatus.BUYER_AGREED.value -> Triple(Color(0xFFDCFCE7), Icons.Default.CheckCircle, "Buyer agreed - Waiting for seller")
+        QuoteStatus.SELLER_AGREED.value -> Triple(Color(0xFFDCFCE7), Icons.Default.CheckCircle, "Seller agreed - Waiting for buyer")
+        QuoteStatus.LOCKED.value -> Triple(Color(0xFF10B981), Icons.Default.Lock, "Agreement Locked! Price is final")
+        QuoteStatus.EXPIRED.value -> Triple(Color(0xFFFEE2E2), Icons.Default.Warning, "Quote expired")
         else -> Triple(Color(0xFFF3F4F6), Icons.Default.Info, status)
     }
 
@@ -255,14 +256,14 @@ private fun QuoteStatusBanner(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (status == "LOCKED") Color.White else Color(0xFF374151)
+                tint = if (status == QuoteStatus.LOCKED.value) Color.White else Color(0xFF374151)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = if (status == "LOCKED") Color.White else Color(0xFF374151)
+                color = if (status == QuoteStatus.LOCKED.value) Color.White else Color(0xFF374151)
             )
         }
     }
@@ -326,8 +327,6 @@ private fun ProductInfoCard(
 private fun PriceBreakdownCard(quote: OrderQuoteEntity?) {
     if (quote == null) return
     
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
@@ -365,7 +364,7 @@ private fun PriceBreakdownCard(quote: OrderQuoteEntity?) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = currencyFormat.format(quote.finalTotal),
+                    text = CurrencyUtils.formatPrice(quote.finalTotal),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF10B981)
@@ -382,8 +381,6 @@ private fun PriceRow(
     suffix: String = "",
     isDiscount: Boolean = false
 ) {
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
-    
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -395,9 +392,9 @@ private fun PriceRow(
         )
         Text(
             text = if (suffix.isNotEmpty()) {
-                "${currencyFormat.format(amount)} / $suffix"
+                "${CurrencyUtils.formatPrice(amount)} / $suffix"
             } else {
-                currencyFormat.format(amount)
+                CurrencyUtils.formatPrice(amount)
             },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
@@ -414,7 +411,6 @@ private fun SellerQuoteForm(
     onSendQuote: () -> Unit,
     isLoading: Boolean
 ) {
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
     val calculatedTotal = (form.basePrice * quantity) + form.deliveryCharge + form.packingCharge
 
     Card(
@@ -499,7 +495,7 @@ private fun SellerQuoteForm(
                         color = Color.White
                     )
                     Text(
-                        text = currencyFormat.format(calculatedTotal),
+                        text = CurrencyUtils.formatPrice(calculatedTotal),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -595,8 +591,6 @@ private fun PaymentPreferenceCard(
     advanceAmount: Double?,
     balanceAmount: Double?
 ) {
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
@@ -634,7 +628,7 @@ private fun PaymentPreferenceCard(
                 ) {
                     Text("Advance Required:", fontWeight = FontWeight.Medium)
                     Text(
-                        currencyFormat.format(advanceAmount),
+                        CurrencyUtils.formatPrice(advanceAmount),
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFD97706)
                     )
@@ -651,7 +645,7 @@ private fun PaymentPreferenceCard(
                 ) {
                     Text("Balance on Delivery:", fontWeight = FontWeight.Medium)
                     Text(
-                        currencyFormat.format(balanceAmount),
+                        CurrencyUtils.formatPrice(balanceAmount),
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF059669)
                     )
@@ -721,15 +715,15 @@ private fun ActionButtonsSection(
     onCounterOffer: () -> Unit
 ) {
     val canAgree = when {
-        quote.status == "LOCKED" -> false
+        quote.status == QuoteStatus.LOCKED.value -> false
         isBuyer && quote.buyerAgreedAt != null -> false
         !isBuyer && quote.sellerAgreedAt != null -> false
-        quote.status == "DRAFT" -> false
+        quote.status == QuoteStatus.DRAFT.value -> false
         else -> true
     }
 
     val canCounterOffer = isBuyer && 
-        quote.status in listOf("SENT", "NEGOTIATING", "SELLER_AGREED") &&
+        quote.status in listOf(QuoteStatus.SENT.value, QuoteStatus.NEGOTIATING.value, QuoteStatus.SELLER_AGREED.value) &&
         quote.buyerAgreedAt == null
 
     Column(

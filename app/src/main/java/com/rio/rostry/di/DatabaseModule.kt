@@ -457,6 +457,10 @@ object DatabaseModule {
     @Singleton
     fun provideMarketListingDao(db: AppDatabase): com.rio.rostry.data.database.dao.MarketListingDao = db.marketListingDao()
 
+    @Provides
+    @Singleton
+    fun provideReviewDao(db: AppDatabase): com.rio.rostry.data.database.dao.ReviewDao = db.reviewDao()
+
     // Evidence-Based Order System DAOs
     @Provides
     @Singleton

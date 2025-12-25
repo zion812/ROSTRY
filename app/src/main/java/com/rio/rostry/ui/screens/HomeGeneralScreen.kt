@@ -215,12 +215,16 @@ private fun ProductCard(product: ProductEntity, onClick: (String) -> Unit) {
                 maxLines = 1
             )
             Text(
-                text = "$${product.price}",
+                text = com.rio.rostry.utils.CurrencyUtils.formatPrice(product.price),
                 style = MaterialTheme.typography.bodyMedium
             )
+            // Calculate distance relative to fixed center (demo) or inject user location
+            // For UI simplicity here, we show location name or 'Nearby' if lat/lng exists
+            val locationText = if (product.location.isNotBlank()) product.location else "Nearby"
             Text(
-                text = "5 km away", // Placeholder for distance calculation
-                style = MaterialTheme.typography.bodySmall
+                text = locationText,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1
             )
         }
     }

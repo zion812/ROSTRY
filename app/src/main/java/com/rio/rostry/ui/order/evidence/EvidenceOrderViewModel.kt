@@ -385,14 +385,20 @@ class EvidenceOrderViewModel @Inject constructor(
         }
     }
 
-    fun verifyDeliveryOtp(orderId: String, otp: String) {
+    fun verifyDeliveryOtp(orderId: String, otp: String, lat: Double? = null, lng: Double? = null) {
         val userId = _currentUserId.value ?: return
 
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            val result = evidenceOrderRepository.verifyDeliveryOtp(orderId, otp, userId)
+            val result = evidenceOrderRepository.verifyDeliveryOtp(
+                orderId = orderId,
+                otp = otp,
+                confirmedBy = userId,
+                verifierLat = lat,
+                verifierLng = lng
+            )
 
             when (result) {
                 is Resource.Success -> {
@@ -546,6 +552,52 @@ class EvidenceOrderViewModel @Inject constructor(
             when (result) {
                 is Resource.Success -> {
                     _successMessage.value = "Dispute raised successfully."
+                }
+                is Resource.Error -> {
+                    _error.value = result.message
+                }
+                is Resource.Loading -> {}
+            }
+            _isLoading.value = false
+        }
+    }
+
+    // ==================== REVIEWS ====================
+
+    fun submitReview(
+        orderId: String,
+        overallRating: Int,
+        qualityRating: Int,
+        deliveryRating: Int,
+        communicationRating: Int,
+        reviewText: String,
+        wouldRecommend: Boolean?
+    ) {
+        val userId = _currentUserId.value ?: return
+        
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            
+            // Format content to include detailed ratings
+            val detailedContent = StringBuilder().apply {
+                if (reviewText.isNotBlank()) append(reviewText).append("\n\n")
+                append("Quality: $qualityRating/5\n")
+                append("Delivery: $deliveryRating/5\n")
+                append("Communication: $communicationRating/5")
+            }.toString()
+
+            val result = evidenceOrderRepository.submitReview(
+                orderId = orderId,
+                reviewerId = userId,
+                rating = overallRating,
+                content = detailedContent,
+                wouldRecommend = wouldRecommend
+            )
+
+            when (result) {
+                is Resource.Success -> {
+                    _successMessage.value = "Review submitted successfully!"
                 }
                 is Resource.Error -> {
                     _error.value = result.message

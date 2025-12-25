@@ -166,11 +166,10 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
 
         // WorkManager is configured via Configuration.Provider; avoid explicit initialize to prevent duplicates.
 
-        // Defer worker scheduling by 3 seconds to avoid blocking app startup
+        // Defer worker scheduling to background threads without arbitrary blocking delay
         applicationScope.launch {
-            delay(3000)
             setupSessionBasedWorkers()
-            Timber.d("Background workers scheduled after startup delay")
+            Timber.d("Background workers scheduled")
         }
         
         // Register connectivity listener for expedited sync on network reconnection
@@ -225,9 +224,8 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
                 if (isLoggedIn) {
                     // ZERO-COST ARCHITECTURE: No more waiting for Cloud Functions claims!
                     // Firestore security rules now read userType directly from user documents.
-                    // Just add a small delay for app initialization stability.
                     Timber.i("User is logged in. Scheduling workers...")
-                    delay(2000)
+                    // Fixed: Removed arbitrary delay. Reactive flow ensures readiness.
                     
                     scheduleAllWorkers(workManager)
                 } else {

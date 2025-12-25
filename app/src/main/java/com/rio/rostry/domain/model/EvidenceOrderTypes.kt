@@ -145,3 +145,37 @@ enum class DisputeReason(val value: String, val displayName: String) {
             values().find { it.value == value } ?: OTHER
     }
 }
+
+/**
+ * Status values for the negotiation phase (OrderQuoteEntity).
+ */
+enum class QuoteStatus(val value: String) {
+    DRAFT("DRAFT"),
+    SENT("SENT"),
+    NEGOTIATING("NEGOTIATING"),
+    BUYER_AGREED("BUYER_AGREED"),
+    SELLER_AGREED("SELLER_AGREED"),
+    LOCKED("LOCKED"),
+    SUPERSEDED("SUPERSEDED"),
+    EXPIRED("EXPIRED"),
+    REJECTED("REJECTED");
+
+    companion object {
+        fun fromString(value: String): QuoteStatus =
+            values().find { it.value == value } ?: DRAFT
+    }
+}
+
+/**
+ * Payment phases for split payments.
+ */
+enum class PaymentPhase(val value: String) {
+    ADVANCE("ADVANCE"),
+    BALANCE("BALANCE"),
+    FULL("FULL");
+
+    companion object {
+        fun fromString(value: String): PaymentPhase =
+            values().find { it.value == value } ?: FULL
+    }
+}

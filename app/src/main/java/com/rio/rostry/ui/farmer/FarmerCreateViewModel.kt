@@ -753,7 +753,7 @@ class FarmerCreateViewModel @Inject constructor(
         )
         if (_ui.value.isSubmitting) return
         viewModelScope.launch {
-            _ui.value = UiState(isSubmitting = true)
+            _ui.value = _ui.value.copy(isSubmitting = true)
             // Fetch current user to populate sellerId and location
             val currentUser = getCurrentUserOrNull()
             if (currentUser == null) {
@@ -816,7 +816,7 @@ class FarmerCreateViewModel @Inject constructor(
                 // Validate with traceability before any heavy work
                 val validation = productValidator.validateWithTraceability(candidate, sourceProductId = prefillProductId)
                 if (!validation.valid) {
-                    _ui.value = UiState(
+                    _ui.value = _ui.value.copy(
                         isSubmitting = false,
                         error = validation.reasons.joinToString(separator = "; ")
                     )
@@ -876,11 +876,11 @@ class FarmerCreateViewModel @Inject constructor(
                             )
                         }
                     }
-                    is Resource.Error -> _ui.value = UiState(isSubmitting = false, error = res.message ?: "Failed to publish")
-                    is Resource.Loading -> _ui.value = UiState(isSubmitting = true)
+                    is Resource.Error -> _ui.value = _ui.value.copy(isSubmitting = false, error = res.message ?: "Failed to publish")
+                    is Resource.Loading -> _ui.value = _ui.value.copy(isSubmitting = true)
                 }
             } catch (e: Exception) {
-                _ui.value = UiState(isSubmitting = false, error = e.message ?: "Unexpected error")
+                _ui.value = _ui.value.copy(isSubmitting = false, error = e.message ?: "Unexpected error")
             }
         }
     }
@@ -904,12 +904,11 @@ class FarmerCreateViewModel @Inject constructor(
             Traceability.NonTraceable -> false
         }
         // Derive birthDate approximation by selected age group for validation
-        val dayMs = 24L * 60 * 60 * 1000
         val birthDate: Long? = when (form.ageGroup) {
-            AgeGroup.Chick -> now - 10L * dayMs
-            AgeGroup.Grower -> now - 60L * dayMs
-            AgeGroup.Adult -> now - 200L * dayMs
-            AgeGroup.Senior -> now - 400L * dayMs
+            AgeGroup.Chick -> com.rio.rostry.utils.TimeUtils.approximateBirthDateDays(10L)
+            AgeGroup.Grower -> com.rio.rostry.utils.TimeUtils.approximateBirthDateDays(60L)
+            AgeGroup.Adult -> com.rio.rostry.utils.TimeUtils.approximateBirthDateDays(200L)
+            AgeGroup.Senior -> com.rio.rostry.utils.TimeUtils.approximateBirthDateDays(400L)
         }
         val status = "available"
         val color = _ui.value.wizardState.detailsInfo.colorPattern.ifBlank { null }
@@ -998,8 +997,9 @@ class FarmerCreateViewModel @Inject constructor(
         val now = System.currentTimeMillis()
         val farmerId = user.userId
         
-        // 1. Determine Asset ID (Link to existing if prefilled, otherwise create new)
-        val assetId = prefillProductId ?: UUID.randomUUID().toString()
+        // 1. Determine Asset ID (Link to existing if prefilled, otherwise use the listing ID which is the source of truth)
+        // CRITICAL FIX: Ensure Asset ID matches Product ID for un-prefilled listings to maintain link
+        val assetId = prefillProductId ?: listingId
         
         // 2. Ensure FarmAsset exists in the new table
         val existingAssetRes = if (prefillProductId != null) {
@@ -1086,13 +1086,12 @@ class FarmerCreateViewModel @Inject constructor(
     }
 
     private suspend fun checkFarmDataFreshness(productId: String): Map<String, Boolean> {
-        val now = System.currentTimeMillis()
         val vaccinationFresh = vaccinationRepository.observe(productId).first()
-            .any { it.administeredAt != null && (now - it.administeredAt!!) <= 30L * 24 * 60 * 60 * 1000 }
+            .any { it.administeredAt != null && com.rio.rostry.utils.TimeUtils.isRecent(it.administeredAt!!, 30L) }
         val healthLogFresh = dailyLogRepository.observe(productId).first()
-            .any { (now - it.createdAt) <= 7L * 24 * 60 * 60 * 1000 }
+            .any { com.rio.rostry.utils.TimeUtils.isRecent(it.createdAt, 7L) }
         val growthFresh = growthRepository.observe(productId).first()
-            .any { (now - it.createdAt) <= 14L * 24 * 60 * 60 * 1000 }
+            .any { com.rio.rostry.utils.TimeUtils.isRecent(it.createdAt, 14L) }
         return mapOf(
             "vaccination" to vaccinationFresh,
             "healthLog" to healthLogFresh,

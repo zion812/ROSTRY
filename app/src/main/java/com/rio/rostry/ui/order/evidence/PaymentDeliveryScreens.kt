@@ -1,5 +1,7 @@
 package com.rio.rostry.ui.order.evidence
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,8 +29,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.google.android.gms.location.LocationServices
 import com.rio.rostry.data.database.entity.OrderPaymentEntity
 import java.text.NumberFormat
 import java.util.*
@@ -429,6 +433,46 @@ fun DeliveryOtpScreen(
     val successMessage by viewModel.successMessage.collectAsState()
 
     var otpInput by remember { mutableStateOf("") }
+    
+    // Location Logic
+    val context = LocalContext.current
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    viewModel.verifyDeliveryOtp(orderId, otpInput, location?.latitude, location?.longitude)
+                }.addOnFailureListener {
+                    viewModel.verifyDeliveryOtp(orderId, otpInput, null, null)
+                }
+            } catch (e: SecurityException) {
+                viewModel.verifyDeliveryOtp(orderId, otpInput, null, null)
+            }
+        } else {
+            // Permission denied, proceed without location (Repository will skip GPS check)
+            viewModel.verifyDeliveryOtp(orderId, otpInput, null, null)
+        }
+    }
+
+    val onVerifyClick: () -> Unit = {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    viewModel.verifyDeliveryOtp(orderId, otpInput, location?.latitude, location?.longitude)
+                }.addOnFailureListener {
+                    viewModel.verifyDeliveryOtp(orderId, otpInput, null, null)
+                }
+                Unit // Explicitly return Unit
+            } catch (e: SecurityException) {
+                viewModel.verifyDeliveryOtp(orderId, otpInput, null, null)
+            }
+        } else {
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (isBuyer) {
@@ -482,7 +526,7 @@ fun DeliveryOtpScreen(
                     onOtpChange = { otpInput = it },
                     isLoading = isLoading,
                     error = error,
-                    onVerifyOtp = { viewModel.verifyDeliveryOtp(orderId, otpInput) }
+                    onVerifyOtp = onVerifyClick
                 )
             }
 

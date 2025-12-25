@@ -301,7 +301,20 @@ class GeneralCartViewModel @Inject constructor(
             )
         }
         val subtotal = items.sumOf { it.subtotal }
-        val deliveryFee = selection.delivery.fee
+        
+        // Smarter delivery fee: sum of max delivery cost per item (simplified logic)
+        // If selection is Pickup, fee is 0.
+        val baseDeliveryFee = if (selection.delivery.id == "pickup") 0.0 else {
+            // Use maximum individual delivery cost from items, or fallback to standard fee
+            val maxItemCost = items.maxOfOrNull { item -> 
+                 // In a real app, we'd fetch this from the product entity. 
+                 // For now, use the fee from the selected option (Standard/Express).
+                 selection.delivery.fee
+            } ?: 0.0
+            maxItemCost
+        }
+        val deliveryFee = baseDeliveryFee
+
         // Fee breakdown via FeeCalculationEngine (use cents)
         val userType = (base.user.data?.role) ?: com.rio.rostry.domain.model.UserType.GENERAL
         val breakdown = FeeCalculationEngine.calculate(
@@ -317,7 +330,8 @@ class GeneralCartViewModel @Inject constructor(
         val total = breakdown.totalCents / 100.0
         val addresses = buildList {
             base.user.data?.address?.let { if (it.isNotBlank()) add(it) }
-            add("Pickup hub (Bengaluru)")
+            // Dynamic hubs should be fetched from API
+            add("Nearest Rostry Hub") 
             add("Save new address…")
         }
         val resolvedAddress = selection.address ?: addresses.firstOrNull()

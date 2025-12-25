@@ -269,8 +269,15 @@ fun OrderReviewScreen(
             item {
                 Button(
                     onClick = {
-                        // Submit review via ViewModel
-                        // viewModel.submitReview(orderId, overallRating, qualityRating, ...)
+                        viewModel.submitReview(
+                            orderId = orderId,
+                            overallRating = overallRating,
+                            qualityRating = qualityRating,
+                            deliveryRating = deliveryRating,
+                            communicationRating = communicationRating,
+                            reviewText = reviewText,
+                            wouldRecommend = wouldRecommend
+                        )
                     },
                     modifier = Modifier
                         .fillMaxWidth()

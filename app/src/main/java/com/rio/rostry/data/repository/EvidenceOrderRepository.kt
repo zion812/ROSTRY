@@ -2,7 +2,9 @@ package com.rio.rostry.data.repository
 
 import com.rio.rostry.data.database.dao.*
 import com.rio.rostry.data.database.entity.*
+import com.rio.rostry.data.database.entity.ReviewEntity
 import com.rio.rostry.domain.model.*
+import com.rio.rostry.utils.LocationUtils
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -106,7 +108,13 @@ interface EvidenceOrderRepository {
     
     // Delivery Confirmation
     suspend fun generateDeliveryOtp(orderId: String): Resource<String>
-    suspend fun verifyDeliveryOtp(orderId: String, otp: String, confirmedBy: String): Resource<Unit>
+    suspend fun verifyDeliveryOtp(
+        orderId: String, 
+        otp: String, 
+        confirmedBy: String,
+        verifierLat: Double? = null,
+        verifierLng: Double? = null
+    ): Resource<Unit>
     suspend fun confirmDeliveryWithPhoto(orderId: String, deliveryPhotoId: String, buyerPhotoId: String?, confirmedBy: String): Resource<Unit>
     suspend fun markBalanceCollected(orderId: String, evidenceId: String?): Resource<Unit>
     
@@ -153,6 +161,15 @@ interface EvidenceOrderRepository {
     suspend fun expireOldQuotes(now: Long = System.currentTimeMillis()): Resource<Int>
     suspend fun expireOverduePayments()
     suspend fun escalateDispute(disputeId: String): Resource<Unit>
+
+    // Reviews
+    suspend fun submitReview(
+        orderId: String,
+        reviewerId: String,
+        rating: Int,
+        content: String?,
+        wouldRecommend: Boolean?
+    ): Resource<Unit>
 }
 
 @Singleton
@@ -163,7 +180,8 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
     private val evidenceDao: OrderEvidenceDao,
     private val confirmationDao: DeliveryConfirmationDao,
     private val disputeDao: OrderDisputeDao,
-    private val auditLogDao: OrderAuditLogDao
+    private val auditLogDao: OrderAuditLogDao,
+    private val reviewDao: ReviewDao
 ) : EvidenceOrderRepository {
 
     // ==================== QUOTE MANAGEMENT ====================
@@ -183,6 +201,8 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
         buyerNotes: String?
     ): Resource<OrderQuoteEntity> {
         return try {
+            if (quantity <= 0) return Resource.Error("Quantity must be greater than zero")
+            
             val now = System.currentTimeMillis()
             val orderId = UUID.randomUUID().toString()
             val quoteId = UUID.randomUUID().toString()
@@ -219,7 +239,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
                 deliveryLatitude = deliveryLatitude,
                 deliveryLongitude = deliveryLongitude,
                 paymentType = paymentPreference.value,
-                status = "DRAFT",
+                status = QuoteStatus.DRAFT.value,
                 version = 1,
                 buyerNotes = buyerNotes,
                 createdAt = now,
@@ -247,6 +267,9 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
         expiresInHours: Int
     ): Resource<OrderQuoteEntity> {
         return try {
+            if (basePrice < 0 || deliveryCharge < 0 || packingCharge < 0) {
+                return Resource.Error("Prices cannot be negative")
+            }
             val existing = quoteDao.findById(quoteId) 
                 ?: return Resource.Error("Quote not found")
             
@@ -266,7 +289,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
                 balanceAmount = if (existing.paymentType == OrderPaymentType.SPLIT_50_50.value) finalTotal * 0.5
                     else if (existing.paymentType == OrderPaymentType.COD.value) finalTotal
                     else null,
-                status = "SENT",
+                status = QuoteStatus.SENT.value,
                 sellerNotes = sellerNotes,
                 expiresAt = now + (expiresInHours * 60 * 60 * 1000L),
                 updatedAt = now
@@ -295,6 +318,9 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
         notes: String?
     ): Resource<OrderQuoteEntity> {
         return try {
+            if ((newPrice != null && newPrice < 0) || (newDeliveryCharge != null && newDeliveryCharge < 0)) {
+                return Resource.Error("Counter offer prices cannot be negative")
+            }
             val original = quoteDao.findById(originalQuoteId) 
                 ?: return Resource.Error("Original quote not found")
             
@@ -312,7 +338,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
                 finalTotal = finalTotal,
                 advanceAmount = calculateAdvance(original.paymentType, finalTotal),
                 balanceAmount = calculateBalance(original.paymentType, finalTotal),
-                status = "NEGOTIATING",
+                status = QuoteStatus.NEGOTIATING.value,
                 version = original.version + 1,
                 previousQuoteId = originalQuoteId,
                 buyerAgreedAt = null,
@@ -324,10 +350,10 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             )
             
             // Mark original as superseded
-            quoteDao.updateStatus(originalQuoteId, "SUPERSEDED", now)
+            quoteDao.updateStatus(originalQuoteId, QuoteStatus.SUPERSEDED.value, now)
             quoteDao.upsert(counterQuote)
             
-            logAction(original.orderId, "COUNTER_OFFER", "NEGOTIATING", "NEGOTIATING",
+            logAction(original.orderId, "COUNTER_OFFER", QuoteStatus.NEGOTIATING.value, QuoteStatus.NEGOTIATING.value,
                 original.buyerId, "BUYER", "Counter offer: ₹$finalTotal (was ₹${original.finalTotal})")
             
             Resource.Success(counterQuote)
@@ -341,7 +367,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             val quote = quoteDao.findById(quoteId) 
                 ?: return Resource.Error("Quote not found")
             
-            if (quote.status == "LOCKED") {
+            if (quote.status == QuoteStatus.LOCKED.value) {
                 return Resource.Error("Quote is already locked")
             }
             
@@ -350,7 +376,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             
             val updated = quoteDao.findById(quoteId)!!
             
-            if (updated.status == "LOCKED") {
+            if (updated.status == QuoteStatus.LOCKED.value) {
                 // Both agreed - lock the price and transition order
                 transitionOrderStateInternal(
                     quote.orderId,
@@ -366,7 +392,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
                     createPaymentRequest(
                         quote.orderId,
                         quoteId,
-                        if (paymentType == OrderPaymentType.FULL_ADVANCE) "FULL" else "ADVANCE",
+                        if (paymentType == OrderPaymentType.FULL_ADVANCE) PaymentPhase.FULL.value else PaymentPhase.ADVANCE.value,
                         quote.advanceAmount ?: quote.finalTotal,
                         "UPI", // Default, buyer can change
                         24
@@ -388,7 +414,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             val quote = quoteDao.findById(quoteId) 
                 ?: return Resource.Error("Quote not found")
             
-            if (quote.status == "LOCKED") {
+            if (quote.status == QuoteStatus.LOCKED.value) {
                 return Resource.Error("Quote is already locked")
             }
             
@@ -397,7 +423,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             
             val updated = quoteDao.findById(quoteId)!!
             
-            if (updated.status == "LOCKED") {
+            if (updated.status == QuoteStatus.LOCKED.value) {
                 transitionOrderStateInternal(
                     quote.orderId,
                     EvidenceOrderStatus.AGREEMENT_LOCKED,
@@ -427,6 +453,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
         dueInHours: Int
     ): Resource<OrderPaymentEntity> {
         return try {
+            if (amount <= 0) return Resource.Error("Payment amount must be positive")
             val quote = quoteDao.findById(quoteId) 
                 ?: return Resource.Error("Quote not found")
             
@@ -448,7 +475,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             paymentDao.upsert(payment)
             
             // Transition to appropriate status
-            val newStatus = if (phase == "ADVANCE" || phase == "FULL") 
+            val newStatus = if (phase == PaymentPhase.ADVANCE.value || phase == PaymentPhase.FULL.value) 
                 EvidenceOrderStatus.ADVANCE_PENDING else null
             
             if (newStatus != null) {
@@ -517,7 +544,7 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             val nextStatus = when {
                 paymentType == OrderPaymentType.FULL_ADVANCE && totalVerified >= (quote?.finalTotal ?: 0.0) ->
                     EvidenceOrderStatus.PAYMENT_VERIFIED
-                paymentType == OrderPaymentType.SPLIT_50_50 && payment.paymentPhase == "ADVANCE" ->
+                paymentType == OrderPaymentType.SPLIT_50_50 && payment.paymentPhase == PaymentPhase.ADVANCE.value ->
                     EvidenceOrderStatus.PAYMENT_VERIFIED
                 else -> EvidenceOrderStatus.PAYMENT_VERIFIED
             }
@@ -567,6 +594,13 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
         geoLongitude: Double?
     ): Resource<OrderEvidenceEntity> {
         return try {
+            // Validate: Only allow evidence upload if order isn't COMPLETED, CANCELLED or EXPIRED
+            val order = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+            val status = EvidenceOrderStatus.fromString(order.status)
+            if (status == EvidenceOrderStatus.COMPLETED || status == EvidenceOrderStatus.CANCELLED || status == EvidenceOrderStatus.EXPIRED) {
+                return Resource.Error("Cannot upload evidence for ${status.displayName} order")
+            }
+
             val now = System.currentTimeMillis()
             val evidence = OrderEvidenceEntity(
                 evidenceId = UUID.randomUUID().toString(),
@@ -648,7 +682,9 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
     override suspend fun verifyDeliveryOtp(
         orderId: String, 
         otp: String, 
-        confirmedBy: String
+        confirmedBy: String,
+        verifierLat: Double?,
+        verifierLng: Double?
     ): Resource<Unit> {
         return try {
             val confirmation = confirmationDao.getByOrderId(orderId) 
@@ -670,6 +706,22 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             if (confirmation.deliveryOtp != otp) {
                 confirmationDao.incrementOtpAttempts(confirmation.confirmationId, now)
                 return Resource.Error("Invalid OTP")
+            }
+
+            // GPS CHECK
+            if (verifierLat != null && verifierLng != null) {
+                val quote = quoteDao.getLatestQuote(orderId)
+                if (quote != null && quote.deliveryLatitude != null && quote.deliveryLongitude != null) {
+                    val distanceKm = LocationUtils.calculateDistance(
+                        verifierLat, verifierLng,
+                        quote.deliveryLatitude, quote.deliveryLongitude
+                    )
+                    
+                    // Allow 0.5km (500m) radius
+                    if (distanceKm > 0.5) {
+                        return Resource.Error("Location verification failed. You are ${LocationUtils.formatDistance(distanceKm)} away from delivery location.")
+                    }
+                }
             }
             
             confirmationDao.confirmWithOtp(confirmation.confirmationId, confirmedBy, now)
@@ -890,6 +942,54 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to resolve dispute")
+        }
+    }
+
+    override suspend fun submitReview(
+        orderId: String,
+        reviewerId: String,
+        rating: Int,
+        content: String?,
+        wouldRecommend: Boolean?
+    ): Resource<Unit> {
+        return try {
+            val order = orderDao.findById(orderId) 
+                ?: return Resource.Error("Order not found")
+
+            val now = System.currentTimeMillis()
+            val finalContent = StringBuilder().apply {
+                if (!content.isNullOrBlank()) append(content).append("\n\n")
+                if (wouldRecommend != null) append("Recommended: ").append(if (wouldRecommend) "Yes" else "No")
+            }.toString()
+
+            // Try to find the product ID from the quote if possible
+            // val quote = quoteDao.findByOrderId(orderId) 
+            
+            val review = ReviewEntity(
+                reviewId = UUID.randomUUID().toString(),
+                productId = null, 
+                sellerId = order.sellerId,
+                orderId = orderId,
+                reviewerId = reviewerId,
+                rating = rating,
+                title = "Verified Order Review",
+                content = finalContent.ifBlank { null },
+                isVerifiedPurchase = true,
+                createdAt = now,
+                updatedAt = now,
+                dirty = true,
+                responseFromSeller = null,
+                responseAt = null
+            )
+            
+            reviewDao.upsert(review)
+            
+            logAction(orderId, "REVIEW_SUBMITTED", null, null,
+                reviewerId, "BUYER", "Review submitted: $rating stars")
+                
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to submit review")
         }
     }
     

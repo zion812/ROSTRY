@@ -40,16 +40,39 @@ class GeneralHomeViewModel @Inject constructor(
 
     private suspend fun loadHomeData() {
         val userRes = userRepository.getCurrentUser().first()
-        val name = if (userRes is Resource.Success) userRes.data?.fullName else null
+        val user = userRes.data
+        val name = user?.fullName
+        
+        // Mock user location for 'Nearby' if not set (Center of Bangalore for demo)
+        val userLat = user?.farmLocationLat ?: 12.9716
+        val userLng = user?.farmLocationLng ?: 77.5946
 
         val productsRes = productRepository.getAllProducts().first()
         val products = if (productsRes is Resource.Success) productsRes.data ?: emptyList() else emptyList()
 
+        // 1. New Listings Today
+        // Use centralized TimeUtils for consistency
+        val newToday = products.count { com.rio.rostry.utils.TimeUtils.isRecent(it.createdAt, 1L) }
+
+        // 2. Nearby (within 50km)
+        val nearbyCount = products.count { product ->
+            if (product.latitude != null && product.longitude != null) {
+                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, product.latitude, product.longitude) <= 50.0
+            } else false
+        }
+
+        // 3. Recommended: Sort by distance, then freshness
+        val recommended = products.sortedBy { product ->
+            if (product.latitude != null && product.longitude != null) {
+                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, product.latitude, product.longitude)
+            } else Double.MAX_VALUE // Push unknown locations to end
+        }.take(10)
+
         _uiState.value = UiState(
             userName = name,
-            nearbyProductsCount = products.size,
-            newListingsToday = products.size,
-            recommendedProducts = products.take(10)
+            nearbyProductsCount = nearbyCount,
+            newListingsToday = newToday,
+            recommendedProducts = recommended
         )
     }
 
