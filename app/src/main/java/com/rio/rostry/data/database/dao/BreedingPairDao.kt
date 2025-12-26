@@ -41,4 +41,7 @@ interface BreedingPairDao {
 
     @Query("UPDATE breeding_pairs SET dirty = 0, syncedAt = :syncedAt WHERE pairId IN (:pairIds)")
     suspend fun clearDirty(pairIds: List<String>, syncedAt: Long)
+
+    @Query("SELECT COUNT(*) FROM breeding_pairs WHERE farmerId = :farmerId")
+    suspend fun getPairCountForFarmer(farmerId: String): Int
 }

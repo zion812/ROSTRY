@@ -45,4 +45,13 @@ interface UploadTaskDao {
 
     @Query("SELECT * FROM upload_tasks WHERE remotePath = :remotePath LIMIT 1")
     fun observeByRemotePath(remotePath: String): Flow<UploadTaskEntity?>
+
+    @Query("SELECT * FROM upload_tasks WHERE remotePath LIKE '%/' || :userId || '/%' AND status = 'SUCCESS'")
+    suspend fun getSuccessfulByUser(userId: String): List<UploadTaskEntity>
+
+    @Query("SELECT * FROM upload_tasks WHERE remotePath LIKE '%/' || :userId || '/%' AND status IN ('QUEUED','UPLOADING')")
+    suspend fun getIncompleteByUser(userId: String): List<UploadTaskEntity>
+
+    @Query("SELECT COUNT(*) FROM upload_tasks WHERE status IN ('QUEUED','UPLOADING')")
+    fun observePendingCount(): Flow<Int>
 }

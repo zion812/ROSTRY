@@ -7,7 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import com.rio.rostry.BuildConfig
 import com.rio.rostry.R
 import com.rio.rostry.ui.navigation.Routes
 
@@ -404,5 +406,38 @@ object FarmNotifier {
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(("farm_" + "kycRequired").hashCode(), notification)
+    }
+
+    fun notifyBackupComplete(context: Context, filePath: String) {
+        ensureChannel(context)
+        val file = java.io.File(filePath)
+        val fileUri = FileProvider.getUriForFile(
+            context,
+            "${BuildConfig.APPLICATION_ID}.fileprovider",
+            file
+        )
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(fileUri, "application/zip")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            "backupComplete".hashCode(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_menu_save)
+            .setContentTitle("Data Export Ready")
+            .setContentText("Your data backup has been successfully generated.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify("backup_complete".hashCode(), notification)
     }
 }

@@ -129,7 +129,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_50_51,
             AppDatabase.MIGRATION_51_52,
             AppDatabase.MIGRATION_52_53,
-            AppDatabase.MIGRATION_53_54
+            AppDatabase.MIGRATION_53_54,
+            AppDatabase.MIGRATION_54_55,
+            AppDatabase.MIGRATION_55_56
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -485,4 +487,17 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideOrderAuditLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.OrderAuditLogDao = db.orderAuditLogDao()
+
+    @Provides
+    @Singleton
+    fun provideVerificationDraftDao(db: AppDatabase): com.rio.rostry.data.database.dao.VerificationDraftDao = db.verificationDraftDao()
+
+    // Cloud Storage & Role Migration DAOs
+    @Provides
+    @Singleton
+    fun provideRoleMigrationDao(db: AppDatabase): com.rio.rostry.data.database.dao.RoleMigrationDao = db.roleMigrationDao()
+
+    @Provides
+    @Singleton
+    fun provideStorageQuotaDao(db: AppDatabase): com.rio.rostry.data.database.dao.StorageQuotaDao = db.storageQuotaDao()
 }

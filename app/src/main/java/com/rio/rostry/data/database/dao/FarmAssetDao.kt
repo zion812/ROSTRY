@@ -44,6 +44,9 @@ interface FarmAssetDao {
     @Query("SELECT * FROM farm_assets WHERE updatedAt > :sinceTime LIMIT :limit")
     suspend fun getUpdatedSince(sinceTime: Long, limit: Int = 100): List<FarmAssetEntity>
 
+    @Query("SELECT COUNT(*) FROM farm_assets WHERE farmerId = :farmerId AND isDeleted = 0")
+    suspend fun getAssetCountForFarmer(farmerId: String): Int
+
     @Query("DELETE FROM farm_assets WHERE isDeleted = 1")
     suspend fun purgeDeleted()
 }

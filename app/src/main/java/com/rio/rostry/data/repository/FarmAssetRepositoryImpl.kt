@@ -9,6 +9,7 @@ import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import com.rio.rostry.data.repository.StorageRepository
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 class FarmAssetRepositoryImpl @Inject constructor(
     private val dao: FarmAssetDao,
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val storageRepository: StorageRepository
 ) : FarmAssetRepository {
 
     override fun getAssetsByFarmer(farmerId: String): Flow<Resource<List<FarmAssetEntity>>> {
@@ -79,6 +81,22 @@ class FarmAssetRepositoryImpl @Inject constructor(
             val tombstone = existing.copy(isDeleted = true, deletedAt = System.currentTimeMillis(), dirty = true)
             dao.updateAsset(tombstone)
             
+            // Delete associated images from cloud storage
+            existing.imageUrls.forEach { url ->
+                if (url.contains("firebasestorage.googleapis.com")) {
+                    // Extract remote path from URL if possible, or assume it's stored in a way we can resolve
+                    // For now, we'll try to delete if we can derive the path.
+                    // This is a simplified approach.
+                    try {
+                         // Simple extraction: .../o/remote%2Fpath?alt=...
+                         val decoded = java.net.URLDecoder.decode(url.substringAfter("/o/").substringBefore("?"), "UTF-8")
+                         storageRepository.deleteFile(decoded)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Failed to delete storage file: $url")
+                    }
+                }
+            }
+
             firestore.collection("farm_assets").document(assetId).delete().await()
             dao.purgeDeleted() 
             Resource.Success(Unit)

@@ -26,6 +26,7 @@ import com.rio.rostry.ui.components.LocationPicker
 import com.rio.rostry.ui.verification.components.PendingStateScreen
 import com.rio.rostry.ui.verification.components.UploadRow
 import com.rio.rostry.ui.verification.components.VerifiedStateScreen
+import com.rio.rostry.ui.verification.components.DraftIndicator
 
 @Composable
 fun FarmerLocationVerificationScreen(
@@ -142,6 +143,8 @@ private fun ConfirmationView(
             }
         }
 
+        DraftIndicator(lastSavedAt = uiState.lastSavedAt)
+
         // 1. Location Section
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -156,7 +159,8 @@ private fun ConfirmationView(
                 
                 OutlinedButton(
                     onClick = { viewModel.changeLocation() },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.canEdit
                 ) {
                     Text(stringResource(R.string.change_location))
                 }
@@ -205,7 +209,8 @@ private fun ConfirmationView(
                                 onDelete = {
                                     if (uploadedUrl != null) viewModel.removeUploadedFile(uploadedUrl, false)
                                 },
-                                isImage = true
+                                isImage = true,
+                                enabled = uiState.canEdit
                             )
                         }
                     }
@@ -236,7 +241,8 @@ private fun ConfirmationView(
                                 onDelete = {
                                     if (uploadedUrl != null) viewModel.removeUploadedFile(uploadedUrl, true)
                                 },
-                                isImage = false
+                                isImage = false,
+                                enabled = uiState.canEdit
                             )
                         }
                     }

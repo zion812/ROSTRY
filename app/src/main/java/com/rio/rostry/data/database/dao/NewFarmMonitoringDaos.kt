@@ -37,6 +37,9 @@ interface FarmAlertDao {
 
     @Query("DELETE FROM farm_alerts WHERE farmerId = :farmerId AND isRead = 1")
     suspend fun deleteReadAlerts(farmerId: String)
+
+    @Query("SELECT COUNT(*) FROM farm_alerts WHERE farmerId = :farmerId")
+    suspend fun getAlertCountForFarmer(farmerId: String): Int
 }
 
 @Dao

@@ -10,7 +10,7 @@ import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.ValidationUtils.AgeGroup
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.marketplace.validation.ProductValidator
-import com.rio.rostry.utils.media.FirebaseStorageUploader
+import com.rio.rostry.data.repository.StorageRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.File
@@ -35,7 +35,7 @@ interface ProductMarketplaceRepository {
 class ProductMarketplaceRepositoryImpl @Inject constructor(
     private val productDao: ProductDao,
     private val productValidator: ProductValidator,
-    private val firebaseStorageUploader: FirebaseStorageUploader,
+    private val storageRepository: StorageRepository,
     private val appContext: Context,
     private val rbacGuard: RbacGuard
 ) : ProductMarketplaceRepository {
@@ -68,13 +68,17 @@ class ProductMarketplaceRepositoryImpl @Inject constructor(
                     try {
                         val localUriString = Uri.fromFile(tempFile).toString()
                         val remotePath = "products/$id/image_${index}.jpg"
-                        val result = firebaseStorageUploader.uploadFile(
+                        val result = storageRepository.uploadFile(
                             localUriString = localUriString,
                             remotePath = remotePath,
                             compress = false,
                             sizeLimitBytes = 1_500_000L
                         )
-                        remoteUrls.add(result.downloadUrl)
+                        when (result) {
+                            is Resource.Success -> remoteUrls.add(result.data?.downloadUrl ?: "")
+                            is Resource.Error -> return Resource.Error(result.message ?: "Upload failed")
+                            else -> {}
+                        }
                     } finally {
                         tempFile.delete()
                     }

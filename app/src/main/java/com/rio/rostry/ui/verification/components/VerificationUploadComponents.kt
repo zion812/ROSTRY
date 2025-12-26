@@ -29,7 +29,8 @@ fun UploadRow(
     uploadUrl: String?,
     onUpload: () -> Unit,
     onDelete: () -> Unit,
-    isImage: Boolean
+    isImage: Boolean,
+    enabled: Boolean = true
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -46,9 +47,9 @@ fun UploadRow(
         }
         
         if (isUploaded && uploadUrl != null) {
-            UploadedItem(url = uploadUrl, onDelete = onDelete, isImage = isImage)
+            UploadedItem(url = uploadUrl, onDelete = onDelete, isImage = isImage, readOnly = !enabled)
         } else {
-            OutlinedButton(onClick = onUpload, shape = RoundedCornerShape(8.dp)) {
+            OutlinedButton(onClick = onUpload, shape = RoundedCornerShape(8.dp), enabled = enabled) {
                 Icon(Icons.Default.Upload, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("Upload")

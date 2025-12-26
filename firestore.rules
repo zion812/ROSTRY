@@ -231,19 +231,26 @@ service cloud.firestore {
 
     // ===== Enthusiast Collections =====
     
-    // Mating Logs: ENTHUSIAST only
-    match /enthusiasts/{userId}/mating_logs/{logId} {
+    // Enthusiast document and migrated/exclusive subcollections
+    match /enthusiasts/{userId} {
       allow read, write: if isEnthusiast() && isOwner(userId);
-    }
-    
-    // Egg Collections: ENTHUSIAST only
-    match /enthusiasts/{userId}/egg_collections/{collectionId} {
-      allow read, write: if isEnthusiast() && isOwner(userId);
-    }
-    
-    // Dashboard Snapshots: ENTHUSIAST only
-    match /enthusiasts/{userId}/dashboard_snapshots/{snapshotId} {
-      allow read, write: if isEnthusiast() && isOwner(userId);
+
+      // Migrated subcollections
+      match /farm_assets/{docId} { allow read, write: if isOwner(userId); }
+      match /daily_logs/{docId} { allow read, write: if isOwner(userId); }
+      match /vaccinations/{docId} { allow read, write: if isOwner(userId); }
+      match /growth_records/{docId} { allow read, write: if isOwner(userId); }
+      match /mortality_records/{docId} { allow read, write: if isOwner(userId); }
+      match /quarantine_records/{docId} { allow read, write: if isOwner(userId); }
+      match /breeding_pairs/{docId} { allow read, write: if isOwner(userId); }
+      match /alerts/{docId} { allow read, write: if isOwner(userId); }
+      match /hatching_batches/{docId} { allow read, write: if isOwner(userId); }
+      match /hatching_logs/{docId} { allow read, write: if isOwner(userId); }
+      
+      // Exclusive subcollections
+      match /mating_logs/{logId} { allow read, write: if isEnthusiast() && isOwner(userId); }
+      match /egg_collections/{collectionId} { allow read, write: if isEnthusiast() && isOwner(userId); }
+      match /dashboard_snapshots/{snapshotId} { allow read, write: if isEnthusiast() && isOwner(userId); }
     }
   }
 }

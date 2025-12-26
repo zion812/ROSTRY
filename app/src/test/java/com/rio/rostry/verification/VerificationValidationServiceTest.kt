@@ -28,8 +28,17 @@ class VerificationValidationServiceTest {
     private fun mockMime(uri: String, mime: String?, sizeBytes: Long = 1024): Unit {
         every { context.contentResolver } returns contentResolver
         every { contentResolver.getType(Uri.parse(uri)) } returns mime
+        
+        val cursor: android.database.Cursor = mockk(relaxed = true)
+        every { cursor.getColumnIndex(android.provider.OpenableColumns.SIZE) } returns 0
+        every { cursor.moveToFirst() } returns true
+        every { cursor.getLong(0) } returns sizeBytes
+        every { cursor.close() } returns Unit
+        
+        every { contentResolver.query(Uri.parse(uri), arrayOf(android.provider.OpenableColumns.SIZE), null, null, null) } returns cursor
+        
         every { contentResolver.openInputStream(Uri.parse(uri)) } answers {
-            ByteArrayInputStream(ByteArray(sizeBytes.toInt()))
+            ByteArrayInputStream(ByteArray(if (sizeBytes > Int.MAX_VALUE) 1024 else sizeBytes.toInt()))
         }
     }
 
@@ -102,10 +111,21 @@ class VerificationValidationServiceTest {
     fun validateDocument_tooLarge_fails() = runBlocking {
         val service = VerificationValidationService(context, userRepository)
         val uri = "content://test/large.pdf"
-        // 6MB
-        mockMime(uri, "application/pdf", sizeBytes = 6_000_000)
+        // 25MB
+        mockMime(uri, "application/pdf", sizeBytes = 25_000_000)
         val res = service.validateDocumentFile(uri)
         assertTrue(res is VerificationValidationService.ValidationResult.Error)
+        assertEquals("Document too large (max 20MB)", (res as VerificationValidationService.ValidationResult.Error).message)
+    }
+
+    @Test
+    fun validateImage_largeButOk() = runBlocking {
+        val service = VerificationValidationService(context, userRepository)
+        val uri = "content://test/large_photo.jpg"
+        // 15MB
+        mockMime(uri, "image/jpeg", sizeBytes = 15_000_000)
+        val res = service.validateImageFile(uri)
+        assertTrue(res is VerificationValidationService.ValidationResult.Success)
     }
 
     @Test

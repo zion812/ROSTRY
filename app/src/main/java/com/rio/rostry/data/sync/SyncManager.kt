@@ -52,6 +52,7 @@ class SyncManager @Inject constructor(
     private val matingLogDao: com.rio.rostry.data.database.dao.MatingLogDao,
     private val eggCollectionDao: com.rio.rostry.data.database.dao.EggCollectionDao,
     private val enthusiastDashboardSnapshotDao: com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,
+    private val roleMigrationDao: com.rio.rostry.data.database.dao.RoleMigrationDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val traceabilityRepository: TraceabilityRepository,
     private val sessionManager: SessionManager
@@ -742,6 +743,7 @@ class SyncManager @Inject constructor(
                                     withRetry {
                                         firestoreService.pushDailyLogs(
                                             userId,
+                                            role ?: UserType.GENERAL,
                                             listOf(log)
                                         )
                                     }
@@ -901,7 +903,8 @@ class SyncManager @Inject constructor(
                             for (e in entries) {
                                 val task = gson.fromJson(e.payloadJson, TaskEntity::class.java)
                                 try {
-                                    withRetry { firestoreService.pushTasks(userId, listOf(task)) }
+                                    val userRole = role ?: UserType.GENERAL
+                                    withRetry { firestoreService.pushTasks(userId, userRole, listOf(task)) }
                                     taskDao.clearDirty(listOf(task.taskId), now)
                                     outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
                                 } catch (t: Throwable) {
@@ -980,13 +983,20 @@ class SyncManager @Inject constructor(
             // =============================
             // Farm Monitoring Entity Sync
             // =============================
-            if (role == UserType.FARMER && userId != null) {
-                val farmerId = userId
-                // Breeding Pairs
+            val canSyncMonitoring = (role == UserType.FARMER || role == UserType.ENTHUSIAST) && userId != null
+            val isMigrating = userId?.let { roleMigrationDao.hasActiveMigration(it) } ?: false
+            
+            if (canSyncMonitoring) {
+                if (isMigrating) {
+                    Timber.d("Skipping monitoring sync due to active migration for $userId")
+                } else {
+                    val farmerId = userId!!
+                    // Breeding Pairs
                 try {
                     val remotePairs = withRetry {
                         firestoreService.fetchUpdatedBreedingPairs(
                             farmerId,
+                            role,
                             state.lastBreedingSyncAt
                         )
                     }
@@ -997,7 +1007,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = breedingPairDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushBreedingPairs(farmerId, localDirty) }
+                        withRetry { firestoreService.pushBreedingPairs(farmerId, role, localDirty) }
                         breedingPairDao.clearDirty(localDirty.map { it.pairId }, now)
                         pushes += localDirty.size
                     }
@@ -1009,7 +1019,7 @@ class SyncManager @Inject constructor(
                 // Farm Alerts
                 try {
                     val remoteAlerts = withRetry {
-                        firestoreService.fetchUpdatedAlerts(farmerId, state.lastAlertSyncAt)
+                        firestoreService.fetchUpdatedAlerts(farmerId, role, state.lastAlertSyncAt)
                     }
                     if (remoteAlerts.isNotEmpty()) {
                         remoteAlerts.forEach { farmAlertDao.upsert(it) }
@@ -1018,7 +1028,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = farmAlertDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushAlerts(farmerId, localDirty) }
+                        withRetry { firestoreService.pushAlerts(farmerId, role, localDirty) }
                         farmAlertDao.clearDirty(localDirty.map { it.alertId }, now)
                         pushes += localDirty.size
                     }
@@ -1035,6 +1045,7 @@ class SyncManager @Inject constructor(
                     val remoteSnapshots = withRetry {
                         firestoreService.fetchUpdatedDashboardSnapshots(
                             farmerId,
+                            role,
                             state.lastDashboardSyncAt
                         )
                     }
@@ -1045,7 +1056,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = farmerDashboardSnapshotDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushDashboardSnapshots(farmerId, localDirty) }
+                        withRetry { firestoreService.pushDashboardSnapshots(farmerId, role, localDirty) }
                         farmerDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, now)
                         pushes += localDirty.size
                     }
@@ -1059,6 +1070,7 @@ class SyncManager @Inject constructor(
                     val remoteVaccinations = withRetry {
                         firestoreService.fetchUpdatedVaccinations(
                             farmerId,
+                            role,
                             state.lastVaccinationSyncAt
                         )
                     }
@@ -1069,7 +1081,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = vaccinationRecordDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushVaccinations(farmerId, localDirty) }
+                        withRetry { firestoreService.pushVaccinations(farmerId, role, localDirty) }
                         vaccinationRecordDao.clearDirty(localDirty.map { it.vaccinationId }, now)
                         pushes += localDirty.size
                     }
@@ -1081,7 +1093,7 @@ class SyncManager @Inject constructor(
                 // Growth Records
                 try {
                     val remoteGrowth = withRetry {
-                        firestoreService.fetchUpdatedGrowthRecords(farmerId, state.lastGrowthSyncAt)
+                        firestoreService.fetchUpdatedGrowthRecords(farmerId, role, state.lastGrowthSyncAt)
                     }
                     if (remoteGrowth.isNotEmpty()) {
                         remoteGrowth.forEach { growthRecordDao.upsert(it) }
@@ -1090,7 +1102,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = growthRecordDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushGrowthRecords(farmerId, localDirty) }
+                        withRetry { firestoreService.pushGrowthRecords(farmerId, role, localDirty) }
                         growthRecordDao.clearDirty(localDirty.map { it.recordId }, now)
                         pushes += localDirty.size
                     }
@@ -1104,6 +1116,7 @@ class SyncManager @Inject constructor(
                     val remoteQuarantine = withRetry {
                         firestoreService.fetchUpdatedQuarantineRecords(
                             farmerId,
+                            role,
                             state.lastQuarantineSyncAt
                         )
                     }
@@ -1114,7 +1127,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = quarantineRecordDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushQuarantineRecords(farmerId, localDirty) }
+                        withRetry { firestoreService.pushQuarantineRecords(farmerId, role, localDirty) }
                         quarantineRecordDao.clearDirty(localDirty.map { it.quarantineId })
                         pushes += localDirty.size
                     }
@@ -1128,6 +1141,7 @@ class SyncManager @Inject constructor(
                     val remoteMortality = withRetry {
                         firestoreService.fetchUpdatedMortalityRecords(
                             farmerId,
+                            role,
                             state.lastMortalitySyncAt
                         )
                     }
@@ -1138,7 +1152,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = mortalityRecordDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushMortalityRecords(farmerId, localDirty) }
+                        withRetry { firestoreService.pushMortalityRecords(farmerId, role, localDirty) }
                         mortalityRecordDao.clearDirty(localDirty.map { it.deathId }, now)
                         pushes += localDirty.size
                     }
@@ -1152,6 +1166,7 @@ class SyncManager @Inject constructor(
                     val remoteHatching = withRetry {
                         firestoreService.fetchUpdatedHatchingBatches(
                             farmerId,
+                            role,
                             state.lastHatchingSyncAt
                         )
                     }
@@ -1162,7 +1177,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = hatchingBatchDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushHatchingBatches(farmerId, localDirty) }
+                        withRetry { firestoreService.pushHatchingBatches(farmerId, role, localDirty) }
                         hatchingBatchDao.clearDirty(localDirty.map { it.batchId }, now)
                         pushes += localDirty.size
                     }
@@ -1176,6 +1191,7 @@ class SyncManager @Inject constructor(
                     val remoteLogs = withRetry {
                         firestoreService.fetchUpdatedHatchingLogs(
                             farmerId,
+                            role,
                             state.lastHatchingLogSyncAt
                         )
                     }
@@ -1186,7 +1202,7 @@ class SyncManager @Inject constructor(
 
                     val localDirty = hatchingLogDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushHatchingLogs(farmerId, localDirty) }
+                        withRetry { firestoreService.pushHatchingLogs(farmerId, role, localDirty) }
                         hatchingLogDao.clearDirty(localDirty.map { it.logId }, now)
                         pushes += localDirty.size
                     }
@@ -1194,15 +1210,13 @@ class SyncManager @Inject constructor(
                     Timber.e(e, "Hatching Logs sync failed")
                     syncErrors.add("Hatching Logs: ${e.message}")
                 }
-            }
 
-            // ===================
-            // Daily Logs (Sprint 1)
-            // ===================
-            if (role == UserType.FARMER && userId != null) {
+                // ===================
+                // Daily Logs (Sprint 1)
+                // ===================
                 try {
                     val remoteLogs: List<DailyLogEntity> = withRetry {
-                        firestoreService.fetchUpdatedDailyLogs(userId, state.lastDailyLogSyncAt)
+                        firestoreService.fetchUpdatedDailyLogs(userId, role, state.lastDailyLogSyncAt)
                     }
                     if (remoteLogs.isNotEmpty()) {
                         for (e in remoteLogs) {
@@ -1212,7 +1226,7 @@ class SyncManager @Inject constructor(
                     }
                     val localDirty: List<DailyLogEntity> = dailyLogDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushDailyLogs(userId, localDirty) }
+                        withRetry { firestoreService.pushDailyLogs(userId, role, localDirty) }
                         dailyLogDao.clearDirty(localDirty.map { it.logId }, now)
                         pushes += localDirty.size
                     }
@@ -1220,15 +1234,13 @@ class SyncManager @Inject constructor(
                     Timber.e(e, "Daily Logs sync failed")
                     syncErrors.add("Daily Logs: ${e.message}")
                 }
-            }
 
-            // ============
-            // Tasks (Sprint 1)
-            // ============
-            if (role == UserType.FARMER && userId != null) {
+                // ============
+                // Tasks (Sprint 1)
+                // ============
                 try {
                     val remoteTasks: List<TaskEntity> = withRetry {
-                        firestoreService.fetchUpdatedTasks(userId, state.lastTaskSyncAt)
+                        firestoreService.fetchUpdatedTasks(userId, role, state.lastTaskSyncAt)
                     }
                     if (remoteTasks.isNotEmpty()) {
                         for (t in remoteTasks) {
@@ -1238,7 +1250,7 @@ class SyncManager @Inject constructor(
                     }
                     val localDirty: List<TaskEntity> = taskDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushTasks(userId, localDirty) }
+                        withRetry { firestoreService.pushTasks(userId, role, localDirty) }
                         taskDao.clearDirty(localDirty.map { it.taskId }, now)
                         pushes += localDirty.size
                     }
@@ -1246,7 +1258,8 @@ class SyncManager @Inject constructor(
                     Timber.e(e, "Tasks sync failed")
                     syncErrors.add("Tasks: ${e.message}")
                 }
-            }
+            } // End of else (not migrating)
+        } // End of if (canSyncMonitoring)
 
             // Update sync state for all domains once at the end
             syncStateDao.upsert(

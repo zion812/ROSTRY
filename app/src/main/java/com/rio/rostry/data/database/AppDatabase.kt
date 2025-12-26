@@ -110,9 +110,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OrderPaymentEntity::class,
         DeliveryConfirmationEntity::class,
         OrderDisputeEntity::class,
-        OrderAuditLogEntity::class
+        OrderAuditLogEntity::class,
+        VerificationDraftEntity::class,
+        // Cloud Storage & Role Migration entities
+        RoleMigrationEntity::class,
+        StorageQuotaEntity::class
     ],
-    version = 54, // 54: Digital Farm; 53: Evidence-Based Order System; 52: Reviews & Ratings
+    version = 56, // 56: Cloud Storage & Role Migration; 55: Verification Drafts; 54: Digital Farm
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -216,6 +220,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun eggCollectionDao(): EggCollectionDao
     abstract fun enthusiastDashboardSnapshotDao(): EnthusiastDashboardSnapshotDao
     abstract fun uploadTaskDao(): UploadTaskDao
+    abstract fun verificationDraftDao(): VerificationDraftDao
+
+    // Cloud Storage & Role Migration DAOs
+    abstract fun roleMigrationDao(): RoleMigrationDao
+    abstract fun storageQuotaDao(): StorageQuotaDao
 
     // Sprint 1 new DAOs
     abstract fun dailyLogDao(): com.rio.rostry.data.database.dao.DailyLogDao
@@ -398,6 +407,15 @@ abstract class AppDatabase : RoomDatabase() {
         @TypeConverter
         @JvmStatic
         fun toLifecycleStage(name: String?): com.rio.rostry.domain.model.LifecycleStage? = name?.let { runCatching { com.rio.rostry.domain.model.LifecycleStage.valueOf(it) }.getOrNull() }
+
+        // UpgradeType enum converters
+        @TypeConverter
+        @JvmStatic
+        fun fromUpgradeType(type: com.rio.rostry.domain.model.UpgradeType?): String? = type?.name
+
+        @TypeConverter
+        @JvmStatic
+        fun toUpgradeType(name: String?): com.rio.rostry.domain.model.UpgradeType? = name?.let { runCatching { com.rio.rostry.domain.model.UpgradeType.valueOf(it) }.getOrNull() }
     }
 
     companion object {
@@ -416,6 +434,84 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_35_36: Migration = Converters.MIGRATION_35_36
         val MIGRATION_36_37: Migration = Converters.MIGRATION_36_37
         val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
+
+        // Create verification_drafts table (54 -> 55)
+        val MIGRATION_54_55 = object : Migration(54, 55) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `verification_drafts` (
+                        `draftId` TEXT NOT NULL PRIMARY KEY,
+                        `userId` TEXT NOT NULL,
+                        `upgradeType` TEXT,
+                        `farmLocationJson` TEXT,
+                        `uploadedImagesJson` TEXT,
+                        `uploadedDocsJson` TEXT,
+                        `uploadedImageTypesJson` TEXT,
+                        `uploadedDocTypesJson` TEXT,
+                        `uploadProgressJson` TEXT,
+                        `lastSavedAt` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_verification_drafts_userId` ON `verification_drafts` (`userId`)")
+            }
+        }
+
+        // Create role_migrations and storage_quota tables (55 -> 56)
+        val MIGRATION_55_56 = object : Migration(55, 56) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create role_migrations table
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `role_migrations` (
+                        `migrationId` TEXT NOT NULL PRIMARY KEY,
+                        `userId` TEXT NOT NULL,
+                        `fromRole` TEXT NOT NULL,
+                        `toRole` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `totalItems` INTEGER NOT NULL,
+                        `migratedItems` INTEGER NOT NULL,
+                        `currentPhase` TEXT,
+                        `currentEntity` TEXT,
+                        `startedAt` INTEGER,
+                        `completedAt` INTEGER,
+                        `pausedAt` INTEGER,
+                        `lastProgressAt` INTEGER,
+                        `errorMessage` TEXT,
+                        `retryCount` INTEGER NOT NULL DEFAULT 0,
+                        `maxRetries` INTEGER NOT NULL DEFAULT 3,
+                        `snapshotPath` TEXT,
+                        `metadataJson` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_role_migrations_userId` ON `role_migrations` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_role_migrations_status` ON `role_migrations` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_role_migrations_createdAt` ON `role_migrations` (`createdAt`)")
+
+                // Create storage_quota table
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `storage_quota` (
+                        `userId` TEXT NOT NULL PRIMARY KEY,
+                        `quotaBytes` INTEGER NOT NULL,
+                        `publicLimitBytes` INTEGER NOT NULL,
+                        `privateLimitBytes` INTEGER NOT NULL,
+                        `usedBytes` INTEGER NOT NULL,
+                        `publicUsedBytes` INTEGER NOT NULL,
+                        `privateUsedBytes` INTEGER NOT NULL,
+                        `imageBytes` INTEGER NOT NULL DEFAULT 0,
+                        `documentBytes` INTEGER NOT NULL DEFAULT 0,
+                        `dataBytes` INTEGER NOT NULL DEFAULT 0,
+                        `warningLevel` TEXT NOT NULL DEFAULT 'NORMAL',
+                        `lastCalculatedAt` INTEGER NOT NULL,
+                        `lastSyncedAt` INTEGER,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_storage_quota_lastCalculatedAt` ON `storage_quota` (`lastCalculatedAt`)")
+            }
+        }
 
         // Add bidIncrement, status, winnerId to auctions (44 -> 45)
         val MIGRATION_44_45 = object : Migration(44, 45) {

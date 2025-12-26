@@ -4,9 +4,13 @@ import android.content.Context
 import com.google.firebase.messaging.FirebaseMessaging
 import com.rio.rostry.data.database.dao.NotificationDao
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.storage.CloudStorageQuotaManager
+import com.rio.rostry.data.database.dao.StorageQuotaDao
 import com.rio.rostry.notifications.VerificationNotificationService
 import com.rio.rostry.utils.images.ImageCompressor
-import com.rio.rostry.utils.media.FirebaseStorageUploader
+import com.rio.rostry.data.repository.StorageRepository
+import com.rio.rostry.data.repository.StorageUsageRepository
+import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.utils.network.ConnectivityManager
 import com.rio.rostry.utils.validation.VerificationValidationService
 import dagger.Module
@@ -33,11 +37,13 @@ object VerificationModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseStorageUploader(
+    fun provideStorageRepository(
         @Named("verificationStorage") firebaseStorage: FirebaseStorage,
+        usageRepository: StorageUsageRepository,
+        firebaseAuth: FirebaseAuth,
         connectivityManager: ConnectivityManager,
         @ApplicationContext context: Context,
-    ): FirebaseStorageUploader = FirebaseStorageUploader(firebaseStorage, ImageCompressor, connectivityManager, context)
+    ): StorageRepository = StorageRepository(firebaseStorage, usageRepository, firebaseAuth, connectivityManager, context)
 
     @Provides
     @Singleton
@@ -59,4 +65,21 @@ object VerificationModule {
     fun provideVerificationRequirementProvider(): com.rio.rostry.domain.verification.VerificationRequirementProvider {
         return com.rio.rostry.domain.verification.DefaultVerificationRequirementProvider()
     }
+
+    @Provides
+    @Singleton
+    fun provideVerificationDraftRepository(
+        draftDao: com.rio.rostry.data.database.dao.VerificationDraftDao,
+        uploadTaskDao: com.rio.rostry.data.database.dao.UploadTaskDao,
+        gson: com.google.gson.Gson
+    ): com.rio.rostry.data.repository.VerificationDraftRepository {
+        return com.rio.rostry.data.repository.VerificationDraftRepositoryImpl(draftDao, uploadTaskDao, gson)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCloudStorageQuotaManager(
+        storageQuotaDao: StorageQuotaDao,
+        @Named("verificationStorage") firebaseStorage: FirebaseStorage
+    ): CloudStorageQuotaManager = CloudStorageQuotaManager(storageQuotaDao, firebaseStorage)
 }

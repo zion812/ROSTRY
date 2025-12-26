@@ -55,7 +55,7 @@ service firebase.storage {
     // KYC Verification Documents
     match /kyc/{userId}/{all=**} {
       allow write: if isSignedIn() && request.auth.uid == userId &&
-        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.size < 20 * 1024 * 1024 &&
         (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
       allow read: if isSignedIn() && request.auth.uid == userId;
     }
@@ -63,7 +63,7 @@ service firebase.storage {
     // Verification documents: verifications/{upgradeType}/{userId}/{all=**}
     match /verifications/{upgradeType}/{userId}/{all=**} {
       allow write: if isSignedIn() && request.auth.uid == userId &&
-        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.size < 20 * 1024 * 1024 &&
         (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
       allow read: if isSignedIn() && request.auth.uid == userId;
     }

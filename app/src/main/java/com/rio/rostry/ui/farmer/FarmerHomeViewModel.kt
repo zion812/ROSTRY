@@ -79,7 +79,8 @@ data class FarmerHomeUiState(
     // Evidence Order System fields
     val incomingEnquiries: List<OrderQuoteEntity> = emptyList(),
     val paymentsToVerify: List<OrderPaymentEntity> = emptyList(),
-    val pendingPaymentsCount: Int = 0
+    val pendingPaymentsCount: Int = 0,
+    val storageQuota: com.rio.rostry.data.database.entity.StorageQuotaEntity? = null
 )
 
 data class DashboardWidget(
@@ -123,7 +124,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val farmOnboardingRepository: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository,
     private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
-    private val evidenceOrderRepository: EvidenceOrderRepository // Evidence Order System
+    private val evidenceOrderRepository: EvidenceOrderRepository, // Evidence Order System
+    private val storageUsageRepository: com.rio.rostry.data.repository.StorageUsageRepository
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -231,7 +233,8 @@ class FarmerHomeViewModel @Inject constructor(
                 farmOnboardingRepository.observeRecentOnboardingActivity(id, 7).orDefault(emptyList()),
                 farmAssetRepository.getAssetsByFarmer(id).map { res ->
                     (res as? com.rio.rostry.utils.Resource.Success)?.data?.size ?: 0
-                }.orDefault(0) // NEW: Farm asset count
+                }.orDefault(0),
+                storageUsageRepository.observeQuota(id).orDefault(null)
             ) { values: Array<Any?> ->
                 val startNs = System.nanoTime() // FRESH timing for each emission
                 val vacDue = values[0] as? Int ?: 0
@@ -265,7 +268,8 @@ class FarmerHomeViewModel @Inject constructor(
                 val verStatus = values[24] as? com.rio.rostry.domain.model.VerificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED
                 @Suppress("UNCHECKED_CAST")
                 val recentActivityList = values[25] as? List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> ?: emptyList()
-                val farmAssetCount = values[26] as? Int ?: 0 // NEW
+                val farmAssetCount = values[26] as? Int ?: 0
+                val storageQuota = values[27] as? com.rio.rostry.data.database.entity.StorageQuotaEntity
 
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
                 if (elapsedMs > 500) { // Reduced threshold for better diagnosing
@@ -302,7 +306,8 @@ class FarmerHomeViewModel @Inject constructor(
                     analyticsInsights = analyticsInsights,
                     verificationStatus = verStatus,
                     recentActivity = recentActivityList,
-                    farmAssetCount = farmAssetCount // NEW: Pass farm asset count
+                    farmAssetCount = farmAssetCount,
+                    storageQuota = storageQuota
                 )
                 
                 // Generate dynamic widgets based on the computed state

@@ -64,4 +64,8 @@ interface UserRepository {
     fun getVerificationsByRoleAndStatus(role: UserType?, status: VerificationStatus?): Flow<Resource<List<VerificationSubmission>>>
 
     suspend fun getVerificationSubmission(userId: String): Resource<VerificationSubmission?>
+
+    // Role Migration
+    suspend fun initiateRoleMigration(userId: String): Resource<Unit>
+    fun getRoleMigrationStatus(userId: String): Flow<Resource<com.rio.rostry.data.database.entity.RoleMigrationEntity?>>
 }

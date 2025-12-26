@@ -22,6 +22,8 @@ import com.rio.rostry.data.database.dao.UploadTaskDao
 import com.rio.rostry.data.database.entity.UploadTaskEntity
 import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.workers.MediaUploadWorker
+import com.rio.rostry.data.repository.StorageRepository
+import com.rio.rostry.utils.Resource
 import java.util.UUID
   
 /**
@@ -31,7 +33,7 @@ import java.util.UUID
 @Singleton
 class MediaUploadManager @Inject constructor(
     private val connectivityManager: ConnectivityManager,
-    private val firebaseStorageUploader: FirebaseStorageUploader,
+    private val storageRepository: StorageRepository,
 ) {
     data class UploadTask(
         val localPath: String,
@@ -84,15 +86,27 @@ class MediaUploadManager @Inject constructor(
                                 _events.send(UploadEvent.Retrying(task.remotePath, attempt))
                                 continue
                             }
-                            val result = firebaseStorageUploader.uploadFile(
+                            val result = storageRepository.uploadFile(
                                 localUriString = task.localPath,
                                 remotePath = task.remotePath,
                                 compress = task.compress,
                                 sizeLimitBytes = task.sizeLimitBytes,
                                 onProgress = { p -> scope.launch { _events.send(UploadEvent.Progress(task.remotePath, p)) } }
                             )
-                            _events.send(UploadEvent.Success(task.remotePath, downloadUrl = result.downloadUrl))
-                            break
+                            when (result) {
+                                is Resource.Success -> {
+                                    _events.send(UploadEvent.Success(task.remotePath, downloadUrl = result.data?.downloadUrl ?: ""))
+                                    break
+                                }
+                                is Resource.Error -> {
+                                    if (result.message?.contains("quota") == true) {
+                                        _events.send(UploadEvent.Failed(task.remotePath, result.message ?: "Quota exceeded"))
+                                        break // Terminal failure for quota
+                                    }
+                                    throw Exception(result.message)
+                                }
+                                is Resource.Loading -> { /* Handled via onProgress */ }
+                            }
                         } catch (t: Throwable) {
                             attempt++
                             if (attempt >= maxAttempts) {

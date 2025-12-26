@@ -43,6 +43,9 @@ interface GrowthRecordDao {
 
     @Query("SELECT COUNT(*) FROM growth_records WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end")
     suspend fun countByFarmerInRange(farmerId: String, start: Long, end: Long): Int
+
+    @Query("SELECT COUNT(*) FROM growth_records WHERE farmerId = :farmerId")
+    suspend fun getRecordCountForFarmer(farmerId: String): Int
 }
 
 
@@ -78,6 +81,9 @@ interface MortalityRecordDao {
 
     @Query("SELECT COUNT(*) FROM mortality_records WHERE farmerId = :farmerId AND occurredAt BETWEEN :start AND :end")
     suspend fun countByFarmerInRange(farmerId: String, start: Long, end: Long): Int
+
+    @Query("SELECT COUNT(*) FROM mortality_records WHERE farmerId = :farmerId")
+    suspend fun getRecordCountForFarmer(farmerId: String): Int
 }
 
 @Dao
@@ -132,6 +138,9 @@ interface VaccinationRecordDao {
 
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NOT NULL")
     suspend fun countCompletedByFarmer(farmerId: String): Int
+
+    @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId")
+    suspend fun getRecordCountForFarmer(farmerId: String): Int
 }
 
 @Dao

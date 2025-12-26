@@ -11,9 +11,15 @@ import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.tasks.await
+import com.rio.rostry.data.database.dao.RoleMigrationDao
+import com.rio.rostry.data.database.entity.RoleMigrationEntity
+import com.rio.rostry.workers.RoleUpgradeMigrationWorker
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.domain.model.UpgradeType
@@ -26,6 +32,13 @@ import com.google.firebase.firestore.FieldValue
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.catch
+import com.rio.rostry.data.migration.RoleUpgradeMigrationService
+import com.rio.rostry.data.migration.MigrationResult
+import androidx.work.WorkManager
+import com.rio.rostry.workers.enqueueMigration
 import kotlinx.coroutines.launch
 import android.net.TrafficStats
 import java.util.Date
@@ -33,9 +46,12 @@ import java.util.Date
 @Singleton
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
+    private val roleMigrationDao: RoleMigrationDao,
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val migrationService: RoleUpgradeMigrationService,
+    @ApplicationContext private val context: Context
 ) : BaseRepository(), UserRepository {
 
     private val usersCollection = firestore.collection("users")
@@ -646,8 +662,31 @@ class UserRepositoryImpl @Inject constructor(
             }
             null
         } catch (e: Exception) {
-            android.util.Log.e("UserRepositoryImpl", "Error getting current user: ${e.message}", e)
             null
         }
     }
+
+    override suspend fun initiateRoleMigration(userId: String): Resource<Unit> {
+        return try {
+            val result = migrationService.initiateMigration(userId, migrateData = true)
+            when (result) {
+                is MigrationResult.Success -> {
+                    val workManager = WorkManager.getInstance(context)
+                    workManager.enqueueMigration(result.migrationId, userId)
+                    Resource.Success(Unit)
+                }
+                is MigrationResult.Error -> Resource.Error(result.message)
+                is MigrationResult.InsufficientQuota -> Resource.Error("Insufficient storage quota")
+                is MigrationResult.AlreadyMigrating -> Resource.Error("Migration already in progress")
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to initiate migration")
+        }
+    }
+
+    override fun getRoleMigrationStatus(userId: String): Flow<Resource<RoleMigrationEntity?>> =
+        roleMigrationDao.observeLatestForUser(userId)
+            .map { Resource.Success(it) as Resource<RoleMigrationEntity?> }
+            .onStart { emit(Resource.Loading<RoleMigrationEntity?>()) }
+            .catch { e -> emit(Resource.Error<RoleMigrationEntity?>(e.message ?: "Error observing migration status")) }
 }

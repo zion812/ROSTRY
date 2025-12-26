@@ -8,6 +8,7 @@ import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.AuditLogDao
+import com.rio.rostry.data.database.dao.UploadTaskDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.UserRepository
@@ -41,6 +42,8 @@ import java.util.UUID
 import com.rio.rostry.domain.verification.VerificationRequirementProvider
 
 import com.rio.rostry.domain.verification.VerificationRequirements
+import com.rio.rostry.data.repository.VerificationDraftRepository
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 @HiltViewModel
@@ -54,7 +57,9 @@ class VerificationViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val currentUserProvider: CurrentUserProvider,
     val placesClient: PlacesClient,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val draftRepository: VerificationDraftRepository,
+    private val uploadTaskDao: UploadTaskDao
 ) : ViewModel() {
 
     // Keep UiState compatible with View for now, but sourced from FormState
@@ -81,7 +86,9 @@ class VerificationViewModel @Inject constructor(
         val targetRole: UserType? = null,
         // Dynamic Requirements
         val requiredDocuments: List<String> = emptyList(),
-        val requiredImages: List<String> = emptyList()
+        val requiredImages: List<String> = emptyList(),
+        val canEdit: Boolean = true,
+        val lastSavedAt: Long? = null
     )
 
     private val gson = Gson()
@@ -89,8 +96,11 @@ class VerificationViewModel @Inject constructor(
     private val _requirements = MutableStateFlow(VerificationRequirements(emptyList(), emptyList()))
     private val _userData = MutableStateFlow<UserEntity?>(null)
     private val _validationErrors = MutableStateFlow<Map<String, String>>(emptyMap())
+    private val _lastSavedAt = MutableStateFlow<Long?>(null)
 
     private val _formState = savedStateHandle.getStateFlow("verification_form_state", VerificationFormState())
+
+    private var autoSaveJob: Job? = null
 
     private fun updateFormState(update: (VerificationFormState) -> VerificationFormState) {
         val current = _formState.value
@@ -102,8 +112,9 @@ class VerificationViewModel @Inject constructor(
         _formState,
         _userData,
         _validationErrors,
-        _requirements
-    ) { form: VerificationFormState, user: UserEntity?, validationErrors: Map<String, String>, reqs: VerificationRequirements ->
+        _requirements,
+        _lastSavedAt
+    ) { form: VerificationFormState, user: UserEntity?, validationErrors: Map<String, String>, reqs: VerificationRequirements, lastSaved: Long? ->
         UiState(
             isLoading = user == null,
             user = user,
@@ -123,8 +134,11 @@ class VerificationViewModel @Inject constructor(
             showLocationPicker = form.showLocationPicker || (form.farmLocation == null && user?.farmLocationLat == null && user?.farmLocationLng == null),
             upgradeType = form.upgradeType,
             currentRole = user?.role,
+            targetRole = calculateTargetRole(form.upgradeType),
             requiredDocuments = reqs.requiredDocuments,
-            requiredImages = reqs.requiredImages
+            requiredImages = reqs.requiredImages,
+            canEdit = user?.verificationStatus == VerificationStatus.UNVERIFIED || user?.verificationStatus == VerificationStatus.REJECTED,
+            lastSavedAt = lastSaved
         )
     }.stateIn(
         scope = viewModelScope,
@@ -144,8 +158,51 @@ class VerificationViewModel @Inject constructor(
         // Restore requirements immediately if type is known
         _formState.value.upgradeType?.let { updateRequirements(it) }
 
+        loadDraft()
         refresh()
         observeUploadEvents()
+        startAutoSave()
+    }
+
+    private fun startAutoSave() {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            _formState
+                .debounce(2000L)
+                .distinctUntilChanged()
+                .collectLatest { state ->
+                    val userId = currentUserProvider.userIdOrNull() ?: return@collectLatest
+                    // Only save if there's meaningful data or if it's already a draft
+                    if (state.farmLocation != null || state.uploadedImages.isNotEmpty() || state.uploadedDocuments.isNotEmpty()) {
+                        draftRepository.saveDraft(userId, state)
+                        _lastSavedAt.value = System.currentTimeMillis()
+                    }
+                }
+        }
+    }
+
+    private fun loadDraft() {
+        viewModelScope.launch {
+            val userId = currentUserProvider.userIdOrNull() ?: return@launch
+            val draft = draftRepository.loadDraft(userId)
+            if (draft != null) {
+                // Logic: Restore if current state is default and draft has data
+                val current = _formState.value
+                if (current.uploadedImages.isEmpty() && current.uploadedDocuments.isEmpty() && current.farmLocation == null) {
+                    updateFormState { draft.copy(isSubmitting = false, submissionSuccess = false) }
+                    
+                    // Re-attach to any uploads mentioned in database or draft
+                    val incompleteTasks = uploadTaskDao.getIncompleteByUser(userId)
+                    val pathsToTrack = (draft.uploadProgress.keys + incompleteTasks.map { it.remotePath }).distinct()
+                    pathsToTrack.forEach { remotePath ->
+                        mediaUploadManager.retrack(remotePath)
+                    }
+                    
+                    // Update requirements for restored type
+                    draft.upgradeType?.let { updateRequirements(it) }
+                }
+            }
+        }
     }
 
     fun refresh() {
@@ -495,6 +552,13 @@ class VerificationViewModel @Inject constructor(
 
             if (result is Resource.Success) {
                  updateFormState { it.copy(isSubmitting = false, submissionSuccess = true) }
+                 
+                 // Cleanup draft after success
+                 val userId = currentUserProvider.userIdOrNull()
+                 if (userId != null) {
+                     draftRepository.deleteDraft(userId)
+                 }
+                 
                  refresh() // Refresh user to get PENDING status logic
                  // Notify
                  runCatching { verificationNotificationService.notifyVerificationPending(user.userId) }

@@ -19,6 +19,10 @@ class VerificationValidationService(
     private val userRepository: UserRepository,
     private val exifReader: ExifReader = DefaultExifReader(),
 ) {
+    companion object {
+        const val MAX_FILE_SIZE = 20_000_000L // 20MB
+    }
+
     sealed class ValidationResult {
         object Success : ValidationResult()
         data class Error(val message: String, val field: String? = null) : ValidationResult()
@@ -85,7 +89,7 @@ class VerificationValidationService(
         
         val size = getFileSize(cr, uri)
         if (size < 0) return@withContext ValidationResult.Error("File not found or inaccessible", "file")
-        if (size > 10_000_000) return@withContext ValidationResult.Error("Image too large (max 10MB)", "file")
+        if (size > MAX_FILE_SIZE) return@withContext ValidationResult.Error("Image too large (max 20MB)", "file")
         ValidationResult.Success
     }
 
@@ -99,7 +103,7 @@ class VerificationValidationService(
         
         val size = getFileSize(cr, uri)
         if (size < 0) return@withContext ValidationResult.Error("File not found or inaccessible", "document")
-        if (size > 10_000_000) return@withContext ValidationResult.Error("Document too large (max 10MB)", "document")
+        if (size > MAX_FILE_SIZE) return@withContext ValidationResult.Error("Document too large (max 20MB)", "document")
         ValidationResult.Success
     }
 

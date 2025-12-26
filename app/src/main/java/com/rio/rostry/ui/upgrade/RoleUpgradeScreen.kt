@@ -292,6 +292,14 @@ fun RoleUpgradeScreen(
                 }
             }
 
+            if (uiState.isUpgrading) {
+                MigrationProgressDialog(
+                    status = uiState.migrationStatus,
+                    onDismiss = { /* Handle if they want to cancel or if it failed */ },
+                    onComplete = { onUpgradeComplete() }
+                )
+            }
+
             Spacer(modifier = Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {

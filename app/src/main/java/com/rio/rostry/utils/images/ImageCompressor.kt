@@ -21,9 +21,9 @@ object ImageCompressor {
      * Phase 2: Use Compressor library for final optimization.
      */
     suspend fun compressForUpload(context: Context, input: File, lowBandwidth: Boolean): File = withContext(Dispatchers.IO) {
-        // Optimization: If file is smaller than 2MB, skip compression
-        if (input.length() < 2 * 1024 * 1024) {
-            Timber.d("ImageCompressor: Skipping compression for small file (${input.length() / 1024} KB)")
+        // Optimization: If file is smaller than 5MB, skip compression for stability
+        if (input.length() < 5 * 1024 * 1024) {
+            Timber.d("ImageCompressor: Skipping compression for moderate file (${input.length() / 1024} KB)")
             return@withContext input
         }
 
@@ -49,6 +49,34 @@ object ImageCompressor {
             if (preScaledFile != null && preScaledFile != input) {
                 runCatching { preScaledFile.delete() }
             }
+        }
+    }
+
+    /**
+     * Enhanced compression strategy for large files (10-20MB).
+     */
+    suspend fun compressForLargeUpload(context: Context, input: File): File = withContext(Dispatchers.IO) {
+        val sizeBytes = input.length()
+        if (sizeBytes < 5 * 1024 * 1024) return@withContext input
+        
+        val sizeMB = sizeBytes / (1024 * 1024)
+        val quality = if (sizeMB > 10) 70 else 80
+        val maxDimension = 1440 // 1440p max for large uploads
+        
+        try {
+            // Phase 1: Aggressive downsampling
+            val preScaledFile = preDownsampleIfNeeded(context, input, maxDimension)
+            val fileToCompress = preScaledFile ?: input
+
+            // Phase 2: Final compression
+            Compressor.compress(context, fileToCompress) {
+                default(width = maxDimension, height = maxDimension)
+                quality(quality)
+                format(android.graphics.Bitmap.CompressFormat.JPEG)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Large file compression failed, using original")
+            input
         }
     }
 

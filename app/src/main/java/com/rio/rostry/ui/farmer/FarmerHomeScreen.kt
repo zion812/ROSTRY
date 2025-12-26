@@ -146,6 +146,64 @@ fun FarmerHomeScreen(
                 )
             }
 
+            // Storage Quota Warning Banner
+            uiState.storageQuota?.let { quota ->
+                if (quota.quotaBytes > 0) {
+                    val usageRatio = quota.usedBytes.toDouble() / quota.quotaBytes.toDouble()
+                    if (usageRatio > 0.8) {
+                        item {
+                            val isCritical = usageRatio > 0.95
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isCritical) MaterialTheme.colorScheme.errorContainer 
+                                                else Color(0xFFFFF3E0) // Warm orange-ish for warning
+                            ),
+                            onClick = { onNavigateRoute(Routes.STORAGE_QUOTA) }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (isCritical) Icons.Filled.CloudOff else Icons.Filled.CloudQueue,
+                                        contentDescription = "Storage warning icon",
+                                        tint = if (isCritical) MaterialTheme.colorScheme.error else Color(0xFFE65100)
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = if (isCritical) "Cloud Storage Full" else "Cloud Storage Almost Full",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = if (isCritical) MaterialTheme.colorScheme.onErrorContainer else Color(0xFFBF360C)
+                                        )
+                                        Text(
+                                            text = if (isCritical) "You have reached your storage limit. New uploads are disabled." 
+                                                   else "You have used ${(usageRatio * 100).toInt()}% of your cloud storage.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isCritical) MaterialTheme.colorScheme.onErrorContainer else Color(0xFFD84315)
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    Icons.Filled.ChevronRight, 
+                                    contentDescription = "Manage Storage",
+                                    tint = if (isCritical) MaterialTheme.colorScheme.onErrorContainer else Color(0xFFD84315)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
             // Compliance Banner
             if (!uiState.kycVerified || uiState.complianceAlertsCount > 0) {
                 item {

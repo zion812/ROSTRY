@@ -42,4 +42,7 @@ interface DailyLogDao {
 
     @Query("SELECT * FROM daily_logs WHERE logId = :logId LIMIT 1")
     suspend fun getById(logId: String): DailyLogEntity?
+
+    @Query("SELECT COUNT(*) FROM daily_logs WHERE farmerId = :farmerId")
+    suspend fun getLogCountForFarmer(farmerId: String): Int
 }

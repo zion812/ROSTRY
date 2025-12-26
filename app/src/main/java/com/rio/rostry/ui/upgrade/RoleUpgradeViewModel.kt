@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import com.rio.rostry.data.database.entity.RoleMigrationEntity
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -52,7 +55,8 @@ class RoleUpgradeViewModel @Inject constructor(
         val validationErrors: Map<String, String> = emptyMap(),
         val canProceed: Boolean = false,
         val isUpgrading: Boolean = false,
-        val eligibleUpgrades: List<UserType> = emptyList()
+        val eligibleUpgrades: List<UserType> = emptyList(),
+        val migrationStatus: Resource<RoleMigrationEntity?> = Resource.Loading()
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -85,6 +89,17 @@ class RoleUpgradeViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(isLoading = true)
                     }
                 }
+            }
+        }
+
+        observeMigration()
+    }
+
+    private fun observeMigration() {
+        viewModelScope.launch {
+            val user = userRepository.getCurrentUserSuspend() ?: return@launch
+            userRepository.getRoleMigrationStatus(user.userId).collect { status ->
+                _uiState.value = _uiState.value.copy(migrationStatus = status)
             }
         }
     }
@@ -211,20 +226,28 @@ class RoleUpgradeViewModel @Inject constructor(
             flowAnalyticsTracker.trackRoleUpgradeFixAction(field)
         }
     }
-
     fun performUpgrade() {
         val currentState = _uiState.value
         val upgradeType = currentState.upgradeType ?: return
-        
+
         viewModelScope.launch {
-            // Check RBAC
-            if (!rbacGuard.canRequestUpgrade(upgradeType)) {
-                 _uiState.value = currentState.copy(error = "Complete farmer verification before upgrading to Enthusiast")
-                 return@launch
+            // For FARMER to ENTHUSIAST, we trigger migration
+            if (currentState.upgradeType == UpgradeType.FARMER_TO_ENTHUSIAST) {
+                val user = currentState.user ?: return@launch
+                _uiState.value = _uiState.value.copy(isUpgrading = true)
+                when (val result = userRepository.initiateRoleMigration(user.userId)) {
+                    is Resource.Success -> {
+                        // Status will be tracked via observation
+                    }
+                    is Resource.Error -> {
+                        _uiState.value = _uiState.value.copy(isUpgrading = false, error = result.message)
+                    }
+                    else -> {}
+                }
+            } else {
+                // Navigate to verification flow for other types
+                _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
             }
-            
-            // Navigate to verification flow
-            _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
         }
     }
 

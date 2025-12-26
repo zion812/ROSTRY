@@ -10,6 +10,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,6 +32,7 @@ fun ProfileScreen(
     onVerifyFarmerLocation: () -> Unit,
     onVerifyEnthusiastKyc: () -> Unit,
     onNavigateToAnalytics: () -> Unit = {},
+    onNavigateToStorageQuota: () -> Unit = {},
     onUpgradeClick: (UserType) -> Unit = {}, // Navigate to upgrade wizard (Comment 6)
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -142,6 +150,16 @@ fun ProfileScreen(
                     }
                 }
                 else -> { /* no-op */ }
+            }
+
+            Button(
+                onClick = onNavigateToStorageQuota,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+            ) {
+                Icon(androidx.compose.material.icons.Icons.Default.Cloud, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Storage & Quota")
             }
 
             // Manual verification status controls (placeholder)

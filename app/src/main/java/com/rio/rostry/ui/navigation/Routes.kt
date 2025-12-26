@@ -35,6 +35,7 @@ object Routes {
 
         const val VERIFY_ENTHUSIAST_KYC = "verify/enthusiast/kyc"
         const val VERIFICATION_WITH_TYPE = "verification/{upgradeType}"
+        const val STORAGE_QUOTA = "storage/quota"
     }
 
     object User {
@@ -239,6 +240,7 @@ object Routes {
             Settings.ROOT,
             Settings.ADDRESS_SELECTION,
             User.PROFILE,
+            Common.STORAGE_QUOTA,
             Product.DETAILS,
             Product.TRACEABILITY,
             Social.FEED,
@@ -268,6 +270,7 @@ object Routes {
             FarmerNav.PROFILE,
             Common.PROFILE,
             Common.VERIFY_FARMER_LOCATION,
+            Common.STORAGE_QUOTA,
             Settings.ROOT,
             Settings.ADDRESS_SELECTION,
             User.PROFILE,
@@ -326,6 +329,7 @@ object Routes {
             EnthusiastNav.TRANSFERS,
             Common.PROFILE,
             Common.VERIFY_ENTHUSIAST_KYC,
+            Common.STORAGE_QUOTA,
             Settings.ROOT,
             Settings.ADDRESS_SELECTION,
             User.PROFILE,
@@ -433,6 +437,7 @@ object Routes {
     const val SYNC_STATUS = Sync.STATUS
     const val UPGRADE_WIZARD = Upgrade.WIZARD
     const val UPGRADE_POST_ONBOARDING = Upgrade.POST_ONBOARDING
+    const val STORAGE_QUOTA = Common.STORAGE_QUOTA
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS
