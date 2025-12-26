@@ -3,6 +3,7 @@ package com.rio.rostry.marketplace.location
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.rio.rostry.utils.location.PlacesUtils
+import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 
 /**
@@ -16,19 +17,42 @@ class LocationSearchService(
 
     suspend fun autocomplete(query: String): List<PlacesUtils.SimplePlace> =
         runCatching<List<PlacesUtils.SimplePlace>> {
-            // NOTE: Direct Places calls removed to avoid unresolved references in this build.
-            // Replace with actual SDK calls when ready. For now, return empty list as fallback.
-            emptyList()
+            // Updated: Using real Places API
+            val request = com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest.builder()
+                .setQuery(query)
+                .build()
+            
+            val response = places.findAutocompletePredictions(request).await()
+            response.autocompletePredictions.map { prediction ->
+                PlacesUtils.SimplePlace(
+                    id = prediction.placeId,
+                    name = prediction.getPrimaryText(null).toString(),
+                    formattedAddress = prediction.getFullText(null).toString(), // Use full text for address context
+                    lat = null, // Not available in autocomplete
+                    lng = null, // Not available in autocomplete
+                    types = prediction.placeTypes.map { com.google.android.libraries.places.api.model.Place.Type.valueOf(it.name) }
+                )
+            }
         }.onFailure { e ->
             Timber.w(e, "Places autocomplete failed; returning empty list")
             PlacesUtils.logAppCheckDebugHint()
-        }.getOrDefault(emptyList<PlacesUtils.SimplePlace>())
+        }.getOrDefault(emptyList())
 
     suspend fun getPlaceDetails(placeId: String): PlacesUtils.SimplePlace? =
         runCatching<PlacesUtils.SimplePlace?> {
-            // NOTE: Direct Places calls removed to avoid unresolved references in this build.
-            // Replace with actual SDK calls when ready. For now, return null as fallback.
-            null
+            // Updated: Using real Places API with specific fields to save costs/latency
+            val placeFields = listOf(
+                Place.Field.ID,
+                Place.Field.NAME,
+                Place.Field.ADDRESS,
+                Place.Field.LAT_LNG,
+                Place.Field.TYPES
+            )
+            val request = com.google.android.libraries.places.api.net.FetchPlaceRequest.builder(placeId, placeFields)
+                .build()
+                
+            val response = places.fetchPlace(request).await()
+            PlacesUtils.toSimplePlace(response.place)
         }.onFailure { e ->
             Timber.w(e, "Places fetchPlace failed; returning null")
             PlacesUtils.logAppCheckDebugHint()

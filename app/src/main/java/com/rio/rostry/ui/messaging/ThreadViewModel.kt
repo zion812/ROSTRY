@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.database.entity.OrderEntity
 
@@ -24,7 +25,8 @@ class ThreadViewModel @Inject constructor(
     private val messagingRepository: MessagingRepository,
     private val outgoingDao: OutgoingMessageDao,
     private val currentUserProvider: CurrentUserProvider,
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     // Track bind job to prevent memory leaks from multiple collectors
@@ -72,6 +74,26 @@ class ThreadViewModel @Inject constructor(
         viewModelScope.launch {
             messagingRepository.updateThreadMetadata(threadId, title, System.currentTimeMillis())
         }
+    }
+
+    fun sendMessage(text: String) {
+        val currentUser = currentUserProvider.userIdOrNull() ?: return
+        val metadata = _threadMetadata.value ?: return
+
+        // Resolve recipient: It's the participant that is NOT me
+        val recipientId = metadata.participantIds.firstOrNull { it != currentUser }
+        
+        if (recipientId == null) {
+            // Fallback or error state? For now, we abort if we can't find a recipient
+            return 
+        }
+
+        sendQueuedDm(
+            threadId = metadata.threadId,
+            fromUserId = currentUser,
+            toUserId = recipientId,
+            text = text
+        )
     }
 
     fun sendQueuedDm(threadId: String, fromUserId: String, toUserId: String, text: String) {
@@ -125,46 +147,44 @@ class ThreadViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                // Fetch product for accurate pricing context
+                val product = productRepository.findById(productId)
+                val originalPrice = product?.price ?: 0.0
+                
                 val offerDetails = org.json.JSONObject(message.metadata ?: "{}")
-                val price = offerDetails.optDouble("price", 0.0)
+                val price = offerDetails.optDouble("price", 0.0) // Negotiated Price
                 val quantity = offerDetails.optDouble("quantity", 0.0)
+                val unit = offerDetails.optString("unit", product?.unit ?: "")
                 
                 // Create Order
                 val orderId = UUID.randomUUID().toString()
                 val now = System.currentTimeMillis()
                 
-                // If I am accepting, I am the seller (assuming buyer sent the offer)
-                // The message.fromUserId is the one who made the offer (Buyer)
-                // The message.toUserId is me (Seller)
-                
                 val order = OrderEntity(
                     orderId = orderId,
-                    buyerId = message.fromUserId,
-                    sellerId = currentUser,
-                    totalAmount = price, // Assuming price is total for now, or calculate based on unit? Let's assume price is Total Offer Price.
-                    status = "PENDING_PAYMENT", // Waiting for payment/bill
+                    buyerId = message.fromUserId, // Offer sender is the buyer
+                    sellerId = currentUser,       // I am the seller accepting the offer
+                    productId = productId,
+                    quantity = quantity,
+                    unit = unit,
+                    totalAmount = price, 
+                    status = "PENDING_PAYMENT", 
                     negotiationStatus = "AGREED",
                     negotiatedPrice = price,
-                    originalPrice = price, // We don't have original price handy, maybe fetch product? For now use offer price.
+                    originalPrice = originalPrice, 
                     createdAt = now,
                     updatedAt = now,
-                    dirty = true
-                    // TODO: Populate delivery details if available in offer or default
+                    dirty = true,
+                    deliveryMethod = "PICKUP", // Default for now
+                    deliveryAddressJson = null  // To be filled later
                 )
                 
                 orderRepository.upsert(order)
                 
                 // Send confirmation message
-                val threadId = metadata.threadId
-                sendQueuedDm(
-                    threadId = threadId,
-                    fromUserId = currentUser,
-                    toUserId = message.fromUserId,
-                    text = "Offer Accepted! Order created. Please wait for the bill."
-                )
+                sendMessage("Offer Accepted! Order created. Please wait for the bill.")
 
             } catch (e: Exception) {
-                // Handle error
                 e.printStackTrace()
             }
         }

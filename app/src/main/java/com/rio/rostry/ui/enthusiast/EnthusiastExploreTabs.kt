@@ -41,7 +41,7 @@ fun EnthusiastExploreTabs(
     viewModel: EnthusiastExploreTabsViewModel = hiltViewModel()
 ) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
-    val tabs = listOf("Products", "Events", "Showcase")
+    val tabs = listOf("Discover", "Products", "Events", "Showcase")
     val state by viewModel.state.collectAsState()
     
     Column(Modifier.fillMaxSize()) {
@@ -51,9 +51,40 @@ fun EnthusiastExploreTabs(
             }
         }
         when (tabIndex) {
-            0 -> ProductsTab(state.products, onOpenProduct, onShare, state.loading)
-            1 -> EventsTab(state.events, state.rsvps, onOpenEvent, viewModel::rsvpToEvent, viewModel::createEvent, state.loading)
-            2 -> ShowcaseTab(state.showcasePosts, onShare, viewModel::likePost, viewModel::commentOnPost, viewModel::createShowcase, state.loading)
+            0 -> DiscoverTab(
+                farmers = state.nearbyFarmers,
+                learning = state.learningModules,
+                onFarmerClick = { /* Navigate to profile */ },
+                onModuleClick = { /* Open content */ }
+            )
+            1 -> ProductsTab(state.products, onOpenProduct, onShare, state.loading)
+            2 -> EventsTab(state.events, state.rsvps, onOpenEvent, viewModel::rsvpToEvent, viewModel::createEvent, state.loading)
+            3 -> ShowcaseTab(state.showcasePosts, onShare, viewModel::likePost, viewModel::commentOnPost, viewModel::createShowcase, state.loading)
+        }
+    }
+}
+
+@Composable
+private fun DiscoverTab(
+    farmers: List<com.rio.rostry.data.database.entity.UserEntity>,
+    learning: List<com.rio.rostry.ui.enthusiast.explore.LearningModule>,
+    onFarmerClick: (String) -> Unit,
+    onModuleClick: (String) -> Unit
+) {
+    if (farmers.isEmpty() && learning.isEmpty()) {
+        com.rio.rostry.ui.components.EmptyState(
+            title = "Nothing to discover yet",
+            subtitle = "Check back soon for nearby farmers and content",
+            modifier = Modifier.fillMaxSize()
+        )
+    } else {
+        LazyColumn(Modifier.fillMaxSize()) {
+            item { 
+                com.rio.rostry.ui.enthusiast.explore.NearbyFarmersSection(farmers, onFarmerClick) 
+            }
+            item {
+                com.rio.rostry.ui.enthusiast.explore.LearningContentSection(learning, onModuleClick)
+            }
         }
     }
 }

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
+import com.rio.rostry.domain.model.UserType
 
 @HiltViewModel
 class EnthusiastExploreTabsViewModel @Inject constructor(
@@ -35,6 +36,7 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
     private val postsDao: PostsDao,
     private val likesDao: LikesDao,
     private val commentsDao: CommentsDao,
+    private val userDao: com.rio.rostry.data.database.dao.UserDao,
     private val uploadManager: MediaUploadManager,
     private val auth: FirebaseAuth,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
@@ -45,6 +47,8 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
         val events: List<EventEntity> = emptyList(),
         val rsvps: List<EventRsvpEntity> = emptyList(),
         val showcasePosts: List<PostEntity> = emptyList(),
+        val nearbyFarmers: List<com.rio.rostry.data.database.entity.UserEntity> = emptyList(),
+        val learningModules: List<com.rio.rostry.ui.enthusiast.explore.LearningModule> = emptyList(),
         val loading: Boolean = false,
         val error: String? = null
     )
@@ -61,14 +65,36 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
             _state.value = _state.value.copy(loading = true, error = null)
             try {
                 when (index) {
-                    0 -> loadProducts()
-                    1 -> loadEvents()
-                    2 -> loadShowcase()
+                    0 -> loadDiscover()
+                    1 -> loadProducts()
+                    2 -> loadEvents()
+                    3 -> loadShowcase()
                 }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(loading = false, error = e.message)
             }
         }
+    }
+
+    private suspend fun loadDiscover() {
+        // Fetch nearby farmers (mock logic for now: just get all farmers). In real app, use geospatial query.
+        val users = userDao.getAllUsers().first()
+        val farmers = users.filter { it.role == UserType.FARMER || it.userType == "EXPERT" }.take(10)
+        
+        // Mock Learning Content
+        val modules = listOf(
+            com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "1", "How to Start Your Backyard Farm", "ARTICLE", "5 min read", "https://example.com/thumb1.jpg"
+            ),
+            com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "2", "Understanding Chicken Behavior", "VIDEO", "12:00", "https://example.com/thumb2.jpg"
+            ),
+             com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "3", "Organic Feed Guide", "ARTICLE", "3 min read", "https://example.com/thumb3.jpg"
+            )
+        )
+        
+        _state.value = _state.value.copy(nearbyFarmers = farmers, learningModules = modules, loading = false)
     }
 
     private suspend fun loadProducts() {

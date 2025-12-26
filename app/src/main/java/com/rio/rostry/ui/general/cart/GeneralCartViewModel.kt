@@ -112,7 +112,8 @@ class GeneralCartViewModel @Inject constructor(
         val showAddToFarmDialog: Boolean = false,
         val addToFarmProductId: String? = null,
         val addToFarmProductName: String? = null,
-        val isAddingToFarm: Boolean = false
+        val isAddingToFarm: Boolean = false,
+        val lastCreatedOrderId: String? = null
     )
 
     private val deliveryOptions = listOf(
@@ -133,6 +134,7 @@ class GeneralCartViewModel @Inject constructor(
     private val _addToFarmProductId = MutableStateFlow<String?>(null)
     private val _addToFarmProductName = MutableStateFlow<String?>(null)
     private val _isAddingToFarm = MutableStateFlow(false)
+    private val _lastCreatedOrderId = MutableStateFlow<String?>(null)
 
     private val userId: String? = currentUserProvider.userIdOrNull()
 
@@ -242,24 +244,26 @@ class GeneralCartViewModel @Inject constructor(
         )
     )
 
-    private data class FarmDialogInputs(
-        val showDialog: Boolean,
-        val productId: String?,
-        val productName: String?,
-        val isAdding: Boolean
-    )
-    
     private val farmDialogInputs: StateFlow<FarmDialogInputs> = combine(
         _showAddToFarmDialog,
         _addToFarmProductId,
         _addToFarmProductName,
-        _isAddingToFarm
-    ) { show, id, name, adding ->
-        FarmDialogInputs(show, id, name, adding)
+        _isAddingToFarm,
+        _lastCreatedOrderId
+    ) { show, id, name, adding, lastOrderId ->
+        FarmDialogInputs(show, id, name, adding, lastOrderId)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = FarmDialogInputs(false, null, null, false)
+        initialValue = FarmDialogInputs(false, null, null, false, null)
+    )
+
+    private data class FarmDialogInputs(
+        val showDialog: Boolean,
+        val productId: String?,
+        val productName: String?,
+        val isAdding: Boolean,
+        val lastCreatedOrderId: String?
     )
 
     val uiState: StateFlow<CartUiState> = combine(
@@ -379,7 +383,8 @@ class GeneralCartViewModel @Inject constructor(
             showAddToFarmDialog = farmDialog.showDialog,
             addToFarmProductId = farmDialog.productId,
             addToFarmProductName = farmDialog.productName,
-            isAddingToFarm = farmDialog.isAdding
+            isAddingToFarm = farmDialog.isAdding,
+            lastCreatedOrderId = farmDialog.lastCreatedOrderId
         )
     }.stateIn(
         scope = viewModelScope,
@@ -444,6 +449,10 @@ class GeneralCartViewModel @Inject constructor(
         successMessage.value = null
     }
 
+    fun clearLastOrderId() {
+        _lastCreatedOrderId.value = null
+    }
+
     fun checkout() {
         val uid = userId ?: run {
             error.value = "Sign in to checkout"
@@ -475,12 +484,23 @@ class GeneralCartViewModel @Inject constructor(
                     orderDate = System.currentTimeMillis()
                 )
 
+                val orderItems = currentState.items.map { item ->
+                    com.rio.rostry.data.database.entity.OrderItemEntity(
+                        orderId = orderId,
+                        productId = item.productId,
+                        quantity = item.quantity,
+                        priceAtPurchase = item.price,
+                        unitAtPurchase = item.unit
+                    )
+                }
+
                 // Check network connectivity
                 val isOnline = connectivityManager.isOnline()
                 
                 if (!isOnline) {
                     // Queue order in outbox for later sync
                     val orderJson = gson.toJson(order.copy(status = "PLACED", dirty = true))
+                    val itemsJson = gson.toJson(orderItems)
                     val outboxEntry = OutboxEntity(
                         outboxId = UUID.randomUUID().toString(),
                         userId = uid,
@@ -488,23 +508,25 @@ class GeneralCartViewModel @Inject constructor(
                         entityId = orderId,
                         operation = "CREATE",
                         payloadJson = orderJson,
+                        contextJson = itemsJson, // Store items in context for outbox
                         createdAt = System.currentTimeMillis(),
                         status = "PENDING"
                     )
                     outboxDao.insert(outboxEntry)
                     
                     // Save order locally with pending status
-                    orderRepository.upsert(order.copy(status = "PLACED", dirty = true))
+                    orderRepository.insertOrderWithItems(order.copy(status = "PLACED", dirty = true), orderItems)
                     
                     // Clear cart items
                     currentState.items.forEach { item ->
                         cartRepository.removeItem(uid, item.productId)
                     }
                     
+                    _lastCreatedOrderId.value = orderId
                     successMessage.value = "Order queued for submission when online"
                 } else {
                     // Online flow - proceed normally
-                    orderRepository.upsert(order)
+                    orderRepository.insertOrderWithItems(order, orderItems)
 
                     // Process payment based on selection
                     when (currentState.selectedPayment) {
@@ -516,6 +538,7 @@ class GeneralCartViewModel @Inject constructor(
                             
                             // Insert outbox entry for online COD order to ensure replayability
                             val orderJson = gson.toJson(order.copy(status = OrderStatus.PLACED.toStoredString(), dirty = true))
+                            val itemsJson = gson.toJson(orderItems)
                             val outboxEntry = OutboxEntity(
                                 outboxId = UUID.randomUUID().toString(),
                                 userId = uid,
@@ -523,6 +546,7 @@ class GeneralCartViewModel @Inject constructor(
                                 entityId = orderId,
                                 operation = "CREATE",
                                 payloadJson = orderJson,
+                                contextJson = itemsJson,
                                 createdAt = System.currentTimeMillis(),
                                 status = "PENDING",
                                 priority = "NORMAL"
@@ -549,6 +573,7 @@ class GeneralCartViewModel @Inject constructor(
                         cartRepository.removeItem(uid, item.productId)
                     }
                     
+                    _lastCreatedOrderId.value = orderId
                     successMessage.value = "Order placed successfully"
                 }
             }.onFailure { throwable ->

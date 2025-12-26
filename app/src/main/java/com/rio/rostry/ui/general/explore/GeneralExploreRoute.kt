@@ -42,6 +42,9 @@ import com.rio.rostry.ui.social.VideoPlayer
 import com.rio.rostry.ui.components.SkeletonCard
 import com.rio.rostry.data.database.entity.BreedEntity
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.ui.enthusiast.explore.NearbyFarmersSection
+import com.rio.rostry.ui.enthusiast.explore.LearningContentSection
+import com.rio.rostry.ui.enthusiast.explore.LearningModule
 import kotlinx.coroutines.launch
 
 @Composable
@@ -100,6 +103,21 @@ fun GeneralExploreRoute(
                 )
             }
 
+            // 2.2 Nearby Farmers
+            if (uiState.nearbyFarmers.isNotEmpty()) {
+                item {
+                    NearbyFarmersSection(
+                        farmers = uiState.nearbyFarmers,
+                        onFarmerClick = { farmerId -> viewModel.openProfilePreview(farmerId) }
+                    )
+                }
+            }
+            
+            // 2.3 Seasonal Picks
+            item {
+                SeasonalSection()
+            }
+
             // 2.5 Help Me Choose Wizard Entry
             item {
                 HelpMeChooseEntry(onClick = { showWizard = true })
@@ -131,17 +149,33 @@ fun GeneralExploreRoute(
                     onSelected = viewModel::setFilter
                 )
             }
+            
+            // 2.4 Daily Tip
+            if (uiState.dailyTip != null) {
+                item {
+                    DailyTipCard(content = uiState.dailyTip!!)
+                }
+            }
 
-            // 5. Learn & Grow (Educational) - TODO: Add educationalContent to ViewModel
-            // val eduContent = remember { emptyList<com.rio.rostry.domain.model.EducationalContent>() }
-            // if (eduContent.isNotEmpty()) {
-            //     item {
-            //         LearnAndGrowSection(
-            //             content = eduContent,
-            //             onItemClick = { /* Navigate to detail */ }
-            //         )
-            //     }
-            // }
+            // 5. Learn & Grow
+            if (uiState.educationalContent.isNotEmpty()) {
+                item {
+                    val modules = uiState.educationalContent.map { ec ->
+                        val durationText = ec.duration?.let { "$it min" } ?: "5 min"
+                        LearningModule(
+                            id = ec.id,
+                            title = ec.title,
+                            type = ec.type.name,
+                            durationOrReadTime = durationText, 
+                            thumbnailUrl = ec.imageUrl ?: ""
+                        )
+                    }
+                    LearningContentSection(
+                        modules = modules,
+                        onModuleClick = { /* Navigate to content */ }
+                    )
+                }
+            }
 
             // 6. Feed Content
             if (feedItems.itemCount == 0 && feedItems.loadState.refresh is LoadState.Loading) {
@@ -891,6 +925,85 @@ fun StarterKitsSection(kits: List<ProductEntity>) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeasonalSection() {
+    Column(Modifier.padding(vertical = 12.dp)) {
+        Text(
+            text = "Seasonal Picks: Summer",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        )
+        Text(
+            text = "Fresh items arriving this week!",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            val seasonalItems = listOf("Mangoes", "Watermelon", "Cucumber", "Mint", "Corn", "Berries")
+            items(seasonalItems) { item ->
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(36.dp).clickable { }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Text(
+                            text = item,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyTipCard(content: com.rio.rostry.domain.model.EducationalContent) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lightbulb,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(28.dp).padding(top = 2.dp)
+            )
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = content.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = content.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.9f)
+                )
             }
         }
     }

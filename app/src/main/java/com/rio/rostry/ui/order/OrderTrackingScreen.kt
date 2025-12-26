@@ -338,8 +338,10 @@ fun OrderTimeline(currentStatus: OrderTrackingViewModel.UiOrderStatus, events: L
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         statuses.forEachIndexed { index, (status, label) ->
             val event = events.find { it.status == status }
-            val isCompleted = currentStatus.ordinal >= status.ordinal
+            val isCancelled = currentStatus == OrderTrackingViewModel.UiOrderStatus.CANCELLED || currentStatus == OrderTrackingViewModel.UiOrderStatus.REFUNDED
+            val isCompleted = !isCancelled && currentStatus.ordinal >= status.ordinal
             val color = when {
+                isCancelled && status == currentStatus -> MaterialTheme.colorScheme.error
                 isCompleted -> MaterialTheme.colorScheme.primary
                 status == currentStatus -> MaterialTheme.colorScheme.secondary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant

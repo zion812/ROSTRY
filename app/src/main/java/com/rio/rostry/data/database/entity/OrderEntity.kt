@@ -25,6 +25,9 @@ data class OrderEntity(
     @PrimaryKey val orderId: String = "",
     val buyerId: String? = null,
     val sellerId: String = "",
+    val productId: String = "",
+    val quantity: Double = 0.0,
+    val unit: String? = null,
     val totalAmount: Double = 0.0,
     /**
      * Allowed values: "PENDING_PAYMENT", "PLACED", "CONFIRMED", "PROCESSING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED".
@@ -49,7 +52,9 @@ data class OrderEntity(
     val deletedAt: Long? = null,
     val dirty: Boolean = false,
     // Delivery & Negotiation
+    val deliveryMethod: String? = null, // "PICKUP", "DELIVERY"
     val deliveryType: String? = null, // "SELF_PICKUP" or "FARMER_DELIVERY"
+    val deliveryAddressJson: String? = null,
     val negotiationStatus: String? = null, // "REQUESTED", "NEGOTIATING", "AGREED"
     val negotiatedPrice: Double? = null,
     val originalPrice: Double? = null,

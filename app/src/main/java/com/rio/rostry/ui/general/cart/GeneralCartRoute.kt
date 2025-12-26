@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun GeneralCartRoute(
-    onCheckoutComplete: () -> Unit,
+    onCheckoutComplete: (String) -> Unit,
     viewModel: GeneralCartViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,11 +74,10 @@ fun GeneralCartRoute(
         }
     }
 
-    LaunchedEffect(uiState.successMessage) {
-        uiState.successMessage?.let { message ->
-            scope.launch { snackbarHostState.showSnackbar(message) }
-            viewModel.clearMessages()
-            onCheckoutComplete()
+    LaunchedEffect(uiState.lastCreatedOrderId) {
+        uiState.lastCreatedOrderId?.let { orderId ->
+            onCheckoutComplete(orderId)
+            viewModel.clearLastOrderId()
         }
     }
 

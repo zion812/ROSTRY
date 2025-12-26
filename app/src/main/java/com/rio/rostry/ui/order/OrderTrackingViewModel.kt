@@ -7,7 +7,11 @@ import com.rio.rostry.data.database.entity.OrderTrackingEventEntity
 import com.rio.rostry.data.repository.InvoiceRepository
 import com.rio.rostry.data.repository.OrderManagementRepository
 import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.data.repository.ReviewRepository
+import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.dao.OrderTrackingEventDao
+import kotlinx.coroutines.flow.combine
 import com.rio.rostry.domain.model.OrderStatus
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,8 +32,11 @@ class OrderTrackingViewModel @Inject constructor(
     private val orderManagementRepository: OrderManagementRepository,
     private val trackingEventDao: OrderTrackingEventDao,
     private val invoiceRepository: InvoiceRepository,
+    private val reviewRepository: ReviewRepository,
+    private val productRepository: ProductRepository,
+    private val userDao: UserDao,
     private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider,
-    // TODO: Inject dedicated analytics tracker for orders when available
+    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository
 ) : ViewModel() {
 
     enum class UiOrderStatus { PLACED, CONFIRMED, PROCESSING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, REFUNDED }
@@ -77,17 +84,37 @@ class OrderTrackingViewModel @Inject constructor(
 
     fun loadOrder(orderId: String) {
         viewModelScope.launch {
-            orderRepository.getOrderById(orderId).collectLatest { orderEntity ->
-                val detail = mapToDetail(orderEntity, emptyList())
-                _uiState.update { it.copy(order = detail, isLoading = false) }
-            }
-        }
+            _uiState.update { it.copy(isLoading = true) }
+            
+            combine(
+                orderRepository.getOrderById(orderId),
+                orderRepository.getOrderItems(orderId),
+                trackingEventDao.observeByOrder(orderId)
+            ) { order, items, events ->
+                Triple(order, items, events)
+            }.collectLatest { (order, items, events) ->
+                if (order == null) {
+                    _uiState.update { it.copy(order = null, isLoading = false) }
+                    return@collectLatest
+                }
 
-        viewModelScope.launch {
-            trackingEventDao.observeByOrder(orderId).collectLatest { events ->
-                val mapped = events.sortedBy { it.timestamp }.map { e -> mapTimelineEvent(e) }
-                val current = _uiState.value.order
-                _uiState.update { it.copy(order = current?.copy(timelineEvents = mapped)) }
+                // Fetch seller details
+                val seller = userDao.findById(order.sellerId)
+                
+                // Fetch product details for names/images
+                val orderItems = items.map { item ->
+                    val product = productRepository.findById(item.productId)
+                    OrderItem(
+                        productId = item.productId,
+                        name = product?.name ?: "Unknown Product",
+                        quantity = item.quantity,
+                        price = item.priceAtPurchase,
+                        imageUrl = product?.imageUrls?.firstOrNull()
+                    )
+                }
+
+                val detail = mapToDetail(order, events, orderItems, seller)
+                _uiState.update { it.copy(order = detail, isLoading = false) }
             }
         }
     }
@@ -116,7 +143,7 @@ class OrderTrackingViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = false) }
             if (result is Resource.Success) {
                 _events.send(OrderTrackingEvent.OrderCancelled)
-                // TODO: Track order cancellation via analytics when tracker supports it
+                analyticsRepository.trackOrderCancelled(currentOrder.orderId, reason)
             } else {
                 _events.send(OrderTrackingEvent.Error(result.message ?: "Failed to cancel order"))
             }
@@ -152,13 +179,28 @@ class OrderTrackingViewModel @Inject constructor(
     }
 
     fun submitRating(orderId: String, rating: Int, review: String) {
+        val currentOrder = uiState.value.order ?: return
+        val uid = currentUserProvider.userIdOrNull() ?: return
+
         viewModelScope.launch {
-            try {
-                // Placeholder: persist via repository when available
-                // For now, just emit a success event message
+            _uiState.update { it.copy(isLoading = true) }
+            val result = reviewRepository.submitReview(
+                productId = currentOrder.items.firstOrNull()?.productId,
+                sellerId = currentOrder.sellerId,
+                orderId = orderId,
+                reviewerId = uid,
+                rating = rating,
+                title = "Order Review",
+                content = review,
+                isVerifiedPurchase = true
+            )
+            _uiState.update { it.copy(isLoading = false) }
+
+            if (result is Resource.Success) {
                 _events.send(OrderTrackingEvent.Error("Thank you for your feedback!"))
-            } catch (e: Exception) {
-                _events.send(OrderTrackingEvent.Error("Failed to submit rating"))
+                analyticsRepository.trackOrderRated(orderId, rating)
+            } else {
+                _events.send(OrderTrackingEvent.Error(result.message ?: "Failed to submit rating"))
             }
         }
     }
@@ -177,6 +219,7 @@ class OrderTrackingViewModel @Inject constructor(
                     )
                     orderRepository.upsert(updated)
                     _events.send(OrderTrackingEvent.Error("Order accepted"))
+                    analyticsRepository.trackOrderAccepted(orderId)
                 }
                 _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
@@ -200,6 +243,7 @@ class OrderTrackingViewModel @Inject constructor(
                     )
                     orderRepository.upsert(updated)
                     _events.send(OrderTrackingEvent.Error("Bill submitted successfully"))
+                    analyticsRepository.trackBillSubmitted(orderId, amount)
                 }
                 _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
@@ -222,6 +266,7 @@ class OrderTrackingViewModel @Inject constructor(
                     )
                     orderRepository.upsert(updated)
                     _events.send(OrderTrackingEvent.Error("Payment slip uploaded"))
+                    analyticsRepository.trackPaymentSlipUploaded(orderId)
                 }
                 _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
@@ -244,6 +289,7 @@ class OrderTrackingViewModel @Inject constructor(
                     )
                     orderRepository.upsert(updated)
                     _events.send(OrderTrackingEvent.Error("Payment confirmed"))
+                    analyticsRepository.trackPaymentConfirmed(orderId)
                 }
                 _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
@@ -257,27 +303,12 @@ class OrderTrackingViewModel @Inject constructor(
         _uiState.update { it.copy(error = message, isLoading = false) }
     }
 
-    private fun mapToDetail(order: OrderEntity?, events: List<OrderTrackingEventEntity>): OrderDetail {
-        if (order == null) return OrderDetail(
-            orderId = "",
-            status = UiOrderStatus.PLACED,
-            items = emptyList(),
-            total = 0.0,
-            deliveryAddress = "",
-            estimatedDeliveryDate = null,
-            paymentMethod = "",
-            paymentStatus = "pending",
-            sellerName = "",
-            sellerPhone = "",
-            canCancel = true,
-            timelineEvents = emptyList(),
-            isBuyer = false,
-            isSeller = false,
-            negotiationStatus = null,
-            buyerId = null,
-            sellerId = ""
-        )
-
+    private fun mapToDetail(
+        order: OrderEntity, 
+        events: List<OrderTrackingEventEntity>, 
+        orderItems: List<OrderItem>,
+        seller: com.rio.rostry.data.database.entity.UserEntity?
+    ): OrderDetail {
         val statusEnum = OrderStatus.fromString(order.status)
         val uiStatus = when (statusEnum) {
             OrderStatus.PLACED -> UiOrderStatus.PLACED
@@ -288,21 +319,6 @@ class OrderTrackingViewModel @Inject constructor(
             OrderStatus.CANCELLED -> UiOrderStatus.CANCELLED
             OrderStatus.REFUNDED -> UiOrderStatus.REFUNDED
             else -> UiOrderStatus.PLACED
-        }
-
-        val items = if (false) {
-            // Placeholder if line items become accessible
-            emptyList()
-        } else {
-            listOf(
-                OrderItem(
-                    productId = order.orderId,
-                    name = order.notes ?: "Order",
-                    quantity = 1.0,
-                    price = order.totalAmount,
-                    imageUrl = null
-                )
-            )
         }
 
         val canCancel = if (uiStatus !in listOf(UiOrderStatus.PLACED, UiOrderStatus.CONFIRMED, UiOrderStatus.PROCESSING)) {
@@ -316,14 +332,14 @@ class OrderTrackingViewModel @Inject constructor(
 
         val mappedEvents = events.sortedBy { it.timestamp }.map { mapTimelineEvent(it) }
 
-        val currentUserId = currentUserProvider.userIdOrNull()
-        val isBuyer = currentUserId == order.buyerId
-        val isSeller = currentUserId == order.sellerId
+        val uid = currentUserProvider.userIdOrNull()
+        val isBuyer = uid == order.buyerId
+        val isSeller = uid == order.sellerId
 
         return OrderDetail(
             orderId = order.orderId,
             status = uiStatus,
-            items = items,
+            items = orderItems,
             total = order.totalAmount,
             deliveryAddress = order.shippingAddress,
             estimatedDeliveryDate = order.expectedDeliveryDate,
@@ -331,8 +347,8 @@ class OrderTrackingViewModel @Inject constructor(
             paymentStatus = order.paymentStatus,
             buyerId = order.buyerId,
             sellerId = order.sellerId,
-            sellerName = "",
-            sellerPhone = "",
+            sellerName = seller?.fullName ?: "Unknown Seller",
+            sellerPhone = seller?.phoneNumber ?: "",
             canCancel = canCancel,
             timelineEvents = mappedEvents,
             isBuyer = isBuyer,

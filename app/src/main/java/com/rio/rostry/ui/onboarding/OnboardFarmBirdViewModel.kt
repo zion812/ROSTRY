@@ -317,153 +317,155 @@ class OnboardFarmBirdViewModel @Inject constructor(
         )
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {
-            when (val res = productRepository.addProduct(entity)) {
-                is Resource.Success -> {
-                    val newId = res.data ?: productId
-                    // Enqueue uploads with correct id
-                    s.media.photoUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/photos/$idx") }
-                    s.media.documentUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/documents/$idx") }
-                    // Initialize monitoring seeds
-                    farmOnboardingRepository.addProductToFarmMonitoring(newId, uid, s.coreDetails.healthStatus)
-                    // Family tree linkages
-                    if (!s.lineage.maleParentId.isNullOrBlank()) {
-                        val node = FamilyTreeEntity(
-                            nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
-                            productId = newId,
-                            parentProductId = s.lineage.maleParentId,
-                            childProductId = newId,
-                            relationType = "father"
-                        )
-                        familyTreeRepository.upsert(node)
-                    }
-                    if (!s.lineage.femaleParentId.isNullOrBlank()) {
-                        val node = FamilyTreeEntity(
-                            nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
-                            productId = newId,
-                            parentProductId = s.lineage.femaleParentId,
-                            childProductId = newId,
-                            relationType = "mother"
-                        )
-                        familyTreeRepository.upsert(node)
-                    }
-                    // Initialize upload tracking in state
-                    val allRemotePaths = mutableSetOf<String>()
-                    s.media.photoUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/photos/$idx") }
-                    s.media.documentUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/documents/$idx") }
-                    val initialProgress = allRemotePaths.associateWith { 0 }
-                    val initialStatus = allRemotePaths.associateWith { "PENDING" }
-                    _state.value = _state.value.copy(uploadProgress = initialProgress, uploadStatus = initialStatus)
+            try {
+                when (val res = productRepository.addProduct(entity)) {
+                    is Resource.Success -> {
+                        val newId = res.data ?: productId
+                        // Enqueue uploads with correct id
+                        s.media.photoUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/photos/$idx") }
+                        s.media.documentUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/documents/$idx") }
+                        // Initialize monitoring seeds
+                        farmOnboardingRepository.addProductToFarmMonitoring(newId, uid, s.coreDetails.healthStatus)
+                        // Family tree linkages
+                        if (!s.lineage.maleParentId.isNullOrBlank()) {
+                            val node = FamilyTreeEntity(
+                                nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
+                                productId = newId,
+                                parentProductId = s.lineage.maleParentId,
+                                childProductId = newId,
+                                relationType = "father"
+                            )
+                            familyTreeRepository.upsert(node)
+                        }
+                        if (!s.lineage.femaleParentId.isNullOrBlank()) {
+                            val node = FamilyTreeEntity(
+                                nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
+                                productId = newId,
+                                parentProductId = s.lineage.femaleParentId,
+                                childProductId = newId,
+                                relationType = "mother"
+                            )
+                            familyTreeRepository.upsert(node)
+                        }
+                        // Initialize upload tracking in state
+                        val allRemotePaths = mutableSetOf<String>()
+                        s.media.photoUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/photos/$idx") }
+                        s.media.documentUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/documents/$idx") }
+                        val initialProgress = allRemotePaths.associateWith { 0 }
+                        val initialStatus = allRemotePaths.associateWith { "PENDING" }
+                        _state.value = _state.value.copy(uploadProgress = initialProgress, uploadStatus = initialStatus)
 
-                    // Collect upload events to update state and persist incrementally
-                    val photos = mutableSetOf<String>()
-                    val docs = mutableSetOf<String>()
-                    viewModelScope.launch {
-                        mediaUploadManager.events.collect { ev ->
-                            val path: String = when (ev) {
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> ev.remotePath
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> ev.remotePath
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> ev.remotePath
-                                else -> return@collect
-                            }
-                            if (!path.contains("products/$newId/")) return@collect
-                            when (ev) {
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> {
-                                    val currentProgress = _state.value.uploadProgress.toMutableMap()
-                                    currentProgress[path] = ev.percent
-                                    val currentStatus = _state.value.uploadStatus.toMutableMap()
-                                    currentStatus[path] = "UPLOADING"
-                                    _state.value = _state.value.copy(
-                                        uploadProgress = currentProgress,
-                                        uploadStatus = currentStatus
-                                    )
+                        // Collect upload events to update state and persist incrementally
+                        val photos = mutableSetOf<String>()
+                        val docs = mutableSetOf<String>()
+                        viewModelScope.launch {
+                            mediaUploadManager.events.collect { ev ->
+                                val path: String = when (ev) {
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> ev.remotePath
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> ev.remotePath
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> ev.remotePath
+                                    else -> return@collect
                                 }
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
-                                    if (path.startsWith("products/$newId/photos/")) photos += ev.downloadUrl
-                                    else if (path.startsWith("products/$newId/documents/")) docs += ev.downloadUrl
-                                    val currentProgress = _state.value.uploadProgress.toMutableMap()
-                                    currentProgress[path] = 100
-                                    val currentStatus = _state.value.uploadStatus.toMutableMap()
-                                    currentStatus[path] = "SUCCESS"
-                                    _state.value = _state.value.copy(
-                                        uploadProgress = currentProgress,
-                                        uploadStatus = currentStatus
-                                    )
-                                    val now2 = System.currentTimeMillis()
-                                    productRepository.updateProduct(
-                                        entity.copy(
-                                            productId = newId,
-                                            imageUrls = photos.toList(),
-                                            documentUrls = docs.toList(),
-                                            updatedAt = now2,
-                                            lastModifiedAt = now2,
-                                            dirty = true
+                                if (!path.contains("products/$newId/")) return@collect
+                                when (ev) {
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> {
+                                        val currentProgress = _state.value.uploadProgress.toMutableMap()
+                                        currentProgress[path] = ev.percent
+                                        val currentStatus = _state.value.uploadStatus.toMutableMap()
+                                        currentStatus[path] = "UPLOADING"
+                                        _state.value = _state.value.copy(
+                                            uploadProgress = currentProgress,
+                                            uploadStatus = currentStatus
                                         )
-                                    )
+                                    }
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
+                                        if (path.startsWith("products/$newId/photos/")) photos += ev.downloadUrl
+                                        else if (path.startsWith("products/$newId/documents/")) docs += ev.downloadUrl
+                                        val currentProgress = _state.value.uploadProgress.toMutableMap()
+                                        currentProgress[path] = 100
+                                        val currentStatus = _state.value.uploadStatus.toMutableMap()
+                                        currentStatus[path] = "SUCCESS"
+                                        _state.value = _state.value.copy(
+                                            uploadProgress = currentProgress,
+                                            uploadStatus = currentStatus
+                                        )
+                                        val now2 = System.currentTimeMillis()
+                                        productRepository.updateProduct(
+                                            entity.copy(
+                                                productId = newId,
+                                                imageUrls = photos.toList(),
+                                                documentUrls = docs.toList(),
+                                                updatedAt = now2,
+                                                lastModifiedAt = now2,
+                                                dirty = true
+                                            )
+                                        )
+                                    }
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> {
+                                        val currentStatus = _state.value.uploadStatus.toMutableMap()
+                                        currentStatus[path] = "FAILED"
+                                        _state.value = _state.value.copy(
+                                            uploadStatus = currentStatus
+                                        )
+                                    }
+                                    else -> {}
                                 }
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> {
-                                    val currentStatus = _state.value.uploadStatus.toMutableMap()
-                                    currentStatus[path] = "FAILED"
-                                    _state.value = _state.value.copy(
-                                        uploadStatus = currentStatus
-                                    )
-                                }
-                                else -> {}
                             }
                         }
-                    }
 
-                    // Non-blocking timeout audit for uploads exceeding threshold
-                    viewModelScope.launch {
-                        delay(MediaUploadManager.MAX_UPLOAD_TIMEOUT_MS)
-                        val currentStatus = _state.value.uploadStatus
-                        val pendingUploads = currentStatus.filter { it.value == "PENDING" || it.value == "UPLOADING" }
-                        if (pendingUploads.isNotEmpty()) {
-                            securityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("productId" to newId, "pendingPaths" to pendingUploads.keys.joinToString()))
-                        }
-                    }
-                    _state.value = _state.value.copy(saving = false, savedId = newId)
-                    FarmNotifier.notifyBirdOnboarded(context, s.coreDetails.name, newId)
-                    // Trigger a background sync so dashboards refresh promptly
-                    com.rio.rostry.workers.OutboxSyncWorker.scheduleImmediateSync(context)
-                    _navigationEvent.emit(Routes.HOME_FARMER)
-                    _refreshEvent.emit(Unit)
-                }
-                is Resource.Error -> {
-                    // Audit verification errors for private products as potential bugs.
-                    // Private products should never require verification, so this indicates
-                    // a logic error in ProductRepositoryImpl.addProduct() or RbacGuard.
-                    if (res.message?.contains("Complete KYC verification", ignoreCase = true) == true) {
-                        // Get current user to capture verification status
-                        val currentUserId = currentUserProvider.userIdOrNull()
-                        val userEntity = if (currentUserId != null) {
-                            when (val userResult = userRepository.getUserById(currentUserId).firstOrNull()) {
-                                is Resource.Success -> userResult.data
-                                else -> null
+                        // Non-blocking timeout audit for uploads exceeding threshold
+                        viewModelScope.launch {
+                            delay(MediaUploadManager.MAX_UPLOAD_TIMEOUT_MS)
+                            val currentStatus = _state.value.uploadStatus
+                            val pendingUploads = currentStatus.filter { it.value == "PENDING" || it.value == "UPLOADING" }
+                            if (pendingUploads.isNotEmpty()) {
+                                securityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("productId" to newId, "pendingPaths" to pendingUploads.keys.joinToString()))
                             }
-                        } else null
-
-                        securityManager.audit("PRIVATE_PRODUCT_ADD_VERIFICATION_ERROR", mapOf(
-                            "error" to (res.message ?: "Unknown error"),
-                            "productStatus" to "private",
-                            "sellerId" to (currentUserId ?: "unknown"),
-                            "verificationStatus" to (userEntity?.verificationStatus?.name ?: "unknown"),
-                            "productId" to productId,
-                            "ageGroup" to (s.ageGroup?.name ?: "unknown"),
-                            "isTraceable" to (s.isTraceable ?: false).toString(),
-                            "timestamp" to System.currentTimeMillis().toString()
-                        ))
-                    }
-
-                    _state.value = _state.value.copy(
-                        saving = false,
-                        error = if (res.message?.contains("Complete KYC verification") == true) {
-                            "Unexpected error: Private birds shouldn't require verification. Please contact support with error code: PRIV_VERIFY_ERR"
-                        } else {
-                            res.message
                         }
-                    )
+                        _state.value = _state.value.copy(savedId = newId)
+                        FarmNotifier.notifyBirdOnboarded(context, s.coreDetails.name, newId)
+                        // Trigger a background sync so dashboards refresh promptly
+                        com.rio.rostry.workers.OutboxSyncWorker.scheduleImmediateSync(context)
+                        _navigationEvent.emit(Routes.HOME_FARMER)
+                        _refreshEvent.emit(Unit)
+                    }
+                    is Resource.Error -> {
+                        // Audit verification errors for private products as potential bugs.
+                        if (res.message?.contains("Complete KYC verification", ignoreCase = true) == true) {
+                            val currentUserId = currentUserProvider.userIdOrNull()
+                            val userEntity = if (currentUserId != null) {
+                                when (val userResult = userRepository.getUserById(currentUserId).firstOrNull()) {
+                                    is Resource.Success -> userResult.data
+                                    else -> null
+                                }
+                            } else null
+
+                            securityManager.audit("PRIVATE_PRODUCT_ADD_VERIFICATION_ERROR", mapOf(
+                                "error" to (res.message ?: "Unknown error"),
+                                "productStatus" to "private",
+                                "sellerId" to (currentUserId ?: "unknown"),
+                                "verificationStatus" to (userEntity?.verificationStatus?.name ?: "unknown"),
+                                "productId" to productId,
+                                "ageGroup" to (s.ageGroup?.name ?: "unknown"),
+                                "isTraceable" to (s.isTraceable ?: false).toString(),
+                                "timestamp" to System.currentTimeMillis().toString()
+                            ))
+                        }
+
+                        _state.value = _state.value.copy(
+                            error = if (res.message?.contains("Complete KYC verification") == true) {
+                                "Unexpected error: Private birds shouldn't require verification. Please contact support with error code: PRIV_VERIFY_ERR"
+                            } else {
+                                res.message
+                            }
+                        )
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Loading -> {}
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(saving = false, error = e.message ?: "An unexpected error occurred")
+            } finally {
+                _state.value = _state.value.copy(saving = false)
             }
         }
     }

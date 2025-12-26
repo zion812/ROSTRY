@@ -136,7 +136,7 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
                                     onReject = { vm.rejectOffer(m) },
                                     onCounter = { 
                                         // For now, just send a message indicating counter offer intent
-                                        vm.sendQueuedDm(threadId, currentUserId ?: "me", m.fromUserId, "I would like to propose a different price.")
+                                        vm.sendMessage("I would like to propose a different price.")
                                     }
                                 )
                             } else {
@@ -177,7 +177,7 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
                 Button(
                     onClick = {
                         if (input.isNotBlank()) {
-                            vm.sendQueuedDm(threadId = threadId, fromUserId = currentUserId ?: "me", toUserId = "them", text = input)
+                            vm.sendMessage(input)
                             input = ""
                         }
                     },

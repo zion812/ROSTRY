@@ -83,6 +83,14 @@ interface AnalyticsRepository {
 
     // Comment 7 & Comment 10: Security event tracking
     suspend fun trackSecurityEvent(userId: String, eventType: String, resourceId: String)
+    
+    // Order Lifecycle Analytics
+    suspend fun trackOrderRated(orderId: String, rating: Int)
+    suspend fun trackOrderCancelled(orderId: String, reason: String?)
+    suspend fun trackOrderAccepted(orderId: String)
+    suspend fun trackBillSubmitted(orderId: String, amount: Double)
+    suspend fun trackPaymentSlipUploaded(orderId: String)
+    suspend fun trackPaymentConfirmed(orderId: String)
 }
 
 @Singleton
@@ -365,5 +373,56 @@ class AnalyticsRepositoryImpl @Inject constructor(
         }
         firebaseAnalytics.logEvent("security_event", bundle)
         timber.log.Timber.w("Security event: $eventType by user $userId on resource $resourceId")
+    }
+
+    override suspend fun trackOrderRated(orderId: String, rating: Int) {
+        val bundle = android.os.Bundle().apply {
+            putString("order_id", orderId)
+            putInt("rating", rating)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("order_rated", bundle)
+    }
+
+    override suspend fun trackOrderCancelled(orderId: String, reason: String?) {
+        val bundle = android.os.Bundle().apply {
+            putString("order_id", orderId)
+            putString("reason", reason ?: "No reason")
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("order_cancelled", bundle)
+    }
+
+    override suspend fun trackOrderAccepted(orderId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("order_id", orderId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("order_accepted", bundle)
+    }
+
+    override suspend fun trackBillSubmitted(orderId: String, amount: Double) {
+        val bundle = android.os.Bundle().apply {
+            putString("order_id", orderId)
+            putDouble("amount", amount)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("bill_submitted", bundle)
+    }
+
+    override suspend fun trackPaymentSlipUploaded(orderId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("order_id", orderId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("payment_slip_uploaded", bundle)
+    }
+
+    override suspend fun trackPaymentConfirmed(orderId: String) {
+        val bundle = android.os.Bundle().apply {
+            putString("order_id", orderId)
+            putLong("timestamp", System.currentTimeMillis())
+        }
+        firebaseAnalytics.logEvent("payment_confirmed", bundle)
     }
 }

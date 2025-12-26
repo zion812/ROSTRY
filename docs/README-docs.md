@@ -7,7 +7,7 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 **Last Updated**: 2025-12-25  
 **Documentation Version**: 4.0
 
-📘 **NEW: Complete System Reference** - See `SYSTEM_BLUEPRINT.md` for the comprehensive System Information and Functionality (SINF) document that provides end-to-end coverage of the entire codebase.
+📘 **NEW: Complete System Reference** - See `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` for the comprehensive R&D Master Document that provides end-to-end coverage of the entire codebase, including architecture, detailed features, and implementation patterns.
 
 ## Table of Contents
 
@@ -43,7 +43,8 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 - `blueprint.md` — System overview for stakeholders
 
 ### For Product Managers / Stakeholders
-- `../SYSTEM_BLUEPRINT.md` — Comprehensive SINF (System Information and Functionality) document covering complete codebase structure, all features, data flows, and system architecture
+- `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` — The Master R&D Documentation (Single Source of Truth)
+- `../SYSTEM_BLUEPRINT.md` — High-level system blueprint
 - `blueprint.md` — High-level system overview
 - `roadmap.md` — Feature roadmap and priorities
 - `analytics-dashboard.md` — Key metrics and insights
@@ -52,13 +53,16 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| `../SYSTEM_BLUEPRINT.md` | **Canonical System Reference.** The comprehensive System Information and Functionality (SINF) document. Defines the master system architecture, features, and data flows. | ✅ Master |
+| `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` | **R&D Master Document.** The comprehensive technical reference for the R&D team. Covers EVERY aspect of the system in detail. | ✅ Master |
+| `../ROSTRY_RND_QUICK_REFERENCE.md` | **R&D Cheat Sheet.** Quick links, common commands, and API reference. | ✅ New |
+| `../SYSTEM_BLUEPRINT.md` | **System Blueprint.** High-level architecture and functional breakdown. | ✅ Stable |
 
 ## Documentation Hierarchy
 
 To avoid drift, ROSTRY documentation follows a strict hierarchy:
 
-1.  **SYSTEM_BLUEPRINT.md** (Root): The single source of truth for high-level system definition.
+1.  **ROSTRY_COMPLETE_RND_DOCUMENTATION.md** (Master): The detailed, technical source of truth for the R&D team.
+2.  **SYSTEM_BLUEPRINT.md** (Blueprint): High-level system definition and functional requirements.
 2.  **architecture.md** (Implementation): Developers' guide to code organization, patterns, and infrastructure. Updates here should align with the Blueprint.
 3.  **CODEBASE_STRUCTURE.md** (Navigation): Map of files and packages for code exploration.
 4.  **Feature Guides**: Specific implementation details for sub-systems (e.g., `social-platform.md`).

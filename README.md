@@ -1,7 +1,8 @@
 # ROSTRY Android Application
 
 ## ⚡ Quick Links
-- 📘 [Complete System Blueprint](SYSTEM_BLUEPRINT.md)
+- 📘 **[R&D Master Doc](ROSTRY_COMPLETE_RND_DOCUMENTATION.md)**
+- 🗺️ [System Blueprint](SYSTEM_BLUEPRINT.md)
 - 🚀 [5-Minute Quick Start](QUICK_START.md)
 - 🛠️ [Developer Cheat Sheet](CHEAT_SHEET.md)
 - 📚 [Documentation Index](docs/README-docs.md)
@@ -150,7 +151,7 @@ Temporarily hidden until assets are added. Target path: `docs/images/screenshots
 
 ## Documentation
 
-📘 **Complete System Reference**: For comprehensive end-to-end system documentation, see `SYSTEM_BLUEPRINT.md` - the master SINF (System Information and Functionality) document covering the entire codebase, all features, data flows, and architecture.
+📘 **R&D Master Documentation**: For the most comprehensive, technical, and detailed view of the system (implementation details, ViewModels, Database Schema), see `ROSTRY_COMPLETE_RND_DOCUMENTATION.md`. This is the primary resource for the R&D team.
 
 📚 **Comprehensive documentation available.** See `docs/README-docs.md` for the complete index including architecture guides, feature documentation, and operational procedures.
 

@@ -9,7 +9,10 @@ interface OrderRepository {
     fun getOrdersByBuyer(buyerId: String): Flow<List<OrderEntity>>
     fun getOrdersBySeller(sellerId: String): Flow<List<OrderEntity>>
     suspend fun upsert(order: OrderEntity)
+    suspend fun insertOrderWithItems(order: OrderEntity, items: List<com.rio.rostry.data.database.entity.OrderItemEntity>)
     suspend fun softDelete(orderId: String)
+    
+    fun getOrderItems(orderId: String): Flow<List<com.rio.rostry.data.database.entity.OrderItemEntity>>
     
     // Additional methods for General user flows
     suspend fun updateOrderStatus(orderId: String, newStatus: String): Resource<Unit>

@@ -42,6 +42,14 @@ class AdvancedOrderService @Inject constructor(
         orderDao.insertOrUpdate(current.copy(isDeleted = true, deletedAt = now, updatedAt = now, lastModifiedAt = now, dirty = true))
     }
 
+    override suspend fun insertOrderWithItems(order: OrderEntity, items: List<com.rio.rostry.data.database.entity.OrderItemEntity>) {
+        orderDao.insertOrderWithItems(order, items)
+    }
+
+    override fun getOrderItems(orderId: String): Flow<List<com.rio.rostry.data.database.entity.OrderItemEntity>> {
+        return orderDao.getOrderItemsByOrderId(orderId)
+    }
+
     // ===== Extensions beyond the interface =====
 
     suspend fun calculateFees(subtotalCents: Long, userType: UserType, deliveryRequired: Boolean, promotionPercent: Int = 0, bulkQty: Int = 1): FeeBreakdown {

@@ -105,7 +105,9 @@ fun GeneralUserScreen(
             }
             composable(Routes.GeneralNav.CART) {
                 GeneralCartRoute(
-                    onCheckoutComplete = { navController.navigate(Routes.GeneralNav.MARKET) }
+                    onCheckoutComplete = { orderId ->
+                        navController.navigate(Routes.Builders.orderDetails(orderId))
+                    }
                 )
             }
             composable(Routes.GeneralNav.PROFILE) {

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 56,
-    "identityHash": "93d234a6015acf0eb4f713b10181aee7",
+    "identityHash": "3dbd591be88ed727d19a455a4a08a938",
     "entities": [
       {
         "tableName": "users",
@@ -557,7 +557,7 @@
       },
       {
         "tableName": "orders",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`orderId` TEXT NOT NULL, `buyerId` TEXT, `sellerId` TEXT NOT NULL, `totalAmount` REAL NOT NULL, `status` TEXT NOT NULL, `shippingAddress` TEXT NOT NULL, `paymentMethod` TEXT, `paymentStatus` TEXT NOT NULL, `orderDate` INTEGER NOT NULL, `expectedDeliveryDate` INTEGER, `actualDeliveryDate` INTEGER, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `deliveryType` TEXT, `negotiationStatus` TEXT, `negotiatedPrice` REAL, `originalPrice` REAL, `cancellationReason` TEXT, `cancellationTime` INTEGER, `billImageUri` TEXT, `paymentSlipUri` TEXT, PRIMARY KEY(`orderId`), FOREIGN KEY(`buyerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`orderId` TEXT NOT NULL, `buyerId` TEXT, `sellerId` TEXT NOT NULL, `productId` TEXT NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT, `totalAmount` REAL NOT NULL, `status` TEXT NOT NULL, `shippingAddress` TEXT NOT NULL, `paymentMethod` TEXT, `paymentStatus` TEXT NOT NULL, `orderDate` INTEGER NOT NULL, `expectedDeliveryDate` INTEGER, `actualDeliveryDate` INTEGER, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `deliveryMethod` TEXT, `deliveryType` TEXT, `deliveryAddressJson` TEXT, `negotiationStatus` TEXT, `negotiatedPrice` REAL, `originalPrice` REAL, `cancellationReason` TEXT, `cancellationTime` INTEGER, `billImageUri` TEXT, `paymentSlipUri` TEXT, PRIMARY KEY(`orderId`), FOREIGN KEY(`buyerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "orderId",
@@ -575,6 +575,23 @@
             "columnName": "sellerId",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "productId",
+            "columnName": "productId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unit",
+            "columnName": "unit",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "totalAmount",
@@ -662,8 +679,18 @@
             "notNull": true
           },
           {
+            "fieldPath": "deliveryMethod",
+            "columnName": "deliveryMethod",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "deliveryType",
             "columnName": "deliveryType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deliveryAddressJson",
+            "columnName": "deliveryAddressJson",
             "affinity": "TEXT"
           },
           {
@@ -10062,7 +10089,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '93d234a6015acf0eb4f713b10181aee7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3dbd591be88ed727d19a455a4a08a938')"
     ]
   }
 }
