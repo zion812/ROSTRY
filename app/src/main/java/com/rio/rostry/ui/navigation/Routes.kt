@@ -219,6 +219,10 @@ object Routes {
         const val TRANSFERS = "enthusiast/transfers"
         const val EGG_COLLECTION = "enthusiast/egg_collection"
         const val DIGITAL_FARM = "enthusiast/digital_farm" // Evolutionary Visuals Feature
+        const val ROOSTER_CARD = "enthusiast/rooster_card/{productId}"
+        const val BREEDING_CALCULATOR = "enthusiast/breeding_calculator"
+        const val PERFORMANCE_JOURNAL = "enthusiast/performance_journal"
+        const val VIRTUAL_ARENA = "enthusiast/virtual_arena"
     }
 
     object Sync {
@@ -651,6 +655,10 @@ object Routes {
         // NEW: Farm Asset Management builders
         fun assetDetails(assetId: String): String = "farmer/asset/${URLEncoder.encode(assetId, "UTF-8")}"
         fun createListingFromAsset(assetId: String): String = "farmer/create_listing/${URLEncoder.encode(assetId, "UTF-8")}"
+        fun roosterCard(productId: String): String = "enthusiast/rooster_card/${URLEncoder.encode(productId, "UTF-8")}"
+        fun breedingCalculator(): String = EnthusiastNav.BREEDING_CALCULATOR
+        fun performanceJournal(): String = EnthusiastNav.PERFORMANCE_JOURNAL
+        fun virtualArena(): String = EnthusiastNav.VIRTUAL_ARENA
     }
 
 } // Closing brace for object Routes

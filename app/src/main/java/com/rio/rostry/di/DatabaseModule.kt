@@ -500,4 +500,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideStorageQuotaDao(db: AppDatabase): com.rio.rostry.data.database.dao.StorageQuotaDao = db.storageQuotaDao()
+
+    @Provides
+    @Singleton
+    fun provideDailyBirdLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.DailyBirdLogDao = db.dailyBirdLogDao()
+
+    @Provides
+    @Singleton
+    fun provideVirtualArenaDao(db: AppDatabase): com.rio.rostry.data.database.dao.VirtualArenaDao = db.virtualArenaDao()
 }

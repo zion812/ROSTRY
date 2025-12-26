@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 57,
-    "identityHash": "4107378ed48ed4dae36f0ca5255962b9",
+    "identityHash": "9ae3cf749cde75a4cd2c67e52d7a88f9",
     "entities": [
       {
         "tableName": "users",
@@ -10163,11 +10163,271 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_storage_quota_lastCalculatedAt` ON `${TABLE_NAME}` (`lastCalculatedAt`)"
           }
         ]
+      },
+      {
+        "tableName": "daily_bird_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `birdId` TEXT NOT NULL, `date` INTEGER NOT NULL, `activityType` TEXT NOT NULL, `weight` REAL, `feedIntakeGrams` REAL, `notes` TEXT, `performanceRating` INTEGER, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`birdId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birdId",
+            "columnName": "birdId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activityType",
+            "columnName": "activityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "feedIntakeGrams",
+            "columnName": "feedIntakeGrams",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "performanceRating",
+            "columnName": "performanceRating",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_daily_bird_logs_birdId",
+            "unique": false,
+            "columnNames": [
+              "birdId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_daily_bird_logs_birdId` ON `${TABLE_NAME}` (`birdId`)"
+          },
+          {
+            "name": "index_daily_bird_logs_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_daily_bird_logs_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "products",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "birdId"
+            ],
+            "referencedColumns": [
+              "productId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "competitions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`competitionId` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER NOT NULL, `region` TEXT NOT NULL, `status` TEXT NOT NULL, `bannerUrl` TEXT, `entryFee` REAL, `prizePool` TEXT, `participantCount` INTEGER NOT NULL, `participantsPreviewJson` TEXT, `rulesJson` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`competitionId`))",
+        "fields": [
+          {
+            "fieldPath": "competitionId",
+            "columnName": "competitionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "startTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTime",
+            "columnName": "endTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "region",
+            "columnName": "region",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bannerUrl",
+            "columnName": "bannerUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "entryFee",
+            "columnName": "entryFee",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "prizePool",
+            "columnName": "prizePool",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "participantCount",
+            "columnName": "participantCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "participantsPreviewJson",
+            "columnName": "participantsPreviewJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rulesJson",
+            "columnName": "rulesJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "competitionId"
+          ]
+        }
+      },
+      {
+        "tableName": "my_votes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `competitionId` TEXT NOT NULL, `participantId` TEXT NOT NULL, `votedAt` INTEGER NOT NULL, `points` INTEGER NOT NULL, `synced` INTEGER NOT NULL, `syncError` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "competitionId",
+            "columnName": "competitionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "participantId",
+            "columnName": "participantId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "votedAt",
+            "columnName": "votedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "points",
+            "columnName": "points",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "synced",
+            "columnName": "synced",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncError",
+            "columnName": "syncError",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_my_votes_competitionId_participantId",
+            "unique": true,
+            "columnNames": [
+              "competitionId",
+              "participantId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_my_votes_competitionId_participantId` ON `${TABLE_NAME}` (`competitionId`, `participantId`)"
+          },
+          {
+            "name": "index_my_votes_synced",
+            "unique": false,
+            "columnNames": [
+              "synced"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_my_votes_synced` ON `${TABLE_NAME}` (`synced`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4107378ed48ed4dae36f0ca5255962b9')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9ae3cf749cde75a4cd2c67e52d7a88f9')"
     ]
   }
 }

@@ -1,0 +1,57 @@
+package com.rio.rostry.ui.enthusiast.cards
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.utils.RoosterCardUtils
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class RoosterCardViewModel @Inject constructor(
+    private val productRepository: ProductRepository
+) : ViewModel() {
+
+    private val _product = MutableStateFlow<ProductEntity?>(null)
+    val product = _product.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+    val loading = _loading.asStateFlow()
+
+    fun loadProduct(productId: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            try {
+                val result = productRepository.findById(productId)
+                _product.value = result
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun captureAndShare(view: View, context: Context) {
+        // We need to capture the bitmap from the view
+        // Since the view might be not fully laid out if called too early, usually this is triggered by a button click
+        try {
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            view.draw(canvas)
+            
+            val uri = RoosterCardUtils.saveBitmapToGallery(context, bitmap, "RoosterCard")
+            if (uri != null) {
+                RoosterCardUtils.shareImage(context, uri)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}

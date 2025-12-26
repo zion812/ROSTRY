@@ -20,9 +20,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -55,9 +57,13 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EggAlt
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
@@ -106,6 +112,10 @@ fun EnthusiastHomeScreen(
     onNavigateToAddBird: () -> Unit = {},
     onNavigateToAddBatch: () -> Unit = {},
     onNavigateRoute: (String) -> Unit = {},
+    onOpenRoosterCard: (String) -> Unit = {},
+    onOpenBreedingCalculator: () -> Unit = {},
+    onOpenPerformanceJournal: () -> Unit = {},
+    onOpenVirtualArena: () -> Unit = {}
 ) {
     val vm: EnthusiastHomeViewModel = hiltViewModel()
     val ui by vm.ui.collectAsState()
@@ -251,6 +261,37 @@ fun EnthusiastHomeScreen(
                 if (ui.pairsToMateCount == 0) {
                     Button(onClick = onOpenBreeding) { Text("Create Pair") }
                 }
+                OutlinedButton(onClick = onOpenBreedingCalculator) { Text("Calculator") }
+            }
+        )
+        
+        // Monitoring & Journal
+        EnthusiastActionCard(
+            title = "Monitoring",
+            icon = Icons.Filled.Timer, 
+            count = ui.sickBirdsCount,
+            description = if (ui.sickBirdsCount > 0) "${ui.sickBirdsCount} birds need care" else "All systems normal",
+             actions = {
+                if (ui.sickBirdsCount > 0) {
+                    Button(onClick = onOpenQuarantine, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                        Text("Review Sick Birds")
+                    }
+                }
+                OutlinedButton(onClick = onOpenPerformanceJournal) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Daily Journal")
+                }
+             }
+        )
+
+        EnthusiastActionCard(
+            title = "Virtual Arena",
+            icon = Icons.Filled.EmojiEvents,
+            count = 3, // Mock active competitions
+            description = "3 Active Competitions",
+            actions = {
+                Button(onClick = onOpenVirtualArena) { Text("Enter Arena") }
             }
         )
 
@@ -652,9 +693,32 @@ fun EnthusiastCreateScreen(
     onScheduleContent: (String) -> Unit,
     onStartLive: () -> Unit,
     onCreateShowcase: (String) -> Unit,
+    onOpenRoosterCard: (String) -> Unit
 ) {
+    // Local ViewModel to fetch birds for selection
+    val flockVm: EnthusiastFlockViewModel = hiltViewModel()
+    val flockState by flockVm.state.collectAsState()
+    var showBirdSelection by rememberSaveable { mutableStateOf(false) }
+
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Media Studio & Creation Tools")
+        
+        // Rooster Card Generator
+        ElevatedCard(onClick = { showBirdSelection = true }) {
+            Row(
+                modifier = Modifier.padding(16.dp), 
+                verticalAlignment = Alignment.CenterVertically, 
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(Icons.Filled.Verified, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Column(Modifier.weight(1f)) {
+                    Text("Rooster Card Generator", style = MaterialTheme.typography.titleMedium)
+                    Text("Create viral WWE-style cards for your birds.", style = MaterialTheme.typography.bodyMedium)
+                }
+                Icon(Icons.Filled.ArrowBack, contentDescription = null, modifier = Modifier.rotate(180f))
+            }
+        }
+
         ElevatedCard {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Live Broadcasting")
@@ -692,7 +756,35 @@ fun EnthusiastCreateScreen(
             }
         }
     }
+
+    if (showBirdSelection) {
+        AlertDialog(
+            onDismissRequest = { showBirdSelection = false },
+            title = { Text("Select Bird") },
+            text = {
+                // In a real app, this should be a lazy list
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                     // Temporary: Input ID manually if list is empty or for debugging
+                    var manualId by rememberSaveable { mutableStateOf("") }
+                    OutlinedTextField(value = manualId, onValueChange = { manualId = it }, label = { Text("Enter Bird ID") })
+                    Button(
+                        onClick = { 
+                            if (manualId.isNotBlank()) {
+                                showBirdSelection = false
+                                onOpenRoosterCard(manualId)
+                            }
+                        },
+                        enabled = manualId.isNotBlank()
+                    ) { Text("Go") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showBirdSelection = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
+
 
 // =============== DASHBOARD TAB ===============
 @Composable

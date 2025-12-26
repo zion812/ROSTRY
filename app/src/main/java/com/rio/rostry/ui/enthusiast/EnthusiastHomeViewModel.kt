@@ -57,6 +57,7 @@ class EnthusiastHomeViewModel @Inject constructor(
 
     data class UiState(
         val dashboard: EnthusiastDashboard = EnthusiastDashboard(0.0, 0, 0.0, emptyList()),
+        val sickBirdsCount: Int = 0,
         val pendingTransfersCount: Int = 0,
         val disputedTransfersCount: Int = 0,
         val pairsToMateCount: Int = 0,
@@ -192,6 +193,7 @@ class EnthusiastHomeViewModel @Inject constructor(
         val bloodlines = values[11] as List<Pair<String, Int>>
         val ui = UiState(
             dashboard = d,
+            sickBirdsCount = alerts.count { it.severity == "HIGH" || it.message.contains("sick", ignoreCase = true) || it.alertType.contains("MORTALITY", ignoreCase = true) },
             pendingTransfersCount = p,
             disputedTransfersCount = disputed,
             pairsToMateCount = pairsToMate,

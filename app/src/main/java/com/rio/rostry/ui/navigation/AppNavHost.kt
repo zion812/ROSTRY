@@ -1145,7 +1145,11 @@ private fun RoleNavGraph(
                 onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
                 onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
                 onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird("enthusiast")) },
-                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("enthusiast")) }
+                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("enthusiast")) },
+                onOpenRoosterCard = { pid -> navController.navigate(Routes.Builders.roosterCard(pid)) },
+                onOpenBreedingCalculator = { navController.navigate(Routes.Builders.breedingCalculator()) },
+                onOpenPerformanceJournal = { navController.navigate(Routes.Builders.performanceJournal()) },
+                onOpenVirtualArena = { navController.navigate(Routes.Builders.virtualArena()) }
             )
         }
 
@@ -1171,9 +1175,39 @@ private fun RoleNavGraph(
                         if (BuildConfig.DEBUG) navController.navigate(Routes.LIVE_BROADCAST)
                         else navController.navigate(Routes.SOCIAL_FEED)
                     },
-                    onCreateShowcase = { _ -> navController.navigate(Routes.SOCIAL_FEED) }
+                    onCreateShowcase = { _ -> navController.navigate(Routes.SOCIAL_FEED) },
+                    onOpenRoosterCard = { pid -> navController.navigate(Routes.Builders.roosterCard(pid)) }
                 )
             }
+        }
+
+        composable(
+            route = Routes.EnthusiastNav.ROOSTER_CARD,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val pid = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.cards.RoosterCardScreen(
+                productId = pid,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.BREEDING_CALCULATOR) {
+            com.rio.rostry.ui.enthusiast.breeding.BreedingCalculatorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.PERFORMANCE_JOURNAL) {
+            com.rio.rostry.ui.enthusiast.journal.PerformanceJournalScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
+            com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.EnthusiastNav.DASHBOARD) {

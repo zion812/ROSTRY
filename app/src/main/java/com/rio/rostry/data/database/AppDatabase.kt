@@ -115,7 +115,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VerificationDraftEntity::class,
         // Cloud Storage & Role Migration entities
         RoleMigrationEntity::class,
-        StorageQuotaEntity::class
+        StorageQuotaEntity::class,
+        DailyBirdLogEntity::class,
+        CompetitionEntryEntity::class,
+        MyVotesEntity::class
     ],
     version = 57, // 57: Product FTS; 56: Cloud Storage & Role Migration; 55: Verification Drafts; 54: Digital Farm
     exportSchema = true // Export Room schema JSONs to support migration testing.
@@ -231,6 +234,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dailyLogDao(): com.rio.rostry.data.database.dao.DailyLogDao
     abstract fun taskDao(): com.rio.rostry.data.database.dao.TaskDao
     abstract fun breedDao(): BreedDao
+    abstract fun dailyBirdLogDao(): com.rio.rostry.data.database.dao.DailyBirdLogDao
+    abstract fun virtualArenaDao(): com.rio.rostry.data.database.dao.VirtualArenaDao
 
     object Converters {
         @TypeConverter
