@@ -241,13 +241,23 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
     }
 
     private fun scheduleAllWorkers(workManager: WorkManager) {
-        val constraints = Constraints.Builder()
+        // General constraints for standard workers
+        val generalConstraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
+            
+        // Strict constraints for heavy SyncWorker (WiFi only)
+        val syncConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.UNMETERED)
+            .build()
 
-        // SyncWorker - Session Bound
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
-            .setConstraints(constraints)
+        // SyncWorker - Session Bound - 4 Hour Interval
+        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(4, TimeUnit.HOURS)
+            .setConstraints(syncConstraints)
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                30, TimeUnit.MINUTES
+            )
             .addTag("session_worker")
             .build()
         workManager.enqueueUniquePeriodicWork(

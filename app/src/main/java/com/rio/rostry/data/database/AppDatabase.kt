@@ -18,6 +18,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         UserEntity::class,
         ProductEntity::class,
+        ProductFtsEntity::class,
         OrderEntity::class,
         OrderItemEntity::class,
         TransferEntity::class,
@@ -116,7 +117,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RoleMigrationEntity::class,
         StorageQuotaEntity::class
     ],
-    version = 56, // 56: Cloud Storage & Role Migration; 55: Verification Drafts; 54: Digital Farm
+    version = 57, // 57: Product FTS; 56: Cloud Storage & Role Migration; 55: Verification Drafts; 54: Digital Farm
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -375,6 +376,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Add Product FTS (56 -> 57)
+        val MIGRATION_56_57 = object : Migration(56, 57) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create products_fts table
+                db.execSQL(
+                    """CREATE VIRTUAL TABLE IF NOT EXISTS `products_fts` USING FTS4(
+                        productId, name, description, category, breed, location, condition
+                    )"""
+                )
+                // Backfill from products table
+                db.execSQL(
+                    """INSERT INTO products_fts (productId, name, description, category, breed, location, condition)
+                       SELECT productId, name, description, category, breed, location, condition FROM products"""
+                )
+            }
+        }
+
         @TypeConverter
         @JvmStatic
         fun toStringList(value: String?): List<String>? {
@@ -434,6 +452,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_35_36: Migration = Converters.MIGRATION_35_36
         val MIGRATION_36_37: Migration = Converters.MIGRATION_36_37
         val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
+        val MIGRATION_56_57: Migration = Converters.MIGRATION_56_57
 
         // Create verification_drafts table (54 -> 55)
         val MIGRATION_54_55 = object : Migration(54, 55) {

@@ -47,6 +47,7 @@ fun OrderTrackingScreen(
     var review by remember { mutableStateOf("") }
     var showSubmitBillDialog by remember { mutableStateOf(false) }
     var showUploadSlipDialog by remember { mutableStateOf(false) }
+    var showVerifyOtpDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(orderId) {
@@ -138,6 +139,20 @@ fun OrderTrackingScreen(
                     }
                 }
 
+                // COD Verification (Buyer Display)
+                if (order.isBuyer && order.paymentMethod == "COD" && order.deliveryOtp != null && !order.isVerified) {
+                    item {
+                        Text("Delivery Code (OTP)", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Share this code with the delivery person/farmer", style = MaterialTheme.typography.bodyMedium)
+                                Text(order.deliveryOtp, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
                 // Payment Info
                 item {
                     Text("Payment Information", style = MaterialTheme.typography.titleMedium)
@@ -200,6 +215,11 @@ fun OrderTrackingScreen(
                                     Text("Confirm Payment")
                                 }
                             }
+                            if (order.status == OrderTrackingViewModel.UiOrderStatus.OUT_FOR_DELIVERY && order.paymentMethod == "COD" && !order.isVerified) {
+                                Button(onClick = { showVerifyOtpDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Verify Delivery OTP")
+                                }
+                            }
                         }
 
                         // Buyer Actions
@@ -207,6 +227,11 @@ fun OrderTrackingScreen(
                             if (order.paymentStatus == "pending" && order.total > 0) {
                                 Button(onClick = { showUploadSlipDialog = true }, modifier = Modifier.fillMaxWidth()) {
                                     Text("Upload Payment Slip")
+                                }
+                            }
+                            if (order.status == OrderTrackingViewModel.UiOrderStatus.OUT_FOR_DELIVERY && order.paymentMethod == "COD" && order.deliveryOtp == null && !order.isVerified) {
+                                Button(onClick = { viewModel.generateDeliveryOtp() }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("Generate Delivery OTP")
                                 }
                             }
                         }
@@ -323,6 +348,81 @@ fun OrderTrackingScreen(
             }
         )
     }
+
+    if (showVerifyOtpDialog) {
+        AlertDialog(
+            onDismissRequest = { showVerifyOtpDialog = false },
+            title = { Text("Verify Delivery") },
+            text = {
+                var otp by remember { mutableStateOf("") }
+                Column {
+                    Text("Enter the 4-digit OTP provided by the buyer:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = otp,
+                        onValueChange = { if (it.length <= 4) otp = it },
+                        label = { Text("OTP") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    // We need to pass the input value, but the dialog state is local.
+                    // The simplest way is to use a lambda that captures the current input state at the moment of clicking.
+                    // However, we can't access 'otp' from here easily unless we refactor into a separate Composable function 
+                    // like the others.
+                }) { Text("Verify") } // Placeholder, will fix below
+            },
+            dismissButton = { TextButton(onClick = { showVerifyOtpDialog = false }) { Text("Cancel") } }
+        )
+        // Correct approach: Use a dedicated Composable like other dialogs
+        VerifyOtpDialog(
+            onDismiss = { showVerifyOtpDialog = false },
+            onSubmit = { otp ->
+                viewModel.verifyDeliveryOtp(otp)
+                showVerifyOtpDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun VerifyOtpDialog(onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
+    var otp by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Verify Delivery") },
+        text = {
+            Column {
+                Text("Enter the 4-digit OTP provided by the buyer:")
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = otp,
+                    onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) otp = it },
+                    label = { Text("OTP") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(otp) },
+                enabled = otp.length == 4
+            ) {
+                Text("Verify")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

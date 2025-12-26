@@ -18,5 +18,9 @@ interface OrderRepository {
     suspend fun updateOrderStatus(orderId: String, newStatus: String): Resource<Unit>
     fun getOrdersForNotification(userId: String, statuses: List<String>): Flow<List<OrderEntity>>
     fun getRecentOrdersForUser(userId: String, limit: Int = 10): Flow<List<OrderEntity>>
+    
+    // COD Verification
+    suspend fun generateDeliveryOtp(orderId: String): Resource<String>
+    suspend fun confirmDeliveryWithOtp(orderId: String, otpInput: String): Resource<Unit>
 }
 

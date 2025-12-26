@@ -191,4 +191,60 @@ class AdvancedOrderService @Inject constructor(
     override fun getRecentOrdersForUser(userId: String, limit: Int): Flow<List<OrderEntity>> {
         return orderDao.getRecentOrders(userId, limit)
     }
+
+    // ===== COD Verification Implementation =====
+
+    override suspend fun generateDeliveryOtp(orderId: String): Resource<String> {
+        return try {
+            val order = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+            
+            // Only generate if not already generated or if regeneration is needed (e.g. lost)
+            // For now, we allow regeneration if not yet verified.
+            if (order.isVerified) return Resource.Error("Order already verified")
+            
+            val newOtp = com.rio.rostry.utils.VerificationUtils.generateNumericOtp()
+            val now = System.currentTimeMillis()
+            
+            val updated = order.copy(
+                otp = newOtp,
+                dirty = true,
+                updatedAt = now,
+                lastModifiedAt = now
+            )
+            orderDao.insertOrUpdate(updated)
+            Resource.Success(newOtp)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to generate OTP")
+        }
+    }
+
+    override suspend fun confirmDeliveryWithOtp(orderId: String, otpInput: String): Resource<Unit> {
+        return try {
+            val order = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+            
+            if (order.otp == null) return Resource.Error("No OTP generated for this order")
+            if (order.isVerified) return Resource.Success(Unit) // Already verified
+            
+            val isValid = com.rio.rostry.utils.VerificationUtils.verifyOtp(order.otp, otpInput)
+            if (!isValid) return Resource.Error("Invalid OTP")
+            
+            val now = System.currentTimeMillis()
+            val updated = order.copy(
+                otpEntered = otpInput,
+                isVerified = true,
+                // Auto-transition to DELIVERED if verified
+                status = "DELIVERED",
+                actualDeliveryDate = now,
+                // Also mark payment as SUCCESS if it was COD
+                paymentStatus = if (order.paymentMethod == "COD") "SUCCESS" else order.paymentStatus,
+                dirty = true,
+                updatedAt = now,
+                lastModifiedAt = now
+            )
+            orderDao.insertOrUpdate(updated)
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Verification failed")
+        }
+    }
 }

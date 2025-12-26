@@ -21,31 +21,34 @@ object ImageCompressor {
      * Phase 2: Use Compressor library for final optimization.
      */
     suspend fun compressForUpload(context: Context, input: File, lowBandwidth: Boolean): File = withContext(Dispatchers.IO) {
-        // Optimization: If file is smaller than 5MB, skip compression for stability
-        if (input.length() < 5 * 1024 * 1024) {
-            Timber.d("ImageCompressor: Skipping compression for moderate file (${input.length() / 1024} KB)")
+        // Optimization: If file is smaller than 100KB, skip compression
+        if (input.length() < 100 * 1024) {
+            Timber.d("ImageCompressor: Skipping compression for small file (${input.length() / 1024} KB)")
             return@withContext input
         }
 
-        val quality = if (lowBandwidth) 60 else 80
-        val maxDimension = if (lowBandwidth) 720 else 1080
+        // Target: 100KB for standard, 50KB for low bandwidth
+        // We use Resolution + Quality to achieve this roughly without iterative loops which are slow
+        val quality = if (lowBandwidth) 40 else 60
+        val maxDimension = if (lowBandwidth) 800 else 1024
 
-        // Phase 1: Pre-downsample if the image is very large to prevent OOM
-        val preScaledFile = preDownsampleIfNeeded(context, input, maxDimension * 2) // Allow 2x for Compressor to work with
+        // Phase 1: Pre-downsample
+        val preScaledFile = preDownsampleIfNeeded(context, input, maxDimension * 2)
         val fileToCompress = preScaledFile ?: input
 
-        // Phase 2: Use Compressor for final optimization
+        // Phase 2: Compressor
         try {
             Compressor.compress(context, fileToCompress) {
                 default(width = maxDimension, height = maxDimension)
                 quality(quality)
                 format(android.graphics.Bitmap.CompressFormat.JPEG)
+                // Note: 'size(100_000)' could be used but is iterative/slow. 
+                // Using tuned quality/resolution is faster for bulk operations.
             }
         } catch (e: Exception) {
             Timber.e(e, "Compression failed, falling back to original")
-            input // Fallback to original if compression fails
+            input 
         } finally {
-            // Clean up pre-scaled temp file if we created one
             if (preScaledFile != null && preScaledFile != input) {
                 runCatching { preScaledFile.delete() }
             }

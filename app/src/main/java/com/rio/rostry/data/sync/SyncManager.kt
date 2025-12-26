@@ -287,7 +287,7 @@ class SyncManager @Inject constructor(
 
                 // Push local dirty rows
                 val localDirty =
-                    productTrackingDao.getUpdatedSince(state.lastTrackingSyncAt, limit = 1000)
+                    productTrackingDao.getUpdatedSince(state.lastTrackingSyncAt, limit = 50)
                         .filter { it.dirty }
                 if (localDirty.isNotEmpty()) {
                     // Push to remote, last-write-wins on server; then clear dirty
@@ -543,7 +543,7 @@ class SyncManager @Inject constructor(
                 }
 
                 // Push (dirty only)
-                val localDirty = productDao.getUpdatedSince(state.lastProductSyncAt, limit = 1000)
+                val localDirty = productDao.getUpdatedSince(state.lastProductSyncAt, limit = 50)
                     .filter { it.dirty }
                 if (localDirty.isNotEmpty()) {
                     // Protect lineage-related fields from being overwritten if remote has them newer/present
@@ -588,7 +588,7 @@ class SyncManager @Inject constructor(
                 }
 
                 // Push dirties
-                val localDirty = orderDao.getUpdatedSince(state.lastOrderSyncAt, limit = 1000)
+                val localDirty = orderDao.getUpdatedSince(state.lastOrderSyncAt, limit = 50)
                     .filter { it.dirty }
                 if (localDirty.isNotEmpty()) {
                     withRetry { firestoreService.pushOrders(localDirty) }
@@ -618,7 +618,7 @@ class SyncManager @Inject constructor(
                 }
 
                 // Push dirties
-                val localDirty = transferDao.getUpdatedSince(state.lastTransferSyncAt, limit = 1000)
+                val localDirty = transferDao.getUpdatedSince(state.lastTransferSyncAt, limit = 50)
                     .filter { it.dirty }
                 if (localDirty.isNotEmpty()) {
                     // If remote has terminal state, prefer remote over local

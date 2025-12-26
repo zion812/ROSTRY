@@ -172,7 +172,9 @@ class StorageRepository @Inject constructor(
         val compressed = if (sizeMB > 10) {
             ImageCompressor.compressForLargeUpload(appContext, tmp)
         } else {
-            val lowBandwidth = sizeLimitBytes <= 2_000_000L
+            // Use network type to determine bandwidth mode
+            // If not on WiFi, assume lower bandwidth/metered connection => aggressive compression
+            val lowBandwidth = !connectivityManager.isOnWifi()
             ImageCompressor.compressForUpload(appContext, tmp, lowBandwidth)
         }
         val finalFile = if (compressed != null && compressed.exists()) compressed else tmp

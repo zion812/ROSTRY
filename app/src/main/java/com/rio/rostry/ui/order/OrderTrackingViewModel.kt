@@ -73,7 +73,10 @@ class OrderTrackingViewModel @Inject constructor(
         val timelineEvents: List<TimelineEvent>,
         val isBuyer: Boolean = false,
         val isSeller: Boolean = false,
-        val negotiationStatus: String? = null
+        val negotiationStatus: String? = null,
+        // COD Verification
+        val deliveryOtp: String? = null,
+        val isVerified: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(OrderTrackingUiState())
@@ -298,6 +301,44 @@ class OrderTrackingViewModel @Inject constructor(
         }
     }
 
+    // ===== COD Verification =====
+
+    fun generateDeliveryOtp() {
+        val currentOrder = uiState.value.order ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            when (val result = orderRepository.generateDeliveryOtp(currentOrder.orderId)) {
+                is Resource.Success -> {
+                    _events.send(OrderTrackingEvent.Error("OTP Generated")) // Using Error meant as Toast/Snackbar message in this VM convention
+                    // State updates via flow observation
+                }
+                is Resource.Error -> {
+                    _events.send(OrderTrackingEvent.Error(result.message ?: "Failed to generate OTP"))
+                }
+                else -> {}
+            }
+            _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    fun verifyDeliveryOtp(otpInput: String) {
+        val currentOrder = uiState.value.order ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            when (val result = orderRepository.confirmDeliveryWithOtp(currentOrder.orderId, otpInput)) {
+                is Resource.Success -> {
+                    _events.send(OrderTrackingEvent.Error("Delivery Verified Successfully"))
+                    // State updates via flow observation
+                }
+                is Resource.Error -> {
+                    _events.send(OrderTrackingEvent.Error(result.message ?: "Verification Failed"))
+                }
+                else -> {}
+            }
+            _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
     // Handle network errors gracefully by showing in UI state
     private fun handleError(message: String) {
         _uiState.update { it.copy(error = message, isLoading = false) }
@@ -353,7 +394,9 @@ class OrderTrackingViewModel @Inject constructor(
             timelineEvents = mappedEvents,
             isBuyer = isBuyer,
             isSeller = isSeller,
-            negotiationStatus = order.negotiationStatus
+            negotiationStatus = order.negotiationStatus,
+            deliveryOtp = order.otp,
+            isVerified = order.isVerified
         )
     }
 

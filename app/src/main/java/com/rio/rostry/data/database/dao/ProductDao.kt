@@ -13,19 +13,66 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ProductDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProduct(product: ProductEntity)
+    suspend fun insertProductFts(productFts: com.rio.rostry.data.database.entity.ProductFtsEntity)
+
+    @Transaction
+    suspend fun insertProduct(product: ProductEntity) {
+        insertProductInternal(product)
+        updateProductFts(product)
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertProducts(products: List<ProductEntity>)
+    suspend fun insertProductInternal(product: ProductEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(product: ProductEntity)
+    suspend fun insertProducts(products: List<ProductEntity>) {
+        insertProductsInternal(products)
+        products.forEach { updateProductFts(it) }
+    }
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProductsInternal(products: List<ProductEntity>)
+
+    @Transaction
+    suspend fun upsert(product: ProductEntity) {
+        insertProductInternal(product)
+        updateProductFts(product)
+    }
+
+    private suspend fun updateProductFts(product: ProductEntity) {
+        insertProductFts(
+            com.rio.rostry.data.database.entity.ProductFtsEntity(
+                productId = product.productId,
+                name = product.name,
+                description = product.description,
+                category = product.category,
+                breed = product.breed,
+                location = product.location,
+                condition = product.condition
+            )
+        )
+    }
 
     @Update
-    suspend fun updateProduct(product: ProductEntity)
+    suspend fun updateProduct(product: ProductEntity) {
+        updateProductInternal(product)
+        updateProductFts(product)
+    }
+
+    @Update
+    suspend fun updateProductInternal(product: ProductEntity)
+
+    @Transaction
+    suspend fun deleteProduct(productId: String) {
+        deleteProductInternal(productId)
+        deleteProductFts(productId)
+    }
 
     @Query("DELETE FROM products WHERE productId = :productId")
-    suspend fun deleteProduct(productId: String)
+    suspend fun deleteProductInternal(productId: String)
+
+    @Query("DELETE FROM products_fts WHERE productId = :productId")
+    suspend fun deleteProductFts(productId: String)
 
     @Query("SELECT * FROM products WHERE productId = :productId")
     fun getProductById(productId: String): Flow<ProductEntity?>
@@ -45,11 +92,23 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE status = :status ORDER BY createdAt DESC")
     fun getProductsByStatus(status: String): Flow<List<ProductEntity>>
 
-    @Query("DELETE FROM products WHERE productId = :productId")
-    suspend fun deleteProductById(productId: String)
+    @Transaction
+    suspend fun deleteProductById(productId: String) {
+        deleteProductInternal(productId)
+        deleteProductFts(productId)
+    }
+
+    @Transaction
+    suspend fun deleteAllProducts() {
+        deleteAllProductsInternal()
+        deleteAllProductsFts()
+    }
 
     @Query("DELETE FROM products")
-    suspend fun deleteAllProducts()
+    suspend fun deleteAllProductsInternal()
+
+    @Query("DELETE FROM products_fts")
+    suspend fun deleteAllProductsFts()
 
     @Transaction
     suspend fun replaceAllProducts(products: List<ProductEntity>) {
@@ -57,7 +116,12 @@ interface ProductDao {
         insertProducts(products)
     }
 
-    @Query("SELECT * FROM products WHERE name LIKE :query OR description LIKE :query ORDER BY name ASC")
+    @Transaction
+    @Query("""
+        SELECT products.* FROM products 
+        JOIN products_fts ON products.productId = products_fts.productId 
+        WHERE products_fts MATCH :query
+    """)
     fun searchProducts(query: String): Flow<List<ProductEntity>>
 
     @Query("SELECT COUNT(*) FROM products WHERE productId LIKE 'demo_prod_%'")
