@@ -189,6 +189,7 @@ object Routes {
         const val HOME = "home/general"
         const val MARKET = "general/market"
         const val EXPLORE = "general/explore"
+        const val DISCOVER = "general/discover"
         const val CREATE = "general/create"
         const val CART = "general/cart"
         const val PROFILE = "general/profile"
@@ -223,6 +224,12 @@ object Routes {
         const val BREEDING_CALCULATOR = "enthusiast/breeding_calculator"
         const val PERFORMANCE_JOURNAL = "enthusiast/performance_journal"
         const val VIRTUAL_ARENA = "enthusiast/virtual_arena"
+        // Legacy Builder Features
+        const val PEDIGREE = "enthusiast/pedigree/{productId}"
+        const val HALL_OF_FAME = "enthusiast/hall_of_fame"
+        
+        // Builder functions
+        fun pedigree(productId: String) = "enthusiast/pedigree/$productId"
     }
 
     object Sync {
@@ -241,6 +248,7 @@ object Routes {
         bottomNav = emptyList(),
         accessibleRoutes = setOf(
             GeneralNav.HOME,
+            GeneralNav.DISCOVER,
             Settings.ROOT,
             Settings.ADDRESS_SELECTION,
             User.PROFILE,

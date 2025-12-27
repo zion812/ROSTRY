@@ -378,6 +378,11 @@ implementation(libs.firebase.appcheck.playintegrity)
 
     // ML Kit Barcode Scanning
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
+    // Vico Chart Library for Performance Charts
+    implementation("com.patrykandpatrick.vico:compose:1.13.1")
+    implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
+    implementation("com.patrykandpatrick.vico:core:1.13.1")
 }
 // Dokka: enrich module docs with external links for Kotlin and Android APIs
 tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {
