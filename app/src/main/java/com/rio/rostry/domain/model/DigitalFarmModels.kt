@@ -48,7 +48,14 @@ data class VisualBird(
     val zone: DigitalFarmZone,
     val statusIndicator: BirdStatusIndicator = BirdStatusIndicator.NONE,
     val position: Offset = Offset.Zero, // Calculated position on canvas
-    val isSelected: Boolean = false
+    val isSelected: Boolean = false,
+    // --- New Properties for Drag & Animation ---
+    val currentAnimationTarget: Offset = Offset.Zero,
+    val isDragging: Boolean = false,
+    val motherId: String? = null, // For nursery orbiting
+    val batchId: String? = null,  // For breeding unit grouping
+    val isReadyForSale: Boolean = false,
+    val isListed: Boolean = false
 ) {
     val ageText: String
         get() = when {
@@ -146,3 +153,38 @@ sealed class FarmTapResult {
     data class MarketStandTapped(val birds: List<VisualBird>) : FarmTapResult()
     data object EmptyAreaTapped : FarmTapResult()
 }
+
+/**
+ * Drag state for the Digital Farm drag-and-drop feature
+ */
+data class DragState(
+    val draggedBird: VisualBird? = null,
+    val sourceZone: DigitalFarmZone? = null,
+    val currentPosition: Offset = Offset.Zero,
+    val isDragging: Boolean = false
+)
+
+/**
+ * Cage display for ready-to-sell male birds with gold star overlay
+ */
+data class CageDisplay(
+    val bird: VisualBird,
+    val position: Offset,
+    val showGoldStar: Boolean = true
+)
+
+/**
+ * A drawable entity for Z-ordering in the renderer
+ */
+data class DrawableEntity(
+    val id: String,
+    val type: EntityType,
+    val y: Float, // Used for Z-ordering (higher Y = drawn later = in front)
+    val position: Offset,
+    val data: Any // The actual entity data (VisualBird, BreedingUnit, etc.)
+)
+
+enum class EntityType {
+    BIRD, HUT, CAGE, NEST, MARKET_STAND, FENCE, FEEDER
+}
+

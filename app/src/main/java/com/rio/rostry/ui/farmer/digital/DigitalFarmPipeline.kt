@@ -24,7 +24,7 @@ import com.rio.rostry.domain.model.LifecycleStage
 
 @Composable
 fun DigitalFarmPipeline(
-    viewModel: DigitalFarmViewModel = hiltViewModel(),
+    viewModel: PipelineViewModel = hiltViewModel(),
     onStageClick: (LifecycleStage) -> Unit,
     onNavigate: (String) -> Unit
 ) {
