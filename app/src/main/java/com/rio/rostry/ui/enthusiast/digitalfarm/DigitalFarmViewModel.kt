@@ -46,6 +46,30 @@ class DigitalFarmViewModel @Inject constructor(
     private val freeRangeZoneBounds = Pair(Offset(0.1f, 0.4f), Offset(0.9f, 0.65f))
     private val growOutZoneBounds = Pair(Offset(0.05f, 0.7f), Offset(0.45f, 0.9f))
     private val marketZoneBounds = Pair(Offset(0.55f, 0.7f), Offset(0.95f, 0.9f))
+    
+    // ==================== PHASE 5: VISUALIZATION STATE ====================
+    
+    // Current time of day (auto-updating)
+    private val _timeOfDay = MutableStateFlow(TimeOfDay.fromCurrentTime())
+    val timeOfDay: StateFlow<TimeOfDay> = _timeOfDay.asStateFlow()
+    
+    // Current weather (can be set manually or from external data source)
+    private val _weather = MutableStateFlow(WeatherType.SUNNY)
+    val weather: StateFlow<WeatherType> = _weather.asStateFlow()
+    
+    /**
+     * Update weather - can be connected to real weather API
+     */
+    fun setWeather(weatherType: WeatherType) {
+        _weather.value = weatherType
+    }
+    
+    /**
+     * Refresh time of day (call periodically or on resume)
+     */
+    fun refreshTimeOfDay() {
+        _timeOfDay.value = TimeOfDay.fromCurrentTime()
+    }
 
     init {
         loadFarmData()

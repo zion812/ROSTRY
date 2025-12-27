@@ -1,8 +1,8 @@
 # ROSTRY Codebase Structure
 
 **Document Type**: Developer Reference  
-**Version**: 4.0  
-**Last Updated**: 2025-12-25  
+**Version**: 4.1  
+**Last Updated**: 2025-12-27  
 **Purpose**: Comprehensive code navigation guide for developers
 
 ---
@@ -117,8 +117,18 @@ ui/enthusiast/
 ├── EnthusiastHomeViewModel.kt
 ├── digitalfarm/
 │   ├── DigitalFarmScreen.kt          # Canvas-based farm visualization
-│   ├── DigitalFarmViewModel.kt       # Zone grouping, interactions
-│   └── FarmCanvasRenderer.kt         # 2.5D rendering engine
+│   ├── DigitalFarmViewModel.kt       # Zone grouping, weather/time state
+│   └── FarmCanvasRenderer.kt         # 2.5D rendering engine (~2040 lines)
+│       ├── Day/night cycle rendering
+│       ├── Weather effects (rain, wind, clouds)
+│       ├── Flocking algorithm for birds
+│       ├── Age-based visual progression
+│       ├── 8 placeable building types
+│       ├── Resource bars, daily tasks
+│       ├── Performance charts (line/bar/pie)
+│       ├── Pedigree tree visualization
+│       ├── Leaderboards, competitions
+│       └── Offline indicators
 ├── breeding/
 ├── eggcollection/
 ├── shows/
@@ -206,7 +216,7 @@ ui/verification/
 | `Product.kt` | Product domain models |
 | `Order.kt` | Order domain models |
 | `Transfer.kt` | Transfer domain models |
-| `DigitalFarmModels.kt` | Farm visualization models |
+| `DigitalFarmModels.kt` | Farm visualization models (~510 lines) |
 | `SocialModels.kt` | Social platform models |
 | `AnalyticsModels.kt` | Analytics domain models |
 
@@ -506,6 +516,7 @@ grep -r "interface.*Repository" --include="*.kt"
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 4.1 | 2025-12-27 | Digital Farm 2.0 (weather, buildings, gamification) |
 | 4.0 | 2025-12-25 | Complete restructure, Digital Farm, Evidence Orders |
 | 3.0 | 2025-01-15 | Social platform, community features |
 | 2.0 | 2024-12-01 | Initial comprehensive mapping |

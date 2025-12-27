@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Digital Farm Enhancement 2.0 (2025-12-27)
+- **Day/Night Cycle**: Time-based sky rendering with morning, afternoon, evening, night modes
+- **Weather Effects**: Rain particles with splash, wind-animated grass, overcast clouds
+- **Flocking Algorithm**: Natural group movement for birds using sine-wave oscillation
+- **Age-Based Visuals**: Size progression (50%→100%), color lerping (yellow→adult plumage)
+- **Breeding Visualization**: Hen count badges, fertility heart indicators, DNA helix genetic badges
+- **Pedigree Tree**: `PedigreeTree/Node` models with 7-position ancestry visualization
+- **Building Placement**: 8 `FarmBuildingType` options (COOP, BROODER, WATER_FOUNTAIN, FEEDER, NESTING_BOX, PERCH, DUST_BATH, SHADE_SHELTER)
+- **Resource Management**: `FarmResource` tracking for FEED, WATER, MEDICINE, BEDDING, COINS with restock alerts
+- **Daily Tasks**: `DailyTask` system with 7 task types and coin rewards
+- **Achievements**: `drawAchievementBadge()` for Bronze/Silver/Gold tier milestones
+- **Performance Charts**: Mini line, bar, and pie charts for farm metrics
+- **Competitions**: `FarmCompetition` model with 6 competition types and `LeaderboardEntry` ranking
+- **Farm Sharing**: `SharedFarm` with `FarmReaction` and visitor tracking
+- **Offline Mode**: `OfflineFarmSnapshot` for cached offline viewing
+- **View Culling**: `shouldRenderElement()` optimization for viewport-based rendering
+- **Weather/Time State**: ViewModel StateFlows for `TimeOfDay` and `WeatherType`
+- New renderer functions: 15+ drawing utilities for buildings, charts, leaderboards
+- Updated `DigitalFarmModels.kt`: ~340 lines → ~510 lines (170+ lines added)
+- Updated `FarmCanvasRenderer.kt`: ~1100 lines → ~2040 lines (940+ lines added)
+- Documentation: Updated `digital-farm.md` to v2.0
+
 #### Digital Farm - Evolutionary Visuals (2025-12-25)
 - Interactive 2.5D isometric farm visualization for Enthusiast users
 - Canvas-based rendering with low-poly graphics (sky, clouds, trees, ground, fences)
