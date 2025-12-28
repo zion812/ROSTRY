@@ -33,6 +33,7 @@ fun SocialProfileScreen(
     userId: String?,
     onBack: () -> Unit,
     onPostClick: (String) -> Unit,
+    onMessage: (String) -> Unit = {}, // Navigate to messaging with userId
     onSettingsClick: () -> Unit = {},
     vm: SocialProfileViewModel = hiltViewModel()
 ) {
@@ -77,7 +78,8 @@ fun SocialProfileScreen(
                     followingCount = following,
                     isCurrentUser = userId == null,
                     onEditProfile = { /* TODO */ },
-                    onFollow = { vm.follow() }
+                    onFollow = { vm.follow() },
+                    onMessage = { onMessage(u.userId) }
                 )
             }
 
@@ -128,7 +130,8 @@ fun ProfileHeader(
     followingCount: Int,
     isCurrentUser: Boolean,
     onEditProfile: () -> Unit,
-    onFollow: () -> Unit
+    onFollow: () -> Unit,
+    onMessage: () -> Unit = {}
 ) {
     Column(Modifier.padding(16.dp)) {
         Row(
@@ -188,7 +191,7 @@ fun ProfileHeader(
                     Text("Follow")
                 }
                 Button(
-                    onClick = { /* Message */ },
+                    onClick = onMessage,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) {

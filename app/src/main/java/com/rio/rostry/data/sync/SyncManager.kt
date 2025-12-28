@@ -55,7 +55,9 @@ class SyncManager @Inject constructor(
     private val roleMigrationDao: com.rio.rostry.data.database.dao.RoleMigrationDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val traceabilityRepository: TraceabilityRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    // Split-Brain Data Architecture
+    private val batchSummaryDao: com.rio.rostry.data.database.dao.BatchSummaryDao
 ) {
     companion object {
         // Overall sync timeout to prevent indefinite operations
@@ -736,31 +738,13 @@ class SyncManager @Inject constructor(
 
                     when (entityType) {
                         OutboxEntity.TYPE_DAILY_LOG -> {
-                            val userId = firebaseAuth.currentUser?.uid ?: ""
+                            // SPLIT-BRAIN ARCHITECTURE: Daily logs are now LOCAL-ONLY
+                            // They no longer sync to cloud. Mark outbox entries as completed.
                             for (e in entries) {
-                                val log = gson.fromJson(e.payloadJson, DailyLogEntity::class.java)
-                                try {
-                                    withRetry {
-                                        firestoreService.pushDailyLogs(
-                                            userId,
-                                            role ?: UserType.GENERAL,
-                                            listOf(log)
-                                        )
-                                    }
-                                    dailyLogDao.clearDirty(listOf(log.logId), now)
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    outboxDao.incrementRetry(e.outboxId, now)
-                                    val willRetry = (e.retryCount + 1) < e.maxRetries
-                                    outboxDao.updateStatus(
-                                        e.outboxId,
-                                        if (willRetry) "PENDING" else "FAILED",
-                                        now
-                                    )
-                                    syncErrors.add("DailyLog push failed: ${t.message}")
-                                }
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
                                 processed++
                             }
+                            Timber.d("Skipped ${entries.size} daily log outbox entries (local-only)")
                         }
 
                         OutboxEntity.TYPE_TRANSFER -> {
@@ -1212,27 +1196,34 @@ class SyncManager @Inject constructor(
                 }
 
                 // ===================
-                // Daily Logs (Sprint 1)
+                // Daily Logs - SPLIT-BRAIN: Now LOCAL-ONLY, no cloud sync
                 // ===================
+                // Daily logs are no longer synced to cloud to optimize for Firebase Free Tier.
+                // Use BatchSummary sync instead for lightweight cloud data.
+                Timber.d("Skipping Daily Logs sync (Split-Brain: local-only)")
+
+                // =====================
+                // BatchSummaries - SPLIT-BRAIN: Lightweight cloud sync
+                // =====================
                 try {
-                    val remoteLogs: List<DailyLogEntity> = withRetry {
-                        firestoreService.fetchUpdatedDailyLogs(userId, role, state.lastDailyLogSyncAt)
+                    val remoteSummaries = withRetry {
+                        firestoreService.fetchUpdatedBatchSummaries(userId, state.lastBatchSummarySyncAt)
                     }
-                    if (remoteLogs.isNotEmpty()) {
-                        for (e in remoteLogs) {
-                            dailyLogDao.upsert(e)
-                        }
-                        pulls += remoteLogs.size
+                    if (remoteSummaries.isNotEmpty()) {
+                        remoteSummaries.forEach { batchSummaryDao.upsert(it) }
+                        pulls += remoteSummaries.size
                     }
-                    val localDirty: List<DailyLogEntity> = dailyLogDao.getDirty()
+
+                    val localDirty = batchSummaryDao.getDirty()
                     if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushDailyLogs(userId, role, localDirty) }
-                        dailyLogDao.clearDirty(localDirty.map { it.logId }, now)
+                        withRetry { firestoreService.pushBatchSummaries(userId, localDirty) }
+                        batchSummaryDao.clearDirty(localDirty.map { it.batchId }, now)
                         pushes += localDirty.size
                     }
+                    Timber.d("BatchSummaries sync: pulled=${remoteSummaries.size}, pushed=${localDirty.size}")
                 } catch (e: Exception) {
-                    Timber.e(e, "Daily Logs sync failed")
-                    syncErrors.add("Daily Logs: ${e.message}")
+                    Timber.e(e, "BatchSummaries sync failed")
+                    syncErrors.add("BatchSummaries: ${e.message}")
                 }
 
                 // ============
@@ -1278,6 +1269,7 @@ class SyncManager @Inject constructor(
                     lastMortalitySyncAt = now,
                     lastHatchingSyncAt = now,
                     lastDailyLogSyncAt = now,
+                    lastBatchSummarySyncAt = now, // Split-Brain
                     lastTaskSyncAt = now,
                     lastUserSyncAt = now,
                     lastEnthusiastBreedingSyncAt = now,

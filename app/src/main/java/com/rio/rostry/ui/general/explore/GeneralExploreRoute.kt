@@ -50,8 +50,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun GeneralExploreRoute(
     onOpenSocialFeed: () -> Unit,
-
     onOpenMessages: (String) -> Unit,
+    onFarmerProfileClick: (String) -> Unit = {}, // Navigate to full farmer profile
+    onViewFarmersMap: () -> Unit = {}, // Open map view of farmers
     onScanQr: () -> Unit = {},
     viewModel: GeneralExploreViewModel = hiltViewModel()
 ) {
@@ -108,7 +109,12 @@ fun GeneralExploreRoute(
                 item {
                     NearbyFarmersSection(
                         farmers = uiState.nearbyFarmers,
-                        onFarmerClick = { farmerId -> viewModel.openProfilePreview(farmerId) }
+                        onFarmerClick = { farmerId -> 
+                            // Show profile preview, then navigate on tap
+                            viewModel.openProfilePreview(farmerId)
+                            onFarmerProfileClick(farmerId)
+                        },
+                        onViewMap = onViewFarmersMap
                     )
                 }
             }

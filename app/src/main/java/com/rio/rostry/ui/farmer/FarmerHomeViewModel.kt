@@ -9,6 +9,8 @@ import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
 import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.DashboardCacheDao
+import com.rio.rostry.data.database.entity.DashboardCacheEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.data.repository.TransferRepository
@@ -125,7 +127,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val farmOnboardingRepository: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository,
     private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
     private val evidenceOrderRepository: EvidenceOrderRepository, // Evidence Order System
-    private val storageUsageRepository: com.rio.rostry.data.repository.StorageUsageRepository
+    private val storageUsageRepository: com.rio.rostry.data.repository.StorageUsageRepository,
+    private val dashboardCacheDao: DashboardCacheDao // Split-Brain: Instant dashboard loading
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -147,6 +150,22 @@ class FarmerHomeViewModel @Inject constructor(
 
     init {
         loadEvidenceOrderData()
+        loadCachedDashboard() // Split-Brain: Load cached stats immediately
+    }
+
+    // Split-Brain: Cached dashboard state for instant loading
+    private val _cachedState = MutableStateFlow<DashboardCacheEntity?>(null)
+    val cachedDashboard: StateFlow<DashboardCacheEntity?> = _cachedState
+
+    private fun loadCachedDashboard() {
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { farmerId ->
+                dashboardCacheDao.getForFarmer(farmerId)?.let { cache ->
+                    _cachedState.value = cache
+                    Timber.d("Loaded cached dashboard (computed ${System.currentTimeMillis() - cache.computedAt}ms ago)")
+                }
+            }
+        }
     }
 
     private fun loadEvidenceOrderData() {

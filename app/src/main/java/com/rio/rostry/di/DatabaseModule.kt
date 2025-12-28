@@ -178,7 +178,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_52_53,
             AppDatabase.MIGRATION_53_54,
             AppDatabase.MIGRATION_54_55,
-            AppDatabase.MIGRATION_55_56
+            AppDatabase.MIGRATION_55_56,
+            AppDatabase.MIGRATION_56_57,
+            AppDatabase.MIGRATION_57_58
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -555,4 +557,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideVirtualArenaDao(db: AppDatabase): com.rio.rostry.data.database.dao.VirtualArenaDao = db.virtualArenaDao()
+
+    // Split-Brain Data Architecture DAOs
+    @Provides
+    @Singleton
+    fun provideBatchSummaryDao(db: AppDatabase): com.rio.rostry.data.database.dao.BatchSummaryDao = db.batchSummaryDao()
+
+    @Provides
+    @Singleton
+    fun provideDashboardCacheDao(db: AppDatabase): com.rio.rostry.data.database.dao.DashboardCacheDao = db.dashboardCacheDao()
 }

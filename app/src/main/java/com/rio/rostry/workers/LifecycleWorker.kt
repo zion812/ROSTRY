@@ -17,6 +17,14 @@ import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.monitoring.TaskRepository
 import com.rio.rostry.data.database.dao.TaskDao
+import com.rio.rostry.data.database.dao.DailyLogDao
+import com.rio.rostry.data.database.dao.BatchSummaryDao
+import com.rio.rostry.data.database.dao.DashboardCacheDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
+import com.rio.rostry.data.database.dao.MortalityRecordDao
+import com.rio.rostry.data.database.dao.QuarantineRecordDao
+import com.rio.rostry.data.database.entity.BatchSummaryEntity
+import com.rio.rostry.data.database.entity.DashboardCacheEntity
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.ValidationUtils
 import com.rio.rostry.utils.MilestoneNotifier
@@ -44,6 +52,12 @@ class LifecycleWorker @AssistedInject constructor(
     private val traceability: TraceabilityRepository,
     private val taskRepository: TaskRepository,
     private val taskDao: TaskDao,
+    private val dailyLogDao: DailyLogDao,
+    private val batchSummaryDao: BatchSummaryDao,
+    private val dashboardCacheDao: DashboardCacheDao,
+    private val vaccinationDao: VaccinationRecordDao,
+    private val mortalityDao: MortalityRecordDao,
+    private val quarantineDao: QuarantineRecordDao,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -268,11 +282,82 @@ class LifecycleWorker @AssistedInject constructor(
             // Phase 3: Auto-expire market listings older than 30 days
             val thirtyDaysAgo = now - (30L * 24 * 60 * 60 * 1000)
             productDao.purgeStaleMarketplace(thirtyDaysAgo)
+
+            // ============================================================
+            // SPLIT-BRAIN: Populate DashboardCache for instant app loading
+            // ============================================================
+            populateDashboardCaches(now)
             
             Result.success()
         } catch (e: Exception) {
             Result.retry()
         }
+    }
+
+    /**
+     * Split-Brain Data Architecture: Pre-compute dashboard stats and batch summaries.
+     * This enables instant dashboard loading without expensive on-the-fly calculations.
+     */
+    private suspend fun populateDashboardCaches(now: Long) {
+        val startTime = System.currentTimeMillis()
+        
+        // Get distinct farmer IDs from products
+        val farmerIds = productDao.getDistinctSellerIds()
+        
+        for (farmerId in farmerIds) {
+            try {
+                // Time range for "this month"
+                val startOfMonth = getStartOfMonth(now)
+                
+                // Aggregate calculations
+                val totalBirds = productDao.countActiveByFarmer(farmerId)
+                val totalBatches = productDao.countBatchesByFarmer(farmerId)
+                val pendingVaccines = vaccinationDao.countPendingByFarmer(farmerId, now)
+                val overdueVaccines = vaccinationDao.countOverdueForFarmer(farmerId, now)
+                val quarantinedCount = quarantineDao.countActiveForFarmer(farmerId)
+                val totalMortalityThisMonth = mortalityDao.countForFarmerBetween(farmerId, startOfMonth, now)
+                
+                // Calculate average FCR from daily logs
+                val totalFeed = dailyLogDao.getTotalFeedBetween(farmerId, startOfMonth, now)
+                val avgWeight = dailyLogDao.getAverageWeightBetween(farmerId, startOfMonth, now)
+                val avgFcr = if (avgWeight > 0) totalFeed / (avgWeight / 1000.0) else 0.0 // FCR = Feed(kg) / Weight Gain(kg)
+                
+                // Create or update dashboard cache
+                val cache = DashboardCacheEntity(
+                    cacheId = "cache_$farmerId",
+                    farmerId = farmerId,
+                    totalBirds = totalBirds,
+                    totalBatches = totalBatches,
+                    pendingVaccines = pendingVaccines,
+                    overdueVaccines = overdueVaccines,
+                    avgFcr = avgFcr,
+                    totalFeedKgThisMonth = totalFeed,
+                    totalMortalityThisMonth = totalMortalityThisMonth,
+                    healthyCount = totalBirds - quarantinedCount,
+                    quarantinedCount = quarantinedCount,
+                    alertCount = alertDao.countUnread(farmerId),
+                    computedAt = now,
+                    computationDurationMs = System.currentTimeMillis() - startTime
+                )
+                dashboardCacheDao.upsert(cache)
+                
+            } catch (e: Exception) {
+                timber.log.Timber.e(e, "Error computing dashboard cache for farmer=$farmerId")
+            }
+        }
+        
+        timber.log.Timber.d("Dashboard caches updated for ${farmerIds.size} farmers in ${System.currentTimeMillis() - startTime}ms")
+    }
+    
+    private fun getStartOfMonth(now: Long): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = now
+        cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
     }
 
     companion object {

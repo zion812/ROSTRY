@@ -118,9 +118,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         StorageQuotaEntity::class,
         DailyBirdLogEntity::class,
         CompetitionEntryEntity::class,
-        MyVotesEntity::class
+        MyVotesEntity::class,
+        // Split-Brain Data Architecture entities
+        BatchSummaryEntity::class,
+        DashboardCacheEntity::class
     ],
-    version = 57, // 57: Product FTS; 56: Cloud Storage & Role Migration; 55: Verification Drafts; 54: Digital Farm
+    version = 58, // 58: Split-Brain Data Architecture; 57: Product FTS; 56: Cloud Storage & Role Migration
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -236,6 +239,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun breedDao(): BreedDao
     abstract fun dailyBirdLogDao(): com.rio.rostry.data.database.dao.DailyBirdLogDao
     abstract fun virtualArenaDao(): com.rio.rostry.data.database.dao.VirtualArenaDao
+
+    // Split-Brain Data Architecture DAOs
+    abstract fun batchSummaryDao(): BatchSummaryDao
+    abstract fun dashboardCacheDao(): DashboardCacheDao
 
     object Converters {
         @TypeConverter
@@ -398,6 +405,60 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Split-Brain Data Architecture tables (57 -> 58)
+        val MIGRATION_57_58 = object : Migration(57, 58) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create batch_summaries table (lightweight cloud-synced summaries)
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `batch_summaries` (
+                        `batchId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `batchName` TEXT NOT NULL,
+                        `currentCount` INTEGER NOT NULL DEFAULT 0,
+                        `avgWeightGrams` REAL NOT NULL DEFAULT 0.0,
+                        `totalFeedKg` REAL NOT NULL DEFAULT 0.0,
+                        `fcr` REAL NOT NULL DEFAULT 0.0,
+                        `ageWeeks` INTEGER NOT NULL DEFAULT 0,
+                        `hatchDate` INTEGER,
+                        `status` TEXT NOT NULL DEFAULT 'ACTIVE',
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1,
+                        `syncedAt` INTEGER
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_batch_summaries_farmerId` ON `batch_summaries` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_batch_summaries_updatedAt` ON `batch_summaries` (`updatedAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_batch_summaries_dirty` ON `batch_summaries` (`dirty`)")
+
+                // Create dashboard_cache table (pre-computed stats for instant loading)
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `dashboard_cache` (
+                        `cacheId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `totalBirds` INTEGER NOT NULL DEFAULT 0,
+                        `totalBatches` INTEGER NOT NULL DEFAULT 0,
+                        `pendingVaccines` INTEGER NOT NULL DEFAULT 0,
+                        `overdueVaccines` INTEGER NOT NULL DEFAULT 0,
+                        `avgFcr` REAL NOT NULL DEFAULT 0.0,
+                        `totalFeedKgThisMonth` REAL NOT NULL DEFAULT 0.0,
+                        `totalMortalityThisMonth` INTEGER NOT NULL DEFAULT 0,
+                        `estimatedHarvestDate` INTEGER,
+                        `daysUntilHarvest` INTEGER,
+                        `healthyCount` INTEGER NOT NULL DEFAULT 0,
+                        `quarantinedCount` INTEGER NOT NULL DEFAULT 0,
+                        `alertCount` INTEGER NOT NULL DEFAULT 0,
+                        `computedAt` INTEGER NOT NULL,
+                        `computationDurationMs` INTEGER NOT NULL DEFAULT 0
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_dashboard_cache_farmerId` ON `dashboard_cache` (`farmerId`)")
+                
+                // Add sync state column for batch summaries
+                db.execSQL("ALTER TABLE `sync_state` ADD COLUMN `lastBatchSummarySyncAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @TypeConverter
         @JvmStatic
         fun toStringList(value: String?): List<String>? {
@@ -458,6 +519,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_36_37: Migration = Converters.MIGRATION_36_37
         val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
         val MIGRATION_56_57: Migration = Converters.MIGRATION_56_57
+        val MIGRATION_57_58: Migration = Converters.MIGRATION_57_58
 
         // Create verification_drafts table (54 -> 55)
         val MIGRATION_54_55 = object : Migration(54, 55) {

@@ -22,7 +22,8 @@ import androidx.compose.material.icons.filled.Person
 @Composable
 fun NearbyFarmersSection(
     farmers: List<UserEntity>,
-    onFarmerClick: (String) -> Unit
+    onFarmerClick: (String) -> Unit,
+    onViewMap: () -> Unit = {}
 ) {
     if (farmers.isEmpty()) return
 
@@ -38,7 +39,7 @@ fun NearbyFarmersSection(
                 text = "Nearby Farmers",
                 style = MaterialTheme.typography.titleMedium
             )
-            TextButton(onClick = { /* View all map view */ }) {
+            TextButton(onClick = onViewMap) {
                 Text("View Map")
             }
         }

@@ -225,6 +225,22 @@ interface ProductDao {
 
     @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND stage = 'GROWER' AND ageWeeks >= 18 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND isDeleted = 0")
     fun observeReadyToLayCount(farmerId: String): Flow<Int>
+
+    // =========================================================================
+    // Split-Brain Data Architecture: Aggregate queries for DashboardCache
+    // =========================================================================
+
+    /** Get all distinct seller IDs for dashboard cache generation. */
+    @Query("SELECT DISTINCT sellerId FROM products WHERE isDeleted = 0")
+    suspend fun getDistinctSellerIds(): List<String>
+
+    /** Count active birds for a farmer (for dashboard cache). */
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
+    suspend fun countActiveByFarmer(farmerId: String): Int
+
+    /** Count batches for a farmer (for dashboard cache). */
+    @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND isBatch = 1 AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
+    suspend fun countBatchesByFarmer(farmerId: String): Int
 }
 
 data class StageCount(

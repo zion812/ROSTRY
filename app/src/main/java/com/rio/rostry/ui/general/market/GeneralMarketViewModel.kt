@@ -402,7 +402,9 @@ class GeneralMarketViewModel @Inject constructor(
                 }
                 
                 // Merge and de-duplicate by productId (prefer newer updatedAt)
+                // IMPORTANT: Only include PUBLIC products in marketplace (status != "private")
                 val merged = (legacyProducts + convertedListings)
+                    .filter { it.isPublic } // Filter out private farm management birds
                     .groupBy { it.productId }
                     .map { (_, products) -> products.maxByOrNull { it.updatedAt } ?: products.first() }
                 

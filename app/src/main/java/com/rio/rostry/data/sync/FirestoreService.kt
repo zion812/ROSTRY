@@ -23,6 +23,7 @@ import com.rio.rostry.data.database.entity.MatingLogEntity
 import com.rio.rostry.data.database.entity.EggCollectionEntity
 import com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity
 import com.rio.rostry.data.database.entity.DailyLogEntity
+import com.rio.rostry.data.database.entity.BatchSummaryEntity
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.domain.model.UserType
@@ -78,6 +79,9 @@ interface SyncRemote {
     suspend fun pushEnthusiastSnapshots(userId: String, entities: List<com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity>): Int
     suspend fun fetchUpdatedUsers(since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.UserEntity>
     suspend fun fetchUsersByIds(ids: List<String>): List<com.rio.rostry.data.database.entity.UserEntity>
+    // Split-Brain Data Architecture: BatchSummary sync (replaces DailyLogs for cloud sync)
+    suspend fun fetchUpdatedBatchSummaries(userId: String, since: Long, limit: Int = 500): List<BatchSummaryEntity>
+    suspend fun pushBatchSummaries(userId: String, entities: List<BatchSummaryEntity>): Int
 }
 
 /**
@@ -284,18 +288,15 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(DailyLogEntity::class.java) }
 
+    /**
+     * @deprecated Daily logs are now LOCAL-ONLY in Split-Brain architecture.
+     * Use pushBatchSummaries() instead for cloud sync.
+     */
+    @Deprecated("Use pushBatchSummaries for Split-Brain architecture", ReplaceWith("pushBatchSummaries(userId, batchSummaries)"))
     override suspend fun pushDailyLogs(userId: String, role: UserType, entities: List<DailyLogEntity>): Int {
-        if (entities.isEmpty()) return 0
-        val batch = firestore.batch()
-        val col = firestore.collection(getRootCollection(role)).document(userId).collection("daily_logs")
-        val now = System.currentTimeMillis()
-        entities.forEach { e ->
-            val doc = col.document(e.logId)
-            batch.set(doc, e, SetOptions.merge())
-            batch.update(doc, mapOf("updatedAt" to now))
-        }
-        batch.commit().await()
-        return entities.size
+        // FREE TIER: Daily logs no longer sync to cloud
+        Timber.w("pushDailyLogs called but disabled in Split-Brain architecture. Use BatchSummary instead.")
+        return 0 // Return 0 to indicate no sync happened
     }
 
     override suspend fun fetchUpdatedTasks(userId: String, role: UserType, since: Long, limit: Int): List<TaskEntity> =
@@ -639,6 +640,33 @@ class FirestoreService @Inject constructor(
             batch.update(doc, mapOf("updatedAt" to now))
         }
         batch.commit().await()
+        return entities.size
+    }
+
+    // ==============================
+    // Split-Brain: BatchSummary Sync
+    // ==============================
+
+    override suspend fun fetchUpdatedBatchSummaries(userId: String, since: Long, limit: Int): List<BatchSummaryEntity> =
+        firestore.collection("farmers").document(userId).collection("batch_summaries")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(BatchSummaryEntity::class.java) }
+
+    override suspend fun pushBatchSummaries(userId: String, entities: List<BatchSummaryEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("farmers").document(userId).collection("batch_summaries")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.batchId)
+            batch.set(doc, e, SetOptions.merge())
+            batch.update(doc, mapOf("updatedAt" to now))
+        }
+        batch.commit().await()
+        Timber.d("Pushed ${entities.size} batch summaries for user=$userId")
         return entities.size
     }
 

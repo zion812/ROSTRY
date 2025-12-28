@@ -28,6 +28,7 @@ data class SyncStateEntity(
     val lastEnthusiastDashboardSyncAt: Long = 0L,
     // Dedicated cursors
     val lastDailyLogSyncAt: Long = 0L,
+    val lastBatchSummarySyncAt: Long = 0L, // Split-Brain: Batch summaries sync cursor
     val lastTaskSyncAt: Long = 0L,
     val lastExpenseSyncAt: Long = 0L,
     val lastProofSyncAt: Long = 0L,
