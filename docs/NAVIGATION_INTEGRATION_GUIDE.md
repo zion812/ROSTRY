@@ -285,3 +285,50 @@ Check these files for reference:
 - `FIREBASE_AUTH_ANALYSIS.md` - Authentication analysis and architecture
 
 **Good luck with integration! 🚀**
+
+---
+
+## Appendix: Callback-Based Navigation Pattern
+
+The project is moving towards a callback-based navigation pattern to improve testability and decoupling.
+
+### Pattern Overview
+Instead of injecting `NavController` into feature screens, expose navigation events as lambda parameters.
+
+**Old Way (Coupled):**
+```kotlin
+@Composable
+fun FarmerProfileScreen(navController: NavController) {
+    Button(onClick = { navController.navigate("chat/${farmer.id}") }) { ... }
+}
+```
+
+**New Way (Decoupled):**
+```kotlin
+@Composable
+fun FarmerProfileScreen(
+    onMessageClick: (String) -> Unit
+) {
+    Button(onClick = { onMessageClick(farmer.id) }) { ... }
+}
+```
+
+### Implementation in `AppNavHost`
+The `AppNavHost` acts as the coordinator, supplying the concrete navigation logic:
+
+```kotlin
+composable(Routes.EXPLORE_FARMER_PROFILE) {
+    FarmerProfileScreen(
+        onMessageClick = { userId ->
+            navController.navigate(Routes.socialMessage(userId))
+        }
+    )
+}
+```
+
+### Benefits
+1.  **Testability**: Testing `FarmerProfileScreen` no longer requires mocking `NavController`.
+2.  **Previews**: `@Preview` functions can pass empty lambdas (`{}`) easily.
+3.  **Flexibility**: The parent can decide where to navigate (e.g., in a different flow or tablet layout).
+
+This pattern is currently used in `GeneralExploreRoute`, `SocialProfileScreen`, and `MarketplaceScreen`.

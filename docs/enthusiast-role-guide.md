@@ -29,9 +29,13 @@ The Enthusiast role in ROSTRY is tailored for poultry breeding hobbyists and spe
 - **Trait Milestones**: High-value traits (champion bloodline, rare color) trigger notifications at 6/12/24 months.
 
 ### 5. Explore Tabs
+- **Nearby Farmers Tab**: Discover local farmers via horizontal scrolling cards or interactive map view.
+  - **Map View**: Visualize farmer distribution geographically. Tap pins to preview and navigate to profiles.
+  - **Profiles**: Direct navigation to full farmer profiles from avatars or map markers.
+- **Educational Content**: Access curated guides and articles for poultry management.
 - **Products Tab**: Browse marketplace products with verified seller badges and trust signals.
 - **Events Tab**: Stream upcoming events. RSVP (Going/Maybe/Not Going). Exhibitor FAB to create events. View attendees and discussion.
-- **Showcase Tab**: Stream showcase posts (PRODUCT_SHOWCASE, BREEDING_ACHIEVEMENT). Like, comment, share. Create showcase posts with media (compressed/uploaded via `MediaUploadManager`).
+- **Showcase Tab**: Stream showcase posts (PRODUCT_SHOWCASE, BREEDING_ACHIEVEMENT). Like, comment, share. Create showcase posts with media.
 
 ### 6. Offline-First Behavior
 - **Dirty Flag**: All entities support `dirty` and `syncedAt` fields. Created/updated records are marked dirty.

@@ -12,7 +12,7 @@ All entities include standard metadata fields (`createdAt`, `updatedAt`, `isDele
 
 ### Important Tables
 - **Users**: Primary key `userId`, stores profile data, trust score, verification status.
-- **Products**: Primary key `productId`, includes traceability metadata, pricing, and certification.
+- **Products**: Primary key `productId`. Includes `isPublic` (Boolean) to distinguish Marketplace listings from Private Farm assets. Includes traceability metadata, pricing, and certification.
 - **Transfers**: Primary key `transferId`, references `productId`, status fields, photos, GPS coordinates, and financial info.
 - **Posts/Comments**: Primary key IDs with foreign keys to users; supports moderation status and media URLs.
 - **AnalyticsDaily**: Partitioned by date (milliseconds) and role, storing aggregated counters.

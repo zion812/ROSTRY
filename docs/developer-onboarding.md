@@ -115,6 +115,7 @@ ROSTRY follows **Clean Architecture** with **MVVM** pattern.
 - **DI**: Hilt manages dependencies
 - **Offline-First**: Room as source of truth
 - **Reactive**: Kotlin Flow for streams
+- **Data Contexts**: Products have strict visibility scopes (Public vs Private). See `marketplace-architecture.md`.
 
 **Full Details**: [docs/architecture.md](architecture.md)
 
@@ -129,6 +130,8 @@ AppNavHost
 │   └── EnthusiastNavGraph
 └── MainScreen (Bottom nav)
 ```
+
+**Callback Pattern**: We use a callback-based navigation pattern. Screens expose events (`onItemClick`) instead of requesting navigation directly. See `docs/NAVIGATION_INTEGRATION_GUIDE.md` for details.
 
 ### Dependency Injection
 

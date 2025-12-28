@@ -305,8 +305,11 @@ app/src/test/java/com/rio/rostry/
 ├── data/repository/RepositoryTest.kt
 ├── util/UtilTest.kt
 ├── fixtures/TestFixtures.kt
+├── fixtures/TestFixtures.kt
 └── fakes/FakeRepository.kt
 ```
+
+> **Note**: Legacy test files (e.g., `SocialRepositoryTest`, `SyncManagerTest`) have been consolidated into focused test suites to improve maintainability and reduce redundancy. Ensure new tests follow this consolidated pattern.
 
 ### Naming
 

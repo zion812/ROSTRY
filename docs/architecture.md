@@ -53,7 +53,7 @@
 ### UI Layer (`ui/`)
 - Composables in feature packages (e.g., `ui/analytics/`, `ui/social/`, `ui/traceability/`).
 - `MainActivity.kt` hosts `AppNavHost()` within `ROSTRYTheme`.
-- Navigation centralized in `ui/navigation/Routes.kt` and `AppNavHost.kt` with deep-link support and role-aware routing.
+- Navigation centralized in `ui/navigation/Routes.kt` and `AppNavHost.kt`. Feature composables use callback parameters (e.g., `onFarmerProfileClick`, `onMessage`) to delegate navigation to the host, ensuring decoupling and testability.
 
 ### ViewModel Layer (`ui/...ViewModel.kt`)
 - Extend `BaseViewModel` or `ViewModel` with Hilt injection.
@@ -66,7 +66,8 @@
 - Social, analytics, logistics, payments, and marketplace domains each have dedicated repositories.
 
 ### Data Layer
-- **Room**: Entities and DAOs in `data/database/entity/` and `data/database/dao/`. `AppDatabase` registers over 60 tables plus converters and migrations.
+- **Room**: Entities and DAOs in `data/database/entity/` and `data/database/dao/`. `AppDatabase` registers over 60 tables.
+- **Data Contexts**: Repositories distinguish between marketplace (public-only) and farm management (private+public) contexts via ViewModel filtering (e.g., `ProductEntity.isPublic`).
 - **Network**: Retrofit clients, Firebase Auth/Firestore/Storage/Functions/Realtime Database.
 - **Utilities**: Validation, analytics, notifications, compression, encryption wrappers (`utils/`).
 
@@ -74,6 +75,10 @@
 - `StartViewModel` evaluates session validity via `SessionManager` (`session/SessionManager.kt`) and routes to auth or home destinations based on `UserType`.
 - Authentication is phone-OTP driven using Firebase; successful bootstrap caches profile and records session metadata.
 - Role-based homes (`HomeGeneralScreen`, `HomeFarmerScreen`, `HomeEnthusiastScreen`) drive feature-specific navigation.
+- **Callback-Based Navigation**: 
+  - Screens expose lambda parameters for navigation events.
+  - `AppNavHost` provides the concrete navigation implementation.
+  - Enables easier testing and previewing of screens without MockNavController.
 
 ## 4. Background Jobs & Synchronization
 - `RostryApp.kt` schedules workers on startup:

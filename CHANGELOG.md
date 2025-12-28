@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Map view for nearby farmers in explore screen
+- Direct navigation to farmer profiles from explore
+- Messaging integration from social profiles
+- Public/private product filtering in marketplace
 
 #### Digital Farm Enhancement 2.0 (2025-12-27)
 - **Day/Night Cycle**: Time-based sky rendering with morning, afternoon, evening, night modes
@@ -95,6 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dokka instructions in README
 
 ### Changed
+- Enhanced explore screen with better navigation patterns
+- Improved product visibility control for farmers
 
 #### Database
 - Migration 15→16 adding 4 new entities:
@@ -145,6 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (none)
 
 ### Removed
+- Consolidated legacy test files for better maintainability
 - (none)
 
 ### Fixed

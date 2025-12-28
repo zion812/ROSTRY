@@ -41,6 +41,14 @@ cd ROSTRY
 
 ---
 
+## 🗺️ Exploring the App
+1. **Nearby Farmers Map**: Tap "View Map" in the Explore tab to see farmers geographically.
+2. **Social Messaging**: Go to any user profile -> Click "Message" to start a chat.
+3. **Marketplace Filtering**: Use the filter icon to toggle between All/Nearby products.
+4. **Farmer Profile**: Tap on any avatar in Explore/Map to view full farmer details.
+
+---
+
 ## ➡️ Next Steps
 - 🔍 Detailed setup: [`docs/developer-onboarding.md`](docs/developer-onboarding.md)
 - 🏗️ Architecture: [`docs/architecture.md`](docs/architecture.md)

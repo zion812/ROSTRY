@@ -729,7 +729,24 @@ fun setName(name: String)
 
 ---
 
-## Related Documentation
+### Complex Business Logic
+  *
+  * **Marketplace Filtering Example**:
+  * The `GeneralMarketViewModel` applies filters locally using reactive flows.
+  *
+  * **Logic Flow**:
+  * 1. `observeProducts()` combines `productRepository.getProducts()` with `filterState`
+  * 2. `ProductEntity.isPublic` is checked to ensure only public items are shown in Marketplace
+  * 3. `applyFilters()` handles client-side filtering (category, price range)
+  * 4. Result is emitted to `uiState`
+  *
+  * **Key Constraint**:
+  * Products in private context (`HomeFarmerScreen`) ignore `isPublic` check.
+  */
+ 
+ ---
+ 
+ ## Related Documentation
 
 - [CODE_STYLE.md](../CODE_STYLE.md) - Coding standards
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines

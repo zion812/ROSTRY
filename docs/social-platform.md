@@ -72,6 +72,7 @@ DAOs reside in `data/database/dao/` (e.g., `PostsDao`, `CommentsDao`, `GroupsDao
    - Rich header with stats (followers, following, posts).
    - Tabbed content view (Grid, Tagged).
    - Follow/Unfollow and Message actions.
+   - **Messaging Integration**: "Message" button navigates to direct messaging (`onMessage` callback) with pre-populated recipient.
 2. **Stories**: `StoryViewerScreen` and `StoryCreatorScreen` enable ephemeral content:
    - 24-hour expiration.
    - Immersive full-screen viewer with progress bars.
@@ -88,6 +89,8 @@ stateDiagram-v2
     Feed --> PostActions : Like/Comment/Share
     PostActions --> Feed : Refresh feed state
     Feed --> Messaging : Open thread
+    Feed --> SocialProfile : View Profile
+    SocialProfile --> Messaging : Click Message Button
     Messaging --> OutgoingQueue : send message
     OutgoingQueue --> Messaging : delivery confirmation
     Feed --> Groups : Navigate groups

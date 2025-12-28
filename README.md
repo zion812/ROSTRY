@@ -44,12 +44,13 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 
 ## Features Overview
 
-- **Social Platform**: Posts, comments, messaging, groups, events, community engagement hub
-- **Marketplace**: Listings, auctions, payments, refunds, filter presets
+- **Social Platform**: Posts, messaging integration, groups, events, community engagement hub
+- **Marketplace**: Smart filtering (public/private), listings, auctions, secure payments
+- **Enhanced Explore**: Map visualization for nearby farmers, profile navigation, educational content
 - **Secure Transfers**: Ownership transfers with guided flow, verification, and audit
-- **Farm Monitoring**: Growth, vaccination, hatching, analytics, quick actions, alerts
+- **Farm Monitoring**: Growth, vaccination, hatching, analytics, quick actions, alert
 - **Advanced Analytics**: Dashboards, performance insights, AI recommendations, exports
-- **Notifications**: Push and local notifications with deep links
+- **Notifications**: Push/local notifications with deep links
 - **UX Enhancements**: Multi-step wizards, tooltips, animations, contextual help
 
 ---
@@ -214,12 +215,14 @@ Output is under `app/build/dokka/html`.
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
+- **Enhanced Explore Experience**: Map view for nearby farmers, profile navigation, educational content
+- **Social Integration**: Direct messaging from profiles, context-aware threads
+- **Marketplace Improvements**: Public/private product filtering, better farm management separation
 - **Community Engagement System**: Messenger-like hub with context-aware messaging and intelligent recommendations
 - **UX Enhancements**: Multi-step wizards, filter presets, guided flows, tooltips, animations
 - **Database Migration 15→16**: Added community features with 4 new entities
 - **Enhanced Farm Monitoring**: Quick actions, alert system, real-time metrics
-- **Improved Testing**: Comprehensive test coverage with Mockito and MockK
-- **New Feature Documentation**: Comprehensive guides for AI/personalization, gamification, traceability, worker catalog, and export utilities
+- **New Feature Documentation**: Guides for AI/personalization, gamification, traceability, worker catalog
 
 ---
 

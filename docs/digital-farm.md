@@ -72,6 +72,11 @@ The **Digital Farm** is an interactive, gamified visualization feature for Enthu
 - `LeaderboardEntry` for rankings
 - `SharedFarm` with reactions and followers
 
+### Phase 7: Product Visibility Management
+- **Visibility Toggle**: Farmers can set products as "Private" (farm management only) or "Public" (marketplace).
+- **Context-Aware Filtering**: `ProductEntity.isPublic` flag controls visibility in the general marketplace feed while keeping items visible in the digital farm view.
+- **Inventory Integration**: Visual indicators in the inventory screen show public status.
+
 ---
 
 ## Architecture

@@ -109,6 +109,19 @@ flowchart TD
     E --> F[Iterate rules and retest]
 ```
 
+## Marketplace Issues
+- **Problem**: Products not appearing
+  - **Cause**: Visibility filter (`isPublic=false`), Sync delay
+  - **Solution**: Check `isPublic` flag in DB; Verify sync status (green check)
+- **Problem**: Filtering broken
+  - **Cause**: ViewModel logic mismatch
+  - **Solution**: Verify `applyFilters` in `GeneralMarketViewModel`
+
+## Navigation Issues
+- **Problem**: Callback not firing or crash on nav
+  - **Cause**: Lambda not wired in `AppNavHost`
+  - **Solution**: Ensure `composable` passes the callback (e.g., `onMessageClick`) correctly to the screen. Check `NAVIGATION_INTEGRATION_GUIDE.md`.
+
 ---
 
 ## Debug Tools

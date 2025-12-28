@@ -104,6 +104,8 @@ Essential guides for developers working on ROSTRY:
 | Document | Description |
 |----------|-------------|
 | `social-platform.md` | Feed, messaging, groups, events, community engagement hub |
+| `ui/social-components.md` | UI components for social features (Profile, Messaging) |
+
 | `user-experience-guidelines.md` | UX patterns, components, wizards, tooltips, animations |
 
 ### Marketplace & Transactions
@@ -112,6 +114,7 @@ Essential guides for developers working on ROSTRY:
 |----------|-------------|
 | `transfer-workflow.md` | Ownership transfer lifecycle, verifications, disputes, automation |
 | `payments-refunds.md` | Payment flow, refunds, UPI, validation, error handling |
+| `marketplace-architecture.md` | Marketplace architecture, product visibility, filtering logic |
 | `logistics-tracking.md` | Order lifecycle, hubs, routing, real-time tracking |
 
 ### Farm Management
@@ -121,6 +124,9 @@ Essential guides for developers working on ROSTRY:
 | `farm-monitoring.md` | Monitoring modules, workers, analytics, alerts |
 | `analytics-dashboard.md` | Role-specific dashboards, data pipelines, AI recommendations |
 | `enthusiast-role-guide.md` | Enthusiast features, Digital Farm, breeding management |
+| `explore-features.md` | Explore tab features, map view, educational content |
+| `ui/explore-components.md` | UI components for explore screens (Map, Avatar Cards) |
+
 
 ### Infrastructure
 

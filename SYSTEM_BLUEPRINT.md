@@ -6,7 +6,7 @@
 - **Stakeholders:** Farmers (producers), Enthusiasts (hobbyists/breeders), General Users (consumers), Experts (consultants).
 - **Technology Stack:** Android (Kotlin, Jetpack Compose, Material 3), Firebase (Auth, Firestore, Storage, Functions, App Check), Room with SQLCipher, Hilt DI, WorkManager, Google Maps Platform.
 - **Current Version/Status:** Version 1.0 (Production Ready). See `CHANGELOG.md` for release history.
-- **Quick Navigation:** Markdown links to key sections like `[System Architecture](#2-system-architecture)`, `[Codebase Structure](#3-codebase-structure)`, `[Feature Catalog](#4-feature-catalog)`, `[Data Flow Diagrams](#5-data-flow-diagrams)`, `[API Documentation](#6-api-documentation)`
+- **Quick Navigation**: Markdown links to key sections like `[System Architecture](#2-system-architecture)`, `[Codebase Structure](#3-codebase-structure)`, `[Feature Catalog](#4-feature-catalog)`, `[Explore features](#4-1-explore-features)`, `[Data Flow Diagrams](#5-data-flow-diagrams)`, `[API Documentation (Marketplace Logic example)](#6-api-documentation)`
 
 ## 2. System Architecture
 
@@ -309,6 +309,12 @@ match /products/{productId} {
 - **User Interest Tracking**: Behavior analysis
 - **Personalized Feed**: Customized content delivery
 - **Expert Matching**: AI-powered consultant recommendations
+
+### 4.10 Enhanced Explore Experience
+- **Interactive Map View**: Geographic discovery of nearby farmers
+- **Profile Navigation**: Seamless transition from map pins to farmer profiles
+- **Educational Content**: Curated guides and resources
+- **Help Me Choose**: Guided wizard for finding suitable breeds
 
 ---
 

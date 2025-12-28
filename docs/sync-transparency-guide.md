@@ -18,6 +18,8 @@
 
 In offline-first apps like ROSTRY, users expect their actions to work even without internet. However, silent background syncing can lead to confusion and frustration when:
 
+
+
 - Changes appear to "disappear" due to sync failures
 - Users don't know if their data is safe
 - Errors occur without clear recovery paths
@@ -532,6 +534,9 @@ fun `failed operations displayed in issues screen`() = runTest {
 ```
 
 ### Edge Cases
+
+**Testing Consolidation Note:**
+Legacy unit tests (e.g., `ConnectivityManagerTest`, `SyncManagerTest`) have been consolidated into comprehensive integration tests (`SyncIntegrationTest`). This ensures we test the interaction between components rather than just isolated units, providing higher confidence in the offline-first experience.
 
 **Rapid State Changes:**
 - Network flapping (online→offline→online)
