@@ -2,7 +2,8 @@ package com.rio.rostry.di
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
+// DISABLED: Free Tier - Cloud Functions not available on Spark Plan
+// import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
@@ -32,11 +33,14 @@ object NetworkModule {
         return FirebaseStorage.getInstance()
     }
 
-    @Provides
-    @Singleton
-    fun provideFirebaseFunctions(): FirebaseFunctions {
-        return FirebaseFunctions.getInstance()
-    }
+    // DISABLED: Free Tier - Cloud Functions not available on Spark Plan
+    // Re-enable when upgrading to Blaze Plan
+    // @Provides
+    // @Singleton
+    // fun provideFirebaseFunctions(): FirebaseFunctions {
+    //     return FirebaseFunctions.getInstance()
+    // }
 
     // Add Retrofit, OkHttpClient, Moshi/Gson converters here if you plan to use a REST API
 }
+

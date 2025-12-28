@@ -114,6 +114,16 @@ class AuthViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(isLoading = false, error = event.message)
                         authAnalytics.trackPhoneVerifyFail(_uiState.value.authProvider ?: "unknown", event.message)
                     }
+                    // Google Sign-In events (Free Tier primary auth)
+                    is AuthEvent.GoogleSignInSuccess -> {
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        authAnalytics.trackAuthComplete("google", false)
+                        postAuthBootstrapAndNavigate()
+                    }
+                    is AuthEvent.GoogleSignInFailed -> {
+                        _uiState.value = _uiState.value.copy(isLoading = false, error = event.message)
+                        authAnalytics.trackAuthCancel("google")
+                    }
                 }
             }
         }

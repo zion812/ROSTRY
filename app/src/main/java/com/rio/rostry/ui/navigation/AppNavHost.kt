@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -442,16 +444,52 @@ private fun AuthFlow(
                 ) + fadeOut(animationSpec = tween(400))
             }
         ) {
-            PhoneAuthScreenNew(
-                onCodeSent = { verificationId ->
-                    // Check if this is a guest upgrade to pass the fromGuest flag
-                    val isGuest = fromGuest
-                    navController.navigate("auth/otp/$verificationId?fromGuest=$isGuest")
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
+            // FREE TIER: Phone Auth is disabled - show placeholder and redirect
+            val FREE_TIER_MODE = true
+            
+            if (FREE_TIER_MODE) {
+                // Show a message that phone auth is disabled
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.PhoneAndroid,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            "Phone Sign-In Unavailable",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text(
+                            "Please use 'Sign in with Google' instead.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { navController.popBackStack() }) {
+                            Text("Go Back")
+                        }
+                    }
                 }
-            )
+            } else {
+                PhoneAuthScreenNew(
+                    onCodeSent = { verificationId ->
+                        val isGuest = fromGuest
+                        navController.navigate("auth/otp/$verificationId?fromGuest=$isGuest")
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
         }
         
         // OTP verification - slide from right
@@ -719,7 +757,9 @@ private fun RoleNavScaffold(
                     onViewPending = { navController.navigate(Routes.SYNC_ISSUES) }
                 )
                 // Show verification banner when phone verification is deferred
-                if (authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+                // FREE TIER: Hide this banner since phone auth is disabled
+                val FREE_TIER_BANNER_HIDDEN = true
+                if (!FREE_TIER_BANNER_HIDDEN && authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()

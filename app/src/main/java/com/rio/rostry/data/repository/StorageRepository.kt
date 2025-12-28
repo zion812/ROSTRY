@@ -159,6 +159,13 @@ class StorageRepository @Inject constructor(
         val cr = appContext.contentResolver
         val type = cr.getType(uri) ?: ""
         val isImage = type.startsWith("image/")
+        val isVideo = type.startsWith("video/") || ImageCompressor.isVideoFile(appContext, uri)
+        
+        // FREE TIER: Reject video files early
+        if (isVideo) {
+            throw IllegalArgumentException("Video uploads are disabled. Please upload photos only.")
+        }
+        
         if (!compress || !isImage) return@withContext uri to null
 
         val tmp = File.createTempFile("upload_src_", ".tmp", appContext.cacheDir)

@@ -3,6 +3,7 @@ package com.rio.rostry.utils.images
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.webkit.MimeTypeMap
 import id.zelory.compressor.Compressor
 import id.zelory.compressor.constraint.default
 import id.zelory.compressor.constraint.format
@@ -13,24 +14,81 @@ import java.io.File
 import java.io.FileOutputStream
 import timber.log.Timber
 
+// ============================================================
+// FREE TIER MODE: Aggressive compression to stay within 5GB Storage limit
+// To relax limits when upgrading to Blaze Plan, set this to false
+// ============================================================
+private const val FREE_TIER_MODE = true
+
+// Free Tier limits (5GB storage total, target ~50KB per photo)
+private const val FREE_TIER_MAX_DIMENSION = 1024
+private const val FREE_TIER_MAX_QUALITY = 60
+private const val FREE_TIER_TARGET_KB = 100
+
+// Blaze Plan limits (relaxed)
+private const val BLAZE_MAX_DIMENSION = 1440
+private const val BLAZE_MAX_QUALITY = 80
+
 object ImageCompressor {
+    
+    /**
+     * Check if a file is a video (not allowed on Free Tier).
+     * Returns true if the file appears to be a video based on MIME type or extension.
+     */
+    fun isVideoFile(context: Context, uri: Uri): Boolean {
+        val mimeType = context.contentResolver.getType(uri)
+        if (mimeType?.startsWith("video/") == true) return true
+        
+        val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())?.lowercase()
+        val videoExtensions = setOf("mp4", "mov", "avi", "mkv", "webm", "3gp", "m4v", "flv", "wmv")
+        return extension in videoExtensions
+    }
+    
+    /**
+     * Check if a file is a video based on file path/extension.
+     */
+    fun isVideoFile(file: File): Boolean {
+        val extension = file.extension.lowercase()
+        val videoExtensions = setOf("mp4", "mov", "avi", "mkv", "webm", "3gp", "m4v", "flv", "wmv")
+        return extension in videoExtensions
+    }
+    
     /**
      * Compress an image for upload. 
-     * Optimization: If file is already < 2MB, skip compression to save memory and CPU.
+     * FREE TIER MODE: Enforces 1024x768 max, 60% quality to target ~50-100KB per photo.
      * Phase 1: Downsample large images using BitmapFactory to avoid OOM.
      * Phase 2: Use Compressor library for final optimization.
      */
     suspend fun compressForUpload(context: Context, input: File, lowBandwidth: Boolean): File = withContext(Dispatchers.IO) {
-        // Optimization: If file is smaller than 100KB, skip compression
-        if (input.length() < 100 * 1024) {
+        // FREE TIER: Reject video files
+        if (FREE_TIER_MODE && isVideoFile(input)) {
+            Timber.w("ImageCompressor: Video upload rejected in Free Tier mode")
+            throw IllegalArgumentException("Video uploads are disabled. Please upload photos only.")
+        }
+        
+        // Optimization: If file is smaller than 50KB, skip compression
+        val skipThreshold = if (FREE_TIER_MODE) 50 * 1024 else 100 * 1024
+        if (input.length() < skipThreshold) {
             Timber.d("ImageCompressor: Skipping compression for small file (${input.length() / 1024} KB)")
             return@withContext input
         }
 
-        // Target: 100KB for standard, 50KB for low bandwidth
-        // We use Resolution + Quality to achieve this roughly without iterative loops which are slow
-        val quality = if (lowBandwidth) 40 else 60
-        val maxDimension = if (lowBandwidth) 800 else 1024
+        // FREE TIER: Enforce strict limits
+        val maxDimension = if (FREE_TIER_MODE) {
+            FREE_TIER_MAX_DIMENSION
+        } else if (lowBandwidth) {
+            800
+        } else {
+            BLAZE_MAX_DIMENSION
+        }
+        
+        val quality = if (FREE_TIER_MODE) {
+            FREE_TIER_MAX_QUALITY
+        } else if (lowBandwidth) {
+            40 
+        } else {
+            BLAZE_MAX_QUALITY
+        }
 
         // Phase 1: Pre-downsample
         val preScaledFile = preDownsampleIfNeeded(context, input, maxDimension * 2)

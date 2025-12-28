@@ -9,6 +9,7 @@ import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.PhoneAuthOptions
@@ -37,11 +38,20 @@ import javax.inject.Singleton
 
 private val Context.authDataStore by preferencesDataStore(name = "auth_prefs")
 
+// ============================================================
+// FREE TIER MODE: Phone Auth is disabled. Use Google Sign-In.
+// To re-enable Phone Auth, upgrade to Firebase Blaze Plan and
+// remove the PHONE_AUTH_DISABLED flag below.
+// ============================================================
+private const val PHONE_AUTH_DISABLED = true
+private const val PHONE_AUTH_DISABLED_MESSAGE = "Phone authentication is disabled in Free Tier mode. Please use 'Sign in with Google' instead."
+
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val rateLimitDao: RateLimitDao,
     private val sessionManager: SessionManager,
+    private val googleAuthManager: GoogleAuthManager,
     private val context: Context
 ) : AuthRepository {
 
@@ -75,7 +85,54 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    // ============================================================
+    // Google Sign-In (Free Tier Primary Auth)
+    // ============================================================
+    
+    override suspend fun signInWithGoogle(idToken: String): Resource<Unit> {
+        return try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            val result = firebaseAuth.signInWithCredential(credential).await()
+            
+            if (result.user != null) {
+                // Force token refresh to ensure claims are up-to-date
+                result.user?.getIdToken(true)?.await()
+                _isAuthenticated.value = isFirebaseUserValid()
+                _events.tryEmit(AuthEvent.GoogleSignInSuccess)
+                
+                Timber.d("Google Sign-In successful: ${result.user?.uid}")
+                SecurityManager.audit("AUTH_GOOGLE_SIGNIN", mapOf(
+                    "result" to "success",
+                    "uid" to result.user?.uid,
+                    "isNewUser" to result.additionalUserInfo?.isNewUser
+                ))
+                Resource.Success(Unit)
+            } else {
+                _events.tryEmit(AuthEvent.GoogleSignInFailed("Sign-in failed: user is null"))
+                SecurityManager.audit("AUTH_GOOGLE_SIGNIN", mapOf("result" to "failure", "error" to "user is null"))
+                Resource.Error("Sign-in failed: user is null")
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Google Sign-In failed")
+            _events.tryEmit(AuthEvent.GoogleSignInFailed(e.message ?: "Unknown error"))
+            SecurityManager.audit("AUTH_GOOGLE_SIGNIN", mapOf("result" to "failure", "error" to e.message))
+            Resource.Error("Sign-in failed: ${e.localizedMessage}")
+        }
+    }
+
+    // ============================================================
+    // Phone Auth (DISABLED on Free Tier - Requires Blaze Plan)
+    // ============================================================
+    
+    @Suppress("DEPRECATION")
     override suspend fun startPhoneVerification(activity: Activity, phoneE164: String): Resource<Unit> {
+        // FREE TIER: Phone Auth disabled
+        if (PHONE_AUTH_DISABLED) {
+            Timber.w("Phone Auth is disabled in Free Tier mode")
+            SecurityManager.audit("AUTH_PHONE_DISABLED", mapOf("action" to "startPhoneVerification"))
+            return Resource.Error(PHONE_AUTH_DISABLED_MESSAGE)
+        }
+        
         val userId = phoneE164 // Use phone as userId for rate limiting
         val now = System.currentTimeMillis()
         val limit = rateLimitDao.get(userId, "AUTH_SEND_OTP")
@@ -136,7 +193,15 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun verifyOtp(verificationId: String, otpCode: String): Resource<Unit> {
+        // FREE TIER: Phone Auth disabled
+        if (PHONE_AUTH_DISABLED) {
+            Timber.w("Phone Auth is disabled in Free Tier mode")
+            SecurityManager.audit("AUTH_PHONE_DISABLED", mapOf("action" to "verifyOtp"))
+            return Resource.Error(PHONE_AUTH_DISABLED_MESSAGE)
+        }
+        
         // Repository-level rate limit per phone/user for OTP verification attempts
         val phone = _currentPhoneE164.value ?: ""
         val userId = if (phone.isNotBlank()) phone else verificationId
@@ -171,7 +236,15 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun resendVerificationCode(activity: Activity): Resource<Unit> {
+        // FREE TIER: Phone Auth disabled
+        if (PHONE_AUTH_DISABLED) {
+            Timber.w("Phone Auth is disabled in Free Tier mode")
+            SecurityManager.audit("AUTH_PHONE_DISABLED", mapOf("action" to "resendVerificationCode"))
+            return Resource.Error(PHONE_AUTH_DISABLED_MESSAGE)
+        }
+        
         val phone = _currentPhoneE164.value
         val token = resendToken
         if (phone == null || token == null) {
@@ -236,7 +309,15 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun linkPhoneToCurrentUser(activity: Activity, phoneE164: String): Resource<Unit> {
+        // FREE TIER: Phone Auth disabled
+        if (PHONE_AUTH_DISABLED) {
+            Timber.w("Phone Auth is disabled in Free Tier mode")
+            SecurityManager.audit("AUTH_PHONE_DISABLED", mapOf("action" to "linkPhoneToCurrentUser"))
+            return Resource.Error(PHONE_AUTH_DISABLED_MESSAGE)
+        }
+        
         val user = firebaseAuth.currentUser ?: return Resource.Error("Not authenticated")
         val userId = phoneE164
         val now = System.currentTimeMillis()
@@ -299,7 +380,15 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun verifyOtpAndLink(verificationId: String, otpCode: String): Resource<Unit> {
+        // FREE TIER: Phone Auth disabled
+        if (PHONE_AUTH_DISABLED) {
+            Timber.w("Phone Auth is disabled in Free Tier mode")
+            SecurityManager.audit("AUTH_PHONE_DISABLED", mapOf("action" to "verifyOtpAndLink"))
+            return Resource.Error(PHONE_AUTH_DISABLED_MESSAGE)
+        }
+        
         val phone = _currentPhoneE164.value ?: ""
         val user = firebaseAuth.currentUser ?: return Resource.Error("Not authenticated")
         val userId = if (phone.isNotBlank()) phone else verificationId

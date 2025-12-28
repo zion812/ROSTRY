@@ -773,11 +773,27 @@ private fun MediaStep(
     audioPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
     documentPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
 ) {
+    // FREE TIER: Video uploads are disabled to save storage quota
+    val FREE_TIER_MODE = true
+    
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Media Upload", style = MaterialTheme.typography.titleLarge)
         
+        if (FREE_TIER_MODE) {
+            Text(
+                "📸 Photos Only Mode - Video uploads are disabled to optimize storage",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        
         MediaSection("Photos", state.photoUris.size, 12, { photoPickerLauncher.launch(arrayOf("image/*")) }, onRemoveMedia, "photo")
-        MediaSection("Videos", state.videoUris.size, 2, { videoPickerLauncher.launch(arrayOf("video/*")) }, onRemoveMedia, "video")
+        
+        // FREE TIER: Hide video upload section
+        if (!FREE_TIER_MODE) {
+            MediaSection("Videos", state.videoUris.size, 2, { videoPickerLauncher.launch(arrayOf("video/*")) }, onRemoveMedia, "video")
+        }
+        
         MediaSection("Audio", state.audioUris.size, 5, { audioPickerLauncher.launch(arrayOf("audio/*")) }, onRemoveMedia, "audio")
         MediaSection("Documents", state.documentUris.size, 10, { documentPickerLauncher.launch(arrayOf("*/*")) }, onRemoveMedia, "document")
     }

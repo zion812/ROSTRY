@@ -274,7 +274,8 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
-    implementation(libs.firebase.functions.ktx)
+    // DISABLED: Free Tier - Cloud Functions not available on Spark Plan
+    // implementation(libs.firebase.functions.ktx)
     implementation("com.firebaseui:firebase-ui-auth:8.0.2")
     implementation("com.google.firebase:firebase-database-ktx:21.0.0")
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")

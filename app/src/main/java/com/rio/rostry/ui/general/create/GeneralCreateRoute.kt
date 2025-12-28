@@ -109,8 +109,18 @@ fun GeneralCreateRoute(
                 context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (e: Exception) { }
             
-            val isVideo = uri.toString().contains("video") || uri.toString().endsWith(".mp4", ignoreCase = true)
-            viewModel.addMedia(uri, isVideo)
+            // FREE TIER: Filter out videos - only accept images
+            val mimeType = context.contentResolver.getType(uri)
+            val isVideo = mimeType?.startsWith("video/") == true || 
+                          uri.toString().contains("video") || 
+                          uri.toString().endsWith(".mp4", ignoreCase = true)
+            
+            if (isVideo) {
+                // Skip video files in Free Tier mode
+                return@forEach
+            }
+            
+            viewModel.addMedia(uri, false) // Always false for Free Tier (no videos)
         }
     }
 
@@ -219,7 +229,8 @@ fun GeneralCreateRoute(
             MediaSection(
                 attachments = uiState.attachments,
                 onAddMedia = {
-                    mediaPicker.launch(arrayOf("image/*", "video/*"))
+                    // FREE TIER: Only allow images, not videos
+                    mediaPicker.launch(arrayOf("image/*"))
                 },
                 onRemove = viewModel::removeMedia
             )
@@ -332,7 +343,7 @@ private fun MediaSection(
             IconButton(onClick = onAddMedia) {
                 Icon(Icons.Filled.CameraAlt, contentDescription = "Add media")
             }
-            Text("Add up to 6 photos or videos", style = MaterialTheme.typography.labelMedium)
+            Text("📸 Photos Only - Add up to 6 photos", style = MaterialTheme.typography.labelMedium)
         }
         attachments.forEach { attachment ->
             MediaAttachmentRow(attachment = attachment, onRemove = onRemove)

@@ -27,6 +27,12 @@ import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
 import com.rio.rostry.ui.auth.AuthViewModel
 
+// ============================================================
+// FREE TIER MODE: Phone Auth is disabled. Only show Google Sign-In.
+// Set to false when upgrading to Blaze Plan.
+// ============================================================
+private const val FREE_TIER_MODE = true
+
 @Composable
 fun MultiProviderAuthScreen(
     viewModel: AuthViewModel = hiltViewModel(),
@@ -73,14 +79,18 @@ fun MultiProviderAuthScreen(
             CircularProgressIndicator()
         }
 
-        // Dedicated phone entry using our custom, centered UI
-        Button(
-            onClick = onRequestPhone,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-        ) {
-            Text("Use phone number")
+        // FREE TIER: Phone Auth disabled - hide phone button
+        if (!FREE_TIER_MODE) {
+            // Dedicated phone entry using our custom, centered UI
+            Button(
+                onClick = onRequestPhone,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Text("Use phone number")
+            }
         }
     }
 }
+
