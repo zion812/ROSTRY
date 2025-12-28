@@ -17,6 +17,7 @@ The system is built on specific principles:
 -   **Offline-First**: Complete functionality without internet, synchronizing when connected.
 -   **Data-Driven**: Heavy reliance on analytics, lineage tracking, and performance metrics.
 -   **Secure**: End-to-end encryption for data at rest and RBAC for all operations.
+-   **Cost-Efficient**: "Thick Client, Smart Rules" architecture to run entirely on Firebase Free Tier (Spark Plan).
 
 ### Technology Stack Summary
 -   **Architecture**: Clean Architecture (MVVM) + Single Activity
@@ -91,10 +92,11 @@ The **Room Database** is the Single Source of Truth.
 -   **SavedStateHandle**: Process death survival.
 
 ### Backend & Cloud
--   **Firebase Authentication**: Phone (OTP) + Google.
+### Backend & Cloud
+-   **Firebase Authentication**: Google Sign-In (Primary), Email/Password. Phone Auth is currently **DISABLED** for Free Tier compliance.
 -   **Cloud Firestore**: NoSQL DB for sync.
--   **Cloud Storage**: Evidence verification photos/docs.
--   **Cloud Functions**: Security triggers, transfer validation.
+-   **Cloud Storage**: Evidence verification photos/docs (Videos disabled for Free Tier).
+-   **Cloud Functions**: **DISABLED** (Logic moved to client/Firestore rules for Spark Plan compliance).
 -   **FCM**: Push notifications for orders and social actions.
 
 ### Database

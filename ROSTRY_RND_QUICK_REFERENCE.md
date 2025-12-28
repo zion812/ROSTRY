@@ -11,6 +11,7 @@
 |-----------|------|
 | **Master Doc** | `ROSTRY_COMPLETE_RND_DOCUMENTATION.md` |
 | **Architecture** | `docs/architecture.md`, `SYSTEM_BLUEPRINT.md` |
+| **Free Tier Config** | `docs/FREE_TIER_ARCHITECTURE.md` |
 | **Feature Docs** | `docs/` (e.g., `farm-monitoring.md`, `social-platform.md`) |
 | **UI Source** | `app/src/main/java/com/rio/rostry/ui/` |
 | **Data Source** | `app/src/main/java/com/rio/rostry/data/` |

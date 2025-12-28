@@ -56,14 +56,11 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 
 ## Authentication
 
-- **Providers**: Google, Email/Password, and Phone via FirebaseUI Auth (drop-in UI)
-- **Policy**: New users must complete phone verification before accessing the app. Returning users with a linked phone skip verification. Direct Phone sign-in satisfies the requirement automatically.
-- **Flow**:
-  - Multi-provider sign-in launches FirebaseUI
-  - Post sign-in, the app detects new users via Firebase metadata and checks `FirebaseUser.phoneNumber`
-  - If missing, user is routed to a phone verification screen to link their number
-  - After linking, profile is created or refreshed and navigation proceeds
-- **Security Rules**: Firestore `users/{userId}` creation requires a `phone_number` claim in the auth token
+-   **Providers**: Google (Primary), Email/Password. **Phone Auth is disabled** in Free Tier mode.
+-   **Policy**: New users complete verification profile steps manually. Phone number linking is optional for now.
+-   **Flow**:
+-   Google Sign-In → Profile Creation → Dashboard.
+-   **Security Rules**: Firestore rules rely on `userType` field in user document, not custom claims.
 
 ### Setup Notes
 
