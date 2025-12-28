@@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.Calendar
+import com.rio.rostry.domain.usecase.TaskGenerator
 
 @HiltWorker
 class LifecycleWorker @AssistedInject constructor(
@@ -58,6 +60,8 @@ class LifecycleWorker @AssistedInject constructor(
     private val vaccinationDao: VaccinationRecordDao,
     private val mortalityDao: MortalityRecordDao,
     private val quarantineDao: QuarantineRecordDao,
+    private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
+    private val taskGenerator: TaskGenerator, // Farmer-First: Auto-generate daily tasks
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -284,6 +288,11 @@ class LifecycleWorker @AssistedInject constructor(
             productDao.purgeStaleMarketplace(thirtyDaysAgo)
 
             // ============================================================
+            // FARMER-FIRST: Generate Daily Tasks for all farmers
+            // ============================================================
+            generateFarmerTasks(now)
+
+            // ============================================================
             // SPLIT-BRAIN: Populate DashboardCache for instant app loading
             // ============================================================
             populateDashboardCaches(now)
@@ -347,6 +356,38 @@ class LifecycleWorker @AssistedInject constructor(
         }
         
         timber.log.Timber.d("Dashboard caches updated for ${farmerIds.size} farmers in ${System.currentTimeMillis() - startTime}ms")
+    }
+
+    /**
+     * Farmer-First: Generate daily tasks for all farmers.
+     * Calls TaskGenerator to create vaccination, growth check, and feed logging tasks.
+     */
+    private suspend fun generateFarmerTasks(now: Long) {
+        val startTime = System.currentTimeMillis()
+        
+        // Get midnight timestamp for today
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = now
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val todayMidnight = calendar.timeInMillis
+
+        // Get all unique farmer IDs
+        val farmerIds = productDao.getDistinctSellerIds()
+        var totalTasksGenerated = 0
+
+        for (farmerId in farmerIds) {
+            try {
+                val tasksCreated = taskGenerator.generateDailyTasks(farmerId, todayMidnight)
+                totalTasksGenerated += tasksCreated
+            } catch (e: Exception) {
+                timber.log.Timber.e(e, "Task generation failed for farmer=$farmerId")
+            }
+        }
+
+        timber.log.Timber.d("Generated $totalTasksGenerated tasks for ${farmerIds.size} farmers in ${System.currentTimeMillis() - startTime}ms")
     }
     
     private fun getStartOfMonth(now: Long): Long {

@@ -62,6 +62,10 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND productId = :productId AND taskType = :taskType AND completedAt IS NULL")
     suspend fun findPendingByTypeProduct(farmerId: String, productId: String, taskType: String): List<TaskEntity>
 
+    // Pending tasks by type only (no product, e.g., feed logging, health checks)
+    @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND taskType = :taskType AND completedAt IS NULL")
+    suspend fun findPendingByType(farmerId: String, taskType: String): List<TaskEntity>
+
     // Update dueAt for an existing task
     @Query("UPDATE tasks SET dueAt = :dueAt, updatedAt = :updatedAt, dirty = 1 WHERE taskId = :taskId")
     suspend fun updateDueAt(taskId: String, dueAt: Long, updatedAt: Long)
