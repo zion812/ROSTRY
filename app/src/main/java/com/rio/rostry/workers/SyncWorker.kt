@@ -25,15 +25,10 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Timber.d("SyncWorker started")
         
-        // Quota Check
+        // Quota Check - Return success to prevent backoff retries during quota window
+        // Next periodic schedule will run tomorrow when quota resets
         if (usageTracker.isQuotaExceeded()) {
-            Timber.w("SyncWorker skipped: Firebase Daily Quota Exceeded")
-            return Result.failure() // Or success() to stop retrying, but failure logs it better? 
-            // Using success to avoid backoff retry loops when we know it's a quota issue for the whole day.
-            // Actually, returning failure triggers retry with backoff. 
-            // If quota is exceeded, we want to stop until tomorrow. 
-            // But WorkManager doesn't have "retry tomorrow".
-            // So we return success() so it doesn't retry immediately, but next periodic schedule will run.
+            Timber.w("SyncWorker skipped: Firebase Daily Quota Exceeded - will retry on next periodic schedule")
             return Result.success()
         }
 

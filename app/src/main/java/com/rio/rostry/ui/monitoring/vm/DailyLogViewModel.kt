@@ -327,10 +327,16 @@ class DailyLogViewModel @Inject constructor(
             try {
                 val productId = selectedProductId.value ?: return@launch
                 val cur = _currentLog.value ?: return@launch
-                val tempFile = copyUriToTempFile(uri)
-                // Compress for upload (use low bandwidth profile if desired)
-                val compressed = ImageCompressor.compressForUpload(appContext, tempFile, lowBandwidth = true)
-                val remotePath = "daily_logs/${productId}/${cur.logId}/${System.currentTimeMillis()}.jpg"
+                
+                // Perform all file I/O on IO dispatcher to prevent main thread blocking
+                val (compressed, remotePath) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val tempFile = copyUriToTempFile(uri)
+                    // Compress for upload (use low bandwidth profile if desired)
+                    val compressedFile = ImageCompressor.compressForUpload(appContext, tempFile, lowBandwidth = true)
+                    val path = "daily_logs/${productId}/${cur.logId}/${System.currentTimeMillis()}.jpg"
+                    compressedFile to path
+                }
+                
                 // Optimistically persist placeholder with remotePath token and save immediately
                 run {
                     val listType = object : TypeToken<MutableList<String>>() {}.type

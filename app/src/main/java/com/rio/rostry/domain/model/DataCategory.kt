@@ -95,8 +95,8 @@ data class RoleStorageQuota(
 
         val GENERAL = RoleStorageQuota(
             role = UserType.GENERAL,
-            totalQuotaBytes = 50 * MB,
-            publicLimitBytes = 50 * MB,
+            totalQuotaBytes = 5 * MB,
+            publicLimitBytes = 5 * MB,
             privateLimitBytes = 0,
             backupEnabled = false,
             backupFrequencyDays = 0
@@ -104,18 +104,18 @@ data class RoleStorageQuota(
 
         val FARMER = RoleStorageQuota(
             role = UserType.FARMER,
-            totalQuotaBytes = 500 * MB,
-            publicLimitBytes = 200 * MB,
-            privateLimitBytes = 300 * MB,
+            totalQuotaBytes = 10 * MB,
+            publicLimitBytes = 5 * MB,
+            privateLimitBytes = 5 * MB,
             backupEnabled = true,
             backupFrequencyDays = 7
         )
 
         val ENTHUSIAST = RoleStorageQuota(
             role = UserType.ENTHUSIAST,
-            totalQuotaBytes = 2 * GB,
-            publicLimitBytes = 1 * GB,
-            privateLimitBytes = 1 * GB,
+            totalQuotaBytes = 25 * MB,
+            publicLimitBytes = 15 * MB,
+            privateLimitBytes = 10 * MB,
             backupEnabled = true,
             backupFrequencyDays = 1
         )

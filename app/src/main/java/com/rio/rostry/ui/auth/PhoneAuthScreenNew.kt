@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.presentation.auth.phoneauth.PhoneAuthViewModel
 import com.rio.rostry.utils.isValidE164
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.material3.HorizontalDivider
 
 /**
  * New phone authentication screen using clean architecture.
@@ -128,21 +131,47 @@ fun PhoneAuthScreenNew(
             
             Spacer(modifier = Modifier.height(40.dp))
             
-            // Phone input with improved styling
+            // Phone input with non-editable +91 prefix
+            // Derive digits-only from phoneInput for validation
+            val digitsOnly = state.phoneInput.filter { it.isDigit() }
+            val isValid10Digits = digitsOnly.length == 10
+            
             OutlinedTextField(
                 value = state.phoneInput,
-                onValueChange = viewModel::onPhoneChanged,
+                onValueChange = { newValue ->
+                    // Only allow digits and limit to 10
+                    val filtered = newValue.filter { it.isDigit() }.take(10)
+                    viewModel.onPhoneChanged(filtered)
+                },
                 label = { Text("Phone Number") },
-                placeholder = { Text("+91 98765 43210") },
+                placeholder = { Text("98765 43210") },
                 leadingIcon = {
-                    Text(
-                        text = "🇮🇳",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 12.dp)
+                    ) {
+                        Text(
+                            text = "🇮🇳",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "+91",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(24.dp)
+                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                        )
+                    }
                 },
                 trailingIcon = {
-                    if (state.phoneE164?.let { isValidE164(it) } == true && !state.isLoading) {
+                    if (isValid10Digits && state.phoneE164?.let { isValidE164(it) } == true && !state.isLoading) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Valid",
@@ -151,12 +180,14 @@ fun PhoneAuthScreenNew(
                     }
                 },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
+                    keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        activity?.let { viewModel.sendOtp(it) }
+                        if (isValid10Digits) {
+                            activity?.let { viewModel.sendOtp(it) }
+                        }
                     }
                 ),
                 singleLine = true,
@@ -192,7 +223,12 @@ fun PhoneAuthScreenNew(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // Send OTP button with improved styling
+            // Send OTP button - requires exactly 10 digits
+            val canSendOtp = !state.isLoading && 
+                             digitsOnly.length == 10 &&
+                             state.phoneE164?.let { isValidE164(it) } == true &&
+                             activity != null
+            
             Button(
                 onClick = {
                     activity?.let { viewModel.sendOtp(it) }
@@ -200,9 +236,7 @@ fun PhoneAuthScreenNew(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = !state.isLoading && 
-                         state.phoneE164?.let { isValidE164(it) } == true &&
-                         activity != null,
+                enabled = canSendOtp,
                 shape = RoundedCornerShape(12.dp),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 2.dp,

@@ -3,6 +3,8 @@ package com.rio.rostry.di
 import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.data.database.dao.CoinDao
 import com.rio.rostry.data.database.dao.NotificationDao
@@ -59,16 +61,61 @@ import javax.inject.Singleton
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
 import com.rio.rostry.BuildConfig
+import java.security.SecureRandom
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private const val PASSPHRASE_KEY = "db_passphrase_v1"
+    private const val ENCRYPTED_PREFS_FILE = "rostry_secure_prefs"
+
+    /**
+     * Generates or retrieves a secure database passphrase backed by Android Keystore.
+     * The passphrase is stored in EncryptedSharedPreferences which uses MasterKey
+     * backed by the Android Keystore for encryption.
+     */
+    private fun getOrCreateSecurePassphrase(context: Context): ByteArray {
+        // Create or retrieve the MasterKey backed by Android Keystore
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        // Use EncryptedSharedPreferences for secure storage
+        val encryptedPrefs = EncryptedSharedPreferences.create(
+            context,
+            ENCRYPTED_PREFS_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+
+        // Check if passphrase already exists
+        val existingPassphrase = encryptedPrefs.getString(PASSPHRASE_KEY, null)
+        
+        return if (existingPassphrase != null) {
+            // Return existing passphrase
+            SQLiteDatabase.getBytes(existingPassphrase.toCharArray())
+        } else {
+            // Generate a new secure random passphrase
+            val random = SecureRandom()
+            val passphraseBytes = ByteArray(32)
+            random.nextBytes(passphraseBytes)
+            val passphrase = android.util.Base64.encodeToString(passphraseBytes, android.util.Base64.NO_WRAP)
+            
+            // Store securely
+            encryptedPrefs.edit().putString(PASSPHRASE_KEY, passphrase).apply()
+            
+            android.util.Log.d("DatabaseModule", "Generated new secure database passphrase")
+            SQLiteDatabase.getBytes(passphrase.toCharArray())
+        }
+    }
+
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        // Derive a passphrase for SQLCipher; in production, store/retrieve securely
-        val passphrase: ByteArray = SQLiteDatabase.getBytes("rostry-db-passphrase".toCharArray())
+        // Derive passphrase from Android Keystore-backed secure storage
+        val passphrase: ByteArray = getOrCreateSecurePassphrase(context)
         val factory = SupportFactory(passphrase)
 
         val builder = Room.databaseBuilder(

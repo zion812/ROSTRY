@@ -84,7 +84,15 @@ fun DailyLogScreen(
     onNavigateToAddBatch: () -> Unit
 ) {
     val vm: DailyLogViewModel = hiltViewModel()
-    LaunchedEffect(productId) { productId?.let { vm.loadForProduct(it) } }
+    
+    // Local state to track selected product - initialized from nav arg
+    var selectedProductId by remember { mutableStateOf(productId) }
+    
+    // Load for product when selectedProductId changes
+    LaunchedEffect(selectedProductId) { 
+        selectedProductId?.let { vm.loadForProduct(it) } 
+    }
+    
     val state by vm.uiState.collectAsState()
     val isSaving by vm.saving.collectAsState()
     val context = LocalContext.current
@@ -116,9 +124,9 @@ fun DailyLogScreen(
         }
     }
 
-    // Find the current product name/details
-    val currentProduct = state.products.find { it.productId == productId }
-    val productName = currentProduct?.name ?: productId ?: "Unknown Bird"
+    // Find the current product name/details based on local selectedProductId
+    val currentProduct = state.products.find { it.productId == selectedProductId }
+    val productName = currentProduct?.name ?: selectedProductId ?: "Unknown Bird"
     val productCode = currentProduct?.birdCode ?: ""
 
     Scaffold(
@@ -127,7 +135,7 @@ fun DailyLogScreen(
                 title = { 
                     Column {
                         Text("Daily Log")
-                        if (productId != null) {
+                        if (selectedProductId != null) {
                             Text(
                                 text = if (productCode.isNotEmpty()) "$productName ($productCode)" else productName,
                                 style = MaterialTheme.typography.labelMedium,
@@ -159,7 +167,7 @@ fun DailyLogScreen(
             )
         },
                 floatingActionButton = {
-            if (productId != null && state.products.isNotEmpty()) {
+            if (selectedProductId != null && state.products.isNotEmpty()) {
                 FloatingActionButton(
                     onClick = { vm.save() },
                     containerColor = MaterialTheme.colorScheme.primary
@@ -169,7 +177,7 @@ fun DailyLogScreen(
             }
         }
     ) { padding ->
-        if (productId == null) {
+        if (selectedProductId == null) {
              LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -221,7 +229,10 @@ fun DailyLogScreen(
                     items(filteredProducts, key = { it.productId }) { p ->
                         com.rio.rostry.ui.components.BirdSelectionItem(
                             product = p,
-                            onClick = { vm.loadForProduct(p.productId) }
+                            onClick = { 
+                                // Update local state first, then VM loads via LaunchedEffect
+                                selectedProductId = p.productId
+                            }
                         )
                     }
                 }

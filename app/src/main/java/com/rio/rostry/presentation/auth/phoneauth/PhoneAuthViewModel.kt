@@ -7,7 +7,7 @@ import com.rio.rostry.domain.auth.model.AuthResult
 import com.rio.rostry.domain.auth.model.PhoneNumber
 import com.rio.rostry.domain.auth.model.VerificationId
 import com.rio.rostry.domain.auth.usecase.StartPhoneVerificationUseCase
-import com.rio.rostry.utils.normalizeToE164
+import com.rio.rostry.utils.formatToE164
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,12 +38,16 @@ class PhoneAuthViewModel @Inject constructor(
     val uiState: StateFlow<PhoneAuthUiState> = _uiState.asStateFlow()
     
     /**
-     * Update phone number input
+     * Update phone number input.
+     * Input should be digits only (max 10). We prepend +91 and format to E.164.
      */
     fun onPhoneChanged(input: String) {
-        val e164 = normalizeToE164(input)
+        // Strip non-digits and limit to 10
+        val digits = input.filter { it.isDigit() }.take(10)
+        // Build E.164 using +91 country code
+        val e164 = if (digits.isNotEmpty()) formatToE164("+91", digits) else null
         _uiState.value = _uiState.value.copy(
-            phoneInput = input,
+            phoneInput = digits,
             phoneE164 = e164,
             error = null // Clear error on new input
         )

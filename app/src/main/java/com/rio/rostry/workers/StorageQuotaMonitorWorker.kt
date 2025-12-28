@@ -39,6 +39,7 @@ class StorageQuotaMonitorWorker @AssistedInject constructor(
                     WorkRequest.MIN_BACKOFF_MILLIS,
                     TimeUnit.MILLISECONDS
                 )
+                .addTag("session_worker")
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

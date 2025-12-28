@@ -120,7 +120,11 @@ data class ProductEntity(
     val eggsCollectedToday: Int = 0, // For "Ghost Eggs" feature
     val lastEggLogDate: Long? = null, // Track when eggs were last logged
     val readyForSale: Boolean = false, // Triggers gold star display
-    val targetWeight: Double? = null // Weight goal for ready status
+    val targetWeight: Double? = null, // Weight goal for ready status
+    
+    // Showcase & External Media (Feature-based storage control)
+    val isShowcased: Boolean = false,           // True if in profile showcase
+    val externalVideoUrl: String? = null        // YouTube/Instagram link (Enthusiast only)
 ) {
     /**
      * Returns true if this product is a public market listing (requires verification to create).

@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.utils.network.ConnectivityManager
+import com.google.firebase.auth.FirebaseAuth
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
@@ -18,6 +19,11 @@ class PullSyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
+        // Check if user is authenticated - if not, skip work
+        if (FirebaseAuth.getInstance().currentUser == null) {
+            return Result.success() // User logged out, no need to sync
+        }
+        
         // Check if online
         if (!connectivityManager.isOnline()) {
             return Result.retry()
@@ -49,6 +55,7 @@ class PullSyncWorker @AssistedInject constructor(
                     WorkRequest.MIN_BACKOFF_MILLIS,
                     TimeUnit.MILLISECONDS
                 )
+                .addTag("session_worker")
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

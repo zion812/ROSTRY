@@ -26,6 +26,17 @@ class MediaUploadWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
+            // Foreground notification to keep uploads alive during long operations
+            val notification = WorkerBaseHelper.createNotification(
+                context = applicationContext,
+                channelId = "media_upload_channel",
+                channelName = "Media Uploads",
+                title = "Uploading media...",
+                content = "Syncing your photos to cloud",
+                isOngoing = true
+            )
+            setForeground(androidx.work.ForegroundInfo(NOTIFICATION_ID, notification))
+            
             val pending = uploadTaskDao.getPending(limit = 25)
             if (pending.isEmpty()) return@withContext Result.success()
 
@@ -43,6 +54,10 @@ class MediaUploadWorker @AssistedInject constructor(
             Timber.e(e, "UploadWorker: fatal error")
             Result.retry()
         }
+    }
+    
+    companion object {
+        private const val NOTIFICATION_ID = 2001
     }
 
     private suspend fun uploadOneTask(task: UploadTaskEntity) {

@@ -250,6 +250,7 @@ class EvidenceOrderWorker @AssistedInject constructor(
             )
                 .setConstraints(constraints)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 10, TimeUnit.MINUTES)
+                .addTag("session_worker")
                 .build()
             
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

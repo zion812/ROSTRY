@@ -251,8 +251,8 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
             .setRequiredNetworkType(NetworkType.UNMETERED)
             .build()
 
-        // SyncWorker - Session Bound - 4 Hour Interval
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(4, TimeUnit.HOURS)
+        // SyncWorker - Session Bound - 8 Hour Interval (Reduced from 4h for Quota Optimization)
+        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(8, TimeUnit.HOURS)
             .setConstraints(syncConstraints)
             .setBackoffCriteria(
                 androidx.work.BackoffPolicy.EXPONENTIAL,
@@ -270,7 +270,7 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         LifecycleWorker.schedule(this)
         TransferTimeoutWorker.schedule(this)
         ModerationWorker.schedule(this)
-        OutgoingMessageWorker.schedule(this)
+        // OutgoingMessageWorker removed - OutboxSyncWorker now handles all message delivery
         AnalyticsAggregationWorker.schedule(this) // System wide? Keeping it running or scheduling it.
         ReportingWorker.schedule(this)
         VaccinationReminderWorker.schedule(this)
@@ -284,6 +284,8 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         com.rio.rostry.workers.PersonalizationWorker.schedule(this)
         com.rio.rostry.workers.CommunityEngagementWorker.schedule(this)
         com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
+        com.rio.rostry.workers.StorageQuotaMonitorWorker.enqueuePeriodic(this)
+        com.rio.rostry.workers.EvidenceOrderWorker.schedule(this) // Critical: Quote expiry, payment reminders, delivery confirmations
         
         // One-time migration: Legacy ProductEntity → New Farm Asset Architecture
         scheduleLegacyMigration(workManager)

@@ -23,7 +23,7 @@ import javax.inject.Singleton
  * 
  * Responsibilities:
  * - Calculate current storage usage across Firebase Storage
- * - Enforce quota limits per role (GENERAL: 50MB, FARMER: 500MB, ENTHUSIAST: 2GB)
+ * - Enforce quota limits per role (GENERAL: 5MB, FARMER: 10MB, ENTHUSIAST: 25MB)
  * - Track usage by category (images, documents, data)
  * - Emit quota warnings at threshold levels (80%, 90%, 100%)
  */

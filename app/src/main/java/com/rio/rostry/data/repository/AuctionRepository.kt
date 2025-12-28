@@ -8,8 +8,10 @@ import com.rio.rostry.data.database.entity.AuctionEntity
 import com.rio.rostry.data.database.entity.BidEntity
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,22 +30,23 @@ class AuctionRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : AuctionRepository {
 
-    override fun observeAuction(auctionId: String): Flow<AuctionEntity?> = callbackFlow {
-        // Listen to real-time updates from Firestore for the most up-to-date state
-        val registration = firestore.collection("auctions").document(auctionId)
-            .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    close(e)
-                    return@addSnapshotListener
-                }
-                if (snapshot != null && snapshot.exists()) {
+    override fun observeAuction(auctionId: String): Flow<AuctionEntity?> = flow {
+        while (true) {
+            try {
+                // Optimization: Polling every 5s instead of real-time listener
+                val snapshot = firestore.collection("auctions").document(auctionId).get().await()
+                if (snapshot.exists()) {
                     val auction = snapshot.toObject(AuctionEntity::class.java)
-                    trySend(auction)
+                    emit(auction)
                 } else {
-                    trySend(null)
+                    emit(null)
                 }
+            } catch (e: Exception) {
+                // Log error but keep retrying? or emit null?
+                // For now, simple logging
             }
-        awaitClose { registration.remove() }
+            delay(5000) // Poll every 5 seconds
+        }
     }
 
     override suspend fun createAuction(auction: AuctionEntity): Resource<String> = try {

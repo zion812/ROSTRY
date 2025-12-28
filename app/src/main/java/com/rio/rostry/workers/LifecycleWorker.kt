@@ -264,6 +264,11 @@ class LifecycleWorker @AssistedInject constructor(
                     }
                 }
             }
+            
+            // Phase 3: Auto-expire market listings older than 30 days
+            val thirtyDaysAgo = now - (30L * 24 * 60 * 60 * 1000)
+            productDao.purgeStaleMarketplace(thirtyDaysAgo)
+            
             Result.success()
         } catch (e: Exception) {
             Result.retry()

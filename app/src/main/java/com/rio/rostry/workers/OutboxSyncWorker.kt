@@ -11,6 +11,7 @@ import androidx.work.*
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.network.ConnectivityManager
+import com.google.firebase.auth.FirebaseAuth
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
@@ -63,6 +64,12 @@ class OutboxSyncWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
+        // Check if user is authenticated - if not, skip work
+        if (FirebaseAuth.getInstance().currentUser == null) {
+            dismissSyncNotification()
+            return Result.success() // User logged out, no need to sync
+        }
+        
         // Check if online
         if (!connectivityManager.isOnline()) {
             return Result.retry()
@@ -115,13 +122,14 @@ class OutboxSyncWorker @AssistedInject constructor(
                 .build()
 
             val workRequest = PeriodicWorkRequestBuilder<OutboxSyncWorker>(
-                15, TimeUnit.MINUTES
+                60, TimeUnit.MINUTES // Optimized for battery and write batching
             )
                 .setConstraints(constraints)
                 .setBackoffCriteria(
                     BackoffPolicy.EXPONENTIAL,
                     1, TimeUnit.MINUTES
                 )
+                .addTag("session_worker")
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

@@ -47,6 +47,9 @@ data class UserEntity(
     val latestVerificationId: String? = null,
     val latestVerificationRef: String? = null,
     val verificationSubmittedAt: Date? = null,
+    // Showcase slot system (Farmer = 3 max, Enthusiast = unlimited)
+    val showcaseCount: Int = 0,
+    val maxShowcaseSlots: Int = 3,
     // Common audit
     val createdAt: Date? = null,
     val updatedAt: Date? = null,

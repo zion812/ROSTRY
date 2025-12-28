@@ -56,6 +56,28 @@ object ImageCompressor {
     }
 
     /**
+     * Aggressive compression for Daily Logs (Farmer usage).
+     * Target: ~50KB per photo.
+     * Strategy: 720p resolution, 50% quality.
+     */
+    suspend fun compressForDailyLog(context: Context, input: File): File = withContext(Dispatchers.IO) {
+        if (input.length() < 75 * 1024) {
+             return@withContext input
+        }
+
+        try {
+            Compressor.compress(context, input) {
+                default(width = 720, height = 720)
+                quality(50)
+                format(android.graphics.Bitmap.CompressFormat.JPEG)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Daily log compression failed, using original")
+            input // Fallback
+        }
+    }
+
+    /**
      * Enhanced compression strategy for large files (10-20MB).
      */
     suspend fun compressForLargeUpload(context: Context, input: File): File = withContext(Dispatchers.IO) {

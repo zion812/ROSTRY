@@ -527,48 +527,46 @@ class UserRepositoryImpl @Inject constructor(
         Unit
     }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to submit KYC verification")
 
-    override fun getKycSubmissionStatus(userId: String): Flow<Resource<String?>> = callbackFlow {
-        // Query by userId field to get the latest submission
-        val query = firestore.collection("verifications")
-            .whereEqualTo("userId", userId)
-            .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(1)
-        
-        val listener = query.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                trySend(Resource.Error("Failed to listen to KYC status: ${error.message}"))
-                return@addSnapshotListener
-            }
-            if (snapshot != null && !snapshot.isEmpty) {
-                val status = snapshot.documents.first().getString("currentStatus") 
+    override fun getKycSubmissionStatus(userId: String): Flow<Resource<String?>> = flow {
+        emit(Resource.Loading())
+        try {
+            // Optimization: Use get() instead of snapshot listener to save quota
+            val query = firestore.collection("verifications")
+                .whereEqualTo("userId", userId)
+                .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+
+            val snapshot = query.get().await()
+            if (!snapshot.isEmpty) {
+                val status = snapshot.documents.first().getString("currentStatus")
                     ?: snapshot.documents.first().getString("status")
-                trySend(Resource.Success(status))
+                emit(Resource.Success(status))
             } else {
-                trySend(Resource.Success(null))
+                emit(Resource.Success(null))
             }
+        } catch (e: Exception) {
+            emit(Resource.Error("Failed to fetch KYC status: ${e.message}"))
         }
-        awaitClose { listener.remove() }
     }
 
-    override fun getVerificationDetails(userId: String): Flow<Resource<Map<String, Any>?>> = callbackFlow {
-        // Query by userId field to get the latest submission
-        val query = firestore.collection("verifications")
-            .whereEqualTo("userId", userId)
-            .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(1)
-        
-        val listener = query.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                trySend(Resource.Error("Failed to fetch verification details: ${error.message}"))
-                return@addSnapshotListener
-            }
-            if (snapshot != null && !snapshot.isEmpty) {
-                trySend(Resource.Success(snapshot.documents.first().data))
+    override fun getVerificationDetails(userId: String): Flow<Resource<Map<String, Any>?>> = flow {
+        emit(Resource.Loading())
+        try {
+            // Optimization: Use get() instead of snapshot listener to save quota
+            val query = firestore.collection("verifications")
+                .whereEqualTo("userId", userId)
+                .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+
+            val snapshot = query.get().await()
+            if (!snapshot.isEmpty) {
+                emit(Resource.Success(snapshot.documents.first().data))
             } else {
-                trySend(Resource.Success(null))
+                emit(Resource.Success(null))
             }
+        } catch (e: Exception) {
+            emit(Resource.Error("Failed to fetch verification details: ${e.message}"))
         }
-        awaitClose { listener.remove() }
     }
 
     override suspend fun getVerificationDetailsOnce(userId: String): Resource<Map<String, Any>?> = safeCall {

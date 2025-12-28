@@ -194,6 +194,36 @@ private fun ProductDetailsContent(
         item {
             ImageGallery(images = product.imageUrls.takeIf { it.isNotEmpty() } ?: listOf(""))
         }
+        
+        // External Video Link (Enthusiast feature)
+        if (!product.externalVideoUrl.isNullOrBlank()) {
+            item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Card(
+                    onClick = {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(product.externalVideoUrl))
+                        kotlin.runCatching { context.startActivity(intent) }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE0E0))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.PlayCircle, contentDescription = null, tint = Color.Red, modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("📹 Watch Video", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(product.externalVideoUrl ?: "", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Icon(Icons.Filled.OpenInNew, contentDescription = null)
+                    }
+                }
+            }
+        }
 
         // Product Info
         item {
@@ -381,6 +411,18 @@ private fun ProductInfoSection(
                     colors = AssistChipDefaults.assistChipColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+            // Showcase badge
+            if (product.isShowcased) {
+                AssistChip(
+                    onClick = {},
+                    label = { Text("⭐ Showcased") },
+                    leadingIcon = { Icon(Icons.Filled.Star, null, modifier = Modifier.size(16.dp), tint = Color(0xFFFFC107)) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = Color(0xFFFFF8E1),
+                        labelColor = Color(0xFFFF8F00)
                     )
                 )
             }
