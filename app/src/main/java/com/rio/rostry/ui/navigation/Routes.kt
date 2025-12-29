@@ -228,8 +228,17 @@ object Routes {
         const val PEDIGREE = "enthusiast/pedigree/{productId}"
         const val HALL_OF_FAME = "enthusiast/hall_of_fame"
         
+        // Digital Coop Features (Enthusiast Phase)
+        const val TRANSFER_CODE = "enthusiast/transfer_code/{productId}"
+        const val CLAIM_TRANSFER = "enthusiast/claim_transfer"
+        const val SHOWCASE_CARD = "enthusiast/showcase/{productId}"
+        const val SHOW_LOG = "enthusiast/show_log/{productId}"
+        
         // Builder functions
         fun pedigree(productId: String) = "enthusiast/pedigree/$productId"
+        fun transferCode(productId: String) = "enthusiast/transfer_code/$productId"
+        fun showcaseCard(productId: String) = "enthusiast/showcase/$productId"
+        fun showLog(productId: String) = "enthusiast/show_log/$productId"
     }
 
     object Sync {
@@ -372,7 +381,14 @@ object Routes {
             Order.DETAILS,
             Sync.ISSUES,
             Upgrade.WIZARD,
-            Upgrade.POST_ONBOARDING
+            Upgrade.POST_ONBOARDING,
+            // Digital Coop Features
+            EnthusiastNav.PEDIGREE,
+            EnthusiastNav.TRANSFER_CODE,
+            EnthusiastNav.CLAIM_TRANSFER,
+            EnthusiastNav.SHOWCASE_CARD,
+            EnthusiastNav.SHOW_LOG,
+            EnthusiastNav.HALL_OF_FAME
         )
     )
 

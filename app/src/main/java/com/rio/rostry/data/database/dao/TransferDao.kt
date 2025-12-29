@@ -142,4 +142,21 @@ interface TransferDao {
 
     @Query("SELECT * FROM transfers WHERE (fromUserId = :userId OR toUserId = :userId) AND status = :status ORDER BY initiatedAt DESC")
     fun observeTransfersByStatusForFarmer(userId: String, status: String): Flow<List<TransferEntity>>
+    
+    // ========== ENTHUSIAST OWNERSHIP TRANSFER METHODS ==========
+    
+    @Query("SELECT * FROM transfers WHERE transferId = :transferId LIMIT 1")
+    suspend fun findById(transferId: String): TransferEntity?
+    
+    @Query("SELECT * FROM transfers WHERE productId = :productId AND status IN ('TRANSFER_PENDING', 'CLAIMED') AND isDeleted = 0 LIMIT 1")
+    suspend fun findActiveTransferForProduct(productId: String): TransferEntity?
+    
+    @Query("SELECT * FROM transfers WHERE transferCode = :code AND isDeleted = 0 LIMIT 1")
+    suspend fun findByTransferCode(code: String): TransferEntity?
+    
+    @Query("SELECT * FROM transfers WHERE fromUserId = :userId AND status = :status AND isDeleted = 0 ORDER BY initiatedAt DESC")
+    suspend fun findByFromUserAndStatus(userId: String, status: String): List<TransferEntity>
+    
+    @Query("SELECT * FROM transfers WHERE toUserId = :userId AND status = :status AND isDeleted = 0 ORDER BY initiatedAt DESC")
+    suspend fun findByToUserAndStatus(userId: String, status: String): List<TransferEntity>
 }

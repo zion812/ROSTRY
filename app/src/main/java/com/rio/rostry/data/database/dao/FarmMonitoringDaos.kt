@@ -145,6 +145,10 @@ interface VaccinationRecordDao {
     /** Count pending (unadministered, not overdue) vaccinations for a farmer. */
     @Query("SELECT COUNT(*) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt IS NULL AND scheduledAt >= :now")
     suspend fun countPendingByFarmer(farmerId: String, now: Long): Int
+    
+    /** Get all vaccination records for a specific product. */
+    @Query("SELECT * FROM vaccination_records WHERE productId = :productId ORDER BY scheduledAt DESC")
+    suspend fun getRecordsByProduct(productId: String): List<VaccinationRecordEntity>
 }
 
 @Dao

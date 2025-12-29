@@ -57,6 +57,15 @@ data class TransferEntity(
     val buyerPhotoUrl: String? = null,
     val timeoutAt: Long? = null,
     val conditionsJson: String? = null,
+    
+    // =========== ENTHUSIAST TRANSFER FIELDS ===========
+    // Secure ownership transfer for individual birds (6-digit code handshake)
+    val transferCode: String? = null,        // 6-digit unique code for claiming
+    val lineageSnapshotJson: String? = null, // Serialized pedigree at transfer time
+    val claimedAt: Long? = null,             // When recipient claimed the bird
+    val transferType: String = "STANDARD",   // "STANDARD", "OWNERSHIP_HANDSHAKE"
+    // ==================================================
+    
     val initiatedAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),

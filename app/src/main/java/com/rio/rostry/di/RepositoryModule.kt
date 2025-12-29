@@ -73,6 +73,8 @@ import com.rio.rostry.data.repository.InventoryRepository
 import com.rio.rostry.data.repository.InventoryRepositoryImpl
 import com.rio.rostry.data.repository.MarketListingRepository
 import com.rio.rostry.data.repository.MarketListingRepositoryImpl
+import com.rio.rostry.domain.pedigree.PedigreeRepository
+import com.rio.rostry.domain.pedigree.PedigreeRepositoryImpl
 import com.rio.rostry.marketplace.payment.DefaultPaymentGateway
 import com.rio.rostry.marketplace.payment.PaymentGateway
 
@@ -273,6 +275,11 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindEvidenceOrderRepository(impl: com.rio.rostry.data.repository.EvidenceOrderRepositoryImpl): com.rio.rostry.data.repository.EvidenceOrderRepository
+
+    // Enthusiast Pedigree Repository
+    @Binds
+    @Singleton
+    abstract fun bindPedigreeRepository(impl: PedigreeRepositoryImpl): PedigreeRepository
 
 }
 

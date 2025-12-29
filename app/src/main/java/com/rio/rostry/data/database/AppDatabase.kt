@@ -121,9 +121,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MyVotesEntity::class,
         // Split-Brain Data Architecture entities
         BatchSummaryEntity::class,
-        DashboardCacheEntity::class
+        DashboardCacheEntity::class,
+        // Enthusiast Show Records
+        ShowRecordEntity::class
     ],
-    version = 58, // 58: Split-Brain Data Architecture; 57: Product FTS; 56: Cloud Storage & Role Migration
+    version = 59, // 59: Enthusiast Show Records; 58: Split-Brain Data Architecture
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -243,6 +245,9 @@ abstract class AppDatabase : RoomDatabase() {
     // Split-Brain Data Architecture DAOs
     abstract fun batchSummaryDao(): BatchSummaryDao
     abstract fun dashboardCacheDao(): DashboardCacheDao
+
+    // Enthusiast Show Records DAO
+    abstract fun showRecordDao(): ShowRecordDao
 
     object Converters {
         @TypeConverter
@@ -459,6 +464,54 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Enthusiast Show Records table (58 -> 59)
+        val MIGRATION_58_59 = object : Migration(58, 59) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `show_records` (
+                        `recordId` TEXT NOT NULL PRIMARY KEY,
+                        `productId` TEXT NOT NULL,
+                        `ownerId` TEXT NOT NULL,
+                        `recordType` TEXT NOT NULL,
+                        `eventName` TEXT NOT NULL,
+                        `eventLocation` TEXT,
+                        `eventDate` INTEGER NOT NULL,
+                        `result` TEXT NOT NULL,
+                        `placement` INTEGER,
+                        `totalParticipants` INTEGER,
+                        `category` TEXT,
+                        `score` REAL,
+                        `opponentName` TEXT,
+                        `opponentOwnerName` TEXT,
+                        `judgesNotes` TEXT,
+                        `awards` TEXT,
+                        `photoUrls` TEXT NOT NULL DEFAULT '[]',
+                        `isVerified` INTEGER NOT NULL DEFAULT 0,
+                        `verifiedBy` TEXT,
+                        `certificateUrl` TEXT,
+                        `notes` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `isDeleted` INTEGER NOT NULL DEFAULT 0,
+                        `deletedAt` INTEGER,
+                        `dirty` INTEGER NOT NULL DEFAULT 0,
+                        `syncedAt` INTEGER,
+                        FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_show_records_productId` ON `show_records` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_show_records_eventDate` ON `show_records` (`eventDate`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_show_records_recordType` ON `show_records` (`recordType`)")
+                
+                // Add Enthusiast transfer fields to transfers table
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `transferCode` TEXT")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `lineageSnapshotJson` TEXT")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `claimedAt` INTEGER")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `transferType` TEXT NOT NULL DEFAULT 'STANDARD'")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfers_transferCode` ON `transfers` (`transferCode`)")
+            }
+        }
+
         @TypeConverter
         @JvmStatic
         fun toStringList(value: String?): List<String>? {
@@ -520,6 +573,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
         val MIGRATION_56_57: Migration = Converters.MIGRATION_56_57
         val MIGRATION_57_58: Migration = Converters.MIGRATION_57_58
+        val MIGRATION_58_59: Migration = Converters.MIGRATION_58_59
 
         // Create verification_drafts table (54 -> 55)
         val MIGRATION_54_55 = object : Migration(54, 55) {
