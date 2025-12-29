@@ -121,6 +121,9 @@ class PrefetchWorker @AssistedInject constructor(
                         }
                     }
                 }
+                UserType.ADMIN -> {
+                    // Admin might not need prefetch specifically, or can use GENERAL
+                }
             }
 
             flowAnalyticsTracker.trackEvent("prefetch_completed", mapOf("role" to role.name, "count" to prefetchedCount))

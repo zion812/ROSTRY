@@ -16,9 +16,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -136,6 +140,9 @@ fun ProfileScreen(
                 }
                 UserType.ENTHUSIAST -> {
                     Text("Max role reached")
+                }
+                UserType.ADMIN -> {
+                    Text("Admin Account")
                 }
             }
 

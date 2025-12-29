@@ -124,6 +124,7 @@ data class RoleStorageQuota(
             UserType.GENERAL -> GENERAL
             UserType.FARMER -> FARMER
             UserType.ENTHUSIAST -> ENTHUSIAST
+            UserType.ADMIN -> ENTHUSIAST // Admins get max quota
         }
     }
 }

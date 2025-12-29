@@ -359,7 +359,8 @@ private fun getTourPagesForRole(role: UserType): List<TourPage> {
                     "Product authenticity",
                     "Easy returns and refunds"
                 )
+                )
             )
-        )
-    }
+            UserType.ADMIN -> emptyList()
+        }
 }

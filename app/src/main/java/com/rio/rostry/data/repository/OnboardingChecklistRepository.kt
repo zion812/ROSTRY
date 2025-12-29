@@ -92,6 +92,7 @@ class OnboardingChecklistRepository @Inject constructor(
                 ChecklistItem("add_first_bird", "Add First Bird", "Add your first bird to the system", false, "onboarding-farm-bird-enthusiast"),
                 ChecklistItem("start_breeding_record", "Start Breeding Record", "Begin tracking breeding activities", false, "monitoring-breeding")
             )
+            UserType.ADMIN -> emptyList()
         }
     }
     

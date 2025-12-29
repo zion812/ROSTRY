@@ -1299,10 +1299,10 @@ private fun RoleNavGraph(
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
                 onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
-                onNavigateToAnalytics = { navController.navigate(Routes.FARM_ANALYTICS) },
+                onNavigateToAnalytics = { navController.navigate(Routes.ANALYTICS_FARMER) },
                 onNavigateToStorageQuota = { navController.navigate(Routes.STORAGE_QUOTA) },
                 onNavigateToAdminDashboard = { navController.navigate(Routes.ADMIN_VERIFICATION) },
-                onUpgradeClick = { type -> navController.navigate(Routes.Builders.roleUpgradeWizard(type.name)) },
+                onUpgradeClick = { type -> navController.navigate(Routes.Builders.upgradeWizard(type)) },
                 isAdmin = state.isAdmin
             )
         }

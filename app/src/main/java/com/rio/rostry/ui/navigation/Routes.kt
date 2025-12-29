@@ -397,10 +397,21 @@ object Routes {
         )
     )
 
+    private val adminConfig = RoleNavigationConfig(
+        role = UserType.ADMIN,
+        startDestination = GeneralNav.HOME,
+        bottomNav = emptyList(),
+        accessibleRoutes = generalConfig.accessibleRoutes + 
+                           farmerConfig.accessibleRoutes + 
+                           enthusiastConfig.accessibleRoutes + 
+                           setOf(Admin.VERIFICATION)
+    )
+
     fun configFor(role: UserType): RoleNavigationConfig = when (role) {
         UserType.GENERAL -> generalConfig
         UserType.FARMER -> farmerConfig
         UserType.ENTHUSIAST -> enthusiastConfig
+        UserType.ADMIN -> adminConfig
     }
 
     const val AUTH_WELCOME = Auth.WELCOME

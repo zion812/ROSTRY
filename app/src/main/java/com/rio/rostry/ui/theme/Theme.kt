@@ -50,5 +50,5 @@ fun ROSTRYTheme(
 fun rememberRoleColorScheme(userRole: UserType?, darkTheme: Boolean) = when (userRole) {
     UserType.FARMER -> if (darkTheme) FarmerDarkColors else FarmerLightColors
     UserType.ENTHUSIAST -> if (darkTheme) EnthusiastDarkColors else EnthusiastLightColors
-    UserType.GENERAL, null -> if (darkTheme) GeneralDarkColors else GeneralLightColors
+    UserType.GENERAL, UserType.ADMIN, null -> if (darkTheme) GeneralDarkColors else GeneralLightColors
 }

@@ -290,6 +290,7 @@ class SessionViewModel @Inject constructor(
                 val timeoutDays = when (role) {
                     UserType.GENERAL -> 30L
                     UserType.FARMER, UserType.ENTHUSIAST -> 7L
+                    UserType.ADMIN -> 1L // Strict timeout for admins
                 }
                 val timeoutMillis = timeoutDays * 24 * 60 * 60 * 1000
                 val now = System.currentTimeMillis()
@@ -383,7 +384,6 @@ class SessionViewModel @Inject constructor(
                 navConfig = null,
                 isLoading = false,
                 error = null,
-                authMode = SessionManager.AuthMode.FIREBASE,
                 authMode = SessionManager.AuthMode.FIREBASE,
                 sessionExpiryWarning = null,
                 pendingVerificationCount = 0

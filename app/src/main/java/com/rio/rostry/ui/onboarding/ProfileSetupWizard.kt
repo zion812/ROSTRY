@@ -262,7 +262,7 @@ private fun LocationStep(
             text = when (userRole) {
                 UserType.FARMER -> "Help buyers find your farm and products nearby"
                 UserType.ENTHUSIAST -> "Connect with local breeders and buyers"
-                UserType.GENERAL -> "Discover products and farmers near you"
+                UserType.GENERAL, UserType.ADMIN -> "Discover products and farmers near you"
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -457,7 +457,7 @@ private fun getSetupStepsForRole(role: UserType): List<String> {
         UserType.FARMER, UserType.ENTHUSIAST -> listOf(
             "Name", "Location", "Interests", "Notifications"
         )
-        UserType.GENERAL -> listOf(
+        UserType.GENERAL, UserType.ADMIN -> listOf(
             "Name", "Location", "Interests", "Notifications"
         )
     }
@@ -475,7 +475,7 @@ private fun getInterestsForRole(role: UserType): List<String> {
             "Genetics", "Competitions", "Lineage Tracking",
             "Trading", "Photography"
         )
-        UserType.GENERAL -> listOf(
+        UserType.GENERAL, UserType.ADMIN -> listOf(
             "Fresh Eggs", "Chicken Meat", "Organic Products",
             "Learning", "Local Farmers", "Urban Farming",
             "Recipes", "Sustainability"

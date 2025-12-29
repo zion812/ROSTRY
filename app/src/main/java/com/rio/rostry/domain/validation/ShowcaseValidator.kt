@@ -18,7 +18,7 @@ object ShowcaseValidator {
     fun canAddToShowcase(role: UserType, currentShowcaseCount: Int): Boolean {
         return when (role) {
             UserType.FARMER -> currentShowcaseCount < FARMER_MAX_SLOTS
-            UserType.ENTHUSIAST -> true // Unlimited
+            UserType.ENTHUSIAST, UserType.ADMIN -> true // Unlimited
             UserType.GENERAL -> false // Cannot showcase
         }
     }
@@ -29,7 +29,7 @@ object ShowcaseValidator {
     fun getMaxSlots(role: UserType): Int {
         return when (role) {
             UserType.FARMER -> FARMER_MAX_SLOTS
-            UserType.ENTHUSIAST -> Int.MAX_VALUE
+            UserType.ENTHUSIAST, UserType.ADMIN -> Int.MAX_VALUE
             UserType.GENERAL -> 0
         }
     }
@@ -49,7 +49,7 @@ object ShowcaseValidator {
         return when (role) {
             UserType.FARMER -> "Upgrade to Enthusiast for unlimited showcase birds"
             UserType.GENERAL -> "Become a verified Farmer to showcase your birds"
-            UserType.ENTHUSIAST -> null
+            UserType.ENTHUSIAST, UserType.ADMIN -> null
         }
     }
 }
