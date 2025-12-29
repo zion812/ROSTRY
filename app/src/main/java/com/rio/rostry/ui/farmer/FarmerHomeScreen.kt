@@ -34,6 +34,10 @@ import com.rio.rostry.ui.components.OnboardingChecklistCard
 import com.rio.rostry.ui.onboarding.OnboardingChecklistViewModel
 import com.rio.rostry.ui.order.evidence.PendingVerificationsWidget
 import com.rio.rostry.ui.order.evidence.IncomingEnquiriesWidget
+import com.rio.rostry.ui.farmer.TodayTasksCard
+import com.rio.rostry.ui.farmer.QuickLogBottomSheet
+import com.rio.rostry.ui.farmer.QuickLogType
+import com.rio.rostry.ui.farmer.HarvestTriggerCard
 
 data class FetcherCard(
     val title: String,
@@ -66,6 +70,7 @@ fun FarmerHomeScreen(
     val paymentsToVerify by viewModel.paymentsToVerify.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var showQuickLogSheet by remember { mutableStateOf(false) }
     val onboardingViewModel: OnboardingChecklistViewModel = hiltViewModel()
     val checklistState by onboardingViewModel.uiState.collectAsState()
     var showCelebrationDialog by remember { mutableStateOf(false) }
@@ -85,8 +90,19 @@ fun FarmerHomeScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
+            Column {
+                // Quick Log FAB (Farmer-First)
+                FloatingActionButton(
+                    onClick = { showQuickLogSheet = true },
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Icon(Icons.Filled.EditNote, contentDescription = "Quick Log")
+                }
+                // Original Add to Farm FAB
+                FloatingActionButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
+                }
             }
         }
     ) { padding ->
@@ -144,6 +160,30 @@ fun FarmerHomeScreen(
                         onNavigateRoute(route)
                     }
                 )
+            }
+
+            // Today's Tasks Card (Farmer-First Phase 1)
+            if (uiState.todayTasks.isNotEmpty() || uiState.completedTasksCount > 0) {
+                item {
+                    TodayTasksCard(
+                        tasks = uiState.todayTasks,
+                        completedCount = uiState.completedTasksCount,
+                        onTaskClick = { task ->
+                            // Navigate based on task type
+                            val route = when (task.taskType) {
+                                "VACCINATION" -> Routes.Builders.monitoringVaccinationWithProductId(task.productId ?: "")
+                                "GROWTH_UPDATE" -> Routes.Builders.monitoringGrowthWithProductId(task.productId ?: "")
+                                "FEED_SCHEDULE" -> Routes.Builders.monitoringDailyLog()
+                                "HEALTH_CHECK" -> Routes.Builders.monitoringQuarantine("quarantine_12h")
+                                else -> Routes.Builders.monitoringTasks("due")
+                            }
+                            onNavigateRoute(route)
+                        },
+                        onTaskComplete = { taskId ->
+                            viewModel.markTaskComplete(taskId)
+                        }
+                    )
+                }
             }
 
             // Storage Quota Warning Banner
@@ -386,8 +426,25 @@ fun FarmerHomeScreen(
             }
 
 
-            // Alerts Banner
-            if (uiState.unreadAlerts.isNotEmpty()) {
+            // Harvest Ready Cards (Farmer-First Phase 2)
+            val harvestReadyAlerts = uiState.unreadAlerts.filter { it.alertType == "HARVEST_READY" }
+            if (harvestReadyAlerts.isNotEmpty()) {
+                items(harvestReadyAlerts) { alert ->
+                    HarvestTriggerCard(
+                        alert = alert,
+                        onSellNow = { batchId ->
+                            onNavigateRoute(Routes.Builders.createListingFromAsset(batchId))
+                        },
+                        onDismiss = { alertId ->
+                            viewModel.markAlertRead(alertId)
+                        }
+                    )
+                }
+            }
+
+            // Alerts Banner (non-harvest alerts)
+            val nonHarvestAlerts = uiState.unreadAlerts.filter { it.alertType != "HARVEST_READY" }
+            if (nonHarvestAlerts.isNotEmpty()) {
                 item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -405,7 +462,7 @@ fun FarmerHomeScreen(
                             Icon(Icons.Filled.Warning, contentDescription = "Alert icon")
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "${uiState.unreadAlerts.size} Urgent Alerts",
+                                "${nonHarvestAlerts.size} Urgent Alerts",
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -632,6 +689,20 @@ fun FarmerHomeScreen(
                      TextButton(onClick = { showVerificationPendingDialog = false }) {
                         Text("Later")
                     }
+                }
+            }
+        )
+    }
+
+    // Quick Log Bottom Sheet (Farmer-First Phase 1)
+    if (showQuickLogSheet) {
+        QuickLogBottomSheet(
+            batches = uiState.batches,
+            onDismiss = { showQuickLogSheet = false },
+            onLogSubmit = { batchId, logType, value, notes ->
+                // Handle quick log submission - this would be wired to ViewModel
+                scope.launch {
+                    snackbarHostState.showSnackbar("${logType.label} logged: $value ${logType.unit}")
                 }
             }
         )

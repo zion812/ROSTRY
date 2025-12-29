@@ -82,7 +82,11 @@ data class FarmerHomeUiState(
     val incomingEnquiries: List<OrderQuoteEntity> = emptyList(),
     val paymentsToVerify: List<OrderPaymentEntity> = emptyList(),
     val pendingPaymentsCount: Int = 0,
-    val storageQuota: com.rio.rostry.data.database.entity.StorageQuotaEntity? = null
+    val storageQuota: com.rio.rostry.data.database.entity.StorageQuotaEntity? = null,
+    // Farmer-First: TodayTasksCard and QuickLogBottomSheet data
+    val todayTasks: List<com.rio.rostry.data.database.entity.TaskEntity> = emptyList(),
+    val completedTasksCount: Int = 0,
+    val batches: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()
 )
 
 data class DashboardWidget(
@@ -326,7 +330,9 @@ class FarmerHomeViewModel @Inject constructor(
                     verificationStatus = verStatus,
                     recentActivity = recentActivityList,
                     farmAssetCount = farmAssetCount,
-                    storageQuota = storageQuota
+                    storageQuota = storageQuota,
+                    todayTasks = dueTasks.filter { it.completedAt == null },
+                    completedTasksCount = dueTasks.count { it.completedAt != null }
                 )
                 
                 // Generate dynamic widgets based on the computed state
