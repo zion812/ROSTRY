@@ -33,11 +33,21 @@ enum class UserType(
             "Analytics dashboard",
             "Coin wallet"
         )
+    ),
+    ADMIN(
+        displayName = "System Admin",
+        primaryFeatures = listOf(
+            "Verification management",
+            "Audit log viewing",
+            "System configuration",
+            "User management"
+        )
     );
 
     fun nextLevel(): UserType? = when (this) {
         GENERAL -> FARMER
         FARMER -> ENTHUSIAST
         ENTHUSIAST -> null
+        ADMIN -> null
     }
 }

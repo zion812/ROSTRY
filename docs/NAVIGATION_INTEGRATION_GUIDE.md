@@ -17,6 +17,9 @@ object Routes {
     const val AUTH_OTP_NEW = "auth/otp_new/{verificationId}"
     const val AUTH_PHONE_LINKING_NEW = "auth/phone_linking_new"
     
+    // Admin routes
+    const val ADMIN_VERIFICATION = "admin/verification"
+    
     // Helper function to create OTP route with argument
     fun authOtpNew(verificationId: String) = "auth/otp_new/$verificationId"
 }

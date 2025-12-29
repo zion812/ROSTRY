@@ -125,9 +125,16 @@ Updating a product from `status="private"` to any public status (e.g., "availabl
 - `di/VerificationModule.kt` — Hilt providers.
 
 ## Admin Workflow
-- **Screen:** `ui/moderation/ModerationScreen.kt` has a "Verifications" tab (basic list now).
-- **ViewModel:** `ui/moderation/ModerationViewModel.kt` exposes `pendingVerifications` and approve/reject methods that call `UserRepository.updateVerificationStatus(...)` and notify users.
-- **Next steps:** Add Firestore queries for pending verifications and detailed document viewers.
+- **Screen:** `ui/admin/AdminVerificationScreen.kt` (Admin Dashboard).
+- **Entry Point:** Accessible via `Settings > Verification Dashboard` or `Profile > Admin Controls` for authorized admins.
+- **ViewModel:** `ui/admin/AdminVerificationViewModel.kt`.
+- **Workflow:**
+  1.  **View Requests:** List of pending verification requests with user details and submitted timestamp.
+  2.  **Inspect:** View details including "Govt ID" and "Farm Photo".
+  3.  **Action:**
+      - **Approve:** Updates status to `VERIFIED` in both Firestore (`users` collection) and local `UserEntity`.
+      - **Reject:** Updates status to `REJECTED` with a predefined or custom reason. Resubmission allowed.
+- **Data Sync:** Uses `UserRepository` to ensure atomic updates to both remote (Firestore) and local (Room) data sources.
 
 ## Security
 - **Rules (`firebase/firestore.rules`):**

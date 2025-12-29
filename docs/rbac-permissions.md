@@ -6,8 +6,9 @@ This guide explains ROSTRY's role-based access control model.
 
 - `domain/rbac/Rbac.kt` defines role-to-permission mappings and evaluation.
 - `RbacGuard.kt` centralizes permission checks for navigation and actions.
-- `Permission.kt` enumerates fine-grained capabilities.
 - `UserType.kt` defines role hierarchy (General, Farmer, Enthusiast, Admin).
+- `Permission.kt` enumerates fine-grained capabilities.
+- `Rbac.kt` maps roles to sets of permissions.
 
 ## Navigation
 

@@ -30,7 +30,9 @@ import androidx.compose.runtime.setValue
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenAddressSelection: () -> Unit,
-    lastSelectedAddressJson: String? = null
+    onNavigateToAdminVerification: () -> Unit = {},
+    lastSelectedAddressJson: String? = null,
+    isAdmin: Boolean = false
 ) {
     val notifications = remember { mutableStateOf(true) }
     val lowDataMode = remember { mutableStateOf(false) }
@@ -54,6 +56,22 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (isAdmin) {
+                Text("Administrator", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                ListItem(
+                    headlineContent = { Text("Verification Dashboard") },
+                    supportingContent = { Text("Review and manage user KYC submissions") },
+                    trailingContent = {
+                        TextButton(onClick = onNavigateToAdminVerification) { Text("Manage") }
+                    },
+                    leadingContent = {
+                        Icon(androidx.compose.material.icons.Icons.Default.Dashboard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f))
+                )
+                androidx.compose.material3.Divider(modifier = Modifier.padding(vertical = 8.dp))
+            }
+
             Text("Preferences", style = MaterialTheme.typography.titleMedium)
             ListItem(
                 headlineContent = { Text("Notifications") },

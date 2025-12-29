@@ -35,7 +35,9 @@ fun ProfileScreen(
     onVerifyEnthusiastKyc: () -> Unit,
     onNavigateToAnalytics: () -> Unit = {},
     onNavigateToStorageQuota: () -> Unit = {},
+    onNavigateToAdminDashboard: () -> Unit = {},
     onUpgradeClick: (UserType) -> Unit = {}, // Navigate to upgrade wizard (Comment 6)
+    isAdmin: Boolean = false,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val ui by viewModel.ui.collectAsState()
@@ -168,11 +170,34 @@ fun ProfileScreen(
                 Text("Storage & Quota")
             }
 
-            // Manual verification status controls (placeholder)
-            Divider(modifier = Modifier.padding(vertical = 12.dp))
-            Text("Verification Actions (placeholder)")
-            Button(onClick = { viewModel.updateVerification(VerificationStatus.PENDING) }) { Text("Set PENDING") }
-            Button(onClick = { viewModel.updateVerification(VerificationStatus.VERIFIED) }, modifier = Modifier.padding(top = 8.dp)) { Text("Set VERIFIED") }
+            // Manual verification status controls (Admin Only)
+            if (isAdmin) {
+                Divider(modifier = Modifier.padding(vertical = 12.dp))
+                Text("Admin Controls", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Button(
+                    onClick = onNavigateToAdminDashboard,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Dashboard, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Verification Dashboard")
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.updateVerification(VerificationStatus.PENDING) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Set PENDING") }
+                    OutlinedButton(
+                        onClick = { viewModel.updateVerification(VerificationStatus.VERIFIED) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Set VERIFIED") }
+                }
+            }
         }
 
         ui.message?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }

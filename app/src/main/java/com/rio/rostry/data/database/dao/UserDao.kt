@@ -59,4 +59,7 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE fullName LIKE '%' || :query || '%' OR userId LIKE '%' || :query || '%' OR address LIKE '%' || :query || '%'")
     fun searchUsers(query: String): Flow<List<UserEntity>>
+
+    @Query("UPDATE users SET verificationStatus = :status, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateVerificationStatus(userId: String, status: String, updatedAt: Long = System.currentTimeMillis())
 }

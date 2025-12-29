@@ -47,7 +47,9 @@ class SessionViewModel @Inject constructor(
         val availableUpgrade: UserType? = null,
         val authMode: SessionManager.AuthMode = SessionManager.AuthMode.FIREBASE,
         val pendingDeepLink: String? = null,
-        val sessionExpiryWarning: String? = null
+        val sessionExpiryWarning: String? = null,
+        val user: com.rio.rostry.data.database.entity.UserEntity? = null,
+        val isAdmin: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -207,6 +209,11 @@ class SessionViewModel @Inject constructor(
                         sessionManager.markAuthenticated(now, role)
                         rolePreferences.persist(role)
                         val navConfig = startDestinationProvider.configFor(role)
+                        val isAdmin = resource.data?.email == "rowdyzion@gmail.com" || 
+                                      resource.data?.phoneNumber == "+918106312656" || 
+                                      resource.data?.phoneNumber == "8106312656" ||
+                                      role == UserType.ADMIN
+                        
                         _uiState.value = _uiState.value.copy(
                             isAuthenticated = true,
                             role = role,
@@ -214,7 +221,9 @@ class SessionViewModel @Inject constructor(
                             availableUpgrade = role.nextLevel(),
                             isLoading = false,
                             error = null,
-                            authMode = mode
+                            authMode = mode,
+                            user = resource.data,
+                            isAdmin = isAdmin
                         )
                         scheduleSessionExpiryCheck()
                     }

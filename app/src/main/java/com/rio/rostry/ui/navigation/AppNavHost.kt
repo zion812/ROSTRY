@@ -793,6 +793,7 @@ private fun RoleNavScaffold(
                     navController = navController,
                     navConfig = navConfig,
                     sessionVm = sessionVm,
+                    state = state,
                     isGuestMode = isGuestMode,
                     onGuestActionAttempt = { action ->
                         pendingGuestAction = action
@@ -858,6 +859,7 @@ private fun RoleNavGraph(
     navController: NavHostController,
     navConfig: RoleNavigationConfig,
     sessionVm: SessionViewModel,
+    state: SessionViewModel.SessionUiState,
     isGuestMode: Boolean = false,
     onGuestActionAttempt: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -1296,13 +1298,11 @@ private fun RoleNavGraph(
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
                 onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
-                onNavigateToAnalytics = { navController.navigate(Routes.ANALYTICS_FARMER) },
-                onUpgradeClick = { targetRole ->
-                    navController.navigate(Routes.Builders.upgradeWizard(targetRole))
-                },
-                onNavigateToStorageQuota = {
-                    navController.navigate(Routes.STORAGE_QUOTA)
-                }
+                onNavigateToAnalytics = { navController.navigate(Routes.FARM_ANALYTICS) },
+                onNavigateToStorageQuota = { navController.navigate(Routes.STORAGE_QUOTA) },
+                onNavigateToAdminDashboard = { navController.navigate(Routes.ADMIN_VERIFICATION) },
+                onUpgradeClick = { type -> navController.navigate(Routes.Builders.roleUpgradeWizard(type.name)) },
+                isAdmin = state.isAdmin
             )
         }
 
@@ -1410,7 +1410,9 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.settings.SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenAddressSelection = { navController.navigate(Routes.ADDRESS_SELECTION) },
-                lastSelectedAddressJson = lastSelected
+                onNavigateToAdminVerification = { navController.navigate(Routes.ADMIN_VERIFICATION) },
+                lastSelectedAddressJson = lastSelected,
+                isAdmin = state.isAdmin
             )
         }
         composable(Routes.VERIFY_FARMER_LOCATION) {
@@ -1418,6 +1420,12 @@ private fun RoleNavGraph(
         }
         composable(Routes.VERIFY_ENTHUSIAST_KYC) {
             EnthusiastKycScreen(onDone = { navController.popBackStack() })
+        }
+
+        composable(Routes.ADMIN_VERIFICATION) {
+            com.rio.rostry.ui.admin.AdminVerificationScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(

@@ -180,7 +180,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_54_55,
             AppDatabase.MIGRATION_55_56,
             AppDatabase.MIGRATION_56_57,
-            AppDatabase.MIGRATION_57_58
+            AppDatabase.MIGRATION_57_58,
+            AppDatabase.MIGRATION_59_60
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -566,4 +567,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDashboardCacheDao(db: AppDatabase): com.rio.rostry.data.database.dao.DashboardCacheDao = db.dashboardCacheDao()
+
+    // Trust-But-Verify: Verification Request DAO
+    @Provides
+    @Singleton
+    fun provideVerificationRequestDao(db: AppDatabase): com.rio.rostry.data.database.dao.VerificationRequestDao = db.verificationRequestDao()
 }

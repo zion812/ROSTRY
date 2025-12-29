@@ -123,9 +123,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BatchSummaryEntity::class,
         DashboardCacheEntity::class,
         // Enthusiast Show Records
-        ShowRecordEntity::class
+        ShowRecordEntity::class,
+        // Trust-But-Verify: Verification Requests
+        VerificationRequestEntity::class
     ],
-    version = 59, // 59: Enthusiast Show Records; 58: Split-Brain Data Architecture
+    version = 60, // 60: Trust-But-Verify verification_requests; 59: Enthusiast Show Records
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -248,6 +250,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Enthusiast Show Records DAO
     abstract fun showRecordDao(): ShowRecordDao
+
+    // Trust-But-Verify: Verification Request DAO
+    abstract fun verificationRequestDao(): VerificationRequestDao
 
     object Converters {
         @TypeConverter
@@ -2084,6 +2089,28 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_48_49 = object : Migration(48, 49) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `users` ADD COLUMN `customClaimsUpdatedAt` INTEGER")
+            }
+        }
+
+        // Trust-But-Verify: Create verification_requests table (59 -> 60)
+        val MIGRATION_59_60 = object : Migration(59, 60) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `verification_requests` (
+                        `requestId` TEXT NOT NULL PRIMARY KEY,
+                        `userId` TEXT NOT NULL,
+                        `govtIdUrl` TEXT,
+                        `farmPhotoUrl` TEXT,
+                        `status` TEXT NOT NULL DEFAULT 'DRAFT',
+                        `rejectionReason` TEXT,
+                        `submittedAt` INTEGER,
+                        `reviewedAt` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_verification_requests_userId` ON `verification_requests` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_verification_requests_status` ON `verification_requests` (`status`)")
             }
         }
     }

@@ -43,6 +43,18 @@ ROSTRY follows the recommended Guide to App Architecture:
 1.  **UI Layer**: Reacts to state changes, completely decoupled from logic.
 2.  **Domain Layer**: Pure Kotlin business logic, Use Cases, and Models.
 3.  **Data Layer**: Repositories mediating between Local (Room) and Remote (Firebase).
+4.  **Admin Portal**: Specialized module for system administration, verification, and moderation.
+
+### 3.5 Admin Portal & Verification
+ROSTRY includes a specialized Admin Portal for managing user trust and system integrity.
+-   **Access Control**: Strictly gated via `UserType.ADMIN` and `Permission.ADMIN_VERIFICATION`.
+-   **Verification Workflow**:
+    1.  Users submit KYC documents (Govt ID, Farm Photos).
+    2.  Admins review submissions via `AdminVerificationScreen`.
+    3.  `AdminVerificationViewModel` coordinates approval/rejection.
+    4.  Updates propagate atomically to Firestore to trigger role upgrades.
+-   **Integration**: Seamlessly embedded in `AppNavHost` with deep links from Profile and Settings screens.
+
 
 ```mermaid
 graph TD

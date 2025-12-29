@@ -211,6 +211,14 @@ ui/verification/
 └── ...
 ```
 
+#### Admin Features (`ui/admin/`)
+```
+ui/admin/
+├── AdminVerificationScreen.kt        # Admin Dashboard for KYC reviews
+├── AdminVerificationViewModel.kt     # Verification logic and approval flow
+└── ...
+```
+
 ---
 
 ## Domain Layer (`domain/`)

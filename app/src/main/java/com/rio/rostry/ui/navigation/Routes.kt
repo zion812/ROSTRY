@@ -147,6 +147,11 @@ object Routes {
         const val ADDRESS_SELECTION = "settings/address_selection"
     }
 
+    // Admin routes (only accessible to admin users)
+    object Admin {
+        const val VERIFICATION = "admin/verification"
+    }
+
     // Developer/Showcase routes (debug-only usage recommended)
     object Showcase {
         const val COMPONENT_GALLERY = "dev/component_gallery"
@@ -466,6 +471,7 @@ object Routes {
     const val UPGRADE_WIZARD = Upgrade.WIZARD
     const val UPGRADE_POST_ONBOARDING = Upgrade.POST_ONBOARDING
     const val STORAGE_QUOTA = Common.STORAGE_QUOTA
+    const val ADMIN_VERIFICATION = Admin.VERIFICATION
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS

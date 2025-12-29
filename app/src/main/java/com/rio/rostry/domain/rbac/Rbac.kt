@@ -49,7 +49,8 @@ object Rbac {
             Permission.TRANSFER_SYSTEM,
             Permission.COIN_MANAGEMENT,
             Permission.EDIT_LINEAGE
-        )
+        ),
+        UserType.ADMIN to Permission.values().toSet()
     )
 
     /**
@@ -96,7 +97,7 @@ object Rbac {
         Permission.BROWSE_MARKET, Permission.PLACE_ORDER, Permission.BASIC_PROFILE, Permission.BASIC_TRACKING -> UserType.GENERAL
         Permission.LIST_PRODUCT, Permission.MANAGE_ORDERS, Permission.EDIT_LINEAGE -> UserType.FARMER
         Permission.ADVANCED_TRACKING, Permission.BREEDING_RECORDS, Permission.TRANSFER_SYSTEM, Permission.COIN_MANAGEMENT -> UserType.ENTHUSIAST
-        Permission.VIEW_AUDIT_LOGS, Permission.ADMIN_VERIFICATION -> null
+        Permission.VIEW_AUDIT_LOGS, Permission.ADMIN_VERIFICATION -> UserType.ADMIN
         else -> null
     }
 }

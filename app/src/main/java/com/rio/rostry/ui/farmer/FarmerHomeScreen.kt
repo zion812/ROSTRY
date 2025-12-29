@@ -38,6 +38,7 @@ import com.rio.rostry.ui.farmer.TodayTasksCard
 import com.rio.rostry.ui.farmer.QuickLogBottomSheet
 import com.rio.rostry.ui.farmer.QuickLogType
 import com.rio.rostry.ui.farmer.HarvestTriggerCard
+import com.rio.rostry.ui.components.VerificationStatusCard
 
 data class FetcherCard(
     val title: String,
@@ -146,6 +147,17 @@ fun FarmerHomeScreen(
                             Icon(Icons.Filled.ChevronRight, contentDescription = "Expand")
                         }
                     }
+                }
+            }
+
+            // Trust-But-Verify: Verification Status Card for UNVERIFIED users
+            if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED) {
+                item {
+                    VerificationStatusCard(
+                        verificationStatus = uiState.verificationStatus,
+                        onStartVerification = { onNavigateRoute(com.rio.rostry.ui.navigation.Routes.VERIFY_FARMER_LOCATION) },
+                        onRetryVerification = { onNavigateRoute(com.rio.rostry.ui.navigation.Routes.VERIFY_FARMER_LOCATION) }
+                    )
                 }
             }
 
