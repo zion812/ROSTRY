@@ -167,7 +167,7 @@ For each order, we store an immutable **Evidence Pack**:
 
 ## Database Schema
 
-### New Tables (Version 53)
+### New Tables (Version 59)
 
 | Table | Purpose |
 |-------|---------|

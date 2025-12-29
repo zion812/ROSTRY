@@ -161,6 +161,7 @@ Essential guides for developers working on ROSTRY:
 | `testing-strategy.md` | Unit, integration, UI testing approaches | ✅ Up-to-date |
 | `troubleshooting.md` | Common issues and fixes | ⚠️ Expanding |
 | `deployment.md` | Deployment procedures and checklists | ✅ Up-to-date |
+| `testing-cookbook.md` | Common testing patterns for ViewModels, Repositories, Workers, and UI | ✅ New |
 | `release-checklist.md` | Pre/post release steps and rollback plan | ✅ Up-to-date |
 
 ## Architecture Decisions (ADRs)
