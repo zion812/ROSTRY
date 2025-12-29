@@ -1,3 +1,10 @@
+---
+Version: 1.2
+Last Updated: 2025-12-29
+Audience: Developers
+Status: Active
+---
+
 # Social Platform Guide
 
 ## Overview

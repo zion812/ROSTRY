@@ -1,7 +1,14 @@
+---
+Version: 1.1
+Last Updated: 2025-12-29
+Audience: Release managers, Engineers, QA
+Status: Active
+---
+
 # Release Checklist
 
-Version: 1.0
-Last Updated: 2025-01-15
+Version: 1.1
+Last Updated: 2025-12-29
 Audience: Release managers, Engineers, QA
 
 ---
@@ -31,6 +38,10 @@ Audience: Release managers, Engineers, QA
 - [ ] Listing validation: invalid states blocked, user feedback surfaced
 - [ ] Dashboards CSV parity: exported CSVs match UI totals
 - [ ] ProGuard/R8 rules verified for monitoring, analytics, and workers
+- [ ] **Digital Farm**: Day/Night cycle transitions smoothly; Weather effects don't drop frames
+- [ ] **Evidence Order**: OTP generation and verification flow complete successfully
+- [ ] **Community Hub**: Discovery recommendations populated for different UserTypes
+- [ ] **Database**: Migration v58 -> v59 verified with data preservation check
 
 ## Documentation
 - [ ] CHANGELOG.md updated

@@ -1,7 +1,14 @@
+---
+Version: 3.0
+Last Updated: 2025-12-29
+Audience: Developers, Architects
+Status: Active
+---
+
 # ROSTRY Architecture Overview
 
-**Version:** 2.0  
-**Last Updated:** 2025-01-15  
+**Version:** 3.0  
+**Last Updated:** 2025-12-29  
 **Audience:** All developers  
 **Related Documentation:**
 - [state-management.md](state-management.md) - StateFlow, hoisting, SavedStateHandle, DataStore
@@ -66,7 +73,7 @@
 - Social, analytics, logistics, payments, and marketplace domains each have dedicated repositories.
 
 ### Data Layer
-- **Room**: Entities and DAOs in `data/database/entity/` and `data/database/dao/`. `AppDatabase` registers over 60 tables.
+- **Room**: Entities and DAOs in `data/database/entity/` and `data/database/dao/`. `AppDatabase` registers over 120 tables.
 - **Data Contexts**: Repositories distinguish between marketplace (public-only) and farm management (private+public) contexts via ViewModel filtering (e.g., `ProductEntity.isPublic`).
 - **Network**: Retrofit clients, Firebase Auth/Firestore/Storage/Functions/Realtime Database.
 - **Utilities**: Validation, analytics, notifications, compression, encryption wrappers (`utils/`).
@@ -81,7 +88,7 @@
   - Enables easier testing and previewing of screens without MockNavController.
 
 ## 4. Background Jobs & Synchronization
-- `RostryApp.kt` schedules workers on startup:
+- `RostryApp.kt` schedules 26+ workers on startup:
   - **Sync** (`SyncWorker`) every 6 hours for Room/Firebase harmonization.
   - **Lifecycle** (`LifecycleWorker`) for milestone reminders.
   - **Transfer Timeout** (`TransferTimeoutWorker`) for SLA enforcement.
@@ -255,7 +262,61 @@ flowchart TD
 
 ---
 
-## 8. State Management
+## 8. Feature Specific Architectures
+
+### 8.1 Digital Farm Rendering Architecture
+The Digital Farm utilizes a canvas-based rendering engine implemented in `FarmCanvasRenderer.kt`.
+
+```mermaid
+flowchart TD
+    A[DigitalFarmScreen] --> B[DigitalFarmViewModel]
+    B --> C[FarmCanvasRenderer]
+    C --> D[Day/Night Cycle]
+    C --> E[Weather Effects]
+    C --> F[Flocking Algorithm]
+    C --> G[Building Placement]
+    B --> H[TimeOfDay State]
+    B --> I[WeatherType State]
+```
+
+### 8.2 Evidence-Based Order Flow
+The order system ensures trust through immutable evidence collection and state-locked agreements.
+
+```mermaid
+sequenceDiagram
+    participant Buyer
+    participant Seller
+    participant System
+    Buyer->>System: Create Order (Enquiry)
+    System->>Seller: Send Quote Request
+    Seller->>System: Submit Quote
+    System->>Buyer: Show Quote
+    Buyer->>System: Accept & Pay Advance
+    System->>Seller: Notify Payment (Proof Uploaded)
+    Seller->>System: Ship Product (Upload Dispatch Proof)
+    Buyer->>System: Confirm Delivery (OTP)
+    System->>Seller: Release Balance Payment
+```
+
+### 8.3 Community Engagement Flow
+The community hub provides context-aware messaging and intelligent recommendations.
+
+```mermaid
+graph TD
+    A[User Opens Community Hub] --> B{Select Tab}
+    B -->|Messages| C[Context-Aware Threads]
+    B -->|Discover| D[Recommendations]
+    B -->|Feed| E[Community Posts]
+    B -->|Groups| F[User Groups]
+    D --> G[Mentors]
+    D --> H[Connections]
+    D --> I[Events]
+    D --> J[Experts]
+```
+
+---
+
+## 9. State Management
 
 ### StateFlow Pattern
 
@@ -388,7 +449,7 @@ class UserPreferencesDataStore @Inject constructor(
 
 ---
 
-## 9. Dependency Injection (Hilt)
+## 10. Dependency Injection (Hilt)
 
 ### Module Organization
 
@@ -491,7 +552,7 @@ abstract class TestRepositoryModule {
 
 ---
 
-## 10. Error Handling
+## 11. Error Handling
 
 ### Result Type Pattern
 
@@ -599,7 +660,7 @@ class CrashlyticsTree : Timber.Tree() {
 
 ---
 
-## 11. Security Architecture
+## 12. Security Architecture
 
 ### Authentication Flow
 
@@ -681,7 +742,7 @@ match /products/{productId} {
 
 ---
 
-## 12. Performance Considerations
+## 13. Performance Considerations
 
 ### Caching Strategy
 
@@ -747,7 +808,7 @@ AsyncImage(
 
 ---
 
-## 13. Testing Architecture
+## 14. Testing Architecture
 
 ### Testing Layers
 

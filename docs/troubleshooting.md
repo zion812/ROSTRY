@@ -1,3 +1,10 @@
+---
+Version: 2.0
+Last Updated: 2025-12-29
+Audience: Developers, QA
+Status: Active
+---
+
 # Troubleshooting Guide
 
 Actionable fixes for common issues. For environment setup see `../QUICK_START.md` and `developer-onboarding.md`.
@@ -121,6 +128,32 @@ flowchart TD
 - **Problem**: Callback not firing or crash on nav
   - **Cause**: Lambda not wired in `AppNavHost`
   - **Solution**: Ensure `composable` passes the callback (e.g., `onMessageClick`) correctly to the screen. Check `NAVIGATION_INTEGRATION_GUIDE.md`.
+
+## Feature Specific Issues
+
+### Digital Farm
+- **Problem**: Canvas jank during weather effects
+  - **Cause**: Heavy drawing operations in `drawRainEffect()`
+  - **Solution**: Enable `shouldRenderElement` culling; Check `isHardwareAccelerated`
+- **Problem**: Birds overlapping unnaturally
+  - **Cause**: Y-sorting logic failed or same seed used for positions
+  - **Solution**: Verify `groupProductsByLifecycle` Y-sorting; Check `randomPositionInZone` seeds
+
+### Evidence Orders
+- **Problem**: OTP verification fails consistently
+  - **Cause**: Clock drift between devices or expired secret
+  - **Solution**: Resend OTP; Check `EvidenceOrderRepository.verifyDeliveryOtp`
+- **Problem**: Evidence upload fails
+  - **Cause**: Missing Firestore composite index for `order_evidence`
+  - **Solution**: Deploy indexes via Firebase CLI; Check `MediaUploadWorker` logs
+
+### Community Hub
+- **Problem**: Recommendations are empty
+  - **Cause**: `CommunityEngagementWorker` hasn't run or interests not set
+  - **Solution**: Manually trigger worker via WorkManager debug; Check `UserInterestEntity` in DB
+- **Problem**: Messaging threads missing context
+  - **Cause**: Legacy threads without `ThreadMetadataEntity`
+  - **Solution**: Run `Migration15_16_Backfill`; Check `ThreadViewModel` initialization
 
 ---
 

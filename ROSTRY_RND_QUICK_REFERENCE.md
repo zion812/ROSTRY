@@ -1,7 +1,7 @@
 # ROSTRY R&D Quick Reference
 
-**Version:** 1.0.0
-**Date:** 2025-12-26
+**Version:** 1.0.1
+**Date:** 2025-12-29
 
 ---
 

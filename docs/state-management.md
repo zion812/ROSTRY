@@ -1,7 +1,14 @@
+---
+Version: 2.0
+Last Updated: 2025-12-29
+Audience: Android developers
+Status: Active
+---
+
 # State Management Guide
 
-Version: 1.0
-Last Updated: 2025-01-15
+Version: 2.0
+Last Updated: 2025-12-29
 Audience: Android developers
 
 ---
@@ -58,6 +65,56 @@ class FilterViewModel @Inject constructor(
 ## DataStore for Preferences
 - Use DataStore for lightweight user preferences; Room for structured data.
 - Provide flows for UI to observe preference changes.
+
+## Advanced Patterns
+
+### 1. Visualization State (Digital Farm)
+Managing complex visualization state involves combining base data with environmental state (weather, time).
+
+```kotlin
+@HiltViewModel
+class DigitalFarmViewModel @Inject constructor(...) : ViewModel() {
+    private val _uiState = MutableStateFlow(DigitalFarmState(isLoading = true))
+    val uiState: StateFlow<DigitalFarmState> = _uiState.asStateFlow()
+
+    private val _timeOfDay = MutableStateFlow(TimeOfDay.fromCurrentTime())
+    val timeOfDay: StateFlow<TimeOfDay> = _timeOfDay.asStateFlow()
+    
+    private val _weather = MutableStateFlow(WeatherType.SUNNY)
+    val weather: StateFlow<WeatherType> = _weather.asStateFlow()
+}
+```
+
+### 2. Wizard State Management
+For multi-step processes, use a state machine approach within the ViewModel.
+
+```kotlin
+data class WizardState(
+    val currentStep: WizardStep = WizardStep.BASICS,
+    val data: FormData = FormData(),
+    val isCurrentStepValid: Boolean = false
+)
+
+// In ViewModel
+fun nextStep() {
+    if (validateCurrentStep()) {
+        _state.update { it.copy(currentStep = it.currentStep.next()) }
+    }
+}
+```
+
+### 3. Filter Preset State
+Efficiently managing complex filters using pre-defined templates.
+
+```kotlin
+fun applyQuickPreset(preset: QuickPreset) {
+    val newFilters = when (preset) {
+        QuickPreset.NEARBY_VERIFIED -> filters.copy(radius = 25, verifiedOnly = true)
+        QuickPreset.BUDGET -> filters.copy(maxPrice = 500.0)
+    }
+    _state.update { it.copy(filters = newFilters) }
+}
+```
 
 ## Anti-Patterns
 - Avoid `GlobalScope`.

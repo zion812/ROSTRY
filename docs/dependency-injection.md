@@ -1,7 +1,14 @@
+---
+Version: 2.0
+Last Updated: 2025-12-29
+Audience: Android developers
+Status: Active
+---
+
 # Dependency Injection (Hilt)
 
-Version: 1.0
-Last Updated: 2025-01-15
+Version: 2.0
+Last Updated: 2025-12-29
 Audience: Android developers
 
 ---
@@ -18,13 +25,63 @@ Audience: Android developers
 - Qualifiers: Distinguish multiple bindings of same type
 
 ## Module Organization
-- `di/AppModule.kt` — app-level singletons
-- `di/NetworkModule.kt` — Retrofit/Firebase/OkHttp
-- `di/DatabaseModule.kt` — Room & DAOs
-- `di/RepositoryModule.kt` — repository bindings
-- `di/WorkerModule.kt` — WorkManager
+ROSTRY uses 20+ Hilt modules to organize dependencies:
+
+### Core Modules
+- `di/AppModule.kt` — App-level singletons (DataStore, Result handlers)
+- `di/NetworkModule.kt` — Retrofit, OkHttp, Firebase
+- `di/HttpModule.kt` — Service definitions, interceptors
+- `di/DatabaseModule.kt` — Room database, migrations, DAOs
+- `di/RepositoryModule.kt` — Interface-to-Implementation bindings
+- `di/WorkerModule.kt` — WorkManager factory components
+
+### Feature Modules
+- `di/AnalyticsModule.kt` — Analytics emitters and trackers
+- `di/SocialModule.kt` — Social platform and messaging
+- `di/CoilModule.kt` — Image loading configuration
+- `di/LocationModule.kt` — FusedLocationProvider, geocoder
+- `di/PlacesModule.kt` — Google Places SDK lazy initialization
+- `di/UpgradeModule.kt` — Role upgrade and migration logic
+- `di/VerificationModule.kt` — Farm/Identity verification components
+- `di/LoveabilityModule.kt` — Gamification and UX features
+- `di/AuthModuleNew.kt` — Multi-provider authentication
+- `di/SessionModule.kt` — Session management and token storage
+- `di/ViewModelModule.kt` — Shared ViewModel dependencies
 
 ## Examples
+
+### Lazy Initialization (PlacesModule)
+Used to improve startup performance by deferring SDK initialization until first use.
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object PlacesModule {
+    @Provides
+    @Singleton
+    fun providePlacesClient(@ApplicationContext context: Context, initializer: PlacesInitializer): PlacesClient {
+        initializer.initialize() // Lazy init
+        return Places.createClient(context)
+    }
+}
+```
+
+### Analytics Tracking (AnalyticsModule)
+Provides multiple trackers for different destinations.
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object AnalyticsModule {
+    @Provides
+    @Singleton
+    fun provideFirebaseTracker(): AnalyticsTracker = FirebaseAnalyticsTracker()
+
+    @Provides
+    @Singleton
+    fun provideCustomTracker(db: AppDatabase): AnalyticsTracker = LocalDbTracker(db.analyticsDao())
+}
+```
 ```kotlin
 @Module
 @InstallIn(SingletonComponent::class)

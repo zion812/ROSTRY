@@ -1,3 +1,10 @@
+---
+Version: 1.1
+Last Updated: 2025-12-29
+Audience: Developers, Product Owners
+Status: Active
+---
+
 # Evidence-Based Order System
 
 ## Overview

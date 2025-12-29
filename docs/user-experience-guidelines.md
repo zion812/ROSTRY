@@ -1,9 +1,16 @@
+---
+Version: 2.1
+Last Updated: 2025-12-29
+Audience: Developers, UX Designers
+Status: Active
+---
+
 # ROSTRY User Experience Guidelines
 
 These guidelines ensure consistent, accessible, and emotionally engaging experiences across the ROSTRY app. They document UX patterns, components, and best practices implemented throughout the application.
 
-**Last Updated**: 2025-10-01  
-**Version**: 2.0
+**Last Updated**: 2025-12-29  
+**Version**: 2.1
 
 ## Table of Contents
 

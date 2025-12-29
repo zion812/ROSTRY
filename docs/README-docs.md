@@ -1,11 +1,18 @@
+---
+Version: 4.1
+Last Updated: 2025-12-29
+Audience: Developers, Architects
+Status: Active
+---
+
 # ROSTRY Documentation Index
 
 📍 **This is the primary documentation index.** For high-level system overview, see `blueprint.md`. For quick setup, see `../QUICK_START.md`.
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2025-12-25  
-**Documentation Version**: 4.0
+**Last Updated**: 2025-12-29  
+**Documentation Version**: 4.1
 
 📘 **NEW: Complete System Reference** - See `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` for the comprehensive R&D Master Document that provides end-to-end coverage of the entire codebase, including architecture, detailed features, and implementation patterns.
 

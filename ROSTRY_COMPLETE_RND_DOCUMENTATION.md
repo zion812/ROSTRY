@@ -1,7 +1,7 @@
 # ROSTRY Complete System Documentation for R&D Team
 
-**Version:** 1.2.0
-**Date:** 2025-12-27
+**Version:** 1.2.1
+**Date:** 2025-12-29
 **Security Level:** INTERNAL USE ONLY
 **Status:** VALIDATED
 
@@ -22,15 +22,15 @@ The system is built on specific principles:
 ### Technology Stack Summary
 -   **Architecture**: Clean Architecture (MVVM) + Single Activity
 -   **UI**: Jetpack Compose + Material 3
--   **Database**: Room + SQLCipher (Version 54, 60+ Entities)
+-   **Database**: Room + SQLCipher (Version 59, 120+ Entities)
 -   **Network/Cloud**: Firebase (Auth, Firestore, Storage, Functions, FCM)
 -   **DI**: Hilt (20+ Modules)
 -   **Async**: Coroutines + Flow + WorkManager (26+ Workers)
 -   **Testing**: JUnit 5, MockK, Turbine, Robolectric
 
 ### Key Metrics
--   **Documentation**: 82+ Files (Consolidated here)
--   **Data Layer**: 37+ Repositories, 39+ Entities (Core), 20+ DAOs
+-   **Documentation**: 125+ Files (Consolidated here)
+-   **Data Layer**: 47+ Repositories, 120+ Entities (Core), 40+ DAOs
 -   **UI Layer**: 90+ ViewModels, 220+ Screens/Components
 -   **Background**: 26 Workers for sync and automation
 
@@ -390,12 +390,12 @@ data class ProductEntity(
 
 ## 18. Roadmap & Future Plans
 
-### Q1 2025
+### Q1 2026
 -   **Search**: Enhanced discovery with filters.
 -   **Payments**: Full Gateway Integration.
 -   **Video**: Short-form content support.
 
-### Q2 2025
+### Q2 2026
 -   **AI Insights**: Disease prediction models.
 -   **Localization**: Support for 5 Indic languages.
 

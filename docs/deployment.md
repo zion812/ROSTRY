@@ -1,7 +1,14 @@
+---
+Version: 2.1
+Last Updated: 2025-12-29
+Audience: Developers, DevOps, Release Managers
+Status: Active
+---
+
 # Deployment & Release Management
 
-**Version:** 2.0  
-**Last Updated:** 2025-01-15  
+**Version:** 2.1  
+**Last Updated:** 2025-12-29  
 **Audience:** Developers, DevOps, Release Managers
 
 ---
@@ -116,6 +123,17 @@ git status
 - [ ] Backup Firebase Storage
 - [ ] Tag current release in Git
 - [ ] Document database schema version
+- [ ] Deploy latest Firestore indexes from `firebase/firestore.indexes.json`
+
+### 6. Firestore Index Deployment
+Ensure all composite indexes are deployed before releasing features that depend on complex queries (e.g., Evidence Orders, Community Hub).
+
+```bash
+# Deploy only indexes
+firebase deploy --only firestore:indexes
+```
+
+Verify index status in Firebase Console: **Firestore Database** > **Indexes**. Status must be **Enabled**.
 
 ---
 

@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Documentation Audit & Update (2025-12-29)**:
+  - Standardized metadata blocks across all 60+ core documentation files.
+  - Updated technical counts: 26 background workers, 47+ repositories, 120+ database tables (v59).
+  - Added Digital Farm rendering architecture diagrams and feature details.
+  - Documented Evidence Order system trust-based payment patterns and 10-state workflow.
+  - Expanded Community Engagement system docs with context-aware messaging flows.
+  - Created `docs/testing-cookbook.md` with modern StateFlow/Repository/Worker testing patterns.
+  - Updated Hilt dependency injection guide with 20+ module catalog.
+  - Refined State Management guide with advanced visualization and wizard patterns.
+  - Updated Roadmaps to reflect Q1/Q2 2026 priorities.
+  - Synchronized Master R&D Doc and Quick Reference to v1.2.1.
 - Map view for nearby farmers in explore screen
 - Direct navigation to farmer profiles from explore
 - Messaging integration from social profiles
