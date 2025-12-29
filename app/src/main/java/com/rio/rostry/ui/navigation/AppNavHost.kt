@@ -692,7 +692,8 @@ private fun RoleNavScaffold(
                         AccountMenuAction(
                             navController = navController,
                             onSignOut = { sessionVm.signOut() },
-                            isGuestMode = isGuestMode
+                            isGuestMode = isGuestMode,
+                            pendingCount = state.pendingVerificationCount
                         )
                         if (!isGuestMode) {
                             NotificationsAction(navController = navController)
@@ -1412,7 +1413,8 @@ private fun RoleNavGraph(
                 onOpenAddressSelection = { navController.navigate(Routes.ADDRESS_SELECTION) },
                 onNavigateToAdminVerification = { navController.navigate(Routes.ADMIN_VERIFICATION) },
                 lastSelectedAddressJson = lastSelected,
-                isAdmin = state.isAdmin
+                isAdmin = state.isAdmin,
+                pendingCount = state.pendingVerificationCount
             )
         }
         composable(Routes.VERIFY_FARMER_LOCATION) {
@@ -2158,7 +2160,8 @@ private fun NotificationsAction(navController: NavHostController) {
 private fun AccountMenuAction(
     navController: NavHostController,
     onSignOut: () -> Unit,
-    isGuestMode: Boolean = false
+    isGuestMode: Boolean = false,
+    pendingCount: Int = 0
 ) {
     var expanded by remember { mutableStateOf(false) }
     Row(
@@ -2180,7 +2183,9 @@ private fun AccountMenuAction(
                     expanded = false
                     navController.navigate(Routes.PROFILE)
                 })
-                DropdownMenuItem(text = { Text("Settings") }, onClick = {
+                DropdownMenuItem(text = { 
+                    if (pendingCount > 0) Text("Settings ($pendingCount)") else Text("Settings") 
+                }, onClick = {
                     expanded = false
                     navController.navigate(Routes.SETTINGS)
                 })

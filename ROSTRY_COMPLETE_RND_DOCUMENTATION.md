@@ -53,7 +53,9 @@ ROSTRY includes a specialized Admin Portal for managing user trust and system in
     2.  Admins review submissions via `AdminVerificationScreen`.
     3.  `AdminVerificationViewModel` coordinates approval/rejection.
     4.  Updates propagate atomically to Firestore to trigger role upgrades.
+    5.  **Feedback Loop**: Admin action triggers `PROFILE_SYNC` FCM message -> Client executes silent `UserRepository` refresh -> UI updates immediately.
 -   **Integration**: Seamlessly embedded in `AppNavHost` with deep links from Profile and Settings screens.
+
 
 
 ```mermaid

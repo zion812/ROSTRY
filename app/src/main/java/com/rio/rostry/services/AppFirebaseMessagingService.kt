@@ -13,6 +13,7 @@ import com.rio.rostry.MainActivity
 import com.rio.rostry.R
 import com.rio.rostry.data.database.dao.NotificationDao
 import com.rio.rostry.data.database.entity.NotificationEntity
+import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.notifications.FarmEventType
 import com.rio.rostry.notifications.IntelligentNotificationService
 import com.rio.rostry.notifications.SocialEventType
@@ -39,6 +40,9 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject
     lateinit var intelligentNotificationService: IntelligentNotificationService
+
+    @Inject
+    lateinit var userRepository: UserRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -128,10 +132,17 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
                 serviceScope.launch { intelligentNotificationService.notifyFarmEvent(FarmEventType.VACCINATION_DUE, productId, title, body) }
             }
             // Verification
-            "verification_update" -> {
-                val status = data["status"] ?: "updated"
                 val analyticsNotifier = AnalyticsNotifierImpl(applicationContext)
                 analyticsNotifier.showInsight("Verification $status", "Your verification status is $status", null)
+            }
+            "PROFILE_SYNC" -> {
+                Timber.d("Received PROFILE_SYNC, refreshing user...")
+                serviceScope.launch {
+                    val uid = currentUserProvider.userIdOrNull()
+                    if (uid != null) {
+                        userRepository.refreshCurrentUser(uid)
+                    }
+                }
             }
             else -> {
                 Timber.d("Unknown social notification type: $type")

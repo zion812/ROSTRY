@@ -24,6 +24,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material.icons.filled.Dashboard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,7 +35,8 @@ fun SettingsScreen(
     onOpenAddressSelection: () -> Unit,
     onNavigateToAdminVerification: () -> Unit = {},
     lastSelectedAddressJson: String? = null,
-    isAdmin: Boolean = false
+    isAdmin: Boolean = false,
+    pendingCount: Int = 0
 ) {
     val notifications = remember { mutableStateOf(true) }
     val lowDataMode = remember { mutableStateOf(false) }
@@ -65,7 +69,15 @@ fun SettingsScreen(
                         TextButton(onClick = onNavigateToAdminVerification) { Text("Manage") }
                     },
                     leadingContent = {
-                        Icon(androidx.compose.material.icons.Icons.Default.Dashboard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                         if (pendingCount > 0) {
+                            BadgedBox(
+                                badge = { Badge { Text(pendingCount.toString()) } }
+                            ) {
+                                Icon(Icons.Filled.Dashboard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        } else {
+                            Icon(Icons.Filled.Dashboard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
                     },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f))
                 )

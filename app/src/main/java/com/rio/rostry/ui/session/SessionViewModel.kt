@@ -25,7 +25,11 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.launch
 import timber.log.Timber
+import com.google.firebase.firestore.FirebaseFirestore
+import com.rio.rostry.data.database.entity.VerificationRequestEntity
+import kotlinx.coroutines.flow.onStart
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
@@ -35,7 +39,8 @@ class SessionViewModel @Inject constructor(
     private val rolePreferences: RolePreferenceDataSource,
     private val startDestinationProvider: RoleStartDestinationProvider,
     private val currentUserProvider: CurrentUserProvider,
-    private val roleUpgradeManager: RoleUpgradeManager
+    private val roleUpgradeManager: RoleUpgradeManager,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     data class SessionUiState(
@@ -49,7 +54,8 @@ class SessionViewModel @Inject constructor(
         val pendingDeepLink: String? = null,
         val sessionExpiryWarning: String? = null,
         val user: com.rio.rostry.data.database.entity.UserEntity? = null,
-        val isAdmin: Boolean = false
+        val isAdmin: Boolean = false,
+        val pendingVerificationCount: Int = 0
     )
 
     private val _uiState = MutableStateFlow(SessionUiState())
@@ -58,6 +64,7 @@ class SessionViewModel @Inject constructor(
     private var sessionJob: Job? = null
     private var userCollectionJob: Job? = null
     private var expiryCheckJob: Job? = null
+    private var adminCountsJob: Job? = null
     
     // Track recent role changes to prevent synchronizeRole from overriding an in-progress upgrade
     @Volatile
@@ -226,8 +233,44 @@ class SessionViewModel @Inject constructor(
                             isAdmin = isAdmin
                         )
                         scheduleSessionExpiryCheck()
+                        
+                        if (isAdmin) {
+                             observeAdminCounts()
+                        } else {
+                            adminCountsJob?.cancel()
+                            _uiState.value = _uiState.value.copy(pendingVerificationCount = 0)
+                        }
                     }
                 }
+            }
+        }
+    }
+    
+    private fun observeAdminCounts() {
+        if (adminCountsJob?.isActive == true) return
+        
+        adminCountsJob = viewModelScope.launch {
+            try {
+                val collection = firestore.collection("verification_requests")
+                val query = collection.whereEqualTo("status", VerificationRequestEntity.STATUS_PENDING)
+                
+                val listenerRegistration = query.addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        Timber.e("Listen failed for admin counts: $e")
+                        return@addSnapshotListener
+                    }
+                    val count = snapshot?.size() ?: 0
+                    _uiState.value = _uiState.value.copy(pendingVerificationCount = count)
+                }
+                
+                // Keep the job alive and clean up on cancellation
+                try {
+                    kotlinx.coroutines.awaitCancellation()
+                } finally {
+                    listenerRegistration.remove()
+                }
+            } catch (e: Exception) {
+                Timber.e("Error observing admin counts: $e")
             }
         }
     }
@@ -341,7 +384,9 @@ class SessionViewModel @Inject constructor(
                 isLoading = false,
                 error = null,
                 authMode = SessionManager.AuthMode.FIREBASE,
-                sessionExpiryWarning = null
+                authMode = SessionManager.AuthMode.FIREBASE,
+                sessionExpiryWarning = null,
+                pendingVerificationCount = 0
             )
         }
     }
