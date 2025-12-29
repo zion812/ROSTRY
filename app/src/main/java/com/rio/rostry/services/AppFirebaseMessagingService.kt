@@ -132,6 +132,8 @@ class AppFirebaseMessagingService : FirebaseMessagingService() {
                 serviceScope.launch { intelligentNotificationService.notifyFarmEvent(FarmEventType.VACCINATION_DUE, productId, title, body) }
             }
             // Verification
+            "verification_update" -> {
+                val status = data["status"] ?: "updated"
                 val analyticsNotifier = AnalyticsNotifierImpl(applicationContext)
                 analyticsNotifier.showInsight("Verification $status", "Your verification status is $status", null)
             }
