@@ -283,6 +283,11 @@ class LifecycleWorker @AssistedInject constructor(
                 }
             }
             
+            // ============================================================
+            // PHASE 2: SALES PIPELINE - Market-Ready Harvest Detection
+            // ============================================================
+            detectMarketReadyBatches(now)
+
             // Phase 3: Auto-expire market listings older than 30 days
             val thirtyDaysAgo = now - (30L * 24 * 60 * 60 * 1000)
             productDao.purgeStaleMarketplace(thirtyDaysAgo)
@@ -388,6 +393,52 @@ class LifecycleWorker @AssistedInject constructor(
         }
 
         timber.log.Timber.d("Generated $totalTasksGenerated tasks for ${farmerIds.size} farmers in ${System.currentTimeMillis() - startTime}ms")
+    }
+
+    /**
+     * Phase 2: Sales Pipeline - Detect batches that are market-ready.
+     * Criteria: Age >= 6 weeks AND average weight >= 1500g (broilers)
+     * Creates HARVEST_READY alerts for farmers to convert batches to listings.
+     */
+    private suspend fun detectMarketReadyBatches(now: Long) {
+        val batches = productDao.getActiveWithBirth().filter { 
+            it.isBatch == true && it.lifecycleStatus == "ACTIVE" 
+        }
+        var harvestReadyCount = 0
+
+        for (batch in batches) {
+            val birthDate = batch.birthDate ?: continue
+            val ageWeeks = TimeUnit.MILLISECONDS.toDays(now - birthDate) / 7
+
+            // Check market-ready criteria: 6+ weeks and 1500g+ avg weight
+            val avgWeight = batch.weightGrams ?: 0.0
+            val isMarketReady = ageWeeks >= 6 && avgWeight >= 1500.0
+
+            if (isMarketReady) {
+                // Check if alert already exists
+                val existingAlerts = alertDao.getByTypeForProduct(batch.productId, "HARVEST_READY")
+                if (existingAlerts.isEmpty()) {
+                    val alert = FarmAlertEntity(
+                        alertId = UUID.randomUUID().toString(),
+                        farmerId = batch.sellerId,
+                        alertType = "HARVEST_READY",
+                        severity = "INFO",
+                        message = "${batch.name ?: "Batch"} is market-ready! ${batch.quantity?.toInt() ?: 0} birds, ${avgWeight.toInt()}g avg, ${ageWeeks} weeks old",
+                        actionRoute = Routes.Builders.createListingFromAsset(batch.productId),
+                        createdAt = now
+                    )
+                    alertDao.upsert(alert)
+                    harvestReadyCount++
+
+                    // Notify farmer
+                    FarmNotifier.harvestReady(applicationContext, batch.productId, batch.name ?: "Batch")
+                }
+            }
+        }
+
+        if (harvestReadyCount > 0) {
+            timber.log.Timber.d("Detected $harvestReadyCount market-ready batches")
+        }
     }
     
     private fun getStartOfMonth(now: Long): Long {

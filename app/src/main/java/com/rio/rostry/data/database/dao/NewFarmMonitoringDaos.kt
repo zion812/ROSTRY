@@ -40,6 +40,10 @@ interface FarmAlertDao {
 
     @Query("SELECT COUNT(*) FROM farm_alerts WHERE farmerId = :farmerId")
     suspend fun getAlertCountForFarmer(farmerId: String): Int
+
+    // Get alerts by type for a specific product (used for deduplication)
+    @Query("SELECT * FROM farm_alerts WHERE actionRoute LIKE '%' || :productId || '%' AND alertType = :alertType")
+    suspend fun getByTypeForProduct(productId: String, alertType: String): List<FarmAlertEntity>
 }
 
 @Dao

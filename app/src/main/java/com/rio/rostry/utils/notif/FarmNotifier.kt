@@ -440,4 +440,41 @@ object FarmNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify("backup_complete".hashCode(), notification)
     }
+
+    /**
+     * Notify farmer that a batch is market-ready for harvest/sale.
+     * Part of the Farmer-First Sales Pipeline.
+     */
+    fun harvestReady(context: Context, batchId: String, batchName: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://${Routes.Builders.createListingFromAsset(batchId)}").toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            (batchId + "_harvestReady").hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_menu_gallery)
+            .setContentTitle("Batch Ready for Sale!")
+            .setContentText("$batchName has reached market weight. Create a listing now!")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("$batchName has reached the target weight and age for sale. Tap to create a marketplace listing with pre-filled details."))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setGroup("FARM_ALERTS")
+            .setGroupSummary(false)
+            .addAction(
+                android.R.drawable.ic_menu_send,
+                "Sell Now",
+                pendingIntent
+            )
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("farm_" + "harvestReady" + "_" + batchId).hashCode(), notification)
+    }
 }
