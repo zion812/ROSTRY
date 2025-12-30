@@ -86,7 +86,7 @@ data class FarmerHomeUiState(
     // Farmer-First: TodayTasksCard and QuickLogBottomSheet data
     val todayTasks: List<com.rio.rostry.data.database.entity.TaskEntity> = emptyList(),
     val completedTasksCount: Int = 0,
-    val batches: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()
+    val allProducts: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()  // Birds and batches for QuickLog
 )
 
 data class DashboardWidget(
@@ -132,7 +132,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
     private val evidenceOrderRepository: EvidenceOrderRepository, // Evidence Order System
     private val storageUsageRepository: com.rio.rostry.data.repository.StorageUsageRepository,
-    private val dashboardCacheDao: DashboardCacheDao // Split-Brain: Instant dashboard loading
+    private val dashboardCacheDao: DashboardCacheDao, // Split-Brain: Instant dashboard loading
+    private val farmActivityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository // Quick Log persistence
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -152,9 +153,14 @@ class FarmerHomeViewModel @Inject constructor(
     private val _paymentsToVerify = MutableStateFlow<List<OrderPaymentEntity>>(emptyList())
     val paymentsToVerify: StateFlow<List<OrderPaymentEntity>> = _paymentsToVerify
 
+    // All products (birds + batches) for QuickLogBottomSheet
+    private val _allProducts = MutableStateFlow<List<com.rio.rostry.data.database.entity.ProductEntity>>(emptyList())
+    val allProducts: StateFlow<List<com.rio.rostry.data.database.entity.ProductEntity>> = _allProducts
+
     init {
         loadEvidenceOrderData()
         loadCachedDashboard() // Split-Brain: Load cached stats immediately
+        loadAllProducts()
     }
 
     // Split-Brain: Cached dashboard state for instant loading
@@ -191,6 +197,19 @@ class FarmerHomeViewModel @Inject constructor(
         }
     }
 
+    private fun loadAllProducts() {
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { userId ->
+                productRepository.getProductsBySeller(userId).collect { res ->
+                    if (res is com.rio.rostry.utils.Resource.Success) {
+                        _allProducts.value = res.data?.filter { 
+                            (it.lifecycleStatus ?: "ACTIVE") == "ACTIVE" 
+                        } ?: emptyList()
+                    }
+                }
+            }
+        }
+    }
 
 
     // Reactive farmerId from Firebase Auth (nullable). Emits null when signed out so UI can stop loading.
@@ -475,4 +494,62 @@ class FarmerHomeViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Submit a quick log entry. Persists to FarmActivityLogEntity for viewing
+     * in Farm Log screen and on individual bird detail pages.
+     */
+    fun submitQuickLog(
+        productId: String?,
+        logType: QuickLogType,
+        value: Double,
+        notes: String?
+    ) {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: run {
+                Timber.w("submitQuickLog: No authenticated user")
+                return@launch
+            }
+            
+            try {
+                val activityType = logType.name // MORTALITY, FEED, EXPENSE, WEIGHT, etc.
+                val amount = when (logType) {
+                    QuickLogType.EXPENSE, QuickLogType.MAINTENANCE -> value
+                    else -> null
+                }
+                val quantity = when (logType) {
+                    QuickLogType.EXPENSE, QuickLogType.MAINTENANCE -> null
+                    else -> value
+                }
+                val category = when (logType) {
+                    QuickLogType.FEED -> "Feed"
+                    QuickLogType.EXPENSE -> "General Expense"
+                    QuickLogType.WEIGHT -> "Growth"
+                    QuickLogType.MORTALITY -> "Mortality"
+                    QuickLogType.VACCINATION -> "Health - Vaccination"
+                    QuickLogType.DEWORMING -> "Health - Deworming"
+                    QuickLogType.MEDICATION -> "Health - Medication"
+                    QuickLogType.SANITATION -> "Farm Maintenance"
+                    QuickLogType.MAINTENANCE -> "Farm Maintenance Expense"
+                }
+                
+                farmActivityLogRepository.logActivity(
+                    farmerId = farmerId,
+                    productId = productId,
+                    activityType = activityType,
+                    amount = amount,
+                    quantity = quantity,
+                    category = category,
+                    description = "${logType.name}: $value",
+                    notes = notes
+                )
+                
+                Timber.d("Quick log submitted: type=$logType, value=$value, productId=$productId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to submit quick log")
+                _errorEvents.emit("Failed to save log: ${e.message}")
+            }
+        }
+    }
 }
+

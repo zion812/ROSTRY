@@ -281,6 +281,11 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindPedigreeRepository(impl: PedigreeRepositoryImpl): PedigreeRepository
 
+    // Farm Activity Log Repository (expenses, sanitation, etc.)
+    @Binds
+    @Singleton
+    abstract fun bindFarmActivityLogRepository(impl: com.rio.rostry.data.repository.FarmActivityLogRepositoryImpl): com.rio.rostry.data.repository.FarmActivityLogRepository
+
 }
 
 @Module

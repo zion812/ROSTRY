@@ -130,6 +130,12 @@
             </intent-filter>
         </service>
 
+        <!-- Explicitly declare WorkManager's foreground service to specify the service type (required for Android 14+) -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <!-- FileProvider for sharing report files securely -->
         <provider
             android:name="androidx.core.content.FileProvider"

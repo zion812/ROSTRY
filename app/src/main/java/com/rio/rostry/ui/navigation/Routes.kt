@@ -179,6 +179,7 @@ object Routes {
         const val DAILY_LOG = "monitoring/daily_log"
         const val DAILY_LOG_PRODUCT = "monitoring/daily_log/{productId}"
         const val TASKS = "monitoring/tasks"
+        const val FARM_LOG = "monitoring/farm_log" // Comprehensive farm activity log
     }
 
     // Loveable product feature routes
@@ -333,7 +334,9 @@ object Routes {
             FarmerNav.FARM_ASSETS,
             FarmerNav.ASSET_DETAILS,
             FarmerNav.CREATE_ASSET,
-            FarmerNav.CREATE_LISTING_FROM_ASSET
+            FarmerNav.CREATE_LISTING_FROM_ASSET,
+            // Farm Activity Log
+            Monitoring.FARM_LOG
         )
     )
 
@@ -473,6 +476,7 @@ object Routes {
     const val MONITORING_DAILY_LOG = Monitoring.DAILY_LOG
     const val MONITORING_DAILY_LOG_PRODUCT = Monitoring.DAILY_LOG_PRODUCT
     const val MONITORING_TASKS = Monitoring.TASKS
+    const val MONITORING_FARM_LOG = Monitoring.FARM_LOG
     const val ORDER_DETAILS = Order.DETAILS
     const val FARMER_TRANSFERS = Transfers.FARMER_TRANSFERS
     const val COMPLIANCE_DETAILS = Transfers.COMPLIANCE_DETAILS

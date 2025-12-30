@@ -37,41 +37,39 @@ class PipelineViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = currentUserProvider.userIdOrNull() ?: return@launch
 
-            combine(
-                productRepository.getProductsBySeller(userId),
-                farmAssetRepository.getAssetsByFarmer(userId)
-            ) { productsRes, assetsRes ->
-                val products = productsRes.data ?: emptyList()
-                val assets = assetsRes.data ?: emptyList()
+            // Only count from products (birds/batches), not from farm_assets (equipment/infrastructure)
+            productRepository.getProductsBySeller(userId).collect { productsRes ->
+                val products = (productsRes.data ?: emptyList())
+                    .filter { (it.lifecycleStatus ?: "ACTIVE") == "ACTIVE" }
 
                 // Calculate stage counts
                 val stageCounts = mutableMapOf<LifecycleStage, Int>()
 
                 products.forEach { product ->
+                    // Count batches by their quantity, individual birds as 1
+                    val count = if (product.isBatch == true) {
+                        product.quantity?.toInt() ?: 1
+                    } else {
+                        1
+                    }
+                    
                     val stage = when {
                         (product.ageWeeks ?: 0) < 8 -> LifecycleStage.CHICK
                         (product.ageWeeks ?: 0) < 18 -> LifecycleStage.GROWER
                         product.breedingStatus == "active" -> LifecycleStage.BREEDER
                         else -> LifecycleStage.LAYER
                     }
-                    stageCounts[stage] = (stageCounts[stage] ?: 0) + 1
+                    stageCounts[stage] = (stageCounts[stage] ?: 0) + count
                 }
 
-                assets.forEach { asset ->
-                    val stage = when {
-                        (asset.ageWeeks ?: 0) < 8 -> LifecycleStage.CHICK
-                        (asset.ageWeeks ?: 0) < 18 -> LifecycleStage.GROWER
-                        else -> LifecycleStage.LAYER
-                    }
-                    stageCounts[stage] = (stageCounts[stage] ?: 0) + 1
+                val totalBirds = products.sumOf { 
+                    if (it.isBatch == true) it.quantity?.toInt() ?: 1 else 1 
                 }
-
-                val totalBirds = products.size + assets.size
                 val hatchingCount = 0 // Would come from HatchingBatch repository
                 val readyToGrowCount = products.count { (it.ageWeeks ?: 0) in 7..8 }
                 val readyToLayCount = products.count { (it.ageWeeks ?: 0) in 17..18 }
 
-                PipelineUiState(
+                _uiState.value = PipelineUiState(
                     totalBirds = totalBirds,
                     hatchingCount = hatchingCount,
                     stageCounts = stageCounts,
@@ -79,8 +77,6 @@ class PipelineViewModel @Inject constructor(
                     readyToLayCount = readyToLayCount,
                     isLoading = false
                 )
-            }.collect { state ->
-                _uiState.value = state
             }
         }
     }

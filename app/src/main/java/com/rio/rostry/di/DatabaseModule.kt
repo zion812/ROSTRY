@@ -74,8 +74,87 @@ object DatabaseModule {
      * Generates or retrieves a secure database passphrase backed by Android Keystore.
      * The passphrase is stored in EncryptedSharedPreferences which uses MasterKey
      * backed by the Android Keystore for encryption.
+     * 
+     * Includes fallback handling for EncryptedSharedPreferences/Tink failures which
+     * can occur due to corrupted keysets or emulator quirks (especially on Android 16).
      */
     private fun getOrCreateSecurePassphrase(context: Context): ByteArray {
+        return try {
+            getOrCreateSecurePassphraseInternal(context)
+        } catch (e: Exception) {
+            android.util.Log.e("DatabaseModule", "EncryptedSharedPreferences failed, attempting recovery", e)
+            
+            // Attempt recovery by clearing corrupted encrypted prefs and keysets
+            try {
+                clearCorruptedEncryptedPrefs(context)
+                // Retry after clearing
+                getOrCreateSecurePassphraseInternal(context)
+            } catch (retryException: Exception) {
+                android.util.Log.e("DatabaseModule", "Recovery failed, using fallback passphrase", retryException)
+                // Ultimate fallback: use a deterministic passphrase based on app installation
+                // This is less secure but prevents app from crashing
+                getFallbackPassphrase(context)
+            }
+        }
+    }
+
+    /**
+     * Clears corrupted EncryptedSharedPreferences and associated keyset files.
+     */
+    private fun clearCorruptedEncryptedPrefs(context: Context) {
+        try {
+            // Delete the encrypted prefs file
+            val prefsFile = context.getSharedPreferences(ENCRYPTED_PREFS_FILE, Context.MODE_PRIVATE)
+            prefsFile.edit().clear().commit()
+            
+            // Also try to delete the keyset files that Tink creates
+            val prefsDir = java.io.File(context.applicationInfo.dataDir, "shared_prefs")
+            val encryptedPrefsFile = java.io.File(prefsDir, "${ENCRYPTED_PREFS_FILE}.xml")
+            if (encryptedPrefsFile.exists()) {
+                encryptedPrefsFile.delete()
+                android.util.Log.d("DatabaseModule", "Deleted corrupted encrypted prefs file")
+            }
+            
+            // Delete master key keyset preference file (Tink's internal storage)
+            val masterKeyPrefsFile = java.io.File(prefsDir, "__androidx_security_crypto_encrypted_prefs__.xml")
+            if (masterKeyPrefsFile.exists()) {
+                masterKeyPrefsFile.delete()
+                android.util.Log.d("DatabaseModule", "Deleted corrupted master key prefs file")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("DatabaseModule", "Failed to clear corrupted prefs", e)
+        }
+    }
+
+    /**
+     * Fallback passphrase when EncryptedSharedPreferences completely fails.
+     * Uses a combination of package name and installation time for some determinism.
+     * This is less secure than Keystore-backed storage but prevents crashes.
+     */
+    private fun getFallbackPassphrase(context: Context): ByteArray {
+        // Use regular SharedPreferences for the fallback
+        val fallbackPrefs = context.getSharedPreferences("rostry_fallback_prefs", Context.MODE_PRIVATE)
+        val existingPassphrase = fallbackPrefs.getString("fallback_passphrase", null)
+        
+        return if (existingPassphrase != null) {
+            android.util.Log.w("DatabaseModule", "Using existing fallback passphrase")
+            SQLiteDatabase.getBytes(existingPassphrase.toCharArray())
+        } else {
+            val random = SecureRandom()
+            val passphraseBytes = ByteArray(32)
+            random.nextBytes(passphraseBytes)
+            val passphrase = android.util.Base64.encodeToString(passphraseBytes, android.util.Base64.NO_WRAP)
+            
+            fallbackPrefs.edit().putString("fallback_passphrase", passphrase).commit()
+            android.util.Log.w("DatabaseModule", "Generated new FALLBACK passphrase (less secure)")
+            SQLiteDatabase.getBytes(passphrase.toCharArray())
+        }
+    }
+
+    /**
+     * Internal implementation of secure passphrase creation using EncryptedSharedPreferences.
+     */
+    private fun getOrCreateSecurePassphraseInternal(context: Context): ByteArray {
         // Create or retrieve the MasterKey backed by Android Keystore
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -572,4 +651,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideVerificationRequestDao(db: AppDatabase): com.rio.rostry.data.database.dao.VerificationRequestDao = db.verificationRequestDao()
+
+    // Farm Activity Log DAO (expenses, sanitation, etc.)
+    @Provides
+    @Singleton
+    fun provideFarmActivityLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmActivityLogDao = db.farmActivityLogDao()
 }

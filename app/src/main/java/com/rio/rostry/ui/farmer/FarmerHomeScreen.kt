@@ -569,7 +569,18 @@ fun FarmerHomeScreen(
                 isLocked = false
             )
             
-            val allFetcherCards = listOf(myFarmCard) + fetcherCards
+            // Farm Log Card - Entry point to comprehensive activity log
+            val farmLogCard = FetcherCard(
+                title = "Farm Log",
+                count = 0, // TODO: Show count of recent activities
+                badgeCount = 0,
+                icon = Icons.Filled.History, // Represents activity history
+                action = "View All",
+                onClick = { viewModel.navigateToModule(Routes.MONITORING_FARM_LOG) },
+                isLocked = false
+            )
+            
+            val allFetcherCards = listOf(myFarmCard, farmLogCard) + fetcherCards
 
             // Convert grid to rows to avoid nested lazy layout with stable keys
             val fetcherRows = allFetcherCards.chunked(2)
@@ -708,14 +719,18 @@ fun FarmerHomeScreen(
 
     // Quick Log Bottom Sheet (Farmer-First Phase 1)
     if (showQuickLogSheet) {
+        val allProducts by viewModel.allProducts.collectAsState()
         QuickLogBottomSheet(
-            batches = uiState.batches,
+            products = allProducts,
             onDismiss = { showQuickLogSheet = false },
-            onLogSubmit = { batchId, logType, value, notes ->
-                // Handle quick log submission - this would be wired to ViewModel
+            onLogSubmit = { productId, logType, value, notes ->
+                // Actually persist the log via ViewModel
+                viewModel.submitQuickLog(productId, logType, value, notes)
+                // Show confirmation snackbar
                 scope.launch {
                     snackbarHostState.showSnackbar("${logType.label} logged: $value ${logType.unit}")
                 }
+                showQuickLogSheet = false
             }
         )
     }

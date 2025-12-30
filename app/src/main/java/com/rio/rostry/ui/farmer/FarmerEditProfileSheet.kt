@@ -24,6 +24,7 @@ fun FarmerEditProfileSheet(
 ) {
     var fullName by remember { mutableStateOf(currentProfile.fullName ?: "") }
     var email by remember { mutableStateOf(currentProfile.email ?: "") }
+    var phoneNumber by remember { mutableStateOf(currentProfile.phoneNumber ?: "") }
     var bio by remember { mutableStateOf(currentProfile.bio ?: "") }
     var address by remember { mutableStateOf(currentProfile.address ?: "") }
     
@@ -75,6 +76,15 @@ fun FarmerEditProfileSheet(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
+            )
+
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                label = { Text("Phone Number") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next)
             )
 
             OutlinedTextField(
@@ -236,6 +246,7 @@ fun FarmerEditProfileSheet(
                         val updatedUser = currentProfile.copy(
                             fullName = fullName,
                             email = email,
+                            phoneNumber = phoneNumber.takeIf { it.isNotBlank() },
                             bio = bio,
                             address = address,
                             chickenCount = chickenCount.toIntOrNull(),

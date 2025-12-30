@@ -36,7 +36,7 @@ class CloudStorageQuotaManager @Inject constructor(
         private const val TAG = "CloudStorageQuotaManager"
         
         // Storage paths
-        const val USERS_PATH = "users"
+        const val USERS_PATH = "uploads/users"
         const val PUBLIC_PATH = "public"
         const val PRIVATE_PATH = "private"
         const val PROFILE_PATH = "profile"

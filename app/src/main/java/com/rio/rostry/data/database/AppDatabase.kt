@@ -125,9 +125,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Enthusiast Show Records
         ShowRecordEntity::class,
         // Trust-But-Verify: Verification Requests
-        VerificationRequestEntity::class
+        VerificationRequestEntity::class,
+        // Farm Activity Logs (expenses, sanitation, etc.)
+        FarmActivityLogEntity::class
     ],
-    version = 60, // 60: Trust-But-Verify verification_requests; 59: Enthusiast Show Records
+    version = 61, // 61: Farm Activity Logs; 60: Trust-But-Verify verification_requests
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -253,6 +255,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Trust-But-Verify: Verification Request DAO
     abstract fun verificationRequestDao(): VerificationRequestDao
+
+    // Farm Activity Log DAO (expenses, sanitation, etc.)
+    abstract fun farmActivityLogDao(): FarmActivityLogDao
 
     object Converters {
         @TypeConverter

@@ -1,6 +1,8 @@
 package com.rio.rostry.workers
 
 import android.content.Context
+import android.content.pm.ServiceInfo
+import android.os.Build
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -12,6 +14,7 @@ import com.rio.rostry.utils.Resource
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.*
+import kotlinx.coroutines.TimeoutCancellationException
 import timber.log.Timber
 import java.io.InputStream
 
@@ -24,9 +27,9 @@ class MediaUploadWorker @AssistedInject constructor(
     private val storageRepository: StorageRepository,
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+    override suspend fun doWork(): Result {
+        // Set foreground IMMEDIATELY to avoid ANR - before any database access
         try {
-            // Foreground notification to keep uploads alive during long operations
             val notification = WorkerBaseHelper.createNotification(
                 context = applicationContext,
                 channelId = "media_upload_channel",
@@ -35,29 +38,65 @@ class MediaUploadWorker @AssistedInject constructor(
                 content = "Syncing your photos to cloud",
                 isOngoing = true
             )
-            setForeground(androidx.work.ForegroundInfo(NOTIFICATION_ID, notification))
             
-            val pending = uploadTaskDao.getPending(limit = 25)
-            if (pending.isEmpty()) return@withContext Result.success()
-
-            // Process in small batches of 3 concurrent uploads
-            pending.chunked(3).forEach { batch ->
-                if (!connectivityManager.isOnline()) return@withContext Result.retry()
-                
-                batch.map { task ->
-                    async { uploadOneTask(task) }
-                }.awaitAll()
+            val foregroundInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                androidx.work.ForegroundInfo(
+                    NOTIFICATION_ID, 
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                androidx.work.ForegroundInfo(NOTIFICATION_ID, notification)
             }
             
-            Result.success()
+            setForeground(foregroundInfo)
         } catch (e: Exception) {
-            Timber.e(e, "UploadWorker: fatal error")
-            Result.retry()
+            Timber.w(e, "UploadWorker: Failed to set foreground, continuing anyway")
+            // Continue even if foreground fails - don't block worker
         }
+        
+        // Now do the heavy work on IO dispatcher with timeout protection
+        return withContext(Dispatchers.IO) {
+            try {
+                // Add timeout to prevent ANR - give up after 90 seconds
+                withTimeout(UPLOAD_TIMEOUT_MS) {
+                    performUploads()
+                }
+            } catch (e: TimeoutCancellationException) {
+                Timber.e(e, "UploadWorker: Timeout after ${UPLOAD_TIMEOUT_MS}ms")
+                Result.retry()
+            } catch (e: Exception) {
+                Timber.e(e, "UploadWorker: fatal error")
+                Result.retry()
+            }
+        }
+    }
+    
+    private suspend fun performUploads(): Result {
+        val pending = try {
+            uploadTaskDao.getPending(limit = 25)
+        } catch (e: Exception) {
+            Timber.e(e, "UploadWorker: Failed to get pending tasks")
+            return Result.retry()
+        }
+        
+        if (pending.isEmpty()) return Result.success()
+
+        // Process in small batches of 3 concurrent uploads
+        pending.chunked(3).forEach { batch ->
+            if (!connectivityManager.isOnline()) return Result.retry()
+            
+            batch.map { task ->
+                CoroutineScope(Dispatchers.IO).async { uploadOneTask(task) }
+            }.awaitAll()
+        }
+        
+        return Result.success()
     }
     
     companion object {
         private const val NOTIFICATION_ID = 2001
+        private const val UPLOAD_TIMEOUT_MS = 90_000L // 90 seconds to prevent ANR
     }
 
     private suspend fun uploadOneTask(task: UploadTaskEntity) {

@@ -474,7 +474,27 @@ private fun AuthFlow(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { navController.popBackStack() }) {
+                        
+                        // Google Sign-In Button
+                        Button(
+                            onClick = {
+                                val providers = listOf(
+                                    com.firebase.ui.auth.AuthUI.IdpConfig.GoogleBuilder().build(),
+                                    com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
+                                )
+                                val intent = com.firebase.ui.auth.AuthUI.getInstance()
+                                    .createSignInIntentBuilder()
+                                    .setAvailableProviders(providers)
+                                    .setIsSmartLockEnabled(true)
+                                    .build()
+                                launcher.launch(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Sign in with Google")
+                        }
+
+                        TextButton(onClick = { navController.popBackStack() }) {
                             Text("Go Back")
                         }
                     }
@@ -1166,6 +1186,18 @@ private fun RoleNavGraph(
                 onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
             )
         }
+        
+        // Farm Log - Comprehensive activity log screen
+        composable(
+            route = Routes.MONITORING_FARM_LOG,
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/farm_log" })
+        ) {
+            com.rio.rostry.ui.farmer.FarmLogScreen(
+                onBack = { navController.popBackStack() },
+                onBirdClick = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
         composable(Routes.COMPLIANCE) {
             com.rio.rostry.ui.farmer.ComplianceScreen(
                 onBack = { navController.popBackStack() }

@@ -244,108 +244,114 @@ class OnboardFarmBatchViewModel @Inject constructor(
         )
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {
-            when (val res = productRepository.addProduct(entity)) {
-                is Resource.Success -> {
-                    val newId = res.data ?: productId
-                    // enqueue media uploads with correct id
-                    s.media.photoUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/photos/$idx") }
-                    s.media.documentUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/documents/$idx") }
-                    farmOnboardingRepository.addProductToFarmMonitoring(newId, uid)
-                    // Family tree linkages for batch to parents
-                    if (!_state.value.lineage.maleParentId.isNullOrBlank()) {
-                        val node = FamilyTreeEntity(
-                            nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
-                            productId = newId,
-                            parentProductId = _state.value.lineage.maleParentId,
-                            childProductId = newId,
-                            relationType = "father"
-                        )
-                        familyTreeRepository.upsert(node)
-                    }
-                    if (!_state.value.lineage.femaleParentId.isNullOrBlank()) {
-                        val node = FamilyTreeEntity(
-                            nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
-                            productId = newId,
-                            parentProductId = _state.value.lineage.femaleParentId,
-                            childProductId = newId,
-                            relationType = "mother"
-                        )
-                        familyTreeRepository.upsert(node)
-                    }
-                    // Track upload progress and status, persist partial results incrementally
-                    val allRemotePaths = mutableSetOf<String>()
-                    s.media.photoUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/photos/$idx") }
-                    s.media.documentUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/documents/$idx") }
-                    val initialProgress = allRemotePaths.associateWith { 0 }
-                    val initialStatus = allRemotePaths.associateWith { "PENDING" }
-                    _state.value = _state.value.copy(uploadProgress = initialProgress, uploadStatus = initialStatus)
-                    val photos = mutableSetOf<String>()
-                    val docs = mutableSetOf<String>()
-                    val uploadStartTime = System.currentTimeMillis()
-                    viewModelScope.launch {
-                        mediaUploadManager.events.collect { ev ->
-                            when (ev) {
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> {
-                                    if (ev.remotePath in allRemotePaths) {
-                                        _state.value = _state.value.copy(uploadProgress = _state.value.uploadProgress + (ev.remotePath to ev.percent))
-                                    }
-                                }
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
-                                    val path = ev.remotePath
-                                    if (path in allRemotePaths) {
-                                        if (path.startsWith("products/$newId/photos/")) {
-                                            photos += ev.downloadUrl
-                                        } else if (path.startsWith("products/$newId/documents/")) {
-                                            docs += ev.downloadUrl
+            try {
+                when (val res = productRepository.addProduct(entity)) {
+                    is Resource.Success -> {
+                        val newId = res.data ?: productId
+                        // enqueue media uploads with correct id
+                        s.media.photoUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/photos/$idx") }
+                        s.media.documentUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/documents/$idx") }
+                        farmOnboardingRepository.addProductToFarmMonitoring(newId, uid)
+                        // Family tree linkages for batch to parents
+                        if (!_state.value.lineage.maleParentId.isNullOrBlank()) {
+                            val node = FamilyTreeEntity(
+                                nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
+                                productId = newId,
+                                parentProductId = _state.value.lineage.maleParentId,
+                                childProductId = newId,
+                                relationType = "father"
+                            )
+                            familyTreeRepository.upsert(node)
+                        }
+                        if (!_state.value.lineage.femaleParentId.isNullOrBlank()) {
+                            val node = FamilyTreeEntity(
+                                nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
+                                productId = newId,
+                                parentProductId = _state.value.lineage.femaleParentId,
+                                childProductId = newId,
+                                relationType = "mother"
+                            )
+                            familyTreeRepository.upsert(node)
+                        }
+                        // Track upload progress and status, persist partial results incrementally
+                        val allRemotePaths = mutableSetOf<String>()
+                        s.media.photoUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/photos/$idx") }
+                        s.media.documentUris.forEachIndexed { idx, _ -> allRemotePaths.add("products/$newId/documents/$idx") }
+                        val initialProgress = allRemotePaths.associateWith { 0 }
+                        val initialStatus = allRemotePaths.associateWith { "PENDING" }
+                        _state.value = _state.value.copy(uploadProgress = initialProgress, uploadStatus = initialStatus)
+                        val photos = mutableSetOf<String>()
+                        val docs = mutableSetOf<String>()
+                        val uploadStartTime = System.currentTimeMillis()
+                        viewModelScope.launch {
+                            mediaUploadManager.events.collect { ev ->
+                                when (ev) {
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Progress -> {
+                                        if (ev.remotePath in allRemotePaths) {
+                                            _state.value = _state.value.copy(uploadProgress = _state.value.uploadProgress + (ev.remotePath to ev.percent))
                                         }
-                                        _state.value = _state.value.copy(
-                                            uploadProgress = _state.value.uploadProgress + (path to 100),
-                                            uploadStatus = _state.value.uploadStatus + (path to "SUCCESS")
-                                        )
-                                        val now2 = System.currentTimeMillis()
-                                        productRepository.updateProduct(
-                                            entity.copy(
-                                                productId = newId,
-                                                imageUrls = photos.toList(),
-                                                documentUrls = docs.toList(),
-                                                updatedAt = now2,
-                                                lastModifiedAt = now2,
-                                                dirty = true
+                                    }
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Success -> {
+                                        val path = ev.remotePath
+                                        if (path in allRemotePaths) {
+                                            if (path.startsWith("products/$newId/photos/")) {
+                                                photos += ev.downloadUrl
+                                            } else if (path.startsWith("products/$newId/documents/")) {
+                                                docs += ev.downloadUrl
+                                            }
+                                            _state.value = _state.value.copy(
+                                                uploadProgress = _state.value.uploadProgress + (path to 100),
+                                                uploadStatus = _state.value.uploadStatus + (path to "SUCCESS")
                                             )
-                                        )
+                                            val now2 = System.currentTimeMillis()
+                                            productRepository.updateProduct(
+                                                entity.copy(
+                                                    productId = newId,
+                                                    imageUrls = photos.toList(),
+                                                    documentUrls = docs.toList(),
+                                                    updatedAt = now2,
+                                                    lastModifiedAt = now2,
+                                                    dirty = true
+                                                )
+                                            )
+                                        }
                                     }
-                                }
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> {
-                                    if (ev.remotePath in allRemotePaths) {
-                                        _state.value = _state.value.copy(uploadStatus = _state.value.uploadStatus + (ev.remotePath to "FAILED"))
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Failed -> {
+                                        if (ev.remotePath in allRemotePaths) {
+                                            _state.value = _state.value.copy(uploadStatus = _state.value.uploadStatus + (ev.remotePath to "FAILED"))
+                                        }
                                     }
-                                }
-                                is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Queued -> {
-                                    if (ev.remotePath in allRemotePaths) {
-                                        _state.value = _state.value.copy(uploadStatus = _state.value.uploadStatus + (ev.remotePath to "UPLOADING"))
+                                    is com.rio.rostry.utils.media.MediaUploadManager.UploadEvent.Queued -> {
+                                        if (ev.remotePath in allRemotePaths) {
+                                            _state.value = _state.value.copy(uploadStatus = _state.value.uploadStatus + (ev.remotePath to "UPLOADING"))
+                                        }
                                     }
+                                    else -> {}
                                 }
-                                else -> {}
                             }
                         }
-                    }
-                    // Audit if uploads exceed 120s threshold
-                    viewModelScope.launch {
-                        delay(120_000)
-                        val currentTime = System.currentTimeMillis()
-                        if (currentTime - uploadStartTime >= 120_000 && _state.value.uploadStatus.values.any { it == "PENDING" || it == "UPLOADING" }) {
-                            securityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("productId" to newId, "elapsedMs" to (currentTime - uploadStartTime)))
+                        // Audit if uploads exceed 120s threshold
+                        viewModelScope.launch {
+                            delay(120_000)
+                            val currentTime = System.currentTimeMillis()
+                            if (currentTime - uploadStartTime >= 120_000 && _state.value.uploadStatus.values.any { it == "PENDING" || it == "UPLOADING" }) {
+                                securityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("productId" to newId, "elapsedMs" to (currentTime - uploadStartTime)))
+                            }
                         }
+                        _state.value = _state.value.copy(savedId = newId)
+                        FarmNotifier.notifyBirdOnboarded(context, s.batchDetails.batchName, newId)
+                        // Trigger a background sync so dashboards refresh promptly
+                        runCatching { syncManager.syncAll() }
+                        _navigationEvent.emit(Routes.Builders.dailyLog(newId))
+                        _refreshEvent.emit(Unit)
                     }
-                    _state.value = _state.value.copy(saving = false, savedId = newId)
-                    FarmNotifier.notifyBirdOnboarded(context, s.batchDetails.batchName, newId)
-                    // Trigger a background sync so dashboards refresh promptly
-                    runCatching { syncManager.syncAll() }
-                    _navigationEvent.emit(Routes.Builders.dailyLog(newId))
-                    _refreshEvent.emit(Unit)
+                    is Resource.Error -> _state.value = _state.value.copy(error = res.message)
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> _state.value = _state.value.copy(saving = false, error = res.message)
-                is Resource.Loading -> {}
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message ?: "An unexpected error occurred")
+            } finally {
+                _state.value = _state.value.copy(saving = false)
             }
         }
     }

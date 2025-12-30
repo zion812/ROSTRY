@@ -214,6 +214,26 @@ fun VaccinationScheduleScreen(
                                         enabled = vaccineTypeInput.value.isNotBlank()
                                     ) { Text("Pick Schedule Date") }
                                 }
+                                
+                                // Quick Schedule Button - saves immediately with suggested date
+                                if (state.nextDueAt != null) {
+                                    Button(
+                                        onClick = {
+                                            vm.schedule(
+                                                state.productId,
+                                                vaccineTypeInput.value.trim(),
+                                                state.nextDueAt ?: System.currentTimeMillis(),
+                                                applyToChildren = false
+                                            )
+                                            vaccineTypeInput.value = ""
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = vaccineTypeInput.value.isNotBlank()
+                                    ) { 
+                                        Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                                        Text("Save Schedule (Use Suggested Date)") 
+                                    }
+                                }
                             }
                         }
                     }

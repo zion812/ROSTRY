@@ -15,24 +15,24 @@ import androidx.compose.ui.unit.dp
 import com.rio.rostry.data.database.entity.ProductEntity
 
 /**
- * QuickLogBottomSheet - One-tap logging for batch operations.
- * Allows farmers to quickly log mortality, feed, expenses, or weight for a batch.
+ * QuickLogBottomSheet - One-tap logging for batch and bird operations.
+ * Allows farmers to quickly log mortality, feed, expenses, or weight for a batch or individual bird.
  * 
  * Part of the Farmer-First Reliability Overhaul (Phase 1).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuickLogBottomSheet(
-    batches: List<ProductEntity>,
+    products: List<ProductEntity>,  // Renamed from 'batches' - includes both birds and batches
     onDismiss: () -> Unit,
-    onLogSubmit: (batchId: String?, logType: QuickLogType, value: Double, notes: String?) -> Unit,
+    onLogSubmit: (productId: String?, logType: QuickLogType, value: Double, notes: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedBatch by remember { mutableStateOf<ProductEntity?>(null) }
+    var selectedProduct by remember { mutableStateOf<ProductEntity?>(null) }
     var selectedLogType by remember { mutableStateOf<QuickLogType?>(null) }
     var inputValue by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    var batchDropdownExpanded by remember { mutableStateOf(false) }
+    var productDropdownExpanded by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -64,59 +64,79 @@ fun QuickLogBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Step 1: Select Batch
+            // Step 1: Select Bird or Batch
             Text(
-                text = "1. Select Batch",
+                text = "1. Select Bird / Batch",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(8.dp))
             
             ExposedDropdownMenuBox(
-                expanded = batchDropdownExpanded,
-                onExpandedChange = { batchDropdownExpanded = it }
+                expanded = productDropdownExpanded,
+                onExpandedChange = { productDropdownExpanded = it }
             ) {
                 OutlinedTextField(
-                    value = selectedBatch?.name ?: "Select a batch...",
+                    value = selectedProduct?.name ?: "Select a bird or batch...",
                     onValueChange = {},
                     readOnly = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
                     trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = batchDropdownExpanded)
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = productDropdownExpanded)
                     },
                     shape = RoundedCornerShape(12.dp)
                 )
                 ExposedDropdownMenu(
-                    expanded = batchDropdownExpanded,
-                    onDismissRequest = { batchDropdownExpanded = false }
+                    expanded = productDropdownExpanded,
+                    onDismissRequest = { productDropdownExpanded = false }
                 ) {
-                    // Option for "All Batches"
+                    // Option for "All"
                     DropdownMenuItem(
-                        text = { Text("All Batches") },
+                        text = { Text("All Birds / Batches") },
                         onClick = {
-                            selectedBatch = null
-                            batchDropdownExpanded = false
+                            selectedProduct = null
+                            productDropdownExpanded = false
                         }
                     )
-                    batches.forEach { batch ->
+                    products.forEach { product ->
                         DropdownMenuItem(
                             text = { 
                                 Column {
-                                    Text(batch.name ?: "Unnamed Batch")
-                                    batch.quantity?.let { qty ->
-                                        Text(
-                                            text = "$qty birds",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(product.name ?: "Unnamed")
+                                        if (product.isBatch == true) {
+                                            Text(
+                                                text = "Batch",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        } else {
+                                            Text(
+                                                text = "Bird",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
+                                    product.quantity?.let { qty ->
+                                        if (product.isBatch == true) {
+                                            Text(
+                                                text = "${qty.toInt()} birds",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             },
                             onClick = {
-                                selectedBatch = batch
-                                batchDropdownExpanded = false
+                                selectedProduct = product
+                                productDropdownExpanded = false
                             }
                         )
                     }
@@ -189,7 +209,7 @@ fun QuickLogBottomSheet(
                     val value = inputValue.toDoubleOrNull() ?: 0.0
                     selectedLogType?.let { logType ->
                         onLogSubmit(
-                            selectedBatch?.productId,
+                            selectedProduct?.productId,
                             logType,
                             value,
                             notes.ifBlank { null }
@@ -216,5 +236,10 @@ enum class QuickLogType(val label: String, val inputLabel: String, val unit: Str
     MORTALITY("Deaths", "Number of birds", "birds"),
     FEED("Feed", "Amount of feed", "kg"),
     EXPENSE("Expense", "Amount spent", "₹"),
-    WEIGHT("Weight", "Average weight", "g")
+    WEIGHT("Weight", "Average weight", "g"),
+    VACCINATION("Vaccination", "Dose/Units given", "doses"),
+    DEWORMING("Deworming", "Dose/Units given", "doses"),
+    MEDICATION("Medication", "Amount given", "ml/mg"),
+    SANITATION("Sanitation", "Hours spent", "hrs"),
+    MAINTENANCE("Maintenance", "Cost spent", "₹")
 }
