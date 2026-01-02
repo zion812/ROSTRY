@@ -1141,6 +1141,25 @@ private fun RoleNavGraph(
             }
         }
         
+        // ============ Glass Box: Public Farm Profile ============
+        composable(
+            route = Routes.PublicFarm.PROFILE,
+            arguments = listOf(navArgument("farmerId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val farmerId = backStackEntry.arguments?.getString("farmerId")
+            if (farmerId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid farmer ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.farmer.profile.PublicFarmProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onContact = { type ->
+                        // Handle contact action (call or whatsapp)
+                        timber.log.Timber.d("Contact requested: $type for farmer $farmerId")
+                    }
+                )
+            }
+        }
+        
         // Shared breeding management route for enthusiasts
         composable(
             route = Routes.MONITORING_BREEDING,

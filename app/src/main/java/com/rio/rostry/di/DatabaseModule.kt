@@ -656,4 +656,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideFarmActivityLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmActivityLogDao = db.farmActivityLogDao()
+
+    // Glass Box Farm Profile DAOs
+    @Provides
+    @Singleton
+    fun provideFarmProfileDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmProfileDao = db.farmProfileDao()
+
+    @Provides
+    @Singleton
+    fun provideFarmTimelineEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmTimelineEventDao = db.farmTimelineEventDao()
 }

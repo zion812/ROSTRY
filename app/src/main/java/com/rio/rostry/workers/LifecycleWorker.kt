@@ -63,6 +63,7 @@ class LifecycleWorker @AssistedInject constructor(
     private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
     private val taskGenerator: TaskGenerator, // Farmer-First: Auto-generate daily tasks
     private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao, // Farm asset lifecycle
+    private val farmProfileRepository: com.rio.rostry.data.repository.FarmProfileRepository, // Glass Box timeline
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {

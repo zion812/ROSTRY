@@ -217,6 +217,18 @@ object Routes {
         const val CREATE_ASSET = "farmer/create_asset"
         const val CREATE_LISTING_FROM_ASSET = "farmer/create_listing/{assetId}"
         const val CREATE_AUCTION_FROM_ASSET = "farmer/create_auction/{assetId}"
+        
+        // Glass Box Farm Profile Routes
+        const val PUBLIC_PROFILE_PREVIEW = "farmer/profile/preview"  // Farmer previews own public profile
+        const val EDIT_PROFILE = "farmer/profile/edit"
+        const val PRIVACY_SETTINGS = "farmer/profile/privacy"
+    }
+    
+    // Glass Box: Public Farm Profile (accessible by anyone)
+    object PublicFarm {
+        const val PROFILE = "social/farm/{farmerId}"
+        
+        fun profile(farmerId: String) = "social/farm/$farmerId"
     }
 
     object EnthusiastNav {

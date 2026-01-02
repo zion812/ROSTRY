@@ -127,9 +127,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Trust-But-Verify: Verification Requests
         VerificationRequestEntity::class,
         // Farm Activity Logs (expenses, sanitation, etc.)
-        FarmActivityLogEntity::class
+        FarmActivityLogEntity::class,
+        // Glass Box Farm Profile (public transparency)
+        FarmProfileEntity::class,
+        FarmTimelineEventEntity::class
     ],
-    version = 64, // 64: Auction enhancements (reserve, buyNow, seller controls); 63: FarmAsset sale lifecycle
+    version = 65, // 65: Glass Box Farm Profile (FarmProfileEntity, FarmTimelineEventEntity); 64: Auction enhancements
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -258,6 +261,10 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Farm Activity Log DAO (expenses, sanitation, etc.)
     abstract fun farmActivityLogDao(): FarmActivityLogDao
+    
+    // Glass Box Farm Profile DAOs
+    abstract fun farmProfileDao(): FarmProfileDao
+    abstract fun farmTimelineEventDao(): FarmTimelineEventDao
 
     object Converters {
         @TypeConverter
@@ -2211,6 +2218,87 @@ abstract class AppDatabase : RoomDatabase() {
                 // Add sourceAssetId column to products table (nullable, links to farm_assets.assetId)
                 db.execSQL("ALTER TABLE `products` ADD COLUMN `sourceAssetId` TEXT")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sourceAssetId` ON `products` (`sourceAssetId`)")
+            }
+        }
+        
+        // Glass Box Farm Profile: Create farm_profiles and farm_timeline_events (64 -> 65)
+        val MIGRATION_64_65 = object : Migration(64, 65) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create farm_profiles table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `farm_profiles` (
+                        `farmerId` TEXT NOT NULL PRIMARY KEY,
+                        `farmName` TEXT NOT NULL,
+                        `farmBio` TEXT,
+                        `logoUrl` TEXT,
+                        `coverPhotoUrl` TEXT,
+                        `locationName` TEXT,
+                        `barangay` TEXT,
+                        `municipality` TEXT,
+                        `province` TEXT,
+                        `latitude` REAL,
+                        `longitude` REAL,
+                        `isVerified` INTEGER NOT NULL DEFAULT 0,
+                        `verifiedAt` INTEGER,
+                        `memberSince` INTEGER NOT NULL,
+                        `farmEstablished` INTEGER,
+                        `trustScore` INTEGER NOT NULL DEFAULT 0,
+                        `totalBirdsSold` INTEGER NOT NULL DEFAULT 0,
+                        `totalOrdersCompleted` INTEGER NOT NULL DEFAULT 0,
+                        `avgResponseTimeMinutes` INTEGER,
+                        `vaccinationRate` INTEGER,
+                        `returningBuyerRate` INTEGER,
+                        `badgesJson` TEXT NOT NULL DEFAULT '[]',
+                        `whatsappNumber` TEXT,
+                        `isWhatsappEnabled` INTEGER NOT NULL DEFAULT 1,
+                        `isCallEnabled` INTEGER NOT NULL DEFAULT 1,
+                        `isPublic` INTEGER NOT NULL DEFAULT 1,
+                        `showLocation` INTEGER NOT NULL DEFAULT 1,
+                        `showSalesHistory` INTEGER NOT NULL DEFAULT 1,
+                        `showTimeline` INTEGER NOT NULL DEFAULT 1,
+                        `shareVaccinationLogs` INTEGER NOT NULL DEFAULT 1,
+                        `shareSanitationLogs` INTEGER NOT NULL DEFAULT 1,
+                        `shareFeedLogs` INTEGER NOT NULL DEFAULT 0,
+                        `shareWeightData` INTEGER NOT NULL DEFAULT 1,
+                        `shareSalesActivity` INTEGER NOT NULL DEFAULT 1,
+                        `shareMortalityData` INTEGER NOT NULL DEFAULT 0,
+                        `shareExpenseData` INTEGER NOT NULL DEFAULT 0,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_profiles_isVerified` ON `farm_profiles` (`isVerified`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_profiles_province` ON `farm_profiles` (`province`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_profiles_trustScore` ON `farm_profiles` (`trustScore`)")
+                
+                // Create farm_timeline_events table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `farm_timeline_events` (
+                        `eventId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `eventType` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `iconType` TEXT,
+                        `imageUrl` TEXT,
+                        `sourceType` TEXT,
+                        `sourceId` TEXT,
+                        `trustPointsEarned` INTEGER NOT NULL DEFAULT 0,
+                        `isPublic` INTEGER NOT NULL DEFAULT 1,
+                        `isMilestone` INTEGER NOT NULL DEFAULT 0,
+                        `eventDate` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1,
+                        `syncedAt` INTEGER,
+                        FOREIGN KEY(`farmerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_farmerId` ON `farm_timeline_events` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_eventType` ON `farm_timeline_events` (`eventType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_eventDate` ON `farm_timeline_events` (`eventDate`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_isPublic` ON `farm_timeline_events` (`isPublic`)")
             }
         }
     }
