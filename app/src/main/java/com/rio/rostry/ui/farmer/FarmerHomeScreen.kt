@@ -1,6 +1,9 @@
 package com.rio.rostry.ui.farmer
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -87,25 +90,18 @@ fun FarmerHomeScreen(
             showCelebrationDialog = true
         }
     }
+    
+    // Collect navigation events from ViewModel (for Market button, etc.)
+    LaunchedEffect(Unit) {
+        viewModel.navigationEvent.collect { route ->
+            onNavigateRoute(route)
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            Column {
-                // Quick Log FAB (Farmer-First)
-                FloatingActionButton(
-                    onClick = { showQuickLogSheet = true },
-                    modifier = Modifier.padding(bottom = 8.dp),
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                ) {
-                    Icon(Icons.Filled.EditNote, contentDescription = "Quick Log")
-                }
-                // Original Add to Farm FAB
-                FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
-                }
-            }
-        }
+        // FABs removed in favor of Quick Actions Row for cleaner UI
+        floatingActionButton = {}
     ) { padding ->
         SwipeRefresh(state = refreshingState, onRefresh = { viewModel.refreshData() }) {
             LazyColumn(
@@ -115,7 +111,69 @@ fun FarmerHomeScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-            // Verification Pending Banner
+            // Visual Overhaul: Greeting & Quick Actions (Farmer-First Phase 2)
+            item {
+                Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                    // Smart Greeting
+                    val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    val greeting = when (currentHour) {
+                        in 5..11 -> "Good Morning,"
+                        in 12..16 -> "Good Afternoon,"
+                        in 17..20 -> "Good Evening,"
+                        else -> "Hello,"
+                    }
+                    Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = uiState.userName ?: "Farmer",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = java.text.SimpleDateFormat("EEEE, MMM dd", java.util.Locale.getDefault()).format(java.util.Date()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            // Quick Actions Row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    QuickActionItem(
+                        icon = Icons.Filled.Add,
+                        label = "Add Bird",
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        onClick = onNavigateToAddBird
+                    )
+                    QuickActionItem(
+                        icon = Icons.Filled.EditNote,
+                        label = "Quick Log",
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        onClick = { showQuickLogSheet = true }
+                    )
+                    QuickActionItem(
+                        icon = Icons.Filled.Pets,
+                        label = "My Farm",
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        onClick = { viewModel.navigateToModule(Routes.FarmerNav.FARM_ASSETS) }
+                    )
+                    QuickActionItem(
+                        icon = Icons.Filled.Storefront,
+                        label = "Market",
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        onClick = { viewModel.navigateToModule(Routes.Builders.productsWithFilter("ready_to_list")) }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
                 item {
                     Card(
@@ -193,7 +251,8 @@ fun FarmerHomeScreen(
                         },
                         onTaskComplete = { taskId ->
                             viewModel.markTaskComplete(taskId)
-                        }
+                        },
+                        onViewAllTasks = { onNavigateRoute(Routes.MONITORING_TASKS) }
                     )
                 }
             }
@@ -723,189 +782,16 @@ fun FarmerHomeScreen(
         QuickLogBottomSheet(
             products = allProducts,
             onDismiss = { showQuickLogSheet = false },
-            onLogSubmit = { productId, logType, value, notes ->
-                // Actually persist the log via ViewModel
-                viewModel.submitQuickLog(productId, logType, value, notes)
-                // Show confirmation snackbar
+            onLogSubmit = { productIds, logType, value, notes ->
+                // Submit log for each selected product
+                viewModel.submitQuickLogBatch(productIds, logType, value, notes)
+                // Show confirmation snackbar with count
+                val countText = if (productIds.size == 1) "1 bird" else "${productIds.size} birds"
                 scope.launch {
-                    snackbarHostState.showSnackbar("${logType.label} logged: $value ${logType.unit}")
+                    snackbarHostState.showSnackbar("${logType.label} logged for $countText: $value ${logType.unit}")
                 }
                 showQuickLogSheet = false
             }
         )
-    }
-}
-
-@Composable
-private fun KpiCard(title: String, value: String) {
-    Card(modifier = Modifier.width(120.dp)) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                value,
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-    }
-}
-
-
-
-@Composable
-private fun FetcherCardItem(card: FetcherCard) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(140.dp)
-            .semantics { contentDescription = "${card.title}: ${card.count}. ${card.action}" },
-        onClick = card.onClick,
-        colors = if (card.isLocked) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) else CardDefaults.cardColors()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    if (card.isLocked) Icons.Filled.Lock else card.icon,
-                    contentDescription = "${card.title} icon",
-                    tint = if (card.isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
-                )
-                if (card.badgeCount > 0 && !card.isLocked) {
-                    Badge(
-                        containerColor = card.badgeColor
-                    ) {
-                        Text(card.badgeCount.toString())
-                    }
-                }
-            }
-
-            Column {
-                Text(
-                    card.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (card.isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    if (card.isLocked) "--" else card.count.toString(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = if (card.isLocked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    card.action,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-
-
-@Composable
-private fun GoalCard(
-    goal: DailyGoal,
-    onAction: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .width(160.dp)
-            .height(180.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val icon = when (goal.iconName) {
-                    "task_icon" -> Icons.Filled.Task
-                    "log_icon" -> Icons.Filled.EditNote
-                    "vaccination_icon" -> Icons.Filled.Vaccines
-                    else -> Icons.Filled.Star
-                }
-                Icon(
-                    icon,
-                    contentDescription = goal.title
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Filled.Close, contentDescription = "Dismiss")
-                }
-            }
-
-            Text(
-                goal.title,
-                style = MaterialTheme.typography.titleSmall,
-                textAlign = TextAlign.Center
-            )
-
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(60.dp)
-            ) {
-                CircularProgressIndicator(
-                    progress = goal.progress,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Text(
-                    "${(goal.progress * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
-
-            Text(
-                "${goal.currentCount}/${goal.targetCount}",
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            Button(onClick = onAction) {
-                Text("Complete")
-            }
-        }
-    }
-}
-
-@Composable
-private fun InsightCard(
-    insight: ActionableInsight,
-    onClick: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(insight.description)
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, contentDescription = "Dismiss")
-            }
-        }
     }
 }

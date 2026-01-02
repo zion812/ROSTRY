@@ -18,7 +18,18 @@ import com.rio.rostry.domain.model.LifecycleStage
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["sellerId"]), Index(value = ["category"]), Index(value = ["status"])]
+    indices = [
+        Index(value = ["sellerId"]),
+        Index(value = ["category"]),
+        Index(value = ["status"]),
+        Index(value = ["sourceAssetId"]),
+        // Performance indexes for farmer dashboard queries
+        Index(value = ["sellerId", "lifecycleStatus"]),    // Filter active products by farmer
+        Index(value = ["sellerId", "isBatch"]),             // Filter batches by farmer
+        Index(value = ["birthDate"]),                       // Age-based queries
+        Index(value = ["updatedAt"]),                       // Recently modified queries
+        Index(value = ["createdAt"])                        // Recently added queries
+    ]
 )
 data class ProductEntity(
     @PrimaryKey val productId: String = "",
@@ -82,6 +93,17 @@ data class ProductEntity(
 
     // Traceability
     val familyTreeId: String? = null,
+    
+    /**
+     * Bridge to FarmAssetEntity - links this marketplace listing to the source farm asset.
+     * When a farmer creates a listing from their farm inventory, this field stores the
+     * assetId of the FarmAssetEntity. This enables:
+     * - Querying if an asset already has a listing
+     * - Syncing updates between asset and listing
+     * - Maintaining farm vs marketplace separation per Option C
+     */
+    val sourceAssetId: String? = null,
+    
     val parentIdsJson: String? = null, // JSON array of parent product IDs
     val breedingStatus: String? = null,
     val transferHistoryJson: String? = null, // JSON array of past transfers (summary)

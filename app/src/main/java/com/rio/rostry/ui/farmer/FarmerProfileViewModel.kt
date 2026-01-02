@@ -98,4 +98,23 @@ class FarmerProfileViewModel @Inject constructor(
             }
         }
     }
+    
+    fun uploadProfileImage(imageUri: android.net.Uri) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            // Use userRepository to upload image and update profile
+            val userId = _uiState.value.user?.userId ?: return@launch
+            when (val result = userRepository.uploadProfileImage(userId, imageUri)) {
+                is Resource.Success -> {
+                    loadProfile() // Refresh to get updated photoUrl
+                }
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+                else -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            }
+        }
+    }
 }

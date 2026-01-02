@@ -26,18 +26,21 @@ object CoilModule {
     /**
      * Determines device memory tier for adaptive image loading.
      * 
-     * @return Device tier: LOW (<512MB), MEDIUM (512MB-2GB), HIGH (>2GB)
+     * memoryClass returns the per-application memory heap limit in MB.
+     * Typical values: 128MB (low-end), 256MB (mid-range), 512MB+ (high-end)
+     * 
+     * @return Device tier: LOW (<192MB), MEDIUM (192-384MB), HIGH (>384MB)
      */
     private fun getDeviceMemoryTier(context: Context): DeviceTier {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val memoryClass = activityManager.memoryClass // MB
+        val memoryClass = activityManager.memoryClass // Heap size in MB
         
         return when {
-            memoryClass < 512 -> DeviceTier.LOW
-            memoryClass < 2048 -> DeviceTier.MEDIUM
-            else -> DeviceTier.HIGH
+            memoryClass < 192 -> DeviceTier.LOW      // Low-end devices (3GB RAM typically = ~128MB heap)
+            memoryClass < 384 -> DeviceTier.MEDIUM   // Mid-range devices
+            else -> DeviceTier.HIGH                   // High-end devices
         }.also {
-            Timber.d("Device memory tier: $it (memory class: ${memoryClass}MB)")
+            Timber.d("Device memory tier: $it (heap limit: ${memoryClass}MB)")
         }
     }
 

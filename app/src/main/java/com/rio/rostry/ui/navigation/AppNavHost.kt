@@ -1068,6 +1068,9 @@ private fun RoleNavGraph(
                     onNavigateBack = { navController.popBackStack() },
                     onCreateListing = { 
                         navController.navigate(Routes.Builders.createListingFromAsset(assetId))
+                    },
+                    onCreateAuction = {
+                        navController.navigate(Routes.Builders.createAuctionFromAsset(assetId))
                     }
                 )
             }
@@ -1117,6 +1120,26 @@ private fun RoleNavGraph(
         }
         
         // ============ END: Farm Asset Management Routes ============
+
+        // Create Auction from Asset - publish asset to auction
+        composable(
+            route = Routes.FarmerNav.CREATE_AUCTION_FROM_ASSET,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId")
+            if (assetId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.auction.CreateAuctionScreen(
+                    assetId = assetId,
+                    onBack = { navController.popBackStack() },
+                    onSuccess = { 
+                        // Navigate back to Asset List or Dashboard
+                        navController.popBackStack(Routes.FarmerNav.FARM_ASSETS, inclusive = false)
+                    }
+                )
+            }
+        }
         
         // Shared breeding management route for enthusiasts
         composable(

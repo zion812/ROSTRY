@@ -49,4 +49,32 @@ interface FarmAssetDao {
 
     @Query("DELETE FROM farm_assets WHERE isDeleted = 1")
     suspend fun purgeDeleted()
+    
+    // ========================================
+    // Marketplace Lifecycle Operations
+    // ========================================
+    
+    /** Mark asset as listed for sale */
+    @Query("UPDATE farm_assets SET status = 'LISTED', listedAt = :listedAt, listingId = :listingId, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
+    suspend fun markAsListed(assetId: String, listingId: String, listedAt: Long, updatedAt: Long)
+    
+    /** Delist asset (return to ACTIVE) */
+    @Query("UPDATE farm_assets SET status = 'ACTIVE', listedAt = NULL, listingId = NULL, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
+    suspend fun markAsDeListed(assetId: String, updatedAt: Long)
+    
+    /** Mark asset as sold */
+    @Query("UPDATE farm_assets SET status = 'SOLD', soldAt = :soldAt, soldToUserId = :buyerId, soldPrice = :price, listedAt = NULL, listingId = NULL, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
+    suspend fun markAsSold(assetId: String, buyerId: String, price: Double, soldAt: Long, updatedAt: Long)
+    
+    /** Get assets by status */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND status = :status AND isDeleted = 0 ORDER BY updatedAt DESC")
+    fun getAssetsByStatus(farmerId: String, status: String): Flow<List<FarmAssetEntity>>
+    
+    /** Get sold history */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND status = 'SOLD' AND isDeleted = 0 ORDER BY soldAt DESC")
+    fun getSoldAssets(farmerId: String): Flow<List<FarmAssetEntity>>
+    
+    /** Check if asset is already listed */
+    @Query("SELECT listingId FROM farm_assets WHERE assetId = :assetId")
+    suspend fun getListingId(assetId: String): String?
 }

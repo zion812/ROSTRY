@@ -241,6 +241,29 @@ interface ProductDao {
     /** Count batches for a farmer (for dashboard cache). */
     @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND isBatch = 1 AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
     suspend fun countBatchesByFarmer(farmerId: String): Int
+
+    // =========================================================================
+    // Product-Asset Bridge: Queries linking marketplace listings to farm assets
+    // =========================================================================
+
+    /**
+     * Get the marketplace listing for a specific farm asset.
+     * Returns null if the asset has not been listed yet.
+     */
+    @Query("SELECT * FROM products WHERE sourceAssetId = :assetId AND isDeleted = 0 LIMIT 1")
+    fun getListingForAsset(assetId: String): Flow<ProductEntity?>
+
+    /**
+     * Sync version - get listing for asset (suspending).
+     */
+    @Query("SELECT * FROM products WHERE sourceAssetId = :assetId AND isDeleted = 0 LIMIT 1")
+    suspend fun getListingForAssetSync(assetId: String): ProductEntity?
+
+    /**
+     * Check if an asset already has a marketplace listing.
+     */
+    @Query("SELECT COUNT(*) > 0 FROM products WHERE sourceAssetId = :assetId AND isDeleted = 0")
+    suspend fun hasListingForAsset(assetId: String): Boolean
 }
 
 data class StageCount(

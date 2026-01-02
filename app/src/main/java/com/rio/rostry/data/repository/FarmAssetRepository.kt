@@ -25,4 +25,9 @@ interface FarmAssetRepository {
     suspend fun updateHealthStatus(assetId: String, status: String): Resource<Unit>
     
     suspend fun syncAssets(): Resource<Unit>
+    
+    // Marketplace Lifecycle
+    suspend fun markAsListed(assetId: String, listingId: String, listedAt: Long): Resource<Unit>
+    suspend fun markAsDeListed(assetId: String): Resource<Unit>
+    suspend fun markAsSold(assetId: String, buyerId: String, price: Double): Resource<Unit>
 }

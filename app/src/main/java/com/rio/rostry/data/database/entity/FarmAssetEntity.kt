@@ -73,6 +73,19 @@ data class FarmAssetEntity(
     val weightGrams: Double? = null,
     val metadataJson: String = "{}",
     
+    // Marketplace Lifecycle
+    val listedAt: Long? = null,         // When listed for sale
+    val listingId: String? = null,      // Reference to MarketListingEntity
+    
+    // Sale Tracking
+    val soldAt: Long? = null,           // When sold
+    val soldToUserId: String? = null,   // Buyer ID
+    val soldPrice: Double? = null,      // Sale price
+    
+    // Ownership Transfer (for buyer's copy)
+    val previousOwnerId: String? = null, // Previous owner (for lineage)
+    val transferredAt: Long? = null,     // When ownership transferred
+    
     // Metadata
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),

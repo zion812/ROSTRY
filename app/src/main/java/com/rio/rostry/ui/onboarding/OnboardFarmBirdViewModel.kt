@@ -265,7 +265,9 @@ class OnboardFarmBirdViewModel @Inject constructor(
     }
 
     fun save() {
+        android.util.Log.d("OnboardBird", "save() called")
         val uid = firebaseAuth.currentUser?.uid ?: run {
+            android.util.Log.e("OnboardBird", "save() aborted: Not signed in")
             _state.value = _state.value.copy(error = "Not signed in")
             return
         }
@@ -316,10 +318,13 @@ class OnboardFarmBirdViewModel @Inject constructor(
             } else null
         )
         _state.value = s.copy(saving = true, error = null)
+        android.util.Log.d("OnboardBird", "save(): starting addProduct, productId=$productId")
         viewModelScope.launch {
             try {
+                android.util.Log.d("OnboardBird", "save(): calling productRepository.addProduct")
                 when (val res = productRepository.addProduct(entity)) {
                     is Resource.Success -> {
+                        android.util.Log.d("OnboardBird", "save(): SUCCESS - newId=${res.data}")
                         val newId = res.data ?: productId
                         // Enqueue uploads with correct id
                         s.media.photoUris.forEachIndexed { idx, uri -> mediaUploadManager.enqueueToOutbox(uri, "products/$newId/photos/$idx") }
@@ -422,7 +427,8 @@ class OnboardFarmBirdViewModel @Inject constructor(
                                 securityManager.audit("MEDIA_UPLOAD_TIMEOUT", mapOf("productId" to newId, "pendingPaths" to pendingUploads.keys.joinToString()))
                             }
                         }
-                        _state.value = _state.value.copy(savedId = newId)
+                        _state.value = _state.value.copy(savedId = newId, saving = false)
+                        android.util.Log.d("OnboardBird", "save(): notifying and navigating")
                         FarmNotifier.notifyBirdOnboarded(context, s.coreDetails.name, newId)
                         // Trigger a background sync so dashboards refresh promptly
                         com.rio.rostry.workers.OutboxSyncWorker.scheduleImmediateSync(context)
@@ -430,6 +436,7 @@ class OnboardFarmBirdViewModel @Inject constructor(
                         _refreshEvent.emit(Unit)
                     }
                     is Resource.Error -> {
+                        android.util.Log.e("OnboardBird", "save(): ERROR - ${res.message}")
                         // Audit verification errors for private products as potential bugs.
                         if (res.message?.contains("Complete KYC verification", ignoreCase = true) == true) {
                             val currentUserId = currentUserProvider.userIdOrNull()
@@ -453,6 +460,7 @@ class OnboardFarmBirdViewModel @Inject constructor(
                         }
 
                         _state.value = _state.value.copy(
+                            saving = false,
                             error = if (res.message?.contains("Complete KYC verification") == true) {
                                 "Unexpected error: Private birds shouldn't require verification. Please contact support with error code: PRIV_VERIFY_ERR"
                             } else {

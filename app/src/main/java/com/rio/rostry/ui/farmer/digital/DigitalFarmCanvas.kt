@@ -36,6 +36,7 @@ import com.rio.rostry.domain.model.DigitalFarmState
 import com.rio.rostry.domain.model.DragState
 import com.rio.rostry.domain.model.VisualBird
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 
 /**
  * DigitalFarmCanvas: Main rendering composable for the 2.5D Digital Farm.
@@ -57,13 +58,18 @@ fun DigitalFarmCanvas(
     var scale by remember { mutableFloatStateOf(1.5f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
 
-    // Animation Time (for idle bobbing)
+    // Animation Time (for idle bobbing) - with lifecycle awareness
     var animationTime by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
         val startTime = System.currentTimeMillis()
-        while (true) {
-            animationTime = System.currentTimeMillis() - startTime
-            delay(16) // ~60 FPS
+        try {
+            while (true) {
+                ensureActive() // Throws CancellationException if cancelled
+                animationTime = System.currentTimeMillis() - startTime
+                delay(33) // ~30 FPS - sufficient for idle bobbing, reduces memory pressure
+            }
+        } catch (_: kotlinx.coroutines.CancellationException) {
+            // Normal termination when composable leaves composition
         }
     }
 

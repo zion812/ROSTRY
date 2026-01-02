@@ -141,4 +141,44 @@ class FarmAssetRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Sync failed")
         }
     }
+    
+    // ========================================
+    // Marketplace Lifecycle
+    // ========================================
+    
+    override suspend fun markAsListed(assetId: String, listingId: String, listedAt: Long): Resource<Unit> {
+        return try {
+            val now = System.currentTimeMillis()
+            dao.markAsListed(assetId, listingId, listedAt, now)
+            Timber.d("Asset $assetId marked as LISTED (listingId=$listingId)")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to mark asset as listed")
+            Resource.Error(e.message ?: "Failed to mark as listed")
+        }
+    }
+    
+    override suspend fun markAsDeListed(assetId: String): Resource<Unit> {
+        return try {
+            val now = System.currentTimeMillis()
+            dao.markAsDeListed(assetId, now)
+            Timber.d("Asset $assetId delisted, status reverted to ACTIVE")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to delist asset")
+            Resource.Error(e.message ?: "Failed to delist")
+        }
+    }
+    
+    override suspend fun markAsSold(assetId: String, buyerId: String, price: Double): Resource<Unit> {
+        return try {
+            val now = System.currentTimeMillis()
+            dao.markAsSold(assetId, buyerId, price, now, now)
+            Timber.d("Asset $assetId marked as SOLD to $buyerId for $$price")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to mark asset as sold")
+            Resource.Error(e.message ?: "Failed to mark as sold")
+        }
+    }
 }

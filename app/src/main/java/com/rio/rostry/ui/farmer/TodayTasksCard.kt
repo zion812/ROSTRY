@@ -33,6 +33,7 @@ fun TodayTasksCard(
     completedCount: Int,
     onTaskClick: (TaskEntity) -> Unit,
     onTaskComplete: (String) -> Unit,
+    onViewAllTasks: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val totalTasks = tasks.size + completedCount
@@ -132,7 +133,7 @@ fun TodayTasksCard(
                     if (tasks.size > 5) {
                         item {
                             TextButton(
-                                onClick = { /* Navigate to full task list */ },
+                                onClick = onViewAllTasks,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("View all ${tasks.size} tasks")

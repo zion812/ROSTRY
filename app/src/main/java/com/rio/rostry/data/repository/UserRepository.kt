@@ -68,4 +68,7 @@ interface UserRepository {
     // Role Migration
     suspend fun initiateRoleMigration(userId: String): Resource<Unit>
     fun getRoleMigrationStatus(userId: String): Flow<Resource<com.rio.rostry.data.database.entity.RoleMigrationEntity?>>
+    
+    // Profile Image Upload
+    suspend fun uploadProfileImage(userId: String, imageUri: android.net.Uri): Resource<String>
 }

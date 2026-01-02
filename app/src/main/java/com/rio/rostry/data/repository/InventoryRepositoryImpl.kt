@@ -33,12 +33,17 @@ class InventoryRepositoryImpl @Inject constructor(
         return try {
             val toSave = item.copy(dirty = true)
             dao.upsert(toSave)
-            firestore.collection("farm_inventory").document(item.inventoryId)
-                .set(toSave.copy(dirty = false), SetOptions.merge()).await()
-            dao.upsert(toSave.copy(dirty = false))
+            try {
+                firestore.collection("farm_inventory").document(item.inventoryId)
+                    .set(toSave.copy(dirty = false), SetOptions.merge()).await()
+                dao.upsert(toSave.copy(dirty = false))
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to sync to Firestore, saved locally")
+            }
             Resource.Success(item.inventoryId)
         } catch (e: Exception) {
-            Resource.Success(item.inventoryId)
+            Timber.e(e, "Failed to add inventory")
+            Resource.Error(e.message ?: "Failed to save inventory locally")
         }
     }
 
@@ -46,12 +51,17 @@ class InventoryRepositoryImpl @Inject constructor(
         return try {
             val toSave = item.copy(dirty = true, updatedAt = System.currentTimeMillis())
             dao.updateInventory(toSave)
-            firestore.collection("farm_inventory").document(item.inventoryId)
-                .set(toSave.copy(dirty = false), SetOptions.merge()).await()
-            dao.updateInventory(toSave.copy(dirty = false))
+            try {
+                firestore.collection("farm_inventory").document(item.inventoryId)
+                   .set(toSave.copy(dirty = false), SetOptions.merge()).await()
+                dao.updateInventory(toSave.copy(dirty = false))
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to sync to Firestore, saved locally")
+            }
             Resource.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error("Local update only")
+            Timber.e(e, "Failed to update inventory")
+            Resource.Error(e.message ?: "Failed to update inventory locally")
         }
     }
 

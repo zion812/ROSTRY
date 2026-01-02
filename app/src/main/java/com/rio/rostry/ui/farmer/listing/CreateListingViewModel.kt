@@ -76,6 +76,8 @@ class CreateListingViewModel @Inject constructor(
         val currentState = _uiState.value
         val asset = currentState.asset ?: return
         val user = auth.currentUser ?: return
+        
+        timber.log.Timber.d("submitListing: Starting listing creation for asset ${asset.assetId}")
 
         if (currentState.quantityToSell <= 0 || currentState.listingPrice <= 0) {
             _uiState.update { it.copy(error = "Invalid price or quantity") }
@@ -84,7 +86,10 @@ class CreateListingViewModel @Inject constructor(
 
         viewModelScope.launch {
             // Check verification status before proceeding
-            if (!rbac.canListProduct()) {
+            val canList = rbac.canListProduct()
+            timber.log.Timber.d("submitListing: RBAC check result: $canList")
+            
+            if (!canList) {
                 _uiState.update { 
                     it.copy(
                         error = "Complete KYC verification to list products. Go to Profile → Verification.",
@@ -98,6 +103,8 @@ class CreateListingViewModel @Inject constructor(
             try {
                 // 1. Create Inventory Item
                 val inventoryId = UUID.randomUUID().toString()
+                timber.log.Timber.d("submitListing: Creating inventory item $inventoryId")
+                
                 val inventory = InventoryItemEntity(
                     inventoryId = inventoryId,
                     farmerId = user.uid,
@@ -108,11 +115,20 @@ class CreateListingViewModel @Inject constructor(
                     unit = asset.unit,
                     createdAt = System.currentTimeMillis()
                 )
-                inventoryRepository.addInventory(inventory)
+                
+                // Add Inventory
+                val invResult = inventoryRepository.addInventory(inventory)
+                if (invResult is Resource.Error) {
+                    throw Exception("Failed to create inventory: ${invResult.message}")
+                }
+                timber.log.Timber.d("submitListing: Inventory created successfully")
 
                 // 2. Create Market Listing
+                val listingId = UUID.randomUUID().toString()
+                timber.log.Timber.d("submitListing: Creating market listing $listingId")
+                
                 val listing = MarketListingEntity(
-                    listingId = UUID.randomUUID().toString(),
+                    listingId = listingId,
                     sellerId = user.uid,
                     inventoryId = inventoryId,
                     title = currentState.listingTitle,
@@ -124,17 +140,22 @@ class CreateListingViewModel @Inject constructor(
                     isActive = true,
                     createdAt = System.currentTimeMillis()
                 )
-                listingRepository.publishListing(listing)
                 
-                // 3. Update source asset quantity (optional, or just track reserved)
-                // For now, simple deduction logic
-                val newQty = asset.quantity - currentState.quantityToSell
-                if (newQty >= 0) {
-                     assetRepository.updateQuantity(asset.assetId, newQty)
+                // Publish Listing
+                val listResult = listingRepository.publishListing(listing)
+                if (listResult is Resource.Error) {
+                    throw Exception("Failed to publish listing: ${listResult.message}")
                 }
+                timber.log.Timber.d("submitListing: Listing published successfully")
+                
+                // 3. Mark source asset as LISTED (instead of deducting quantity)
+                val now = System.currentTimeMillis()
+                assetRepository.markAsListed(asset.assetId, listingId, now)
+                timber.log.Timber.d("submitListing: Asset marked as LISTED with listingId=$listingId")
 
                 _uiState.update { it.copy(isSubmitting = false, isSuccess = true) }
             } catch (e: Exception) {
+                timber.log.Timber.e(e, "submitListing: Failed")
                 _uiState.update { it.copy(isSubmitting = false, error = e.message ?: "Failed to create listing") }
             }
         }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
+import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.data.repository.monitoring.BreedingRepository
 import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
@@ -86,7 +87,8 @@ data class FarmerHomeUiState(
     // Farmer-First: TodayTasksCard and QuickLogBottomSheet data
     val todayTasks: List<com.rio.rostry.data.database.entity.TaskEntity> = emptyList(),
     val completedTasksCount: Int = 0,
-    val allProducts: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()  // Birds and batches for QuickLog
+    val allProducts: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList(),  // Birds and batches for QuickLog
+    val userName: String? = null
 )
 
 data class DashboardWidget(
@@ -99,6 +101,57 @@ data class DashboardWidget(
 )
 
 enum class AlertLevel { NORMAL, INFO, WARNING, CRITICAL }
+
+/**
+ * Primary stats - Critical KPIs that must load immediately for dashboard.
+ * These are the most important metrics farmers check first.
+ */
+data class PrimaryStats(
+    val vaccinationDueCount: Int = 0,
+    val vaccinationOverdueCount: Int = 0,
+    val tasksDueCount: Int = 0,
+    val tasksOverdueCount: Int = 0,
+    val unreadAlerts: List<FarmAlertEntity> = emptyList(),
+    val todayTasks: List<com.rio.rostry.data.database.entity.TaskEntity> = emptyList(),
+    val weeklySnapshot: FarmerDashboardSnapshotEntity? = null,
+    val dailyLogsThisWeek: Int = 0
+)
+
+/**
+ * Monitoring stats - Secondary metrics for farm health overview.
+ * Can be debounced slightly without impacting UX.
+ */
+data class MonitoringStats(
+    val growthRecordsThisWeek: Int = 0,
+    val quarantineActiveCount: Int = 0,
+    val quarantineUpdatesDue: Int = 0,
+    val hatchingBatchesActive: Int = 0,
+    val hatchingDueThisWeek: Int = 0,
+    val mortalityLast7Days: Int = 0,
+    val breedingPairsActive: Int = 0,
+    val batchesDueForSplit: Int = 0
+)
+
+/**
+ * User context stats - User profile, transfers, and compliance data.
+ * Can be loaded with heavier debounce as these change infrequently.
+ */
+data class UserContextStats(
+    val transfersPendingCount: Int = 0,
+    val transfersAwaitingVerificationCount: Int = 0,
+    val recentlyAddedBirdsCount: Int = 0,
+    val recentlyAddedBatchesCount: Int = 0,
+    val productsEligibleForTransferCount: Int = 0,
+    val complianceAlertsCount: Int = 0,
+    val kycVerified: Boolean = false,
+    val verificationStatus: com.rio.rostry.domain.model.VerificationStatus = com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
+    val userName: String? = null,
+    val recentActivity: List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> = emptyList(),
+    val farmAssetCount: Int = 0,
+    val storageQuota: com.rio.rostry.data.database.entity.StorageQuotaEntity? = null,
+    val dailyGoals: List<DailyGoal> = emptyList(),
+    val analyticsInsights: List<ActionableInsight> = emptyList()
+)
 
 enum class WidgetType {
     DAILY_LOG, TASKS, VACCINATION, GROWTH, QUARANTINE, HATCHING, 
@@ -231,6 +284,121 @@ class FarmerHomeViewModel @Inject constructor(
         emit(default)
     }
 
+    /**
+     * OPTIMIZED: Split 28-flow combine into 3 smaller, focused combines.
+     * This reduces combine overhead from O(28) to O(3 × ~10) and allows
+     * independent debouncing for better performance on low-memory devices.
+     */
+    
+    // Flow 1: Primary stats - Critical KPIs that must load immediately
+    private fun createPrimaryStatsFlow(id: String, now: Long, endOfDay: Long, weekStart: Long): Flow<PrimaryStats> {
+        return combine(
+            vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay).orDefault(0),
+            vaccinationRecordDao.observeOverdueForFarmer(id, now).orDefault(0),
+            taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
+            taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
+            farmAlertRepository.observeUnread(id).orDefault(emptyList()),
+            farmerDashboardRepository.observeLatest(id).orDefault(null),
+            dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0)
+        ) { values: Array<Any?> ->
+            val vacDue = values[0] as? Int ?: 0
+            val vacOverdue = values[1] as? Int ?: 0
+            val overdueCount = values[2] as? Int ?: 0
+            @Suppress("UNCHECKED_CAST")
+            val taskList = values[3] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val alertList = values[4] as? List<FarmAlertEntity> ?: emptyList()
+            val snapshot = values[5] as? FarmerDashboardSnapshotEntity
+            val dailyLogsCount = values[6] as? Int ?: 0
+            
+            PrimaryStats(
+                vaccinationDueCount = vacDue,
+                vaccinationOverdueCount = vacOverdue,
+                tasksDueCount = taskList.size,
+                tasksOverdueCount = overdueCount,
+                unreadAlerts = alertList,
+                todayTasks = taskList.filter { it.completedAt == null },
+                weeklySnapshot = snapshot,
+                dailyLogsThisWeek = dailyLogsCount
+            )
+        }.debounce(150) // Light debounce for critical data
+    }
+    
+    // Flow 2: Monitoring stats - Secondary metrics, can be debounced more
+    private fun createMonitoringStatsFlow(id: String, now: Long, weekStart: Long, weekEnd: Long, twelveHoursAgo: Long): Flow<MonitoringStats> {
+        return combine(
+            growthRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+            quarantineRecordDao.observeActiveForFarmer(id).orDefault(0),
+            quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo).orDefault(0),
+            hatchingBatchDao.observeActiveForFarmer(id, now).orDefault(0),
+            hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd).orDefault(0),
+            mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
+            breedingRepository.observeActiveCount(id).orDefault(0),
+            productRepository.observeActiveWithBirth().map { products ->
+                products.count { it.sellerId == id && it.isBatch == true && ((it.ageWeeks ?: 0) >= 12) && it.splitAt == null }
+            }.orDefault(0)
+        ) { values: Array<Any?> ->
+            MonitoringStats(
+                growthRecordsThisWeek = values[0] as? Int ?: 0,
+                quarantineActiveCount = values[1] as? Int ?: 0,
+                quarantineUpdatesDue = values[2] as? Int ?: 0,
+                hatchingBatchesActive = values[3] as? Int ?: 0,
+                hatchingDueThisWeek = values[4] as? Int ?: 0,
+                mortalityLast7Days = values[5] as? Int ?: 0,
+                breedingPairsActive = values[6] as? Int ?: 0,
+                batchesDueForSplit = values[7] as? Int ?: 0
+            )
+        }.debounce(400) // Medium debounce for secondary data
+    }
+    
+    // Flow 3: User context stats - Profile, transfers, compliance (changes rarely)
+    private fun createUserContextStatsFlow(id: String, weekStart: Long): Flow<UserContextStats> {
+        return combine(
+            transferRepository.observePendingCountForFarmer(id).orDefault(0),
+            transferRepository.observeAwaitingVerificationCountForFarmer(id).orDefault(0),
+            productRepository.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch != true } }.orDefault(0),
+            productRepository.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch == true } }.orDefault(0),
+            productRepository.observeEligibleForTransferCountForFarmer(id).orDefault(0),
+            traceabilityRepository.observeComplianceAlertsCount(id).orDefault(0),
+            traceabilityRepository.observeKycStatus(id).orDefault(false),
+            analyticsRepository.observeDailyGoals(id).orDefault(emptyList()),
+            analyticsRepository.getActionableInsights(id).orDefault(emptyList()),
+            userRepository.getCurrentUser().map { res ->
+                (res as? com.rio.rostry.utils.Resource.Success)?.data
+            }.orDefault(null),
+            farmOnboardingRepository.observeRecentOnboardingActivity(id, 7).orDefault(emptyList()),
+            farmAssetRepository.getAssetsByFarmer(id).map { res ->
+                (res as? com.rio.rostry.utils.Resource.Success)?.data?.size ?: 0
+            }.orDefault(0),
+            storageUsageRepository.observeQuota(id).orDefault(null)
+        ) { values: Array<Any?> ->
+            val user = values[9] as? UserEntity
+            @Suppress("UNCHECKED_CAST")
+            val dailyGoals = values[7] as? List<DailyGoal> ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val analyticsInsights = values[8] as? List<ActionableInsight> ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val recentActivityList = values[10] as? List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> ?: emptyList()
+            
+            UserContextStats(
+                transfersPendingCount = values[0] as? Int ?: 0,
+                transfersAwaitingVerificationCount = values[1] as? Int ?: 0,
+                recentlyAddedBirdsCount = values[2] as? Int ?: 0,
+                recentlyAddedBatchesCount = values[3] as? Int ?: 0,
+                productsEligibleForTransferCount = values[4] as? Int ?: 0,
+                complianceAlertsCount = values[5] as? Int ?: 0,
+                kycVerified = values[6] as? Boolean ?: false,
+                verificationStatus = user?.verificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
+                userName = user?.fullName,
+                recentActivity = recentActivityList,
+                farmAssetCount = values[11] as? Int ?: 0,
+                storageQuota = values[12] as? com.rio.rostry.data.database.entity.StorageQuotaEntity,
+                dailyGoals = dailyGoals,
+                analyticsInsights = analyticsInsights
+            )
+        }.debounce(600) // Heavy debounce for rarely-changing data
+    }
+
     val uiState: StateFlow<FarmerHomeUiState> = farmerId.flatMapLatest { id: String? ->
         // If no authenticated Firebase user, show non-loading empty dashboard instead of spinning forever
         if (id == null) {
@@ -242,121 +410,60 @@ class FarmerHomeViewModel @Inject constructor(
             val weekStart = now - TimeUnit.DAYS.toMillis(7)
             val weekEnd = now + TimeUnit.DAYS.toMillis(7)
             val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
+            
+            // OPTIMIZED: Combine 3 smaller flows instead of 28 individual flows
             combine(
-                vaccinationRecordDao.observeDueForFarmer(id, now, endOfDay).orDefault(0),
-                vaccinationRecordDao.observeOverdueForFarmer(id, now).orDefault(0),
-                growthRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
-                quarantineRecordDao.observeActiveForFarmer(id).orDefault(0),
-                quarantineRecordDao.observeUpdatesOverdueForFarmer(id, twelveHoursAgo).orDefault(0),
-                hatchingBatchDao.observeActiveForFarmer(id, now).orDefault(0),
-                hatchingBatchDao.observeDueThisWeekForFarmer(id, now, weekEnd).orDefault(0),
-                mortalityRecordDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
-                breedingRepository.observeActiveCount(id).orDefault(0),
-                farmAlertRepository.observeUnread(id).orDefault(emptyList()),
-                farmerDashboardRepository.observeLatest(id).orDefault(null),
-                taskDao.observeOverdueCountForFarmer(id, now).orDefault(0),
-                taskDao.observeDueForFarmer(id, now).orDefault(emptyList()),
-                dailyLogDao.observeCountForFarmerBetween(id, weekStart, now).orDefault(0),
-                productRepository.observeActiveWithBirth().map { products ->
-                    products.count { it.sellerId == id && it.isBatch == true && ((it.ageWeeks ?: 0) >= 12) && it.splitAt == null }
-                }.orDefault(0),
-                transferRepository.observePendingCountForFarmer(id).orDefault(0),
-                transferRepository.observeAwaitingVerificationCountForFarmer(id).orDefault(0),
-                productRepository.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch != true } }.orDefault(0),
-                productRepository.observeRecentlyAddedForFarmer(id, weekStart).map { list -> list.count { it.isBatch == true } }.orDefault(0),
-                productRepository.observeEligibleForTransferCountForFarmer(id).orDefault(0),
-                traceabilityRepository.observeComplianceAlertsCount(id).orDefault(0),
-                traceabilityRepository.observeKycStatus(id).orDefault(false),
-                analyticsRepository.observeDailyGoals(id).orDefault(emptyList()),
-                analyticsRepository.getActionableInsights(id).orDefault(emptyList()),
-                userRepository.getCurrentUser().map { res ->
-                    (res as? com.rio.rostry.utils.Resource.Success)?.data?.verificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED
-                }.orDefault(com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED),
-                farmOnboardingRepository.observeRecentOnboardingActivity(id, 7).orDefault(emptyList()),
-                farmAssetRepository.getAssetsByFarmer(id).map { res ->
-                    (res as? com.rio.rostry.utils.Resource.Success)?.data?.size ?: 0
-                }.orDefault(0),
-                storageUsageRepository.observeQuota(id).orDefault(null)
-            ) { values: Array<Any?> ->
-                val startNs = System.nanoTime() // FRESH timing for each emission
-                val vacDue = values[0] as? Int ?: 0
-                val vacOverdue = values[1] as? Int ?: 0
-                val growth = values[2] as? Int ?: 0
-                val quarActive = values[3] as? Int ?: 0
-                val quarOverdue = values[4] as? Int ?: 0
-                val hatchActive = values[5] as? Int ?: 0
-                val hatchDue = values[6] as? Int ?: 0
-                val mortality = values[7] as? Int ?: 0
-                val breeding = values[8] as? Int ?: 0
-                @Suppress("UNCHECKED_CAST")
-                val alerts = values[9] as? List<FarmAlertEntity> ?: emptyList()
-                val snapshot = values[10] as? FarmerDashboardSnapshotEntity
-                val overdueCount = values[11] as? Int ?: 0
-                @Suppress("UNCHECKED_CAST")
-                val dueTasks = values[12] as? List<com.rio.rostry.data.database.entity.TaskEntity> ?: emptyList()
-                val dailyLogsCount = values[13] as? Int ?: 0
-                val batchesDue = values[14] as? Int ?: 0
-                val transfersPending = values[15] as? Int ?: 0
-                val transfersAwaiting = values[16] as? Int ?: 0
-                val recentlyAddedBirds = values[17] as? Int ?: 0
-                val recentlyAddedBatches = values[18] as? Int ?: 0
-                val productsEligible = values[19] as? Int ?: 0
-                val complianceAlerts = values[20] as? Int ?: 0
-                val kycVerified = values[21] as? Boolean ?: false
-                @Suppress("UNCHECKED_CAST")
-                val dailyGoals = values[22] as? List<DailyGoal> ?: emptyList()
-                @Suppress("UNCHECKED_CAST")
-                val analyticsInsights = values[23] as? List<ActionableInsight> ?: emptyList()
-                val verStatus = values[24] as? com.rio.rostry.domain.model.VerificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED
-                @Suppress("UNCHECKED_CAST")
-                val recentActivityList = values[25] as? List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> ?: emptyList()
-                val farmAssetCount = values[26] as? Int ?: 0
-                val storageQuota = values[27] as? com.rio.rostry.data.database.entity.StorageQuotaEntity
-
-                val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
-                if (elapsedMs > 500) { // Reduced threshold for better diagnosing
-                    Timber.w("FarmerHome combine execution: %d ms", elapsedMs)
-                }
-
+                createPrimaryStatsFlow(id, now, endOfDay, weekStart),
+                createMonitoringStatsFlow(id, now, weekStart, weekEnd, twelveHoursAgo),
+                createUserContextStatsFlow(id, weekStart)
+            ) { primary, monitoring, userContext ->
                 val baseState = FarmerHomeUiState(
-                    vaccinationDueCount = vacDue,
-                    vaccinationOverdueCount = vacOverdue,
-                    growthRecordsThisWeek = growth,
-                    quarantineActiveCount = quarActive,
-                    quarantineUpdatesDue = quarOverdue,
-                    hatchingBatchesActive = hatchActive,
-                    hatchingDueThisWeek = hatchDue,
-                    mortalityLast7Days = mortality,
-                    breedingPairsActive = breeding,
-                    productsReadyToListCount = snapshot?.productsReadyToListCount ?: 0,
-                    tasksDueCount = dueTasks.size,
-                    tasksOverdueCount = overdueCount,
-                    dailyLogsThisWeek = dailyLogsCount,
-                    unreadAlerts = alerts,
-                    weeklySnapshot = snapshot,
-                    batchesDueForSplit = batchesDue,
-                    urgentKpiCount = overdueCount + vacOverdue + quarOverdue + batchesDue,
-                    isLoading = false,
-                    transfersPendingCount = transfersPending,
-                    transfersAwaitingVerificationCount = transfersAwaiting,
-                    recentlyAddedBirdsCount = recentlyAddedBirds,
-                    recentlyAddedBatchesCount = recentlyAddedBatches,
-                    productsEligibleForTransferCount = productsEligible,
-                    complianceAlertsCount = complianceAlerts,
-                    kycVerified = kycVerified,
-                    dailyGoals = dailyGoals,
-                    analyticsInsights = analyticsInsights,
-                    verificationStatus = verStatus,
-                    recentActivity = recentActivityList,
-                    farmAssetCount = farmAssetCount,
-                    storageQuota = storageQuota,
-                    todayTasks = dueTasks.filter { it.completedAt == null },
-                    completedTasksCount = dueTasks.count { it.completedAt != null }
+                    // Primary stats (critical)
+                    vaccinationDueCount = primary.vaccinationDueCount,
+                    vaccinationOverdueCount = primary.vaccinationOverdueCount,
+                    tasksDueCount = primary.tasksDueCount,
+                    tasksOverdueCount = primary.tasksOverdueCount,
+                    unreadAlerts = primary.unreadAlerts,
+                    todayTasks = primary.todayTasks,
+                    weeklySnapshot = primary.weeklySnapshot,
+                    dailyLogsThisWeek = primary.dailyLogsThisWeek,
+                    completedTasksCount = primary.todayTasks.count { it.completedAt != null },
+                    productsReadyToListCount = primary.weeklySnapshot?.productsReadyToListCount ?: 0,
+                    
+                    // Monitoring stats (secondary)
+                    growthRecordsThisWeek = monitoring.growthRecordsThisWeek,
+                    quarantineActiveCount = monitoring.quarantineActiveCount,
+                    quarantineUpdatesDue = monitoring.quarantineUpdatesDue,
+                    hatchingBatchesActive = monitoring.hatchingBatchesActive,
+                    hatchingDueThisWeek = monitoring.hatchingDueThisWeek,
+                    mortalityLast7Days = monitoring.mortalityLast7Days,
+                    breedingPairsActive = monitoring.breedingPairsActive,
+                    batchesDueForSplit = monitoring.batchesDueForSplit,
+                    
+                    // User context stats
+                    transfersPendingCount = userContext.transfersPendingCount,
+                    transfersAwaitingVerificationCount = userContext.transfersAwaitingVerificationCount,
+                    recentlyAddedBirdsCount = userContext.recentlyAddedBirdsCount,
+                    recentlyAddedBatchesCount = userContext.recentlyAddedBatchesCount,
+                    productsEligibleForTransferCount = userContext.productsEligibleForTransferCount,
+                    complianceAlertsCount = userContext.complianceAlertsCount,
+                    kycVerified = userContext.kycVerified,
+                    verificationStatus = userContext.verificationStatus,
+                    userName = userContext.userName,
+                    recentActivity = userContext.recentActivity,
+                    farmAssetCount = userContext.farmAssetCount,
+                    storageQuota = userContext.storageQuota,
+                    dailyGoals = userContext.dailyGoals,
+                    analyticsInsights = userContext.analyticsInsights,
+                    
+                    // Computed fields
+                    urgentKpiCount = primary.tasksOverdueCount + primary.vaccinationOverdueCount + monitoring.quarantineUpdatesDue + monitoring.batchesDueForSplit,
+                    isLoading = false
                 )
                 
                 // Generate dynamic widgets based on the computed state
                 baseState.copy(widgets = generateWidgets(baseState))
-            }.debounce(300) // Prevent rapid UI updates during syncs
+            }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -549,6 +656,69 @@ class FarmerHomeViewModel @Inject constructor(
                 Timber.e(e, "Failed to submit quick log")
                 _errorEvents.emit("Failed to save log: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Submit quick log entries for multiple birds/batches at once.
+     * Loops through each productId and creates individual log entries.
+     */
+    fun submitQuickLogBatch(
+        productIds: Set<String>,
+        logType: QuickLogType,
+        value: Double,
+        notes: String?
+    ) {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: run {
+                Timber.w("submitQuickLogBatch: No authenticated user")
+                return@launch
+            }
+            
+            Timber.d("Quick log batch: type=$logType, value=$value, count=${productIds.size}")
+            
+            // Log for each selected product
+            productIds.forEach { productId ->
+                try {
+                    val activityType = logType.name
+                    val amount = when (logType) {
+                        QuickLogType.EXPENSE, QuickLogType.MAINTENANCE -> value
+                        else -> null
+                    }
+                    val quantity = when (logType) {
+                        QuickLogType.EXPENSE, QuickLogType.MAINTENANCE -> null
+                        else -> value
+                    }
+                    val category = when (logType) {
+                        QuickLogType.FEED -> "Feed"
+                        QuickLogType.EXPENSE -> "General Expense"
+                        QuickLogType.WEIGHT -> "Growth"
+                        QuickLogType.MORTALITY -> "Mortality"
+                        QuickLogType.VACCINATION -> "Health - Vaccination"
+                        QuickLogType.DEWORMING -> "Health - Deworming"
+                        QuickLogType.MEDICATION -> "Health - Medication"
+                        QuickLogType.SANITATION -> "Farm Maintenance"
+                        QuickLogType.MAINTENANCE -> "Farm Maintenance Expense"
+                    }
+                    
+                    farmActivityLogRepository.logActivity(
+                        farmerId = farmerId,
+                        productId = productId,
+                        activityType = activityType,
+                        amount = amount,
+                        quantity = quantity,
+                        category = category,
+                        description = "${logType.name}: $value",
+                        notes = notes
+                    )
+                    
+                    Timber.d("Quick log submitted for bird: productId=$productId, type=$logType")
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to submit quick log for productId=$productId")
+                }
+            }
+            
+            Timber.i("Quick log batch completed: ${productIds.size} entries for ${logType.label}")
         }
     }
 }

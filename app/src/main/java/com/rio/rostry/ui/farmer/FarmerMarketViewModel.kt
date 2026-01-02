@@ -138,7 +138,12 @@ class FarmerMarketViewModel @Inject constructor(
                 marketListingRepository.getListingsBySeller(current.userId)
             ) { legacy, new ->
                 val combined = mutableListOf<Listing>()
-                (legacy.data ?: emptyList()).forEach { combined.add(mapProductToListing(it)) }
+                val newTitles = (new.data ?: emptyList()).map { it.title.lowercase() }.toSet()
+                // Only add legacy products that don't have a corresponding MarketListingEntity by title
+                (legacy.data ?: emptyList())
+                    .filter { (it.name ?: "").lowercase() !in newTitles }
+                    .forEach { combined.add(mapProductToListing(it)) }
+                // Add all MarketListingEntity items
                 (new.data ?: emptyList()).forEach { combined.add(mapMarketListingToListing(it)) }
                 combined.distinctBy { it.id }
             }.collect { combined ->

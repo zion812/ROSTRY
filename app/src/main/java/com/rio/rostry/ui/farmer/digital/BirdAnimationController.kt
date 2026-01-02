@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.Offset
 import com.rio.rostry.domain.model.DigitalFarmZone
 import com.rio.rostry.domain.model.VisualBird
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlin.random.Random
 
 /**
@@ -97,15 +98,21 @@ fun BirdPeckingEffect(
         LaunchedEffect(bird.productId, bird.zone, isPaused) {
             if (isPaused) return@LaunchedEffect
 
-            while (true) {
-                // Random delay between 3-5 seconds
-                delay(Random.nextLong(3000, 5000))
-
-                // Get a new target position within the bird's zone
-                val targetGridPos = IsometricGrid.getRandomPositionInZone(bird.zone)
-                
-                // Animate to the new position
-                controller.animateTo(bird.productId, targetGridPos, durationMs = Random.nextInt(1500, 2500))
+            try {
+                while (true) {
+                    // Random delay between 3-5 seconds
+                    delay(Random.nextLong(3000, 5000))
+                    
+                    ensureActive() // Throws if cancelled
+                    
+                    // Get a new target position within the bird's zone
+                    val targetGridPos = IsometricGrid.getRandomPositionInZone(bird.zone)
+                    
+                    // Animate to the new position
+                    controller.animateTo(bird.productId, targetGridPos, durationMs = Random.nextInt(1500, 2500))
+                }
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                // Normal termination when composable leaves composition
             }
         }
     }

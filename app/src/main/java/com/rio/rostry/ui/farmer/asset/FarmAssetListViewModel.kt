@@ -60,6 +60,20 @@ class FarmAssetListViewModel @Inject constructor(
         }
     }
 
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            // Trigger sync (repository implementation will handle fetching from remote and updating DB)
+            val result = repository.syncAssets()
+            _uiState.update { state ->
+                state.copy(
+                    isRefreshing = false, 
+                    error = if (result is Resource.Error) result.message else null
+                )
+            }
+        }
+    }
+
     private fun filterAssets(assets: List<FarmAssetEntity>, filter: String?): List<FarmAssetEntity> {
         return if (filter == null) assets
         else assets.filter { it.assetType.equals(filter, ignoreCase = true) || it.status.equals(filter, ignoreCase = true) }
@@ -71,5 +85,6 @@ data class FarmAssetListUiState(
     val assets: List<FarmAssetEntity> = emptyList(),
     val filteredAssets: List<FarmAssetEntity> = emptyList(),
     val error: String? = null,
-    val filter: String? = null // e.g. "BATCH", "ANIMAL", "ACTIVE"
+    val filter: String? = null, // e.g. "BATCH", "ANIMAL", "ACTIVE"
+    val isRefreshing: Boolean = false
 )

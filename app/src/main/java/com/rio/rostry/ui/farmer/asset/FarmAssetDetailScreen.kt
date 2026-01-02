@@ -22,7 +22,8 @@ fun FarmAssetDetailScreen(
     assetId: String,
     viewModel: FarmAssetDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
-    onCreateListing: () -> Unit
+    onCreateListing: () -> Unit,
+    onCreateAuction: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -117,13 +118,33 @@ fun FarmAssetDetailScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = asset.name,
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.height(8.dp))
                             
+                             Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = asset.name,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                }
+                                
+                                // Quick Action for Auction
+                                IconButton(
+                                    onClick = onCreateAuction,
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Gavel, contentDescription = "Auction")
+                                }
+                            }
+
                             if (asset.description.isNotBlank()) {
                                 Text(
                                     text = asset.description,

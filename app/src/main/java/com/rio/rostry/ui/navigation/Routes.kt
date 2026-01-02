@@ -216,6 +216,7 @@ object Routes {
         const val ASSET_DETAILS = "farmer/asset/{assetId}"
         const val CREATE_ASSET = "farmer/create_asset"
         const val CREATE_LISTING_FROM_ASSET = "farmer/create_listing/{assetId}"
+        const val CREATE_AUCTION_FROM_ASSET = "farmer/create_auction/{assetId}"
     }
 
     object EnthusiastNav {
@@ -335,6 +336,7 @@ object Routes {
             FarmerNav.ASSET_DETAILS,
             FarmerNav.CREATE_ASSET,
             FarmerNav.CREATE_LISTING_FROM_ASSET,
+            FarmerNav.CREATE_AUCTION_FROM_ASSET,
             // Farm Activity Log
             Monitoring.FARM_LOG
         )
@@ -700,6 +702,7 @@ object Routes {
         // NEW: Farm Asset Management builders
         fun assetDetails(assetId: String): String = "farmer/asset/${URLEncoder.encode(assetId, "UTF-8")}"
         fun createListingFromAsset(assetId: String): String = "farmer/create_listing/${URLEncoder.encode(assetId, "UTF-8")}"
+        fun createAuctionFromAsset(assetId: String): String = "farmer/create_auction/${URLEncoder.encode(assetId, "UTF-8")}"
         fun roosterCard(productId: String): String = "enthusiast/rooster_card/${URLEncoder.encode(productId, "UTF-8")}"
         fun breedingCalculator(): String = EnthusiastNav.BREEDING_CALCULATOR
         fun performanceJournal(): String = EnthusiastNav.PERFORMANCE_JOURNAL

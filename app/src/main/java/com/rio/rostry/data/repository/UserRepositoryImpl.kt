@@ -687,4 +687,34 @@ class UserRepositoryImpl @Inject constructor(
             .map { Resource.Success(it) as Resource<RoleMigrationEntity?> }
             .onStart { emit(Resource.Loading<RoleMigrationEntity?>()) }
             .catch { e -> emit(Resource.Error<RoleMigrationEntity?>(e.message ?: "Error observing migration status")) }
+    
+    override suspend fun uploadProfileImage(userId: String, imageUri: android.net.Uri): Resource<String> = safeCall {
+        val storage = com.google.firebase.storage.FirebaseStorage.getInstance()
+        val storageRef = storage.reference.child("profile_images/$userId/${System.currentTimeMillis()}.jpg")
+        
+        // Upload image to Firebase Storage
+        storageRef.putFile(imageUri).await()
+        
+        // Get download URL
+        val downloadUrl = storageRef.downloadUrl.await().toString()
+        
+        // Update user profile with new photo URL
+        val docRef = usersCollection.document(userId)
+        docRef.update(mapOf(
+            "photoUrl" to downloadUrl,
+            "profilePictureUrl" to downloadUrl,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )).await()
+        
+        // Update local cache
+        val localUser = userDao.getUserById(userId).firstOrNull()
+        if (localUser != null) {
+            userDao.upsertUser(localUser.copy(
+                profilePictureUrl = downloadUrl,
+                updatedAt = Date()
+            ))
+        }
+        
+        downloadUrl
+    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to upload profile image")
 }

@@ -21,12 +21,33 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("auctionId"), Index("userId")]
+    indices = [
+        Index("auctionId"),
+        Index("userId"),
+        Index(value = ["auctionId", "amount"])
+    ]
 )
 data class BidEntity(
     @PrimaryKey val bidId: String,
     val auctionId: String,
     val userId: String,
     val amount: Double,
-    val placedAt: Long = System.currentTimeMillis()
+    val placedAt: Long = System.currentTimeMillis(),
+    
+    // Auto-Bid (Proxy Bidding)
+    val isAutoBid: Boolean = false,       // Was this placed by auto-bid system
+    val maxAmount: Double? = null,        // Proxy bid ceiling (user's max)
+    
+    // Status
+    val isWinning: Boolean = false,       // Currently winning (denormalized)
+    val wasOutbid: Boolean = false,       // Someone bid higher
+    val outbidAt: Long? = null,           // When outbid
+    
+    // Notifications
+    val outbidNotified: Boolean = false,  // User notified about outbid
+    
+    // Admin
+    val isRetracted: Boolean = false,     // Rare, admin only
+    val retractedReason: String? = null
 )
+

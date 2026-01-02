@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +25,7 @@ fun CreateListingScreen(
     onListingCreated: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(assetId) {
         viewModel.loadAsset(assetId)
@@ -30,6 +33,7 @@ fun CreateListingScreen(
 
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
+            Toast.makeText(context, "Listing created successfully", Toast.LENGTH_SHORT).show()
             onListingCreated()
         }
     }

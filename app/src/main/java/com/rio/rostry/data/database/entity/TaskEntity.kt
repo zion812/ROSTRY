@@ -21,7 +21,9 @@ import androidx.room.PrimaryKey
         Index(value = ["taskType"]),
         Index(value = ["dueAt"]),
         Index(value = ["completedAt"]),
-        Index(value = ["mergedAt"])
+        Index(value = ["mergedAt"]),
+        // Performance index for dashboard queries (pending/overdue tasks by farmer)
+        Index(value = ["farmerId", "completedAt", "dueAt"])
     ]
 )
 /**

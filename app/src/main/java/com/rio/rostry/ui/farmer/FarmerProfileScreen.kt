@@ -181,6 +181,9 @@ fun FarmerProfileScreen(
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showEditSheet = false
                 }
+            },
+            onProfileImagePicked = { uri ->
+                viewModel.uploadProfileImage(uri)
             }
         )
     }

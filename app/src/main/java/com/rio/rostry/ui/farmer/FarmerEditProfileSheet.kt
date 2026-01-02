@@ -1,17 +1,30 @@
 package com.rio.rostry.ui.farmer
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.rio.rostry.data.database.entity.UserEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -20,13 +33,28 @@ fun FarmerEditProfileSheet(
     sheetState: SheetState,
     currentProfile: UserEntity,
     onDismissRequest: () -> Unit,
-    onSave: (UserEntity) -> Unit
+    onSave: (UserEntity) -> Unit,
+    onProfileImagePicked: ((Uri) -> Unit)? = null  // Optional callback for image upload
 ) {
     var fullName by remember { mutableStateOf(currentProfile.fullName ?: "") }
     var email by remember { mutableStateOf(currentProfile.email ?: "") }
     var phoneNumber by remember { mutableStateOf(currentProfile.phoneNumber ?: "") }
     var bio by remember { mutableStateOf(currentProfile.bio ?: "") }
     var address by remember { mutableStateOf(currentProfile.address ?: "") }
+    
+    // Profile image state
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val currentPhotoUrl = selectedImageUri?.toString() ?: currentProfile.profilePictureUrl
+    
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedImageUri = it
+            onProfileImagePicked?.invoke(it)
+        }
+    }
     
     // Farmer specific
     var chickenCount by remember { mutableStateOf(currentProfile.chickenCount?.toString() ?: "") }
@@ -57,6 +85,67 @@ fun FarmerEditProfileSheet(
             Text(
                 text = "Edit Farm Profile",
                 style = MaterialTheme.typography.headlineSmall
+            )
+            
+            // Profile Image Picker
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .clickable { imagePickerLauncher.launch("image/*") }
+            ) {
+                // Avatar
+                if (currentPhotoUrl != null) {
+                    AsyncImage(
+                        model = currentPhotoUrl,
+                        contentDescription = "Profile Photo",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Placeholder with initial
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = (fullName.firstOrNull()?.uppercase() ?: "?"),
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                
+                // Camera overlay icon
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = "Change photo",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            
+            Text(
+                text = "Tap to change photo",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
             // Basic Info
@@ -258,7 +347,9 @@ fun FarmerEditProfileSheet(
                             farmCity = farmCity.takeIf { it.isNotBlank() },
                             farmState = farmState.takeIf { it.isNotBlank() },
                             farmPostalCode = farmPostalCode.takeIf { it.isNotBlank() },
-                            farmCountry = farmCountry.takeIf { it.isNotBlank() }
+                            farmCountry = farmCountry.takeIf { it.isNotBlank() },
+                            // Include profile picture URL from selected image
+                            profilePictureUrl = selectedImageUri?.toString() ?: currentProfile.profilePictureUrl
                         )
                         onSave(updatedUser) 
                     }

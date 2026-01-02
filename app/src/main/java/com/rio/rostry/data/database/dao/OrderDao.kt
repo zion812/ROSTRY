@@ -55,6 +55,9 @@ interface OrderDao {
     @Query("SELECT * FROM order_items WHERE orderId = :orderId")
     fun getOrderItemsByOrderId(orderId: String): Flow<List<OrderItemEntity>>
 
+    @Query("SELECT * FROM order_items WHERE orderId = :orderId")
+    suspend fun getOrderItemsList(orderId: String): List<OrderItemEntity>
+
     @Query("DELETE FROM orders WHERE orderId = :orderId")
     suspend fun deleteOrderById(orderId: String) // Cascading delete for OrderItems is handled by ForeignKey
 

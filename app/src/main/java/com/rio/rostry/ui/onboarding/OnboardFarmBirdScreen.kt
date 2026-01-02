@@ -407,56 +407,84 @@ fun OnboardFarmBirdScreen(
             }
 
             Spacer(Modifier.height(8.dp))
-            // Dynamic per-step gating for Next button based on validator
-            val canProceed = when (state.currentStep) {
-                OnboardFarmBirdViewModel.WizardStep.PATH_SELECTION -> OnboardingValidator.validatePathSelection(state.isTraceable).isEmpty()
-                OnboardFarmBirdViewModel.WizardStep.AGE_GROUP -> OnboardingValidator.validateAgeGroup(state.ageGroup).isEmpty()
-                OnboardFarmBirdViewModel.WizardStep.CORE_DETAILS -> {
-                    if (state.ageGroup != null && state.isTraceable != null) {
-                        val details = OnboardingValidator.CoreDetailsState(
-                            name = state.coreDetails.name,
-                            birthDate = state.coreDetails.birthDate,
-                            birthPlace = state.coreDetails.birthPlace,
-                            gender = state.coreDetails.gender,
-                            weightGrams = state.coreDetails.weightGrams,
-                            heightCm = state.coreDetails.heightCm,
-                            colors = state.coreDetails.colors,
-                            breed = state.coreDetails.breed,
-                            physicalId = state.coreDetails.physicalId,
-                            vaccinationRecords = state.coreDetails.vaccinationRecords,
-                            healthStatus = state.coreDetails.healthStatus,
-                            breedingHistory = state.coreDetails.breedingHistory,
-                            awards = state.coreDetails.awards,
-                            location = state.coreDetails.location
-                        )
-                        val ageGroup2 = state.ageGroup ?: OnboardingValidator.AgeGroup.CHICK
-                        val isTraceable2 = state.isTraceable ?: false
-                        OnboardingValidator.validateCoreDetails(details, ageGroup2, isTraceable2).isEmpty()
-                    } else false
+            // Memoized validation to prevent recalculation on every recomposition
+            val canProceed = remember(state.currentStep, state.isTraceable, state.ageGroup, state.coreDetails, state.lineage, state.media) {
+                when (state.currentStep) {
+                    OnboardFarmBirdViewModel.WizardStep.PATH_SELECTION -> OnboardingValidator.validatePathSelection(state.isTraceable).isEmpty()
+                    OnboardFarmBirdViewModel.WizardStep.AGE_GROUP -> OnboardingValidator.validateAgeGroup(state.ageGroup).isEmpty()
+                    OnboardFarmBirdViewModel.WizardStep.CORE_DETAILS -> {
+                        if (state.ageGroup != null && state.isTraceable != null) {
+                            val details = OnboardingValidator.CoreDetailsState(
+                                name = state.coreDetails.name,
+                                birthDate = state.coreDetails.birthDate,
+                                birthPlace = state.coreDetails.birthPlace,
+                                gender = state.coreDetails.gender,
+                                weightGrams = state.coreDetails.weightGrams,
+                                heightCm = state.coreDetails.heightCm,
+                                colors = state.coreDetails.colors,
+                                breed = state.coreDetails.breed,
+                                physicalId = state.coreDetails.physicalId,
+                                vaccinationRecords = state.coreDetails.vaccinationRecords,
+                                healthStatus = state.coreDetails.healthStatus,
+                                breedingHistory = state.coreDetails.breedingHistory,
+                                awards = state.coreDetails.awards,
+                                location = state.coreDetails.location
+                            )
+                            val ageGroup2 = state.ageGroup ?: OnboardingValidator.AgeGroup.CHICK
+                            val isTraceable2 = state.isTraceable ?: false
+                            OnboardingValidator.validateCoreDetails(details, ageGroup2, isTraceable2).isEmpty()
+                        } else false
+                    }
+                    OnboardFarmBirdViewModel.WizardStep.LINEAGE -> OnboardingValidator.validateLineage(
+                        OnboardingValidator.LineageState(maleParentId = state.lineage.maleParentId, femaleParentId = state.lineage.femaleParentId),
+                        state.isTraceable == true
+                    ).isEmpty()
+                    OnboardFarmBirdViewModel.WizardStep.PROOFS -> OnboardingValidator.validateMedia(
+                        OnboardingValidator.MediaState(
+                            photoUris = state.media.photoUris,
+                            videoUris = state.media.videoUris,
+                            documentUris = state.media.documentUris
+                        ),
+                        state.isTraceable == true
+                    ).isEmpty()
+                    OnboardFarmBirdViewModel.WizardStep.REVIEW -> true
                 }
-                OnboardFarmBirdViewModel.WizardStep.LINEAGE -> OnboardingValidator.validateLineage(
-                    OnboardingValidator.LineageState(maleParentId = state.lineage.maleParentId, femaleParentId = state.lineage.femaleParentId),
-                    state.isTraceable == true
-                ).isEmpty()
-                OnboardFarmBirdViewModel.WizardStep.PROOFS -> OnboardingValidator.validateMedia(
-                    OnboardingValidator.MediaState(
-                        photoUris = state.media.photoUris,
-                        videoUris = state.media.videoUris,
-                        documentUris = state.media.documentUris
-                    ),
-                    state.isTraceable == true
-                ).isEmpty()
-                OnboardFarmBirdViewModel.WizardStep.REVIEW -> true
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.previousStep(onBack) }, modifier = Modifier.semantics { contentDescription = "Go to previous step" }) { Text("Back") }
+                Button(onClick = { vm.previousStep(onBack) }, enabled = !state.saving, modifier = Modifier.semantics { contentDescription = "Go to previous step" }) { Text("Back") }
                 if (state.currentStep == OnboardFarmBirdViewModel.WizardStep.REVIEW) {
-                    Button(onClick = { vm.save() }, enabled = !state.saving, modifier = Modifier.semantics { contentDescription = "Submit bird onboarding" }) { Text("Submit") }
+                    Button(
+                        onClick = { vm.save() },
+                        enabled = !state.saving,
+                        modifier = Modifier.semantics { contentDescription = "Submit bird onboarding" }
+                    ) {
+                        if (state.saving) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.padding(end = 8.dp).height(18.dp).fillMaxWidth(0.1f),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                        Text(if (state.saving) "Saving..." else "Submit")
+                    }
                 } else {
                     Button(onClick = { vm.nextStep() }, enabled = canProceed, modifier = Modifier.semantics { contentDescription = "Go to next step" }) { Text("Next") }
                 }
             }
-            state.error?.let { Text(it) }
+            state.error?.let { errorMsg ->
+                androidx.compose.material3.Card(
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = errorMsg,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
             
             state.warning?.let { warning ->
                 androidx.compose.material3.Card(

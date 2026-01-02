@@ -129,7 +129,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Farm Activity Logs (expenses, sanitation, etc.)
         FarmActivityLogEntity::class
     ],
-    version = 61, // 61: Farm Activity Logs; 60: Trust-But-Verify verification_requests
+    version = 64, // 64: Auction enhancements (reserve, buyNow, seller controls); 63: FarmAsset sale lifecycle
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -584,6 +584,65 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_56_57: Migration = Converters.MIGRATION_56_57
         val MIGRATION_57_58: Migration = Converters.MIGRATION_57_58
         val MIGRATION_58_59: Migration = Converters.MIGRATION_58_59
+
+        // FarmAsset sale lifecycle columns (62 → 63)
+        val MIGRATION_62_63 = object : Migration(62, 63) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Marketplace lifecycle
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `listedAt` INTEGER")
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `listingId` TEXT")
+                
+                // Sale tracking
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `soldAt` INTEGER")
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `soldToUserId` TEXT")
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `soldPrice` REAL")
+                
+                // Ownership transfer
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `previousOwnerId` TEXT")
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `transferredAt` INTEGER")
+                
+                // Indexes for sold/listed queries
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_soldAt` ON `farm_assets` (`soldAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_listingId` ON `farm_assets` (`listingId`)")
+            }
+        }
+
+        // Auction enhancements (63 → 64)
+        val MIGRATION_63_64 = object : Migration(63, 64) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // AuctionEntity new columns
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `sellerId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `closedAt` INTEGER")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `closedBy` TEXT")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `reservePrice` REAL")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `buyNowPrice` REAL")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `bidCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `isReserveMet` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `extensionCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `maxExtensions` INTEGER NOT NULL DEFAULT 3")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `extensionMinutes` INTEGER NOT NULL DEFAULT 5")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `viewCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `auctions` ADD COLUMN `dirty` INTEGER NOT NULL DEFAULT 0")
+                
+                // Auction indexes
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_auctions_sellerId` ON `auctions` (`sellerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_auctions_status` ON `auctions` (`status`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_auctions_status_endsAt` ON `auctions` (`status`, `endsAt`)")
+                
+                // BidEntity new columns
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `isAutoBid` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `maxAmount` REAL")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `isWinning` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `wasOutbid` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `outbidAt` INTEGER")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `outbidNotified` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `isRetracted` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `bids` ADD COLUMN `retractedReason` TEXT")
+                
+                // Bid indexes
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bids_auctionId_amount` ON `bids` (`auctionId`, `amount`)")
+            }
+        }
 
         // Create verification_drafts table (54 -> 55)
         val MIGRATION_54_55 = object : Migration(54, 55) {
@@ -2116,6 +2175,42 @@ abstract class AppDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_verification_requests_userId` ON `verification_requests` (`userId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_verification_requests_status` ON `verification_requests` (`status`)")
+            }
+        }
+
+        // Farm Activity Logs table (60 -> 61)
+        val MIGRATION_60_61 = object : Migration(60, 61) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `farm_activity_logs` (
+                        `activityId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `productId` TEXT,
+                        `activityType` TEXT NOT NULL,
+                        `amountInr` REAL,
+                        `quantity` INTEGER,
+                        `category` TEXT,
+                        `description` TEXT,
+                        `notes` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1,
+                        `syncedAt` INTEGER
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_activity_logs_farmerId` ON `farm_activity_logs` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_activity_logs_activityType` ON `farm_activity_logs` (`activityType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_activity_logs_createdAt` ON `farm_activity_logs` (`createdAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_activity_logs_productId` ON `farm_activity_logs` (`productId`)")
+            }
+        }
+
+        // Product-Asset Bridge: Add sourceAssetId to products (61 -> 62)
+        val MIGRATION_61_62 = object : Migration(61, 62) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add sourceAssetId column to products table (nullable, links to farm_assets.assetId)
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `sourceAssetId` TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sourceAssetId` ON `products` (`sourceAssetId`)")
             }
         }
     }
