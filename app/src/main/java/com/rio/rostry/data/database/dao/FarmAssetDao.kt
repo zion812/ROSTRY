@@ -77,4 +77,36 @@ interface FarmAssetDao {
     /** Check if asset is already listed */
     @Query("SELECT listingId FROM farm_assets WHERE assetId = :assetId")
     suspend fun getListingId(assetId: String): String?
+    
+    // ========================================
+    // Lifecycle Stage Queries
+    // ========================================
+    
+    /** Get dirty assets for sync */
+    @Query("SELECT * FROM farm_assets WHERE dirty = 1 LIMIT :limit")
+    suspend fun getDirtyAssets(limit: Int = 100): List<FarmAssetEntity>
+    
+    /** Clear dirty flag after sync */
+    @Query("UPDATE farm_assets SET dirty = 0 WHERE assetId = :assetId")
+    suspend fun clearDirty(assetId: String)
+    
+    /** Get assets for age update (have birthDate) */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND birthDate IS NOT NULL AND isDeleted = 0")
+    suspend fun getAssetsWithBirthDate(farmerId: String): List<FarmAssetEntity>
+    
+    /** Update age weeks for asset */
+    @Query("UPDATE farm_assets SET ageWeeks = :ageWeeks, updatedAt = :updatedAt WHERE assetId = :assetId")
+    suspend fun updateAgeWeeks(assetId: String, ageWeeks: Int, updatedAt: Long)
+    
+    /** Get market-ready assets (weight >= 1500g and not listed) */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND weightGrams >= :minWeight AND status = 'ACTIVE' AND listingId IS NULL AND isDeleted = 0")
+    suspend fun getMarketReadyAssets(farmerId: String, minWeight: Double = 1500.0): List<FarmAssetEntity>
+    
+    /** Get assets needing vaccination (nextVaccinationDate is past or today) */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND nextVaccinationDate IS NOT NULL AND nextVaccinationDate <= :now AND isDeleted = 0")
+    suspend fun getAssetsNeedingVaccination(farmerId: String, now: Long): List<FarmAssetEntity>
+    
+    /** Get all active farmer IDs (for batch processing) */
+    @Query("SELECT DISTINCT farmerId FROM farm_assets WHERE isDeleted = 0")
+    suspend fun getAllFarmerIds(): List<String>
 }

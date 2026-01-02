@@ -62,6 +62,7 @@ class LifecycleWorker @AssistedInject constructor(
     private val quarantineDao: QuarantineRecordDao,
     private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao,
     private val taskGenerator: TaskGenerator, // Farmer-First: Auto-generate daily tasks
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao, // Farm asset lifecycle
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -284,6 +285,11 @@ class LifecycleWorker @AssistedInject constructor(
             }
             
             // ============================================================
+            // FARM ASSET LIFECYCLE: Update ages for farm assets
+            // ============================================================
+            updateFarmAssetAges(now)
+            
+            // ============================================================
             // PHASE 2: SALES PIPELINE - Market-Ready Harvest Detection
             // ============================================================
             detectMarketReadyBatches(now)
@@ -439,6 +445,36 @@ class LifecycleWorker @AssistedInject constructor(
         if (harvestReadyCount > 0) {
             timber.log.Timber.d("Detected $harvestReadyCount market-ready batches")
         }
+    }
+    
+    /**
+     * Farm Asset Age Updates: Calculate and update ageWeeks for all farm assets with birthDate.
+     * This keeps farm assets synced with lifecycle stage transitions.
+     */
+    private suspend fun updateFarmAssetAges(now: Long) {
+        val startTime = System.currentTimeMillis()
+        var updatedCount = 0
+        
+        val farmerIds = farmAssetDao.getAllFarmerIds()
+        for (farmerId in farmerIds) {
+            try {
+                val assets = farmAssetDao.getAssetsWithBirthDate(farmerId)
+                for (asset in assets) {
+                    val birthDate = asset.birthDate ?: continue
+                    val ageWeeks = ((now - birthDate) / (7L * 24 * 60 * 60 * 1000)).toInt()
+                    
+                    // Only update if age changed
+                    if (asset.ageWeeks != ageWeeks) {
+                        farmAssetDao.updateAgeWeeks(asset.assetId, ageWeeks, now)
+                        updatedCount++
+                    }
+                }
+            } catch (e: Exception) {
+                timber.log.Timber.e(e, "Failed to update ages for farmer=$farmerId")
+            }
+        }
+        
+        timber.log.Timber.d("Updated ages for $updatedCount farm assets in ${System.currentTimeMillis() - startTime}ms")
     }
     
     private fun getStartOfMonth(now: Long): Long {
