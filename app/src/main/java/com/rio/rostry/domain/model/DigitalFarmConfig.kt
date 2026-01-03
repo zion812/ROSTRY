@@ -51,6 +51,26 @@ enum class FarmMetricSlot {
 }
 
 /**
+ * Render rate for the Digital Farm canvas.
+ * STATIC: Only re-render on data changes (battery/CPU efficient).
+ * DYNAMIC: Continuous 60fps animation loop (premium experience).
+ */
+enum class RenderRate {
+    STATIC,   // Render only on data change or interaction
+    DYNAMIC   // Continuous animation loop (60fps)
+}
+
+/**
+ * Grouping mode for bird visualization.
+ * BY_BATCH: Render one avatar per batch with quantity badge (Lite).
+ * INDIVIDUAL: Render each bird separately (Premium).
+ */
+enum class GroupingMode {
+    BY_BATCH,    // 1 Avatar = N birds (e.g., "x50" badge)
+    INDIVIDUAL   // Each bird rendered separately
+}
+
+/**
  * Configuration for persona-specific Digital Farm behavior.
  * 
  * This class controls:
@@ -65,7 +85,13 @@ data class DigitalFarmConfig(
     val enabledOverlays: Set<DigitalFarmOverlay>,
     val birdTapActions: List<FarmTapAction>,
     val breedingHutTapActions: List<FarmTapAction>,
-    val metricsBar: List<FarmMetricSlot>
+    val metricsBar: List<FarmMetricSlot>,
+    // Performance flags (Lite Mode support)
+    val enableParticles: Boolean = true,
+    val enableDayNightCycle: Boolean = true,
+    val enableFlocking: Boolean = true,
+    val renderRate: RenderRate = RenderRate.DYNAMIC,
+    val groupingMode: GroupingMode = GroupingMode.INDIVIDUAL
 ) {
     companion object {
         /**
@@ -99,7 +125,13 @@ data class DigitalFarmConfig(
                 FarmMetricSlot.BATCHES,
                 FarmMetricSlot.READY_FOR_SALE,
                 FarmMetricSlot.FEED_USAGE
-            )
+            ),
+            // Lite Mode: Optimized for low-end devices
+            enableParticles = false,
+            enableDayNightCycle = false,
+            enableFlocking = false,
+            renderRate = RenderRate.STATIC,
+            groupingMode = GroupingMode.BY_BATCH
         )
 
         /**

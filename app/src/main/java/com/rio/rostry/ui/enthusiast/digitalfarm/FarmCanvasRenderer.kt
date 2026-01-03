@@ -141,25 +141,42 @@ object FarmCanvasRenderer {
 
     /**
      * Main rendering function - draws the complete farm
+     * 
+     * @param config Optional configuration for Lite mode optimization.
+     *               When config flags are disabled, expensive effects are skipped.
      */
     fun DrawScope.renderFarm(
         state: DigitalFarmState,
         animationTime: Float = 0f,  // For idle animations
         selectedBirdId: String? = null,
         timeOfDay: TimeOfDay = TimeOfDay.fromCurrentTime(),
-        weather: WeatherType = WeatherType.SUNNY
+        weather: WeatherType = WeatherType.SUNNY,
+        config: DigitalFarmConfig? = null  // Lite mode config
     ) {
         val width = size.width
         val height = size.height
+        
+        // Performance flags (default to premium if no config)
+        val enableParticles = config?.enableParticles ?: true
+        val enableDayNightCycle = config?.enableDayNightCycle ?: true
+        val enableFlocking = config?.enableFlocking ?: true
+        val groupingMode = config?.groupingMode ?: GroupingMode.INDIVIDUAL
 
-        // Layer 0: Sky with gradient (time-based)
-        drawSky(width, height, timeOfDay)
+        // Layer 0: Sky with gradient (time-based or static "Golden Hour")
+        if (enableDayNightCycle) {
+            drawSky(width, height, timeOfDay)
+        } else {
+            // Static "Golden Hour" lighting for Lite mode
+            drawSky(width, height, TimeOfDay.AFTERNOON)
+        }
 
-        // Layer 1: Clouds (animated) - more clouds if cloudy/rainy
-        drawClouds(width, height, animationTime)
+        // Layer 1: Clouds (animated) - skip if particles disabled
+        if (enableParticles) {
+            drawClouds(width, height, animationTime)
+        }
         
         // Layer 1.5: Overcast effect for cloudy/rainy weather
-        if (weather == WeatherType.CLOUDY || weather == WeatherType.RAINY) {
+        if (enableParticles && (weather == WeatherType.CLOUDY || weather == WeatherType.RAINY)) {
             drawOvercastEffect(width, height, animationTime)
         }
 
@@ -175,42 +192,49 @@ object FarmCanvasRenderer {
         // Layer 5: Fences (back)
         drawFencesBack(width, height)
         
-        // Layer 5.5: Wind effect on grass
-        if (weather == WeatherType.WINDY || weather == WeatherType.RAINY) {
+        // Layer 5.5: Wind effect on grass - skip if particles disabled
+        if (enableParticles && (weather == WeatherType.WINDY || weather == WeatherType.RAINY)) {
             val windStrength = if (weather == WeatherType.RAINY) 0.7f else 1f
             drawWindEffect(width, height, animationTime, windStrength)
         }
 
         // Layer 6: Structures
-        drawBreedingHuts(state.breedingUnits, width, height, animationTime)
+        drawBreedingHuts(state.breedingUnits, width, height, if (enableParticles) animationTime else 0f)
         drawMarketStand(width, height, state.marketReady.size)
 
-        // Layer 7: Birds (sorted by Y for proper overlap) - with flocking behavior
-        val allBirds = collectAllBirdsForRendering(state, width, height, animationTime)
-        val sortedBirds = allBirds.sortedBy { it.renderY }
-        sortedBirds.forEach { renderBird ->
-            drawBirdSprite(
-                renderBird.x,
-                renderBird.y,
-                renderBird.bird,
-                animationTime,
-                isSelected = renderBird.bird.productId == selectedBirdId
-            )
+        // Layer 7: Birds - Lite mode uses batch avatars, Premium uses individual birds
+        if (groupingMode == GroupingMode.BY_BATCH) {
+            // Lite Mode: Render batch avatars
+            drawBatchAvatars(state, width, height)
+        } else {
+            // Premium Mode: Render individual birds with flocking
+            val effectiveAnimTime = if (enableFlocking) animationTime else 0f
+            val allBirds = collectAllBirdsForRendering(state, width, height, effectiveAnimTime)
+            val sortedBirds = allBirds.sortedBy { it.renderY }
+            sortedBirds.forEach { renderBird ->
+                drawBirdSprite(
+                    renderBird.x,
+                    renderBird.y,
+                    renderBird.bird,
+                    effectiveAnimTime,
+                    isSelected = renderBird.bird.productId == selectedBirdId
+                )
+            }
+            
+            // Layer 10: Status indicators (on top) - only for individual mode
+            sortedBirds.forEach { renderBird ->
+                drawStatusIndicator(renderBird.x, renderBird.y - 30f, renderBird.bird.statusIndicator)
+            }
         }
 
         // Layer 8: Nurseries (special grouping)
-        drawNurseries(state.nurseries, width, height, animationTime)
+        drawNurseries(state.nurseries, width, height, if (enableParticles) animationTime else 0f)
 
         // Layer 9: Fences (front)
         drawFencesFront(width, height)
-
-        // Layer 10: Status indicators (on top)
-        sortedBirds.forEach { renderBird ->
-            drawStatusIndicator(renderBird.x, renderBird.y - 30f, renderBird.bird.statusIndicator)
-        }
         
-        // Layer 11: Rain effect (on top of everything)
-        if (weather == WeatherType.RAINY) {
+        // Layer 11: Rain effect (on top of everything) - skip if particles disabled
+        if (enableParticles && weather == WeatherType.RAINY) {
             drawRainEffect(width, height, animationTime, intensity = 1f)
         }
     }
@@ -350,6 +374,181 @@ object FarmCanvasRenderer {
         }
 
         return result
+    }
+    
+    // ==================== LITE MODE: BATCH AVATARS ====================
+    
+    /**
+     * Draw batch avatars for Lite Mode (Farmer persona).
+     * Renders one large avatar per batch with quantity badge and status halo.
+     * Much more efficient than individual bird rendering.
+     */
+    private fun DrawScope.drawBatchAvatars(
+        state: DigitalFarmState,
+        width: Float,
+        height: Float
+    ) {
+        // Group birds by zone and aggregate into batches
+        data class BatchAggregate(
+            val zone: DigitalFarmZone,
+            val count: Int,
+            val hasHealthAlert: Boolean,
+            val hasVaccineDue: Boolean,
+            val readyForSale: Int
+        )
+        
+        // Aggregate free range
+        val freeRangeBatch = BatchAggregate(
+            zone = DigitalFarmZone.FREE_RANGE,
+            count = state.freeRange.size,
+            hasHealthAlert = state.freeRange.any { it.statusIndicator == BirdStatusIndicator.SICK },
+            hasVaccineDue = state.freeRange.any { it.statusIndicator == BirdStatusIndicator.VACCINE_DUE },
+            readyForSale = state.freeRange.count { it.isReadyForSale }
+        )
+        
+        // Aggregate grow out
+        val growOutBatch = BatchAggregate(
+            zone = DigitalFarmZone.GROW_OUT,
+            count = state.growOut.size,
+            hasHealthAlert = state.growOut.any { it.statusIndicator == BirdStatusIndicator.SICK },
+            hasVaccineDue = state.growOut.any { it.statusIndicator == BirdStatusIndicator.VACCINE_DUE },
+            readyForSale = state.growOut.count { it.isReadyForSale }
+        )
+        
+        // Aggregate ready display
+        val readyBatch = BatchAggregate(
+            zone = DigitalFarmZone.READY_DISPLAY,
+            count = state.readyDisplay.size,
+            hasHealthAlert = false,
+            hasVaccineDue = false,
+            readyForSale = state.readyDisplay.size
+        )
+        
+        // Aggregate market
+        val marketBatch = BatchAggregate(
+            zone = DigitalFarmZone.MARKET_STAND,
+            count = state.marketReady.size,
+            hasHealthAlert = false,
+            hasVaccineDue = false,
+            readyForSale = state.marketReady.size
+        )
+        
+        val batches = listOf(freeRangeBatch, growOutBatch, readyBatch, marketBatch)
+            .filter { it.count > 0 }
+        
+        // Zone positions for avatars
+        val zonePositions = mapOf(
+            DigitalFarmZone.FREE_RANGE to Offset(width * 0.25f, height * 0.55f),
+            DigitalFarmZone.GROW_OUT to Offset(width * 0.65f, height * 0.55f),
+            DigitalFarmZone.READY_DISPLAY to Offset(width * 0.45f, height * 0.38f),
+            DigitalFarmZone.MARKET_STAND to Offset(width * 0.78f, height * 0.75f)
+        )
+        
+        batches.forEach { batch ->
+            val pos = zonePositions[batch.zone] ?: return@forEach
+            drawBatchAvatar(pos.x, pos.y, batch.count, batch.hasHealthAlert, batch.hasVaccineDue, batch.readyForSale > 0)
+        }
+    }
+    
+    /**
+     * Draw a single batch avatar with status halo and quantity badge.
+     */
+    private fun DrawScope.drawBatchAvatar(
+        x: Float, 
+        y: Float, 
+        count: Int,
+        hasHealthAlert: Boolean,
+        hasVaccineDue: Boolean,
+        isReadyForSale: Boolean
+    ) {
+        val avatarSize = 50f
+        
+        // Status halo (behind avatar)
+        val haloColor = when {
+            hasHealthAlert -> FarmColors.statusSick
+            hasVaccineDue -> FarmColors.statusVaccineDue
+            isReadyForSale -> FarmColors.goldStar
+            else -> Color(0xFF4CAF50) // Green = healthy
+        }
+        
+        // Draw halo glow
+        drawCircle(
+            color = haloColor.copy(alpha = 0.3f),
+            radius = avatarSize * 1.2f,
+            center = Offset(x, y)
+        )
+        drawCircle(
+            color = haloColor.copy(alpha = 0.6f),
+            radius = avatarSize,
+            center = Offset(x, y),
+            style = Stroke(width = 4f)
+        )
+        
+        // Draw large rooster avatar (simplified sprite)
+        // Body
+        drawCircle(
+            color = FarmColors.birdWhite,
+            radius = avatarSize * 0.6f,
+            center = Offset(x, y)
+        )
+        
+        // Head
+        drawCircle(
+            color = FarmColors.birdWhite,
+            radius = avatarSize * 0.35f,
+            center = Offset(x, y - avatarSize * 0.45f)
+        )
+        
+        // Comb
+        drawCircle(
+            color = FarmColors.combRed,
+            radius = avatarSize * 0.15f,
+            center = Offset(x, y - avatarSize * 0.7f)
+        )
+        
+        // Beak
+        beakPath.reset()
+        beakPath.moveTo(x + avatarSize * 0.2f, y - avatarSize * 0.4f)
+        beakPath.lineTo(x + avatarSize * 0.45f, y - avatarSize * 0.35f)
+        beakPath.lineTo(x + avatarSize * 0.2f, y - avatarSize * 0.3f)
+        beakPath.close()
+        drawPath(beakPath, FarmColors.beakOrange)
+        
+        // Eye
+        drawCircle(
+            color = Color.Black,
+            radius = 3f,
+            center = Offset(x + avatarSize * 0.08f, y - avatarSize * 0.45f)
+        )
+        
+        // Quantity badge (top-right)
+        val badgeX = x + avatarSize * 0.5f
+        val badgeY = y - avatarSize * 0.5f
+        
+        // Badge background
+        drawRoundRect(
+            color = Color(0xFF1976D2),
+            topLeft = Offset(badgeX - 18f, badgeY - 10f),
+            size = Size(36f, 20f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f)
+        )
+        
+        // Draw "x{count}" text simulation with circles (crude but works without text)
+        // For actual implementation, this would use drawContext.canvas.nativeCanvas.drawText
+        // For now, we show circles proportional to magnitude
+        val magnitude = when {
+            count >= 100 -> 3
+            count >= 50 -> 2
+            count >= 10 -> 1
+            else -> 0
+        }
+        repeat(magnitude + 1) { i ->
+            drawCircle(
+                color = Color.White,
+                radius = 3f,
+                center = Offset(badgeX - 10f + i * 8f, badgeY)
+            )
+        }
     }
 
     // ==================== SKY & ATMOSPHERE ====================
@@ -1580,13 +1779,15 @@ object FarmCanvasRenderer {
 
     /**
      * Determine what was tapped at the given position
+     * @param useLiteMode If true, zone hits take priority and individual birds are not checked
      */
     fun hitTest(
         tapX: Float,
         tapY: Float,
         canvasWidth: Float,
         canvasHeight: Float,
-        state: DigitalFarmState
+        state: DigitalFarmState,
+        useLiteMode: Boolean = false
     ): HitTestResult {
         val normalizedX = tapX / canvasWidth
         val normalizedY = tapY / canvasHeight
@@ -1613,8 +1814,26 @@ object FarmCanvasRenderer {
                 return HitTestResult.NurseryHit(nursery)
             }
         }
+        
+        // LITE MODE: Check zones first (larger tap targets for batch avatars)
+        if (useLiteMode) {
+            // Free Range zone (left side)
+            if (normalizedX in 0.05f..0.45f && normalizedY in 0.4f..0.7f) {
+                return HitTestResult.ZoneHit(DigitalFarmZone.FREE_RANGE)
+            }
+            // Grow Out zone (right side)
+            if (normalizedX in 0.5f..0.85f && normalizedY in 0.4f..0.7f) {
+                return HitTestResult.ZoneHit(DigitalFarmZone.GROW_OUT)
+            }
+            // Ready Display zone (center-top)
+            if (normalizedX in 0.3f..0.6f && normalizedY in 0.25f..0.45f) {
+                return HitTestResult.ZoneHit(DigitalFarmZone.READY_DISPLAY)
+            }
+            // In Lite mode, don't check individual birds
+            return HitTestResult.Nothing
+        }
 
-        // Check individual birds (all zones)
+        // PREMIUM MODE: Check individual birds (all zones)
         val hitRadius = 0.04f
         val allBirds = state.freeRange + state.growOut + state.readyDisplay + state.marketReady
         allBirds.forEach { bird ->
@@ -1632,6 +1851,7 @@ object FarmCanvasRenderer {
         data class BirdHit(val bird: VisualBird) : HitTestResult()
         data class NurseryHit(val nursery: NurseryGroup) : HitTestResult()
         data class BreedingHutHit(val unit: BreedingUnit) : HitTestResult()
+        data class ZoneHit(val zone: DigitalFarmZone) : HitTestResult()  // Lite mode zone tap
         data object MarketStandHit : HitTestResult()
         data object Nothing : HitTestResult()
     }

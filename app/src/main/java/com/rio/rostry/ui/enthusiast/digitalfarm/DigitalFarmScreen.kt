@@ -234,6 +234,7 @@ private fun EnhancedFarmCanvas(
                         is FarmCanvasRenderer.HitTestResult.NurseryHit -> onNurseryTapped(result.nursery)
                         is FarmCanvasRenderer.HitTestResult.BreedingHutHit -> onBreedingHutTapped(result.unit)
                         is FarmCanvasRenderer.HitTestResult.MarketStandHit -> onMarketStandTapped()
+                        is FarmCanvasRenderer.HitTestResult.ZoneHit -> { /* Lite mode only - not used for Enthusiast */ }
                         is FarmCanvasRenderer.HitTestResult.Nothing -> { /* Empty tap */ }
                     }
                 }

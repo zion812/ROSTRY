@@ -186,6 +186,7 @@ sealed class FarmTapResult {
     data class NurseryTapped(val nursery: NurseryGroup) : FarmTapResult()
     data class BreedingHutTapped(val unit: BreedingUnit) : FarmTapResult()
     data class MarketStandTapped(val birds: List<VisualBird>) : FarmTapResult()
+    data class ZoneTapped(val zone: DigitalFarmZone, val birds: List<VisualBird>) : FarmTapResult()  // Lite mode
     data object EmptyAreaTapped : FarmTapResult()
 }
 

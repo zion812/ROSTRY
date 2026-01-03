@@ -317,6 +317,25 @@ class DigitalFarmViewModel @Inject constructor(
             _tapResult.emit(FarmTapResult.MarketStandTapped(_uiState.value.marketReady))
         }
     }
+    
+    /**
+     * Lite Mode: Zone tapped - opens zone bottom sheet with batch summary
+     */
+    fun onZoneTapped(zone: DigitalFarmZone) {
+        viewModelScope.launch {
+            val birdsInZone = when (zone) {
+                DigitalFarmZone.FREE_RANGE -> _uiState.value.freeRange
+                DigitalFarmZone.GROW_OUT -> _uiState.value.growOut
+                DigitalFarmZone.READY_DISPLAY -> _uiState.value.readyDisplay
+                DigitalFarmZone.MARKET_STAND -> _uiState.value.marketReady
+                DigitalFarmZone.NURSERY -> _uiState.value.nurseries.flatMap { it.chicks + it.mother }
+                DigitalFarmZone.BREEDING_UNIT -> _uiState.value.breedingUnits.flatMap { 
+                    listOfNotNull(it.rooster) + it.hens 
+                }
+            }
+            _tapResult.emit(FarmTapResult.ZoneTapped(zone, birdsInZone))
+        }
+    }
 
     fun clearSelection() {
         _selectedBird.value = null
