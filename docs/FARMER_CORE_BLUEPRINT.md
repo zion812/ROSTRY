@@ -89,12 +89,12 @@ This document captures the **ground truth** of the current ROSTRY Farmer experie
 
 ### Navigation Issues Identified
 
-| Issue ID | Route | Problem | Severity |
-|----------|-------|---------|----------|
-| NAV-001 | `farmer/asset/{assetId}` | Route defined but screen integration unclear | MEDIUM |
-| NAV-002 | `farmer/create_asset` | Route defined, screen implementation not verified | MEDIUM |
-| NAV-003 | `farmer/create` | Heavy 55KB ViewModel - may cause ANR on low-end devices | HIGH |
-| NAV-004 | `monitoring/daily_log` | Heavy 28KB screen with many dependencies | MEDIUM |
+| Issue ID | Route | Problem | Status |
+|----------|-------|---------|--------|
+| NAV-001 | `farmer/asset/{assetId}` | Route defined but screen integration unclear | ✅ RESOLVED (verified in AppNavHost.kt:1058) |
+| NAV-002 | `farmer/create_asset` | Route defined, screen implementation not verified | ✅ RESOLVED (verified in AppNavHost.kt:1080) |
+| NAV-003 | `farmer/create` | Heavy 55KB ViewModel - may cause ANR on low-end devices | ⚠️ NEEDS REFACTOR |
+| NAV-004 | `monitoring/daily_log` | Heavy 28KB screen with many dependencies | ⚠️ MONITOR |
 
 ---
 
