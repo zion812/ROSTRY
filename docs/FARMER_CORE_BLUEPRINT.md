@@ -71,7 +71,7 @@ This document captures the **ground truth** of the current ROSTRY Farmer experie
 | `farmer/asset/{assetId}` | FarmAssetDetailScreen | Asset click | assetId | Asset details + actions | Unknown | ❓ VERIFY |
 | `farmer/create_asset` | Asset creation | FAB on list | None | Create new asset | Unknown | ❓ VERIFY |
 | `farmer/create` | FarmerCreateScreen | FAB on home | prefillProductId? | Bird/batch creation wizard | 41KB - Complex | ⚠️ HEAVY |
-| `farmer/digital_farm` | DigitalFarmScreen | Dashboard card | None | Visual farm representation | 28KB composable | ⚠️ HEAVY |
+| `farmer/digital_farm` | DigitalFarmScreen | Dashboard card | None | Visual farm representation | 28KB + Lite Mode | ✅ OK (Lite Mode) |
 
 ### Monitoring Routes (Farmer-Accessible)
 

@@ -1,6 +1,6 @@
 ---
-Version: 4.1
-Last Updated: 2025-12-29
+Version: 4.2
+Last Updated: 2026-01-04
 Audience: Developers, Architects
 Status: Active
 ---
@@ -11,8 +11,8 @@ Status: Active
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2025-12-29  
-**Documentation Version**: 4.1
+**Last Updated**: 2026-01-04  
+**Documentation Version**: 4.2
 
 📘 **NEW: Complete System Reference** - See `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` for the comprehensive R&D Master Document that provides end-to-end coverage of the entire codebase, including architecture, detailed features, and implementation patterns.
 
@@ -129,6 +129,8 @@ Essential guides for developers working on ROSTRY:
 | Document | Description |
 |----------|-------------|
 | `farm-monitoring.md` | Monitoring modules, workers, analytics, alerts |
+| `digital-farm.md` | Digital Farm interactive visualization (v2.2 with Lite Mode) |
+| `FARMER_LITE_DIGITAL_FARM_STRATEGY.md` | **NEW** Farmer Lite Mode performance optimization |
 | `analytics-dashboard.md` | Role-specific dashboards, data pipelines, AI recommendations |
 | `enthusiast-role-guide.md` | Enthusiast features, Digital Farm, breeding management |
 | `explore-features.md` | Explore tab features, map view, educational content |

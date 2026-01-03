@@ -1,6 +1,6 @@
 ---
-Version: 2.1
-Last Updated: 2025-12-29
+Version: 2.2
+Last Updated: 2026-01-04
 Audience: Developers, Product Owners
 Status: Active
 ---
@@ -8,10 +8,10 @@ Status: Active
 # Digital Farm Feature Guide
 
 **Document Type**: Feature Documentation  
-**Version**: 2.1  
-**Last Updated**: 2025-12-29  
-**Feature Owner**: Enthusiast Domain  
-**Status**: ✅ Fully Implemented (6 Phases Complete)
+**Version**: 2.2  
+**Last Updated**: 2026-01-04  
+**Feature Owner**: Enthusiast Domain + Farmer Domain (Lite Mode)  
+**Status**: ✅ Fully Implemented (8 Phases Complete)
 
 ---
 
@@ -83,6 +83,32 @@ The **Digital Farm** is an interactive, gamified visualization feature for Enthu
 - **Visibility Toggle**: Farmers can set products as "Private" (farm management only) or "Public" (marketplace).
 - **Context-Aware Filtering**: `ProductEntity.isPublic` flag controls visibility in the general marketplace feed while keeping items visible in the digital farm view.
 - **Inventory Integration**: Visual indicators in the inventory screen show public status.
+
+### Phase 8: Farmer Lite Mode (2026-01-04)
+
+Performance-optimized rendering mode for Farmer persona on low-end devices ($100 Android phones).
+
+**Philosophy**: "Utility, Not Vanity" — Interactive Status Board, not a simulator.
+
+| Feature | Lite Mode (Farmer) | Premium Mode (Enthusiast) |
+|---------|-------------------|---------------------------|
+| **Particles** | Disabled | Rain, wind, clouds |
+| **Day/Night Cycle** | Static "Golden Hour" | Dynamic time-based |
+| **Flocking** | Disabled | Wave-based movement |
+| **Render Rate** | STATIC (on-change) | DYNAMIC (60fps) |
+| **Grouping** | BY_BATCH (avatars) | INDIVIDUAL (birds) |
+
+**New Components:**
+- `RenderRate` enum: STATIC, DYNAMIC
+- `GroupingMode` enum: BY_BATCH, INDIVIDUAL
+- `drawBatchAvatars()`: Zone-level batch visualization with status halos
+- `ZoneHit` result: Lite mode zone tap detection
+- `FarmFallbackListView`: OOM recovery list view
+
+**Files:**
+- [DigitalFarmConfig.kt](../app/src/main/java/com/rio/rostry/domain/model/DigitalFarmConfig.kt) - Performance flags
+- [FarmCanvasRenderer.kt](../app/src/main/java/com/rio/rostry/ui/enthusiast/digitalfarm/FarmCanvasRenderer.kt) - Conditional rendering
+- [FARMER_LITE_DIGITAL_FARM_STRATEGY.md](./FARMER_LITE_DIGITAL_FARM_STRATEGY.md) - Full strategy
 
 ---
 
