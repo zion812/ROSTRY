@@ -45,6 +45,7 @@ fun FarmerProfileScreen(
     onEditProfile: () -> Unit,
     onManageCertifications: () -> Unit,
     onContactSupport: () -> Unit,
+    onUpgradeToEnthusiast: () -> Unit = {},  // NEW: Navigation to Enthusiast upgrade
 ) {
     val state by viewModel.uiState.collectAsState()
     
@@ -79,7 +80,8 @@ fun FarmerProfileScreen(
                 item {
                     VerificationSection(
                         user = state.user,
-                        onManageCertifications = onManageCertifications
+                        onManageCertifications = onManageCertifications,
+                        onUpgradeToEnthusiast = onUpgradeToEnthusiast
                     )
                 }
 
@@ -292,10 +294,15 @@ private fun ProfileHeader(
 }
 
 @Composable
-private fun VerificationSection(user: com.rio.rostry.data.database.entity.UserEntity?, onManageCertifications: () -> Unit) {
+private fun VerificationSection(
+    user: com.rio.rostry.data.database.entity.UserEntity?, 
+    onManageCertifications: () -> Unit,
+    onUpgradeToEnthusiast: () -> Unit = {}
+) {
     val status = user?.verificationStatus ?: com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED
     val isVerified = status == com.rio.rostry.domain.model.VerificationStatus.VERIFIED
     val isLocationVerified = user?.locationVerified == true
+    val isFarmer = user?.role == com.rio.rostry.domain.model.UserType.FARMER
 
     val (icon, color, text) = when (status) {
         com.rio.rostry.domain.model.VerificationStatus.VERIFIED -> Triple(Icons.Default.Verified, Color(0xFF4CAF50), "Verified Farmer")
@@ -330,8 +337,40 @@ private fun VerificationSection(user: com.rio.rostry.data.database.entity.UserEn
                 BadgeItem("Location", isLocationVerified)
             }
             Spacer(Modifier.height(12.dp))
-            TextButton(onClick = onManageCertifications) {
-                Text(if (status == com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED || status == com.rio.rostry.domain.model.VerificationStatus.REJECTED) "Verify Now" else "Manage Certifications")
+            
+            // Actions Row
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onManageCertifications) {
+                    Text(if (status == com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED || status == com.rio.rostry.domain.model.VerificationStatus.REJECTED) "Verify Now" else "Manage Certifications")
+                }
+                
+                // Enthusiast Upgrade - Only show for verified farmers
+                if (isVerified && isFarmer) {
+                    Button(
+                        onClick = onUpgradeToEnthusiast,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD4AF37)  // Gold
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.TrendingUp, 
+                            contentDescription = null, 
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Upgrade to Enthusiast", color = Color.White)
+                    }
+                } else if (isFarmer && !isVerified) {
+                    // Show locked hint for unverified farmers
+                    Text(
+                        "Complete verification to unlock Enthusiast",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

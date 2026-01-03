@@ -128,7 +128,15 @@ class EnthusiastPerformanceWorker @AssistedInject constructor(
                 bloodlineMap.entries.map { mapOf("bloodlineId" to it.key, "eggs" to it.value) }
             )
 
-            // Persist snapshot
+            // NEW: Compute additional Enthusiast KPIs
+            // Incubating count: batches with status INCUBATING or ACTIVE
+            val incubatingCount = hatchingBatchDao.countIncubatingForFarmer(userId, now)
+            
+            // Eggs collected today
+            val dayStart = now - (now % (24 * 60 * 60 * 1000))
+            val eggsToday = eggCollectionDao.countEggsForFarmerBetween(userId, dayStart, now)
+
+            // Persist snapshot with all fields
             val snapshot = EnthusiastDashboardSnapshotEntity(
                 snapshotId = UUID.randomUUID().toString(),
                 userId = userId,
@@ -142,6 +150,10 @@ class EnthusiastPerformanceWorker @AssistedInject constructor(
                 eggsCollectedCount = eggsWeek,
                 hatchingDueCount = due7,
                 transfersPendingCount = pendingCount,
+                pairsToMateCount = pairsToMateCount,
+                incubatingCount = incubatingCount,
+                sickBirdsCount = 0, // TODO: Query from FarmAlertDao when available
+                eggsCollectedToday = eggsToday,
                 createdAt = System.currentTimeMillis(),
                 dirty = true,
                 syncedAt = null

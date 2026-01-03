@@ -21,6 +21,10 @@ import kotlin.random.Random
  * 
  * Converts raw ProductEntity data into zone-based VisualBird groups
  * for efficient Canvas rendering.
+ * 
+ * Supports persona-specific "lenses" via DigitalFarmConfig:
+ * - FARMER: Operational flock view with batch management
+ * - ENTHUSIAST: Showroom + genetics lab with champion focus
  */
 @HiltViewModel
 class DigitalFarmViewModel @Inject constructor(
@@ -39,6 +43,27 @@ class DigitalFarmViewModel @Inject constructor(
 
     private val _tapResult = MutableSharedFlow<FarmTapResult>()
     val tapResult: SharedFlow<FarmTapResult> = _tapResult.asSharedFlow()
+    
+    // Persona-specific configuration (determines which zones/overlays/actions are visible)
+    private val _config = MutableStateFlow(DigitalFarmConfig.ENTHUSIAST)
+    val config: StateFlow<DigitalFarmConfig> = _config.asStateFlow()
+    
+    /**
+     * Set the farm mode (called from UI based on user's role)
+     */
+    fun setMode(mode: DigitalFarmMode) {
+        _config.value = when (mode) {
+            DigitalFarmMode.FARMER -> DigitalFarmConfig.FARMER
+            DigitalFarmMode.ENTHUSIAST -> DigitalFarmConfig.ENTHUSIAST
+        }
+    }
+    
+    /**
+     * Set config based on user type (convenience method)
+     */
+    fun setConfigForRole(role: UserType) {
+        _config.value = DigitalFarmConfig.forRole(role)
+    }
 
     // Zone bounds for positioning (normalized 0-1 coordinates)
     private val nurseryZoneBounds = Pair(Offset(0.05f, 0.05f), Offset(0.45f, 0.35f))

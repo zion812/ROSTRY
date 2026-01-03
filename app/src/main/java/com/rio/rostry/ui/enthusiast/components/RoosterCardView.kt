@@ -190,6 +190,15 @@ fun RoosterCardView(
                                     StatItem("COLOR", product.colorTag ?: product.color ?: "-")
                                     StatItem("WINS", "0") // Placeholder for wins
                                 }
+                                // Mini-Pedigree Row (Sire/Dam)
+                                Spacer(Modifier.height(12.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                    // Use parentMaleId/parentFemaleId for bloodline
+                                    val sireId = product.parentMaleId?.take(8) ?: "-"
+                                    val damId = product.parentFemaleId?.take(8) ?: "-"
+                                    StatItem("SIRE", sireId)
+                                    StatItem("DAM", damId)
+                                }
                             }
                             
                             Spacer(modifier = Modifier.weight(1f))

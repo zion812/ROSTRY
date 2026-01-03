@@ -196,6 +196,10 @@ interface HatchingBatchDao {
 
     @Query("UPDATE hatching_batches SET dirty = 0, syncedAt = :syncedAt WHERE batchId IN (:batchIds)")
     suspend fun clearDirty(batchIds: List<String>, syncedAt: Long)
+
+    /** Count batches currently incubating (status = INCUBATING or ACTIVE with expectedHatchAt in future) */
+    @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status IN ('INCUBATING', 'ACTIVE') AND expectedHatchAt > :now")
+    suspend fun countIncubatingForFarmer(farmerId: String, now: Long = System.currentTimeMillis()): Int
 }
 
 @Dao

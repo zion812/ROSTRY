@@ -174,6 +174,16 @@ fun FarmerHomeScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+            
+            // Enthusiast Upgrade Recommendation Banner (for verified farmers with 50+ birds)
+            if (uiState.showEnthusiastUpgradeBanner) {
+                item {
+                    EnthusiastUpgradeBanner(
+                        birdCount = uiState.activeBirdCount,
+                        onClick = { onNavigateRoute("upgrade/wizard/ENTHUSIAST") }
+                    )
+                }
+            }
             if (uiState.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING) {
                 item {
                     Card(
@@ -793,5 +803,77 @@ fun FarmerHomeScreen(
                 showQuickLogSheet = false
             }
         )
+    }
+}
+
+/**
+ * Premium-styled banner for recommending Enthusiast upgrade to verified farmers with 50+ birds.
+ * Uses gold gradient to convey premium/advanced tier.
+ */
+@Composable
+private fun EnthusiastUpgradeBanner(
+    birdCount: Int,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2D2D2D)  // Dark base for premium feel
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFFD4AF37).copy(alpha = 0.15f),  // Gold accent
+                            Color(0xFF2D2D2D)
+                        )
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.WorkspacePremium,
+                        contentDescription = "Premium",
+                        tint = Color(0xFFD4AF37),  // Gold
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Ready to Level Up?",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Text(
+                            text = "You're managing $birdCount birds! Unlock advanced tracking with Enthusiast.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Filled.ArrowForward,
+                    contentDescription = "View Benefits",
+                    tint = Color(0xFFD4AF37),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }

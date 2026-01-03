@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 65,
-    "identityHash": "46d90c6861761e9c114822c055e96a3c",
+    "identityHash": "cc4258690cf55472debaa643ec5ef3fe",
     "entities": [
       {
         "tableName": "users",
@@ -7309,7 +7309,7 @@
       },
       {
         "tableName": "enthusiast_dashboard_snapshots",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`snapshotId` TEXT NOT NULL, `userId` TEXT NOT NULL, `weekStartAt` INTEGER NOT NULL, `weekEndAt` INTEGER NOT NULL, `hatchRateLast30Days` REAL NOT NULL, `breederSuccessRate` REAL NOT NULL, `disputedTransfersCount` INTEGER NOT NULL, `topBloodlinesEngagement` TEXT, `activePairsCount` INTEGER NOT NULL, `eggsCollectedCount` INTEGER NOT NULL, `hatchingDueCount` INTEGER NOT NULL, `transfersPendingCount` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`snapshotId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`snapshotId` TEXT NOT NULL, `userId` TEXT NOT NULL, `weekStartAt` INTEGER NOT NULL, `weekEndAt` INTEGER NOT NULL, `hatchRateLast30Days` REAL NOT NULL, `breederSuccessRate` REAL NOT NULL, `disputedTransfersCount` INTEGER NOT NULL, `topBloodlinesEngagement` TEXT, `activePairsCount` INTEGER NOT NULL, `eggsCollectedCount` INTEGER NOT NULL, `hatchingDueCount` INTEGER NOT NULL, `transfersPendingCount` INTEGER NOT NULL, `pairsToMateCount` INTEGER NOT NULL, `incubatingCount` INTEGER NOT NULL, `sickBirdsCount` INTEGER NOT NULL, `eggsCollectedToday` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`snapshotId`))",
         "fields": [
           {
             "fieldPath": "snapshotId",
@@ -7379,6 +7379,30 @@
           {
             "fieldPath": "transfersPendingCount",
             "columnName": "transfersPendingCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pairsToMateCount",
+            "columnName": "pairsToMateCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "incubatingCount",
+            "columnName": "incubatingCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sickBirdsCount",
+            "columnName": "sickBirdsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eggsCollectedToday",
+            "columnName": "eggsCollectedToday",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -11810,7 +11834,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '46d90c6861761e9c114822c055e96a3c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cc4258690cf55472debaa643ec5ef3fe')"
     ]
   }
 }

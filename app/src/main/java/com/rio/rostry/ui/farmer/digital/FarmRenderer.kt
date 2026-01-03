@@ -37,9 +37,17 @@ object FarmRenderer {
     private val GOLD_STAR_COLOR = Color(0xFFFFD700) // Gold
     private val NEST_COLOR = Color(0xFF8D6E63) // Brown
     private val MARKET_AWNING_COLOR = Color(0xFFE57373) // Red
+    
+    // NEW: Overlay Colors for Enthusiast-specific badges
+    private val BLOODLINE_BADGE_COLOR = Color(0xFF9C27B0) // Purple
+    private val TRANSFER_PENDING_COLOR = Color(0xFFFF9800) // Orange
+    private val HEALTH_ALERT_COLOR = Color(0xFFF44336) // Red
 
     /**
      * Main render function. Draws the entire farm scene.
+     * 
+     * @param config Optional DigitalFarmConfig for persona-specific overlays.
+     *               If null, defaults to showing all overlays.
      */
     fun renderFarm(
         drawScope: DrawScope,
@@ -49,7 +57,8 @@ object FarmRenderer {
         mapCenter: Offset,
         animationTime: Float = 0f,
         selectedBirdId: String? = null,
-        dragState: DragState? = null
+        dragState: DragState? = null,
+        config: DigitalFarmConfig? = null  // NEW: Persona-specific configuration
     ) {
         drawScope.apply {
             // 1. Draw Ground/Tiles
@@ -124,9 +133,9 @@ object FarmRenderer {
 
                 when (entity.type) {
                     EntityType.NEST -> drawNurseryNest(screenPos, scale, entity.data as NurseryGroup)
-                    EntityType.HUT -> drawBreedingHut(screenPos, scale, entity.data as BreedingUnit, animationTime)
-                    EntityType.CAGE -> drawCageAsset(screenPos, scale, entity.data as CageDisplay)
-                    EntityType.BIRD -> drawBird(screenPos, scale, entity.data as VisualBird, selectedBirdId, animationTime)
+                    EntityType.HUT -> drawBreedingHut(screenPos, scale, entity.data as BreedingUnit, animationTime, config)
+                    EntityType.CAGE -> drawCageAsset(screenPos, scale, entity.data as CageDisplay, config)
+                    EntityType.BIRD -> drawBird(screenPos, scale, entity.data as VisualBird, selectedBirdId, animationTime, config)
                     EntityType.MARKET_STAND -> drawMarketStand(screenPos, scale, listOf())
                     else -> { /* Fence, Feeder drawn as part of static background */ }
                 }
@@ -158,7 +167,7 @@ object FarmRenderer {
                     mapCenter.x + panOffset.x + (hutIsoPos.x * scale),
                     mapCenter.y + panOffset.y + (hutIsoPos.y * scale)
                 )
-                drawBreedingUnitBirds(hutScreenPos, scale, unit, animationTime)
+                drawBreedingUnitBirds(hutScreenPos, scale, unit, animationTime, config)
             }
 
             // 7. Draw Dragged Bird (if any)
@@ -229,7 +238,7 @@ object FarmRenderer {
     /**
      * Draw Breeding Hut with roof, walls, door, and egg count badge.
      */
-    private fun DrawScope.drawBreedingHut(position: Offset, scale: Float, unit: BreedingUnit, animationTime: Float) {
+    private fun DrawScope.drawBreedingHut(position: Offset, scale: Float, unit: BreedingUnit, animationTime: Float, config: DigitalFarmConfig? = null) {
         val hutWidth = 60f * scale
         val hutHeight = 40f * scale
         val roofHeight = 25f * scale
@@ -268,7 +277,7 @@ object FarmRenderer {
     /**
      * Draw Cage asset for ready-to-sell roosters with gold star.
      */
-    private fun DrawScope.drawCageAsset(position: Offset, scale: Float, cageDisplay: CageDisplay) {
+    private fun DrawScope.drawCageAsset(position: Offset, scale: Float, cageDisplay: CageDisplay, config: DigitalFarmConfig? = null) {
         val cageWidth = 40f * scale
         val cageHeight = 50f * scale
         val barSpacing = 5f * scale
@@ -288,7 +297,7 @@ object FarmRenderer {
         }
 
         // Bird inside (smaller, centered)
-        drawBird(Offset(position.x, position.y - cageHeight / 2), scale * 0.7f, cageDisplay.bird, null, 0f)
+        drawBird(Offset(position.x, position.y - cageHeight / 2), scale * 0.7f, cageDisplay.bird, null, 0f, config)
 
         // Gold Star overlay
         if (cageDisplay.showGoldStar) {
@@ -314,9 +323,16 @@ object FarmRenderer {
     }
 
     /**
-     * Draw a single bird entity.
+     * Draw a single bird entity with optional persona-specific overlays.
      */
-    private fun DrawScope.drawBird(position: Offset, scale: Float, bird: VisualBird, selectedBirdId: String?, animationTime: Float) {
+    private fun DrawScope.drawBird(
+        position: Offset,
+        scale: Float,
+        bird: VisualBird,
+        selectedBirdId: String?,
+        animationTime: Float,
+        config: DigitalFarmConfig? = null
+    ) {
         val radius = when {
             bird.ageWeeks < 4 -> 8f * scale
             bird.ageWeeks < 12 -> 12f * scale
@@ -333,8 +349,9 @@ object FarmRenderer {
             drawCircle(Color.White.copy(alpha = 0.5f), radius * 1.8f, drawPosition)
         }
 
-        // Ready-to-sell glow
-        if (bird.isReadyForSale) {
+        // Ready-to-sell glow (GOLD_STAR overlay)
+        val showGoldStar = config?.enabledOverlays?.contains(DigitalFarmOverlay.GOLD_STAR) != false
+        if (bird.isReadyForSale && showGoldStar) {
             drawCircle(GOLD_STAR_COLOR.copy(alpha = 0.4f), radius * 1.5f, drawPosition)
         }
 
@@ -348,13 +365,46 @@ object FarmRenderer {
         }
         drawCircle(birdColor, radius, drawPosition)
 
-        // Status indicator
+        // Status indicator (always shown)
         when (bird.statusIndicator) {
             BirdStatusIndicator.VACCINE_DUE -> drawCircle(Color.Red, radius * 0.3f, Offset(drawPosition.x + radius * 0.7f, drawPosition.y - radius * 0.7f))
             BirdStatusIndicator.WEIGHT_READY -> drawStar(Offset(drawPosition.x, drawPosition.y - radius * 1.3f), 5f * scale, GOLD_STAR_COLOR)
-            BirdStatusIndicator.SICK -> drawCircle(Color.Red.copy(alpha = 0.8f), radius * 0.4f, drawPosition)
+            BirdStatusIndicator.SICK -> {
+                val showHealthAlert = config?.enabledOverlays?.contains(DigitalFarmOverlay.HEALTH_ALERT) != false
+                if (showHealthAlert) {
+                    drawCircle(HEALTH_ALERT_COLOR.copy(alpha = 0.8f), radius * 0.4f, drawPosition)
+                }
+            }
             else -> {}
         }
+
+        // NEW: Enthusiast-specific overlays
+        if (config?.mode == DigitalFarmMode.ENTHUSIAST) {
+            // Bloodline badge (purple diamond) - shown for birds in top bloodlines
+            if (config.enabledOverlays.contains(DigitalFarmOverlay.BLOODLINE_BADGE) && bird.batchId != null) {
+                drawBloodlineBadge(Offset(drawPosition.x - radius, drawPosition.y - radius * 1.2f), scale)
+            }
+            
+            // Transfer indicator (orange ring) - shown for pending transfers
+            if (config.enabledOverlays.contains(DigitalFarmOverlay.TRANSFER_INDICATOR) && bird.isListed) {
+                drawCircle(TRANSFER_PENDING_COLOR, radius * 1.3f, drawPosition, style = Stroke(width = 2f * scale))
+            }
+        }
+    }
+
+    /**
+     * Draw a bloodline badge (purple diamond) for Enthusiast mode.
+     */
+    private fun DrawScope.drawBloodlineBadge(position: Offset, scale: Float) {
+        val size = 6f * scale
+        val path = Path().apply {
+            moveTo(position.x, position.y - size)
+            lineTo(position.x + size, position.y)
+            lineTo(position.x, position.y + size)
+            lineTo(position.x - size, position.y)
+            close()
+        }
+        drawPath(path, BLOODLINE_BADGE_COLOR)
     }
 
     /**
@@ -372,20 +422,20 @@ object FarmRenderer {
     /**
      * Draw birds inside a breeding hut (constrained area).
      */
-    private fun DrawScope.drawBreedingUnitBirds(hutPosition: Offset, scale: Float, unit: BreedingUnit, animationTime: Float) {
+    private fun DrawScope.drawBreedingUnitBirds(hutPosition: Offset, scale: Float, unit: BreedingUnit, animationTime: Float, config: DigitalFarmConfig? = null) {
         val yardWidth = 50f * scale
         val yardHeight = 30f * scale
 
         // Rooster (center)
         unit.rooster?.let { rooster ->
-            drawBird(Offset(hutPosition.x, hutPosition.y + yardHeight * 0.3f), scale, rooster, null, animationTime)
+            drawBird(Offset(hutPosition.x, hutPosition.y + yardHeight * 0.3f), scale, rooster, null, animationTime, config)
         }
 
         // Hens (arranged around rooster)
         unit.hens.forEachIndexed { index, hen ->
             val offsetX = ((index % 3) - 1) * 15f * scale
             val offsetY = (index / 3) * 10f * scale + yardHeight * 0.5f
-            drawBird(Offset(hutPosition.x + offsetX, hutPosition.y + offsetY), scale * 0.85f, hen, null, animationTime)
+            drawBird(Offset(hutPosition.x + offsetX, hutPosition.y + offsetY), scale * 0.85f, hen, null, animationTime, config)
         }
     }
 

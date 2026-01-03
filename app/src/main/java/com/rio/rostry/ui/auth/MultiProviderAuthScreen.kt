@@ -42,6 +42,27 @@ fun MultiProviderAuthScreen(
     val context = LocalContext.current
     var launching by rememberSaveable { mutableStateOf(false) }
 
+    // CRITICAL: Observe navigation events from ViewModel to trigger actual navigation
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.navigation.collect { action ->
+            timber.log.Timber.d("MultiProviderAuthScreen: Received navigation action = $action")
+            when (action) {
+                is AuthViewModel.NavAction.ToHome -> {
+                    timber.log.Timber.d("MultiProviderAuthScreen: Navigating to Home")
+                    onAuthSuccess()
+                }
+                is AuthViewModel.NavAction.ToUserSetup -> {
+                    timber.log.Timber.d("MultiProviderAuthScreen: Navigating to UserSetup")
+                    onAuthSuccess()
+                }
+                is AuthViewModel.NavAction.ToOtp -> {
+                    // This would navigate to OTP screen, but phone auth is disabled
+                    timber.log.Timber.d("MultiProviderAuthScreen: ToOtp action (phone disabled)")
+                }
+            }
+        }
+    }
+
     val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = FirebaseAuthUIActivityResultContract()
     ) { res: FirebaseAuthUIAuthenticationResult ->
@@ -60,9 +81,9 @@ fun MultiProviderAuthScreen(
         Button(
             onClick = {
                 launching = true
+                // Google-only sign-in (Free Tier)
                 val providers = listOf(
-                    AuthUI.IdpConfig.GoogleBuilder().build(),
-                    AuthUI.IdpConfig.EmailBuilder().build()
+                    AuthUI.IdpConfig.GoogleBuilder().build()
                 )
                 val intent = AuthUI.getInstance()
                     .createSignInIntentBuilder()
@@ -73,7 +94,7 @@ fun MultiProviderAuthScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Sign in with Google / Email")
+            Text("Sign in with Google")
         }
         if (launching) {
             CircularProgressIndicator()

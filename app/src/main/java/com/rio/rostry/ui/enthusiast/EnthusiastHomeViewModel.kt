@@ -75,6 +75,35 @@ class EnthusiastHomeViewModel @Inject constructor(
 
     private val uid = currentUserProvider.userIdOrNull()
 
+    // Cache-first: Load snapshot immediately for fast initial render
+    init {
+        if (uid != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val snapshot = dashboardSnapshotDao.getLatest(uid)
+                    if (snapshot != null) {
+                        // Emit cached state immediately for fast first paint
+                        _cachedState.value = UiState(
+                            sickBirdsCount = snapshot.sickBirdsCount,
+                            pendingTransfersCount = snapshot.transfersPendingCount,
+                            disputedTransfersCount = snapshot.disputedTransfersCount,
+                            pairsToMateCount = snapshot.pairsToMateCount,
+                            eggsCollectedToday = snapshot.eggsCollectedToday,
+                            hatchingDueCount = snapshot.hatchingDueCount,
+                            isLoading = false,
+                        )
+                        Timber.d("Enthusiast Home: Cache-first render with snapshot from ${snapshot.updatedAt}")
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to load cached snapshot")
+                }
+            }
+        }
+    }
+
+    // Cached initial state for fast first paint
+    private val _cachedState = MutableStateFlow(UiState())
+
     private val dashboardFlow = (uid?.let { analyticsRepository.enthusiastDashboard(it) }
         ?: MutableStateFlow(EnthusiastDashboard(0.0, 0, 0.0, emptyList()))).orDefault(EnthusiastDashboard(0.0, 0, 0.0, emptyList()))
 
@@ -216,8 +245,14 @@ class EnthusiastHomeViewModel @Inject constructor(
     // Timers flow updates at 1 Hz but only affects timers list
     private val timersFlow = combine(incubationTimersFlow, tickerFlow(1000)) { batches, _ -> batches }
 
-    val ui: StateFlow<UiState> = combine(baseFlow, timersFlow) { base, timers ->
-        base.copy(incubationTimers = timers)
+    // Final UI state: merges cached snapshot (fast) with live flows (complete)
+    val ui: StateFlow<UiState> = combine(baseFlow, timersFlow, _cachedState) { base, timers, cached ->
+        // If base is still loading and cached has data, prefer cached for faster first paint
+        if (base.isLoading && !cached.isLoading) {
+            cached.copy(incubationTimers = timers)
+        } else {
+            base.copy(incubationTimers = timers)
+        }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     private val _isRefreshing = MutableStateFlow(false)

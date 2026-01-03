@@ -88,7 +88,10 @@ data class FarmerHomeUiState(
     val todayTasks: List<com.rio.rostry.data.database.entity.TaskEntity> = emptyList(),
     val completedTasksCount: Int = 0,
     val allProducts: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList(),  // Birds and batches for QuickLog
-    val userName: String? = null
+    val userName: String? = null,
+    // Enthusiast Upgrade Prompts
+    val activeBirdCount: Int = 0,
+    val showEnthusiastUpgradeBanner: Boolean = false
 )
 
 data class DashboardWidget(
@@ -150,7 +153,8 @@ data class UserContextStats(
     val farmAssetCount: Int = 0,
     val storageQuota: com.rio.rostry.data.database.entity.StorageQuotaEntity? = null,
     val dailyGoals: List<DailyGoal> = emptyList(),
-    val analyticsInsights: List<ActionableInsight> = emptyList()
+    val analyticsInsights: List<ActionableInsight> = emptyList(),
+    val activeBirdCount: Int = 0  // For Enthusiast upgrade banner
 )
 
 enum class WidgetType {
@@ -353,6 +357,12 @@ class FarmerHomeViewModel @Inject constructor(
     
     // Flow 3: User context stats - Profile, transfers, compliance (changes rarely)
     private fun createUserContextStatsFlow(id: String, weekStart: Long): Flow<UserContextStats> {
+        // Create a simple flow for active bird count (for Enthusiast upgrade banner)
+        val activeBirdCountFlow = flow {
+            val count = try { productRepository.countActiveByOwnerId(id) } catch (e: Exception) { 0 }
+            emit(count)
+        }.orDefault(0)
+        
         return combine(
             transferRepository.observePendingCountForFarmer(id).orDefault(0),
             transferRepository.observeAwaitingVerificationCountForFarmer(id).orDefault(0),
@@ -370,7 +380,8 @@ class FarmerHomeViewModel @Inject constructor(
             farmAssetRepository.getAssetsByFarmer(id).map { res ->
                 (res as? com.rio.rostry.utils.Resource.Success)?.data?.size ?: 0
             }.orDefault(0),
-            storageUsageRepository.observeQuota(id).orDefault(null)
+            storageUsageRepository.observeQuota(id).orDefault(null),
+            activeBirdCountFlow
         ) { values: Array<Any?> ->
             val user = values[9] as? UserEntity
             @Suppress("UNCHECKED_CAST")
@@ -394,7 +405,8 @@ class FarmerHomeViewModel @Inject constructor(
                 farmAssetCount = values[11] as? Int ?: 0,
                 storageQuota = values[12] as? com.rio.rostry.data.database.entity.StorageQuotaEntity,
                 dailyGoals = dailyGoals,
-                analyticsInsights = analyticsInsights
+                analyticsInsights = analyticsInsights,
+                activeBirdCount = values[13] as? Int ?: 0
             )
         }.debounce(600) // Heavy debounce for rarely-changing data
     }
@@ -455,6 +467,11 @@ class FarmerHomeViewModel @Inject constructor(
                     storageQuota = userContext.storageQuota,
                     dailyGoals = userContext.dailyGoals,
                     analyticsInsights = userContext.analyticsInsights,
+                    
+                    // Enthusiast Upgrade Banner
+                    activeBirdCount = userContext.activeBirdCount,
+                    showEnthusiastUpgradeBanner = userContext.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED
+                            && userContext.activeBirdCount > 50,
                     
                     // Computed fields
                     urgentKpiCount = primary.tasksOverdueCount + primary.vaccinationOverdueCount + monitoring.quarantineUpdatesDue + monitoring.batchesDueForSplit,

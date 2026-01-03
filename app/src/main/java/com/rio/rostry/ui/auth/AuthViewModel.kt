@@ -320,18 +320,35 @@ class AuthViewModel @Inject constructor(
 
     private fun postAuthBootstrapAndNavigate() {
         viewModelScope.launch {
+            timber.log.Timber.d("AuthVM: postAuthBootstrapAndNavigate started")
+            
             // Force refresh user profile from server to ensure latest role
             val uid = firebaseAuth.currentUser?.uid
-            if (uid != null) {
-                userRepository.refreshCurrentUser(uid)
+            if (uid == null) {
+                timber.log.Timber.w("AuthVM: No UID after auth, navigating to setup")
+                _navigation.tryEmit(NavAction.ToUserSetup)
+                return@launch
+            }
+            
+            // Refresh with timeout - don't let this block forever
+            try {
+                withTimeoutOrNull(3000) {
+                    userRepository.refreshCurrentUser(uid)
+                }
+            } catch (e: Exception) {
+                timber.log.Timber.w(e, "AuthVM: refreshCurrentUser failed, continuing anyway")
             }
 
-            // Try to hydrate user profile quickly; don't block navigation forever
-            val resource = withTimeoutOrNull(5000) { userRepository.getCurrentUser().first() }
+            // Try to hydrate user profile quickly; reduce timeout from 5s to 3s
+            val resource = withTimeoutOrNull(3000) { userRepository.getCurrentUser().first() }
+            timber.log.Timber.d("AuthVM: getCurrentUser result = ${resource?.javaClass?.simpleName}")
+            
             when (resource) {
                 is Resource.Success -> {
                     val user = resource.data
                     if (user != null) {
+                        timber.log.Timber.d("AuthVM: User found, role=${user.role}")
+                        
                         // Check if this is a guest upgrade
                         val isGuest = sessionManager.isGuestSession().first()
                         val fromGuest = savedStateHandle.get<Boolean>("fromGuest") ?: false
@@ -369,25 +386,31 @@ class AuthViewModel @Inject constructor(
                         }
 
                         if (user.role == UserType.GENERAL) {
+                            timber.log.Timber.d("AuthVM: Navigating to UserSetup (GENERAL role)")
                             _navigation.tryEmit(NavAction.ToUserSetup)
                         } else {
+                            timber.log.Timber.d("AuthVM: Navigating to Home for role=${user.role}")
                             _navigation.tryEmit(NavAction.ToHome(user.role))
                         }
                     } else {
                         // No profile yet; go to setup to complete essentials
+                        timber.log.Timber.d("AuthVM: No user data, navigating to UserSetup")
                         _navigation.tryEmit(NavAction.ToUserSetup)
                     }
                 }
                 is Resource.Error -> {
+                    timber.log.Timber.e("AuthVM: getCurrentUser error = ${resource.message}")
                     _uiState.value = _uiState.value.copy(error = resource.message)
                     _navigation.tryEmit(NavAction.ToUserSetup)
                 }
                 is Resource.Loading -> {
                     // If still loading after timeout window, proceed to setup
+                    timber.log.Timber.w("AuthVM: getCurrentUser still loading, navigating to setup")
                     _navigation.tryEmit(NavAction.ToUserSetup)
                 }
                 null -> {
                     // Timed out waiting; proceed to setup to avoid spinner lock
+                    timber.log.Timber.w("AuthVM: getCurrentUser timed out, navigating to setup")
                     _navigation.tryEmit(NavAction.ToUserSetup)
                 }
             }

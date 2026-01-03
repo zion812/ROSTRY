@@ -65,6 +65,8 @@ fun LocationPicker(
 
     var searchQuery by remember { mutableStateOf("") }
     var predictions by remember { mutableStateOf<List<com.google.android.libraries.places.api.model.AutocompletePrediction>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     
     // The location currently under the center pin
     var centerLocationName by remember { mutableStateOf("Move map to select location") }
@@ -96,15 +98,36 @@ fun LocationPicker(
     }
 
     fun getPlacePredictions(query: String) {
+        isSearching = true
+        searchError = null
         val request = FindAutocompletePredictionsRequest.builder()
             .setQuery(query)
             .build()
         placesClient.findAutocompletePredictions(request)
             .addOnSuccessListener { response ->
                 predictions = response.autocompletePredictions
+                isSearching = false
+                if (predictions.isEmpty()) {
+                    Log.d(TAG, "No predictions found for query: $query")
+                }
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "Prediction failed", exception)
+                isSearching = false
+                predictions = emptyList()
+                val errorMessage = when {
+                    exception.message?.contains("API_NOT_CONNECTED") == true -> 
+                        "Places API not configured. Check API key."
+                    exception.message?.contains("NETWORK") == true -> 
+                        "Network error. Check internet connection."
+                    exception.message?.contains("REQUEST_DENIED") == true ->
+                        "API key invalid or Places API not enabled."
+                    else -> "Search failed: ${exception.message}"
+                }
+                searchError = errorMessage
+                Log.e(TAG, "Prediction failed: ${exception.message}", exception)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(errorMessage)
+                }
             }
     }
 
@@ -223,8 +246,45 @@ fun LocationPicker(
                 )
             }
 
+            // Loading indicator
+            if (isSearching) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Searching...")
+                    }
+                }
+            }
+
+            // Error message
+            if (searchError != null && !isSearching) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Text(
+                        text = searchError ?: "",
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
             // Autocomplete Predictions
-            AnimatedVisibility(visible = predictions.isNotEmpty()) {
+            AnimatedVisibility(visible = predictions.isNotEmpty() && !isSearching) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()

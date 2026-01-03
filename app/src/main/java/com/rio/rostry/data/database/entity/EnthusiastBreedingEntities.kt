@@ -93,6 +93,11 @@ data class EnthusiastDashboardSnapshotEntity(
     val eggsCollectedCount: Int = 0,
     val hatchingDueCount: Int = 0,
     val transfersPendingCount: Int = 0,
+    // NEW: Additional Enthusiast KPIs for cache-first pattern
+    val pairsToMateCount: Int = 0,        // Pairs needing mating (>7 days since last)
+    val incubatingCount: Int = 0,          // Batches currently incubating
+    val sickBirdsCount: Int = 0,           // Birds with health alerts
+    val eggsCollectedToday: Int = 0,       // Daily egg count for quick display
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
