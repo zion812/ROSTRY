@@ -163,6 +163,155 @@ class PriceTrendService @Inject constructor() {
         }
     }
     
+    // =========================================================================
+    // DATA-DRIVEN PRICE ANALYSIS (Based on actual products sold)
+    // =========================================================================
+    
+    /**
+     * Analyze prices from actual sold products
+     * @param soldProducts List of products that have been sold with their prices
+     */
+    fun analyzeFromSalesData(soldProducts: List<SoldProductData>): SalesDataAnalysis {
+        if (soldProducts.isEmpty()) {
+            return SalesDataAnalysis(
+                averagePrice = 0f,
+                minPrice = 0f,
+                maxPrice = 0f,
+                totalSales = 0,
+                trend = PriceTrend.STABLE,
+                pricesByBreed = emptyMap(),
+                recommendation = "No sales data available yet"
+            )
+        }
+        
+        // Calculate overall stats
+        val prices = soldProducts.map { it.pricePerUnit }
+        val averagePrice = prices.average().toFloat()
+        val minPrice = prices.minOrNull() ?: 0f
+        val maxPrice = prices.maxOrNull() ?: 0f
+        
+        // Group by breed for breed-specific averages
+        val pricesByBreed = soldProducts
+            .groupBy { it.breed }
+            .mapValues { entry -> 
+                val breedPrices = entry.value.map { it.pricePerUnit }
+                BreedPriceStats(
+                    breed = entry.key,
+                    averagePrice = breedPrices.average().toFloat(),
+                    minPrice = breedPrices.minOrNull() ?: 0f,
+                    maxPrice = breedPrices.maxOrNull() ?: 0f,
+                    salesCount = entry.value.size
+                )
+            }
+        
+        // Analyze trend from recent vs older sales
+        val sortedByDate = soldProducts.sortedBy { it.soldAt }
+        val trend = if (sortedByDate.size >= 4) {
+            val recentPrices = sortedByDate.takeLast(sortedByDate.size / 2).map { it.pricePerUnit }
+            val olderPrices = sortedByDate.take(sortedByDate.size / 2).map { it.pricePerUnit }
+            
+            val recentAvg = recentPrices.average()
+            val olderAvg = olderPrices.average()
+            
+            if (olderAvg > 0) {
+                val changePercent = ((recentAvg - olderAvg) / olderAvg * 100)
+                when {
+                    changePercent > 10 -> PriceTrend.RISING_FAST
+                    changePercent > 3 -> PriceTrend.RISING
+                    changePercent < -10 -> PriceTrend.FALLING_FAST
+                    changePercent < -3 -> PriceTrend.FALLING
+                    else -> PriceTrend.STABLE
+                }
+            } else PriceTrend.STABLE
+        } else PriceTrend.STABLE
+        
+        val recommendation = generateSalesRecommendation(trend, soldProducts.size, averagePrice)
+        
+        return SalesDataAnalysis(
+            averagePrice = averagePrice,
+            minPrice = minPrice,
+            maxPrice = maxPrice,
+            totalSales = soldProducts.size,
+            trend = trend,
+            pricesByBreed = pricesByBreed,
+            recommendation = recommendation
+        )
+    }
+    
+    /**
+     * Calculate market average for a specific breed from sales data
+     */
+    fun getBreedMarketAverage(soldProducts: List<SoldProductData>, breed: String): Float {
+        val breedSales = soldProducts.filter { it.breed.equals(breed, ignoreCase = true) }
+        return if (breedSales.isNotEmpty()) {
+            breedSales.map { it.pricePerUnit }.average().toFloat()
+        } else 0f
+    }
+    
+    /**
+     * Compare asking price with actual sales data
+     */
+    fun comparePriceWithSalesData(
+        askingPrice: Float,
+        soldProducts: List<SoldProductData>,
+        breed: String
+    ): PriceComparison {
+        val marketAverage = getBreedMarketAverage(soldProducts, breed)
+        return comparePriceWithMarket(askingPrice, marketAverage)
+    }
+    
+    /**
+     * Get price range suggestion based on sales data
+     */
+    fun getSuggestedPriceRange(soldProducts: List<SoldProductData>, breed: String): PriceRangeSuggestion {
+        val breedSales = soldProducts.filter { it.breed.equals(breed, ignoreCase = true) }
+        
+        if (breedSales.isEmpty()) {
+            return PriceRangeSuggestion(
+                minSuggested = 0f,
+                maxSuggested = 0f,
+                optimalPrice = 0f,
+                basedOnSamples = 0,
+                recommendation = "No sales data for $breed. Set your own price."
+            )
+        }
+        
+        val prices = breedSales.map { it.pricePerUnit }
+        val average = prices.average().toFloat()
+        val stdDev = calculateStdDev(prices)
+        
+        // Suggest range: average ± 1 std dev
+        val minSuggested = (average - stdDev).coerceAtLeast(prices.minOrNull() ?: 0f)
+        val maxSuggested = average + stdDev
+        
+        return PriceRangeSuggestion(
+            minSuggested = minSuggested,
+            maxSuggested = maxSuggested,
+            optimalPrice = average,
+            basedOnSamples = breedSales.size,
+            recommendation = "Based on ${breedSales.size} recent sales of $breed"
+        )
+    }
+    
+    private fun generateSalesRecommendation(trend: PriceTrend, salesCount: Int, avgPrice: Float): String {
+        val trendAdvice = when (trend) {
+            PriceTrend.RISING_FAST -> "📈 Prices rising fast! Great selling opportunity."
+            PriceTrend.RISING -> "📈 Prices trending up. Good time to list."
+            PriceTrend.STABLE -> "➡️ Prices stable. Normal market conditions."
+            PriceTrend.FALLING -> "📉 Prices declining. Consider quick sale or wait."
+            PriceTrend.FALLING_FAST -> "📉 Sharp price drop. Sell now or wait for recovery."
+        }
+        
+        return "$trendAdvice (Based on $salesCount sales, avg ₹${avgPrice.toInt()})"
+    }
+    
+    private fun calculateStdDev(values: List<Float>): Float {
+        if (values.size < 2) return 0f
+        val mean = values.average()
+        val variance = values.map { (it - mean) * (it - mean) }.average()
+        return kotlin.math.sqrt(variance).toFloat()
+    }
+    
     private fun calculateWeeksUntilMonth(targetMonth: Int, currentMonth: Int): Int {
         val monthsAway = if (targetMonth > currentMonth) {
             targetMonth - currentMonth
@@ -205,3 +354,52 @@ enum class PriceTrend {
     FALLING,
     FALLING_FAST
 }
+
+// ============ Sales Data Analysis Classes ============
+
+/**
+ * Input data for price analysis - represents a sold product
+ */
+data class SoldProductData(
+    val productId: String,
+    val breed: String,
+    val pricePerUnit: Float,  // Price in INR per bird/kg
+    val quantity: Int,
+    val soldAt: Long  // Timestamp when sold
+)
+
+/**
+ * Result of analyzing sales data
+ */
+data class SalesDataAnalysis(
+    val averagePrice: Float,
+    val minPrice: Float,
+    val maxPrice: Float,
+    val totalSales: Int,
+    val trend: PriceTrend,
+    val pricesByBreed: Map<String, BreedPriceStats>,
+    val recommendation: String
+)
+
+/**
+ * Price statistics for a specific breed
+ */
+data class BreedPriceStats(
+    val breed: String,
+    val averagePrice: Float,
+    val minPrice: Float,
+    val maxPrice: Float,
+    val salesCount: Int
+)
+
+/**
+ * Suggested price range based on sales data
+ */
+data class PriceRangeSuggestion(
+    val minSuggested: Float,
+    val maxSuggested: Float,
+    val optimalPrice: Float,
+    val basedOnSamples: Int,
+    val recommendation: String
+)
+
