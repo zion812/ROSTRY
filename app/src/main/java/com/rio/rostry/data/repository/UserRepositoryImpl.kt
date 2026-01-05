@@ -226,24 +226,43 @@ class UserRepositoryImpl @Inject constructor(
      * Production role upgrades require authentication. Offline updates are only permitted
      * for guest mode or test scenarios.
      */
-    override suspend fun updateUserType(userId: String, newType: UserType): Resource<Unit> = safeCall {
-        // Enforce authentication for role upgrades
-        if (firebaseAuth.currentUser == null) {
-            throw IllegalStateException("Authentication required to update user role")
+    override suspend fun updateUserType(userId: String, newType: UserType): Resource<Unit> {
+        // Helper to perform the role update
+        suspend fun performUpdate(): Resource<Unit> = safeCall {
+            // Enforce authentication for role upgrades
+            if (firebaseAuth.currentUser == null) {
+                throw IllegalStateException("Authentication required to update user role")
+            }
+
+            // Update Firestore
+            val docRef = usersCollection.document(userId)
+            val snapshot = docRef.get().await()
+            val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
+            val updated = current.copy(userType = newType.name, updatedAt = Date())
+            docRef.set(updated).await()
+
+            // Update local Room database
+            userDao.upsertUser(updated)
+            
+            Unit
+        }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to update user type")
+
+        val result = performUpdate()
+
+        // Retry logic for PERMISSION_DENIED (stale token)
+        if (result is Resource.Error && result.message?.contains("PERMISSION_DENIED", ignoreCase = true) == true) {
+            android.util.Log.w("UserRepositoryImpl", "Permission denied for role update. Attempting token refresh and retry...")
+            try {
+                firebaseAuth.currentUser?.getIdToken(true)?.await()
+                android.util.Log.d("UserRepositoryImpl", "Token refreshed successfully. Retrying role update...")
+                return performUpdate()
+            } catch (e: Exception) {
+                android.util.Log.e("UserRepositoryImpl", "Token refresh failed during retry: ${e.message}")
+            }
         }
 
-        // Update Firestore
-        val docRef = usersCollection.document(userId)
-        val snapshot = docRef.get().await()
-        val current = snapshot.toObject(UserEntity::class.java) ?: UserEntity(userId = userId)
-        val updated = current.copy(userType = newType.name, updatedAt = Date())
-        docRef.set(updated).await()
-
-        // Update local Room database
-        userDao.upsertUser(updated)
-        
-        Unit
-    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to update user type")
+        return result
+    }
 
     override suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit> = safeCall {
         if (firebaseAuth.currentUser == null) {
