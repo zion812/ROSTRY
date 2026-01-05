@@ -1303,8 +1303,8 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
             val pid = backStackEntry.arguments?.getString("productId") ?: ""
-            com.rio.rostry.ui.enthusiast.cards.RoosterCardScreen(
-                productId = pid,
+            com.rio.rostry.ui.enthusiast.creation.ShowcaseCardGeneratorScreen(
+                birdId = pid,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

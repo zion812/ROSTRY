@@ -147,6 +147,19 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
                 val firebaseAppCheck = FirebaseAppCheck.getInstance()
                 firebaseAppCheck.installAppCheckProviderFactory(appCheckProviderFactory)
                 Timber.d("App Check Provider initialized: %s", appCheckProviderFactory.javaClass.simpleName)
+                
+                // Detailed debug logging for physical device troubleshooting
+                if (BuildConfig.DEBUG) {
+                    val factoryName = appCheckProviderFactory.javaClass.simpleName
+                    Timber.e("!!! APP CHECK CONFIGURATION !!!")
+                    Timber.e("Provider Factory: $factoryName")
+                    if (factoryName.contains("DebugAppCheckProviderFactory", ignoreCase = true)) {
+                        Timber.e("Debug Provider is ACTIVE. Search logcat for 'Firebase App Check' to find your debug token.")
+                        Timber.e("You MUST add this token to the Firebase Console -> App Check -> Apps -> Debug Token.")
+                    } else if (factoryName.contains("PlayIntegrity", ignoreCase = true)) {
+                        Timber.e("Play Integrity Provider is ACTIVE. This will FAIL on unsigned debug builds on physical devices unless configured.")
+                    }
+                }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to initialize App Check")
             }

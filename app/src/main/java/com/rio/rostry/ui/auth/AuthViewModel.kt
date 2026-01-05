@@ -332,28 +332,32 @@ class AuthViewModel @Inject constructor(
             
             // Refresh with timeout - don't let this block forever
             try {
+                timber.log.Timber.d("AuthVM: Attempting refreshCurrentUser...")
                 withTimeoutOrNull(3000) {
                     userRepository.refreshCurrentUser(uid)
                 }
+                timber.log.Timber.d("AuthVM: refreshCurrentUser completed (or timed out/failed silently)")
             } catch (e: Exception) {
-                timber.log.Timber.w(e, "AuthVM: refreshCurrentUser failed, continuing anyway")
+                timber.log.Timber.e(e, "AuthVM: refreshCurrentUser CRITICAL FAILURE")
             }
 
             // Try to hydrate user profile quickly; reduce timeout from 5s to 3s
+            timber.log.Timber.d("AuthVM: Fetching user profile...")
             val resource = withTimeoutOrNull(3000) { userRepository.getCurrentUser().first() }
-            timber.log.Timber.d("AuthVM: getCurrentUser result = ${resource?.javaClass?.simpleName}")
+            timber.log.Timber.d("AuthVM: getCurrentUser result type = ${resource?.javaClass?.simpleName}")
             
             when (resource) {
                 is Resource.Success -> {
                     val user = resource.data
                     if (user != null) {
-                        timber.log.Timber.d("AuthVM: User found, role=${user.role}")
+                        timber.log.Timber.d("AuthVM: User found, role=${user.role}, navigating...")
                         
                         // Check if this is a guest upgrade
                         val isGuest = sessionManager.isGuestSession().first()
                         val fromGuest = savedStateHandle.get<Boolean>("fromGuest") ?: false
 
                         if (isGuest) {
+                             timber.log.Timber.d("AuthVM: Upgrading GUEST session...")
                             // This is a guest session being upgraded
                             val guestStartedAt = sessionManager.getGuestSessionStartedAt()
                             val now = System.currentTimeMillis()
@@ -382,6 +386,7 @@ class AuthViewModel @Inject constructor(
                             }
                         } else {
                             // Regular authentication
+                            timber.log.Timber.d("AuthVM: Marking authenticated session...")
                             sessionManager.markAuthenticated(System.currentTimeMillis(), user.role)
                         }
 
@@ -394,13 +399,15 @@ class AuthViewModel @Inject constructor(
                         }
                     } else {
                         // No profile yet; go to setup to complete essentials
-                        timber.log.Timber.d("AuthVM: No user data, navigating to UserSetup")
+                        timber.log.Timber.d("AuthVM: No user data (null data), navigating to UserSetup")
                         _navigation.tryEmit(NavAction.ToUserSetup)
                     }
                 }
                 is Resource.Error -> {
                     timber.log.Timber.e("AuthVM: getCurrentUser error = ${resource.message}")
                     _uiState.value = _uiState.value.copy(error = resource.message)
+                    // Consider NOT navigating on error to prevent loops? 
+                    // But we likely want them to retry setup.
                     _navigation.tryEmit(NavAction.ToUserSetup)
                 }
                 is Resource.Loading -> {
@@ -410,7 +417,7 @@ class AuthViewModel @Inject constructor(
                 }
                 null -> {
                     // Timed out waiting; proceed to setup to avoid spinner lock
-                    timber.log.Timber.w("AuthVM: getCurrentUser timed out, navigating to setup")
+                    timber.log.Timber.w("AuthVM: getCurrentUser timed out (null), navigating to setup")
                     _navigation.tryEmit(NavAction.ToUserSetup)
                 }
             }

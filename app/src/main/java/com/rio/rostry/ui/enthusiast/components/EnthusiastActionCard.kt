@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.rio.rostry.ui.theme.Dimens
+import com.rio.rostry.ui.components.PremiumCard
 
 @Composable
 fun EnthusiastActionCard(
@@ -28,7 +29,7 @@ fun EnthusiastActionCard(
     content: @Composable () -> Unit = {},
     actions: @Composable (androidx.compose.foundation.layout.RowScope.() -> Unit)
 ) {
-    ElevatedCard(
+    PremiumCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(

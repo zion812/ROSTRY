@@ -85,6 +85,10 @@ import com.rio.rostry.ui.enthusiast.components.EnthusiastActionCard
 import com.rio.rostry.ui.enthusiast.components.EnthusiastAlertCard
 import com.rio.rostry.ui.enthusiast.components.EnthusiastKpiCard
 import com.rio.rostry.ui.theme.Dimens
+import com.rio.rostry.ui.components.EnthusiastAuraBackground
+import com.rio.rostry.ui.components.PremiumCard
+import androidx.compose.ui.graphics.Brush
+import com.rio.rostry.ui.theme.EnthusiastGold
 
 /**
  * Advanced Enthusiast interface with premium farm management features.
@@ -145,13 +149,19 @@ fun EnthusiastHomeScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
                 Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
             }
         }
     ) { padding ->
-        SwipeRefresh(state = swipeState, onRefresh = vm::refresh) {
+        EnthusiastAuraBackground {
+            SwipeRefresh(state = swipeState, onRefresh = vm::refresh) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -487,10 +497,11 @@ fun EnthusiastHomeScreen(
                     Button(onClick = { if (id.isNotBlank()) onOpenTraceability(id) }) { Text("Trace") }
                 }
             }
-        )
+                )
             }
         }
     }
+}
 
     // Observe navigation events
     LaunchedEffect(Unit) {
@@ -545,16 +556,20 @@ private fun PremiumGateCard(
     actionText: String,
     onAction: () -> Unit,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-        Column(Modifier.padding(Dimens.space_large), verticalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
+    PremiumCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
                 Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(Dimens.icon_large))
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             }
             Text(description, style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
                 Button(onClick = onAction) { Text(actionText) }
-                OutlinedButton(onClick = onAction) { Text("Learn More") }
+                OutlinedButton(
+                    onClick = onAction,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Learn More") }
             }
         }
     }

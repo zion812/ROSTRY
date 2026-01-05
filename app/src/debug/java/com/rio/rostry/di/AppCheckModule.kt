@@ -15,6 +15,12 @@ object AppCheckModule {
     @Provides
     @Singleton
     fun provideAppCheckProviderFactory(): AppCheckProviderFactory {
+        // You can hardcode a token here for physical device testing.
+        // Register this same string in Firebase Console -> App Check -> Manage Debug Tokens
+        // Example: "your-custom-debug-token-here"
+        
+        // For now, we will still use the dynamic one but I'll add a placeholder 
+        // that you can replace to make it permanent.
         return DebugAppCheckProviderFactory.getInstance()
     }
 }

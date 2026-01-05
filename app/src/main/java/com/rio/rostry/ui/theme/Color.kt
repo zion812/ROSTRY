@@ -32,11 +32,20 @@ val SuccessGreen = Color(0xFF2E7D32) // Same as primary for now, or slightly bri
 val WarningYellow = Color(0xFFFBC02D)
 
 // Neutrals
+val Neutral950 = Color(0xFF0A0A0A) // Ultra dark for premium feel
 val Neutral900 = Color(0xFF121212) // Darkest background
 val Neutral800 = Color(0xFF212121)
 val Neutral100 = Color(0xFFF5F5F5) // Lightest background
 val Neutral50 = Color(0xFFFAFAFA)
 val White = Color(0xFFFFFFFF)
+
+// Enthusiast Premium Palette
+val EnthusiastGold = Color(0xFFFFD700)
+val EnthusiastGoldVariant = Color(0xFFDAA520)
+val EnthusiastObsidian = Color(0xFF0F0F0F)
+val EnthusiastVelvet = Color(0xFF4B0082)
+val EnthusiastGlass = Color(0x33FFFFFF)
+val EnthusiastSurface = Color(0xFF1A1A1A)
 
 // Light Theme Scheme
 val RostryLightColors: ColorScheme = lightColorScheme(
@@ -104,12 +113,51 @@ val RostryDarkColors: ColorScheme = darkColorScheme(
     outline = Color(0xFF8A8A8A)
 )
 
-// Legacy Mappings (to maintain backward compatibility with existing role-based calls if any)
-// We map ALL roles to the new unified system to ensure consistency.
+// Enthusiast Theme Schemes (Premium Experience)
+val EnthusiastDarkColors: ColorScheme = darkColorScheme(
+    primary = EnthusiastGold,
+    onPrimary = EnthusiastObsidian,
+    primaryContainer = EnthusiastGoldVariant,
+    onPrimaryContainer = Color.White,
+    
+    secondary = EnthusiastVelvet,
+    onSecondary = White,
+    secondaryContainer = Color(0xFF310055),
+    onSecondaryContainer = Color(0xFFE1BEE7),
+    
+    tertiary = Color(0xFFAFAFAF), // Silver/Steel accent
+    onTertiary = EnthusiastObsidian,
+    
+    background = Neutral950,
+    onBackground = White,
+    
+    surface = EnthusiastSurface,
+    onSurface = White,
+    surfaceVariant = Color(0xFF2C2C2C),
+    onSurfaceVariant = Color(0xFFBDBDBD),
+    
+    outline = EnthusiastGoldVariant
+)
+
+val EnthusiastLightColors: ColorScheme = lightColorScheme(
+    primary = EnthusiastGoldVariant,
+    onPrimary = White,
+    primaryContainer = Color(0xFFFFF1C1),
+    onPrimaryContainer = Color(0xFF261100),
+    
+    secondary = EnthusiastVelvet,
+    onSecondary = White,
+    
+    background = White,
+    onBackground = EnthusiastObsidian,
+    
+    surface = Neutral50,
+    onSurface = EnthusiastObsidian
+)
+
+// Legacy Mappings
 val GeneralLightColors = RostryLightColors
 val GeneralDarkColors = RostryDarkColors
 val FarmerLightColors = RostryLightColors
 val FarmerDarkColors = RostryDarkColors
-val EnthusiastLightColors = RostryLightColors
-val EnthusiastDarkColors = RostryDarkColors
 

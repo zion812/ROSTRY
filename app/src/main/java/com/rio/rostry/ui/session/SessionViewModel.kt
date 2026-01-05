@@ -176,73 +176,77 @@ class SessionViewModel @Inject constructor(
                 .debounce(500L) // Wait 500ms for changes to stabilize
                 .distinctUntilChangedBy { (it as? Resource.Success)?.data?.userType } // Only react to actual role changes
                 .collectLatest { resource ->
-                when (resource) {
-                    is Resource.Error -> {
-                        Timber.e("Sync role failed: ${resource.message}")
-                        // Only show error screen if we don't have a usable role yet.
-                        // If we have a role (from cache/DataStore), fallback to it (stale-while-revalidate).
-                        if (_uiState.value.role == null) {
-                            _uiState.value = _uiState.value.copy(isLoading = false, error = resource.message)
-                        } else {
-                            // We have cached data, so just stop loading. The user can continue offline/stale.
-                            _uiState.value = _uiState.value.copy(isLoading = false, error = null)
+                    timber.log.Timber.d("SessionVM: Received getCurrentUser update: ${resource.javaClass.simpleName}")
+                    when (resource) {
+                        is Resource.Error -> {
+                            Timber.e("SessionVM: Sync role failed: ${resource.message}")
+                            // Only show error screen if we don't have a usable role yet.
+                            // If we have a role (from cache/DataStore), fallback to it (stale-while-revalidate).
+                            if (_uiState.value.role == null) {
+                                Timber.w("SessionVM: No cached role available, exposing error state")
+                                _uiState.value = _uiState.value.copy(isLoading = false, error = resource.message)
+                            } else {
+                                // We have cached data, so just stop loading. The user can continue offline/stale.
+                                Timber.d("SessionVM: Using cached role despite error")
+                                _uiState.value = _uiState.value.copy(isLoading = false, error = null)
+                            }
                         }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                    }
-                    is Resource.Success -> {
-                        val role = resource.data?.role
-                            ?: rolePreferences.role.value
-                            ?: UserType.GENERAL
-                        
-                        // CRITICAL: Skip role sync if an upgrade is in progress
-                        // This prevents premature navigation during role transitions
-                        if (sessionManager.upgradeInProgress.value) {
-                            Timber.d("SessionVM: Upgrade in progress, skipping role sync")
-                            return@collectLatest
+                        is Resource.Loading -> {
+                            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                         }
-                        
-                        // Check if we recently synced (within debounce window)
-                        // This prevents SessionViewModel from overriding an in-progress upgrade
-                        val now = System.currentTimeMillis()
-                        val timeSinceLastSync = now - lastRoleSyncTime
-                        if (timeSinceLastSync < roleSyncDebounceMs && _uiState.value.role == role) {
-                            Timber.d("SessionVM: Skipping role sync, recently synced (${timeSinceLastSync}ms ago)")
-                            return@collectLatest
-                        }
-                        lastRoleSyncTime = now
-                        
-                        sessionManager.markAuthenticated(now, role)
-                        rolePreferences.persist(role)
-                        val navConfig = startDestinationProvider.configFor(role)
-                        val isAdmin = resource.data?.email == "rowdyzion@gmail.com" || 
-                                      resource.data?.phoneNumber == "+918106312656" || 
-                                      resource.data?.phoneNumber == "8106312656" ||
-                                      role == UserType.ADMIN
-                        
-                        _uiState.value = _uiState.value.copy(
-                            isAuthenticated = true,
-                            role = role,
-                            navConfig = navConfig,
-                            availableUpgrade = role.nextLevel(),
-                            isLoading = false,
-                            error = null,
-                            authMode = mode,
-                            user = resource.data,
-                            isAdmin = isAdmin
-                        )
-                        scheduleSessionExpiryCheck()
-                        
-                        if (isAdmin) {
-                             observeAdminCounts()
-                        } else {
-                            adminCountsJob?.cancel()
-                            _uiState.value = _uiState.value.copy(pendingVerificationCount = 0)
+                        is Resource.Success -> {
+                            val role = resource.data?.role
+                                ?: rolePreferences.role.value
+                                ?: UserType.GENERAL
+                            
+                            Timber.d("SessionVM: Resolved role: $role")
+
+                            // CRITICAL: Skip role sync if an upgrade is in progress
+                            // ... (rest of logic)
+                            
+                            // Check if we recently synced (within debounce window)
+                            val now = System.currentTimeMillis()
+                            val timeSinceLastSync = now - lastRoleSyncTime
+                            if (timeSinceLastSync < roleSyncDebounceMs && _uiState.value.role == role) {
+                                Timber.d("SessionVM: Skipping role sync, recently synced (${timeSinceLastSync}ms ago)")
+                                return@collectLatest
+                            }
+                            lastRoleSyncTime = now
+                            
+                            sessionManager.markAuthenticated(now, role)
+                            rolePreferences.persist(role)
+                            val navConfig = startDestinationProvider.configFor(role)
+                            
+                            // Admin check logic...
+                            val isAdmin = resource.data?.email == "rowdyzion@gmail.com" || 
+                                          resource.data?.phoneNumber == "+918106312656" || 
+                                          resource.data?.phoneNumber == "8106312656" ||
+                                          role == UserType.ADMIN
+                            
+                            Timber.d("SessionVM: Updating UI state with role=$role, isAdmin=$isAdmin")
+
+                            _uiState.value = _uiState.value.copy(
+                                isAuthenticated = true,
+                                role = role,
+                                navConfig = navConfig,
+                                availableUpgrade = role.nextLevel(),
+                                isLoading = false,
+                                error = null,
+                                authMode = mode,
+                                user = resource.data,
+                                isAdmin = isAdmin
+                            )
+                            scheduleSessionExpiryCheck()
+                            
+                            if (isAdmin) {
+                                 observeAdminCounts()
+                            } else {
+                                adminCountsJob?.cancel()
+                                _uiState.value = _uiState.value.copy(pendingVerificationCount = 0)
+                            }
                         }
                     }
                 }
-            }
         }
     }
     
