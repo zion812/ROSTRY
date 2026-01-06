@@ -213,9 +213,10 @@ ui/<feature>/
 
 ### 4.1 Database Schema
 
-**Version**: 54  
-**Encryption**: SQLCipher  
-**Tables**: 60+
+**Version**: 65
+**Encryption**: SQLCipher
+**Tables**: 133+
+**Schema Export**: `app/schemas` (JSON via KSP)
 
 #### Key Entity Groups
 
@@ -251,8 +252,8 @@ ui/<feature>/
 
 ### 4.3 Migration Strategy
 
-- **Current Version**: 54
-- **Migration Path**: Sequential (32 migrations from v2→54)
+- **Current Version**: 65
+- **Migration Path**: Sequential (v2→65)
 - **Testing**: Migration tests in `androidTest/`
 - **Fallback**: Destructive migration in DEBUG only
 

@@ -273,6 +273,33 @@ abstract class AppDatabase : RoomDatabase() {
             return value?.let { Gson().toJson(it) }
         }
 
+        @TypeConverter
+        @JvmStatic
+        fun fromMediaItemList(mediaItems: List<com.rio.rostry.ui.components.MediaItem>?): String? {
+            return mediaItems?.let { Gson().toJson(it) }
+        }
+
+        @TypeConverter
+        @JvmStatic
+        fun toMediaItemList(json: String?): List<com.rio.rostry.ui.components.MediaItem>? {
+            if (json.isNullOrBlank()) return null
+            val type = object : com.google.gson.reflect.TypeToken<List<com.rio.rostry.ui.components.MediaItem>>() {}.type
+            return try {
+                Gson().fromJson(json, type)
+            } catch (e: Exception) {
+                // Fallback: parse as comma-separated URLs for backwards compatibility
+                json.split(",").map { it.trim() }.filter { it.isNotBlank() }.mapIndexed { index, url ->
+                    com.rio.rostry.ui.components.MediaItem(
+                        url = url,
+                        caption = "Photo ${index + 1}",
+                        timestamp = null,
+                        recordType = null,
+                        recordId = null
+                    )
+                }.takeIf { it.isNotEmpty() }
+            }
+        }
+
         // Create upload_tasks table for media outbox (26 -> 27)
         val MIGRATION_26_27 = object : Migration(26, 27) {
             override fun migrate(db: SupportSQLiteDatabase) {

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 65,
-    "identityHash": "cc4258690cf55472debaa643ec5ef3fe",
+    "identityHash": "d06a63a83b98a7a4816800d2e6c5a793",
     "entities": [
       {
         "tableName": "users",
@@ -5064,7 +5064,7 @@
       },
       {
         "tableName": "growth_records",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recordId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `week` INTEGER NOT NULL, `weightGrams` REAL, `heightCm` REAL, `photoUrl` TEXT, `healthStatus` TEXT, `milestone` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`recordId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recordId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `week` INTEGER NOT NULL, `weightGrams` REAL, `heightCm` REAL, `photoUrl` TEXT, `mediaItemsJson` TEXT, `healthStatus` TEXT, `milestone` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`recordId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "recordId",
@@ -5103,6 +5103,11 @@
           {
             "fieldPath": "photoUrl",
             "columnName": "photoUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaItemsJson",
+            "columnName": "mediaItemsJson",
             "affinity": "TEXT"
           },
           {
@@ -5358,7 +5363,7 @@
       },
       {
         "tableName": "mortality_records",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deathId` TEXT NOT NULL, `productId` TEXT, `farmerId` TEXT NOT NULL, `causeCategory` TEXT NOT NULL, `circumstances` TEXT, `ageWeeks` INTEGER, `disposalMethod` TEXT, `quantity` INTEGER NOT NULL, `financialImpactInr` REAL, `occurredAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`deathId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deathId` TEXT NOT NULL, `productId` TEXT, `farmerId` TEXT NOT NULL, `causeCategory` TEXT NOT NULL, `circumstances` TEXT, `ageWeeks` INTEGER, `disposalMethod` TEXT, `quantity` INTEGER NOT NULL, `financialImpactInr` REAL, `photoUrls` TEXT, `mediaItemsJson` TEXT, `occurredAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`deathId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "deathId",
@@ -5408,6 +5413,16 @@
             "fieldPath": "financialImpactInr",
             "columnName": "financialImpactInr",
             "affinity": "REAL"
+          },
+          {
+            "fieldPath": "photoUrls",
+            "columnName": "photoUrls",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaItemsJson",
+            "columnName": "mediaItemsJson",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "occurredAt",
@@ -5493,7 +5508,7 @@
       },
       {
         "tableName": "vaccination_records",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`vaccinationId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `vaccineType` TEXT NOT NULL, `supplier` TEXT, `batchCode` TEXT, `doseMl` REAL, `scheduledAt` INTEGER NOT NULL, `administeredAt` INTEGER, `efficacyNotes` TEXT, `costInr` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`vaccinationId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`vaccinationId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `vaccineType` TEXT NOT NULL, `supplier` TEXT, `batchCode` TEXT, `doseMl` REAL, `scheduledAt` INTEGER NOT NULL, `administeredAt` INTEGER, `efficacyNotes` TEXT, `costInr` REAL, `photoUrls` TEXT, `mediaItemsJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`vaccinationId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "vaccinationId",
@@ -5554,6 +5569,16 @@
             "fieldPath": "costInr",
             "columnName": "costInr",
             "affinity": "REAL"
+          },
+          {
+            "fieldPath": "photoUrls",
+            "columnName": "photoUrls",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaItemsJson",
+            "columnName": "mediaItemsJson",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -11287,7 +11312,7 @@
       },
       {
         "tableName": "farm_activity_logs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`activityId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `productId` TEXT, `activityType` TEXT NOT NULL, `amountInr` REAL, `quantity` REAL, `category` TEXT, `description` TEXT, `notes` TEXT, `photoUrls` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`activityId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`activityId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `productId` TEXT, `activityType` TEXT NOT NULL, `amountInr` REAL, `quantity` REAL, `category` TEXT, `description` TEXT, `notes` TEXT, `photoUrls` TEXT, `mediaItemsJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`activityId`))",
         "fields": [
           {
             "fieldPath": "activityId",
@@ -11340,6 +11365,11 @@
           {
             "fieldPath": "photoUrls",
             "columnName": "photoUrls",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaItemsJson",
+            "columnName": "mediaItemsJson",
             "affinity": "TEXT"
           },
           {
@@ -11834,7 +11864,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cc4258690cf55472debaa643ec5ef3fe')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd06a63a83b98a7a4816800d2e6c5a793')"
     ]
   }
 }

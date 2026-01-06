@@ -810,7 +810,9 @@ AsyncImage(
 
 ## 14. Testing Architecture
 
-### Testing Layers
+**Note**: Standard unit and instrumentation test suites are currently being finalized and are not yet fully checked in. Skeletons are provided in `app/src/test/java` and `app/src/androidTest/java`.
+
+### Testing Layers (Planned)
 
 **Unit Tests** (`test/`):
 - ViewModels
@@ -828,24 +830,12 @@ AsyncImage(
 - User flows
 - Accessibility tests
 
-### Test Structure
+### Test Structure (Skeletons)
 
 ```
 app/src/
-├── test/java/com/rio/rostry/
-│   ├── ui/
-│   │   └── ProductViewModelTest.kt
-│   ├── data/repository/
-│   │   └── ProductRepositoryTest.kt
-│   └── util/
-│       └── ValidationUtilsTest.kt
-└── androidTest/java/com/rio/rostry/
-    ├── ui/
-    │   └── ProductListScreenTest.kt
-    ├── data/
-    │   └── MigrationTest.kt
-    └── navigation/
-        └── NavigationTest.kt
+├── test/java/com/rio/rostry/         # Planned Unit Tests
+└── androidTest/java/com/rio/rostry/  # Planned Instrumentation Tests
 ```
 
 ### Test Patterns
@@ -888,16 +878,16 @@ class ProductViewModelTest {
 
 ---
 
-## 14. Recent Major Updates
+## 15. Recent Major Updates
 
-### Database Migration 15→16 (Community Features)
-Added 4 new entities for community engagement:
-- `ThreadMetadataEntity` - Context-aware messaging metadata
-- `CommunityRecommendationEntity` - Personalized user recommendations
-- `UserInterestEntity` - Interest-based personalization data
-- `ExpertProfileEntity` - Expert information and availability
+### Database Migration v2→65 (Consolidated Refactor)
+Implemented a massive 64-step migration sequence:
+- Added Digital Farm, Evidence-Based Orders, and Glass Box Farm Profiles.
+- Expanded to 133+ entities with full SQLCipher encryption.
+- Multi-step wizards and UX enhancements for complex data entry.
+- Consolidated role-based access control with custom claims.
 
-See `data-contracts.md` for schema details and `CHANGELOG.md` for migration history.
+See `docs/PROJECT_OVERVIEW.md` for schema details and `CHANGELOG.md` for full migration history.
 
 ### UX Component Library
 New reusable components in `ui/components/`:
@@ -909,7 +899,7 @@ New reusable components in `ui/components/`:
 
 See `user-experience-guidelines.md` for usage patterns.
 
-## 15. Future Considerations
+## 16. Future Considerations
 
 ### Multi-Module Architecture
 - Split monolithic app into Gradle feature modules

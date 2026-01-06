@@ -25,12 +25,14 @@ import com.rio.rostry.data.database.entity.FarmActivityLogEntity
 /**
  * Farm Log Screen - Shows all farm activities with filtering.
  * Accessible from Home Dashboard and Profile screen.
+ * Now supports clicking activities to navigate to their detail screens.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmLogScreen(
     onBack: () -> Unit,
     onBirdClick: ((String) -> Unit)? = null,
+    onActivityClick: ((FarmActivityLogEntity) -> Unit)? = null,
     viewModel: FarmLogViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -168,7 +170,10 @@ fun FarmLogScreen(
                         ActivityLogCard(
                             log = log,
                             onClick = {
-                                log.productId?.let { onBirdClick?.invoke(it) }
+                                // First priority: navigate to activity detail
+                                onActivityClick?.invoke(log)
+                                    // Fallback: navigate to bird if callback not provided
+                                    ?: log.productId?.let { onBirdClick?.invoke(it) }
                             }
                         )
                     }

@@ -1071,6 +1071,9 @@ private fun RoleNavGraph(
                     },
                     onCreateAuction = {
                         navController.navigate(Routes.Builders.createAuctionFromAsset(assetId))
+                    },
+                    onViewHistory = {
+                        navController.navigate(Routes.Builders.birdHistory(assetId))
                     }
                 )
             }
@@ -1140,6 +1143,111 @@ private fun RoleNavGraph(
                 )
             }
         }
+        
+        // ============ Action Detail Routes for Addressable Logs ============
+        
+        // Vaccination Detail Screen
+        composable(
+            route = Routes.Monitoring.VACCINATION_DETAIL,
+            arguments = listOf(navArgument("vaccinationId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val vaccinationId = backStackEntry.arguments?.getString("vaccinationId")
+            if (vaccinationId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid vaccination ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.VaccinationDetailScreen(
+                    vaccinationId = vaccinationId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProduct = { productId ->
+                        navController.navigate(Routes.Builders.productDetails(productId))
+                    }
+                )
+            }
+        }
+        
+        // Growth Record Detail Screen
+        composable(
+            route = Routes.Monitoring.GROWTH_DETAIL,
+            arguments = listOf(navArgument("recordId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val recordId = backStackEntry.arguments?.getString("recordId")
+            if (recordId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid record ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.GrowthRecordDetailScreen(
+                    recordId = recordId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProduct = { productId ->
+                        navController.navigate(Routes.Builders.productDetails(productId))
+                    }
+                )
+            }
+        }
+        
+        // Mortality Detail Screen
+        composable(
+            route = Routes.Monitoring.MORTALITY_DETAIL,
+            arguments = listOf(navArgument("deathId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deathId = backStackEntry.arguments?.getString("deathId")
+            if (deathId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid death ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.MortalityDetailScreen(
+                    deathId = deathId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProduct = { productId ->
+                        navController.navigate(Routes.Builders.productDetails(productId))
+                    }
+                )
+            }
+        }
+        
+        // Farm Activity Detail Screen
+        composable(
+            route = Routes.Monitoring.FARM_ACTIVITY_DETAIL,
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId")
+            if (activityId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid activity ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.farmer.FarmActivityDetailScreen(
+                    activityId = activityId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProduct = { productId ->
+                        navController.navigate(Routes.Builders.productDetails(productId))
+                    }
+                )
+            }
+        }
+        
+        // Bird History Screen - Unified timeline for a bird/batch
+        composable(
+            route = Routes.Monitoring.BIRD_HISTORY,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId")
+            if (assetId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.farmer.asset.BirdHistoryScreen(
+                    assetId = assetId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onEventClick = { eventId, eventType ->
+                        when (eventType) {
+                            "VACCINATION" -> navController.navigate(Routes.Builders.vaccinationDetail(eventId))
+                            "GROWTH" -> navController.navigate(Routes.Builders.growthDetail(eventId))
+                            "MORTALITY" -> navController.navigate(Routes.Builders.mortalityDetail(eventId))
+                            "ACTIVITY" -> navController.navigate(Routes.Builders.farmActivityDetail(eventId))
+                            else -> { /* Daily logs don't have detail screens yet */ }
+                        }
+                    }
+                )
+            }
+        }
+        
+        // ============ END: Action Detail Routes ============
         
         // ============ Glass Box: Public Farm Profile ============
         composable(
@@ -1236,7 +1344,16 @@ private fun RoleNavGraph(
         ) {
             com.rio.rostry.ui.farmer.FarmLogScreen(
                 onBack = { navController.popBackStack() },
-                onBirdClick = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+                onBirdClick = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onActivityClick = { activity ->
+                    // Map activity type to correct detail route
+                    when (activity.activityType.uppercase()) {
+                        "VACCINATION" -> navController.navigate(Routes.Builders.vaccinationDetail(activity.activityId))
+                        "WEIGHT", "GROWTH" -> navController.navigate(Routes.Builders.growthDetail(activity.activityId))
+                        "MORTALITY" -> navController.navigate(Routes.Builders.mortalityDetail(activity.activityId))
+                        else -> navController.navigate(Routes.Builders.farmActivityDetail(activity.activityId))
+                    }
+                }
             )
         }
         

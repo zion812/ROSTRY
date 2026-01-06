@@ -1,6 +1,6 @@
 ---
-Version: 1.0.1
-Last Updated: 2025-12-29
+Version: 1.0
+Last Updated: 2026-01-06
 Audience: Developers, Product Owners
 Status: Active
 ---
@@ -21,8 +21,8 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-—-informational)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Android](https://img.shields.io/badge/Android-13%2B-green)
-![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple)
+![Android](https://img.shields.io/badge/Android-15-green)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple)
 ![Min SDK](https://img.shields.io/badge/Min%20SDK-24-orange)
 
 ---
@@ -62,25 +62,20 @@ ROSTRY is an AgriTech marketplace application built with modern Android developm
 
 ---
 
-## Authentication
+## Authentication & Security
 
--   **Providers**: Google (Primary), Email/Password. **Phone Auth is disabled** in Free Tier mode.
--   **Policy**: New users complete verification profile steps manually. Phone number linking is optional for now.
--   **Flow**:
--   Google Sign-In → Profile Creation → Dashboard.
--   **Security Rules**: Firestore rules rely on `userType` field in user document, not custom claims.
+-   **Primary Flow**: Phone OTP is the active and primary authentication method.
+-   **Secondary Providers**: Google Sign-In and Email/Password are supported as secondary options.
+-   **Security Rules**: The canonical security rules are located in `firebase/firestore.rules`. These rules strictly enforce access via **custom claims** (`role`, `verified`), not just document fields.
+-   **Cloud Functions**: Authentication claims are kept in sync by Cloud Functions defined in `firebase/functions/src/index.ts` and `roles.ts`. These must be deployed correctly for the RBAC system to function.
 
 ### Setup Notes
 
-- Enable desired providers in Firebase Console (Google and Email/Password). Phone Auth must also be enabled.
-- Add SHA-1 to Firebase project for Google Sign-In.
-- FirebaseUI dependency is included in `app/build.gradle.kts`.
-
-### Testing
-
-- Use Firebase Emulator Suite for local testing of Auth/Firestore.
-- Instrumented tests placeholder: `app/src/androidTest/java/com/rio/rostry/auth/MultiProviderAuthTest.kt`.
-
+1.  **Enable Providers**: In Firebase Console, enable **Phone**, **Google**, and **Email/Password** providers.
+2.  **Phone Auth Config**: 
+    - Add SHA-1 and SHA-256 fingerprints to your Firebase project settings.
+    - For local debugging, the flag `PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING` is enabled in `debug` builds (see `app/build.gradle.kts`) to bypass SafetyNet/Play Integrity during development.
+3.  **Custom Claims**: Note that rules depend on claims. If a user cannot access data despite having the correct `userType` in Firestore, verify their custom claims via the Admin SDK or Firebase Functions logs.
 ---
 
 ## Firestore Index Management
@@ -199,10 +194,11 @@ See [QUICK_START.md](QUICK_START.md). For demo accounts, see `docs/demo_quick_st
 
 ## Testing
 
-- Unit tests live in `app/src/test/java/`.
-- Instrumented tests live in `app/src/androidTest/java/`.
-- Libraries: Mockito (core, inline, kotlin), MockK, kotlinx-coroutines-test, Robolectric.
-- See `docs/testing-strategy.md` for comprehensive testing approach.
+-   **Note**: Test suites are not yet checked in. Standard unit and instrumentation test suites are currently being finalized.
+-   Unit tests will live in `app/src/test/java/`.
+-   Instrumented tests will live in `app/src/androidTest/java/`.
+-   Libraries: Mockito (core, inline, kotlin), MockK, kotlinx-coroutines-test, Robolectric.
+-   See `docs/testing-strategy.md` for the planned testing approach.
 
 Run Dokka API docs:
 ```
@@ -212,7 +208,8 @@ Output is under `app/build/dokka/html`.
 
 ## Project Status
 
-- Version: 1.0.0 (80% production-ready)
+- Version: 1.0 (9)
+- Status: Production-ready (Active development)
 - Active development; see [CHANGELOG.md](CHANGELOG.md)
 - Future plans: see [ROADMAP.md](ROADMAP.md)
 

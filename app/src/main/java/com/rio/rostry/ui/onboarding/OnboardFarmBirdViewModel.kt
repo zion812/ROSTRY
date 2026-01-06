@@ -303,10 +303,15 @@ class OnboardFarmBirdViewModel @Inject constructor(
             lastModifiedAt = now,
             dirty = true,
             birthDate = s.coreDetails.birthDate,
+            ageWeeks = s.coreDetails.birthDate?.let { bd ->
+                ((now - bd) / (7 * 24 * 60 * 60 * 1000L)).toInt()
+            },
             weightGrams = s.coreDetails.weightGrams.toDoubleOrNull(),
             heightCm = s.coreDetails.heightCm.toDoubleOrNull(),
             breed = s.coreDetails.breed,
             color = s.coreDetails.colors,
+            gender = s.coreDetails.gender.ifBlank { null },  // FIX: Add gender
+            healthStatus = s.coreDetails.healthStatus,       // FIX: Add healthStatus
             birdCode = birdCode,
             colorTag = colorTag,
             parentMaleId = s.lineage.maleParentId,

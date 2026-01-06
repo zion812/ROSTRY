@@ -180,6 +180,13 @@ object Routes {
         const val DAILY_LOG_PRODUCT = "monitoring/daily_log/{productId}"
         const val TASKS = "monitoring/tasks"
         const val FARM_LOG = "monitoring/farm_log" // Comprehensive farm activity log
+        
+        // NEW: Action Detail Routes for addressable logs
+        const val VACCINATION_DETAIL = "monitoring/vaccination/{vaccinationId}"
+        const val GROWTH_DETAIL = "monitoring/growth/{recordId}"
+        const val MORTALITY_DETAIL = "monitoring/mortality/{deathId}"
+        const val FARM_ACTIVITY_DETAIL = "monitoring/activity/{activityId}"
+        const val BIRD_HISTORY = "monitoring/history/{assetId}"
     }
 
     // Loveable product feature routes
@@ -719,6 +726,18 @@ object Routes {
         fun breedingCalculator(): String = EnthusiastNav.BREEDING_CALCULATOR
         fun performanceJournal(): String = EnthusiastNav.PERFORMANCE_JOURNAL
         fun virtualArena(): String = EnthusiastNav.VIRTUAL_ARENA
+        
+        // NEW: Action Detail Route Builders for addressable farm logs
+        fun vaccinationDetail(vaccinationId: String): String = 
+            "monitoring/vaccination/${URLEncoder.encode(vaccinationId, "UTF-8")}"
+        fun growthDetail(recordId: String): String = 
+            "monitoring/growth/${URLEncoder.encode(recordId, "UTF-8")}"
+        fun mortalityDetail(deathId: String): String = 
+            "monitoring/mortality/${URLEncoder.encode(deathId, "UTF-8")}"
+        fun farmActivityDetail(activityId: String): String = 
+            "monitoring/activity/${URLEncoder.encode(activityId, "UTF-8")}"
+        fun birdHistory(assetId: String): String = 
+            "monitoring/history/${URLEncoder.encode(assetId, "UTF-8")}"
     }
 
 } // Closing brace for object Routes

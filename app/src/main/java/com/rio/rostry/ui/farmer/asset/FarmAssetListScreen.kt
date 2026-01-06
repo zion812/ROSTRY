@@ -166,155 +166,302 @@ fun FarmAssetItem(
         "HEALTHY" -> Color(0xFF4CAF50)
         "SICK" -> MaterialTheme.colorScheme.error
         "RECOVERING" -> Color(0xFFFF9800)
+        "INJURED" -> Color(0xFFE91E63)
         else -> Color(0xFF9E9E9E)
     }
+    
+    val genderIcon = when (asset.gender?.uppercase()) {
+        "MALE" -> "♂"
+        "FEMALE" -> "♀"
+        else -> null
+    }
+    
+    val genderColor = when (asset.gender?.uppercase()) {
+        "MALE" -> Color(0xFF2196F3)
+        "FEMALE" -> Color(0xFFE91E63)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    // Check for pending actions
+    val hasVaccinationDue = asset.nextVaccinationDate?.let { it < System.currentTimeMillis() } == true
+    val isListed = asset.listingId != null
+    val daysSinceUpdate = ((System.currentTimeMillis() - asset.updatedAt) / (24 * 60 * 60 * 1000)).toInt()
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp,
+            pressedElevation = 8.dp
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        shape = MaterialTheme.shapes.medium
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Thumbnail Image
-            if (asset.imageUrls.isNotEmpty()) {
-                AsyncImage(
-                    model = asset.imageUrls.first(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
+        Column {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Enhanced Image with Gradient Overlay
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
+                        .size(72.dp)
+                        .clip(MaterialTheme.shapes.medium)
                 ) {
-                    Icon(
-                        imageVector = if (asset.assetType == "BATCH") Icons.Default.Groups else Icons.Default.Pets,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                // Name and Badge Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = asset.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    // Status Badge (Active/Quarantine) if not active
-                    if (asset.status != "ACTIVE") {
-                         Surface(
-                            shape = MaterialTheme.shapes.extraSmall,
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            modifier = Modifier.padding(start = 4.dp)
+                    if (asset.imageUrls.isNotEmpty()) {
+                        AsyncImage(
+                            model = asset.imageUrls.first(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        // Gradient overlay for premium look
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.3f)
+                                        ),
+                                        startY = 0f,
+                                        endY = Float.POSITIVE_INFINITY
+                                    )
+                                )
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = asset.status,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            Icon(
+                                imageVector = if (asset.assetType == "BATCH") Icons.Default.Groups else Icons.Default.Pets,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                modifier = Modifier.size(36.dp)
                             )
                         }
                     }
                     
-                    // Asset Type Badge (always show but subtle or right aligned?)
-                    // Let's keep existing Badge logic if status is active, or combine.
-                    // Actually, the previous design had a Type Badge. Let's keep it but improve look.
-                    if (asset.status == "ACTIVE") { // Only show type if status is normal to avoid crowding
-                     Badge(
-                        containerColor = if (asset.assetType == "BATCH") 
-                            MaterialTheme.colorScheme.primaryContainer 
-                        else 
-                            MaterialTheme.colorScheme.tertiaryContainer
-                    ) {
-                        Text(
-                            text = asset.assetType,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                   }
-                }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // Details Row: Breed • Age
-                Text(
-                    text = buildString {
-                        if (!asset.breed.isNullOrBlank()) append(asset.breed).append(" • ")
-                        append(formatAge(asset.ageWeeks))
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Footer Row: Quantity | Health | Sync
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Quantity Pill
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                    ) {
-                        Text(
-                            text = "${asset.quantity.toInt()} ${asset.unit}",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    // Health Indicator
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
+                    // Gender badge on image
+                    if (genderIcon != null) {
+                        Surface(
                             modifier = Modifier
-                                .size(8.dp)
-                                .background(healthColor, CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = asset.healthStatus.lowercase().replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp),
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadowElevation = 2.dp
+                        ) {
+                            Text(
+                                text = genderIcon,
+                                modifier = Modifier.padding(4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = genderColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
+                }
 
-                    Spacer(modifier = Modifier.weight(1f))
-
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    // Name and Type Badge Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = asset.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        
+                        // Type Badge with premium styling
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = if (asset.assetType == "BATCH") 
+                                MaterialTheme.colorScheme.primaryContainer 
+                            else 
+                                MaterialTheme.colorScheme.tertiaryContainer
+                        ) {
+                            Text(
+                                text = asset.assetType,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = if (asset.assetType == "BATCH")
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // Details Row: Breed • Gender • Age
+                    Text(
+                        text = buildString {
+                            if (!asset.breed.isNullOrBlank()) append(asset.breed)
+                            if (!asset.gender.isNullOrBlank() && asset.gender != "Unknown") {
+                                if (isNotEmpty()) append(" • ")
+                                append(asset.gender)
+                            }
+                            if (isNotEmpty()) append(" • ")
+                            append(formatAge(asset.ageWeeks))
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Metrics Row: Quantity | Health | Weight
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Quantity Pill
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Text(
+                                text = "${asset.quantity.toInt()} ${asset.unit}",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        
+                        // Health Indicator
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(healthColor, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = asset.healthStatus.lowercase().replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = healthColor,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        
+                        // Weight if available
+                        if (asset.weightGrams != null && asset.weightGrams > 0) {
+                            Text(
+                                text = "%.1fkg".format(asset.weightGrams / 1000),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Action Badges Row (Vaccination Due, Listed, Recent Activity)
+            if (hasVaccinationDue || isListed || asset.dirty || daysSinceUpdate <= 1) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Vaccination Alert
+                    if (hasVaccinationDue) {
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "Vaccination Due",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Listed for Sale Badge
+                    if (isListed) {
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "📢 Listed",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Recent Activity
+                    if (daysSinceUpdate <= 1) {
+                        Surface(
+                            shape = MaterialTheme.shapes.extraSmall,
+                            color = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                        ) {
+                            Text(
+                                text = if (daysSinceUpdate == 0) "Updated today" else "Updated yesterday",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF4CAF50),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                    
+                    Spacer(Modifier.weight(1f))
+                    
                     // Sync Status
                     if (asset.dirty) {
                         Icon(
                             imageVector = Icons.Default.CloudUpload,
                             contentDescription = "Pending Sync",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                             modifier = Modifier.size(16.dp)
                         )
                     }

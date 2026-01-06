@@ -245,6 +245,14 @@ class VerificationViewModel @Inject constructor(
         updateFormState { it.copy(showLocationPicker = false) }
     }
 
+    /**
+     * Accept a FarmLocation directly (from SimpleLocationPicker or other GPS-based sources).
+     * This bypasses the need for Google Places API.
+     */
+    fun onFarmLocationSelected(location: FarmLocation) {
+        updateFormState { it.copy(farmLocation = location, showLocationPicker = false) }
+    }
+
     fun setUpgradeType(type: UpgradeType) {
         val targetRole = calculateTargetRole(type)
         val formUpdate = { state: VerificationFormState ->

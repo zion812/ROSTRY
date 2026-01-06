@@ -300,7 +300,7 @@ ui/admin/
 
 | File | Purpose |
 |------|---------|
-| `AppDatabase.kt` | Database definition, migrations (v2→59) |
+| `AppDatabase.kt` | Database definition, migrations (v2→65), schemas in `app/schemas` |
 | `Converters.kt` | Type converters |
 
 ### Repositories (`data/repository/`)

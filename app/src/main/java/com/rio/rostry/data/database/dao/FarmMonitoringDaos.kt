@@ -46,6 +46,9 @@ interface GrowthRecordDao {
 
     @Query("SELECT COUNT(*) FROM growth_records WHERE farmerId = :farmerId")
     suspend fun getRecordCountForFarmer(farmerId: String): Int
+
+    @Query("SELECT * FROM growth_records WHERE recordId = :recordId LIMIT 1")
+    suspend fun getById(recordId: String): GrowthRecordEntity?
 }
 
 
@@ -84,6 +87,12 @@ interface MortalityRecordDao {
 
     @Query("SELECT COUNT(*) FROM mortality_records WHERE farmerId = :farmerId")
     suspend fun getRecordCountForFarmer(farmerId: String): Int
+
+    @Query("SELECT * FROM mortality_records WHERE deathId = :deathId LIMIT 1")
+    suspend fun getById(deathId: String): MortalityRecordEntity?
+
+    @Query("SELECT * FROM mortality_records WHERE productId = :productId ORDER BY occurredAt DESC")
+    suspend fun getByProduct(productId: String): List<MortalityRecordEntity>
 }
 
 @Dao
@@ -149,6 +158,9 @@ interface VaccinationRecordDao {
     /** Get all vaccination records for a specific product. */
     @Query("SELECT * FROM vaccination_records WHERE productId = :productId ORDER BY scheduledAt DESC")
     suspend fun getRecordsByProduct(productId: String): List<VaccinationRecordEntity>
+
+    @Query("SELECT * FROM vaccination_records WHERE vaccinationId = :vaccinationId LIMIT 1")
+    suspend fun getById(vaccinationId: String): VaccinationRecordEntity?
 }
 
 @Dao

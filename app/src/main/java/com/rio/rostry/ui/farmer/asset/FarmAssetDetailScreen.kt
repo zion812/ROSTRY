@@ -23,7 +23,8 @@ fun FarmAssetDetailScreen(
     viewModel: FarmAssetDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onCreateListing: () -> Unit,
-    onCreateAuction: () -> Unit
+    onCreateAuction: () -> Unit,
+    onViewHistory: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -296,6 +297,18 @@ fun FarmAssetDetailScreen(
                                         .replaceFirstChar { it.uppercase() }
                                 )
                             }
+                        }
+                    }
+                    
+                    // View History Button
+                    if (onViewHistory != null) {
+                        OutlinedButton(
+                            onClick = onViewHistory,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.History, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("View Full History")
                         }
                     }
 

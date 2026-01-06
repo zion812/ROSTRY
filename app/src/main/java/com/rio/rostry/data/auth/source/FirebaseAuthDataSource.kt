@@ -74,7 +74,7 @@ class FirebaseAuthDataSource @Inject constructor(
     ): AuthResult<VerificationId> {
         return try {
             // Enable test mode for debug/emulator
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING) {
                 configureTestMode(phoneNumber)
             }
             
@@ -123,7 +123,7 @@ class FirebaseAuthDataSource @Inject constructor(
         }
         
         return try {
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING) {
                 configureTestMode(phoneNumber)
             }
             
@@ -225,7 +225,7 @@ class FirebaseAuthDataSource @Inject constructor(
             ))
         
         return try {
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING) {
                 configureTestMode(phoneNumber)
             }
             

@@ -22,7 +22,7 @@ import com.rio.rostry.R
 import com.rio.rostry.domain.model.UpgradeType
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.domain.model.FarmLocation
-import com.rio.rostry.ui.components.LocationPicker
+import com.rio.rostry.ui.components.SimpleLocationPicker
 import com.rio.rostry.ui.verification.components.PendingStateScreen
 import com.rio.rostry.ui.verification.components.UploadRow
 import com.rio.rostry.ui.verification.components.VerifiedStateScreen
@@ -34,7 +34,6 @@ fun FarmerLocationVerificationScreen(
     viewModel: VerificationViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.ui.collectAsState()
-    val placesClient = viewModel.placesClient
     
     Box(modifier = Modifier.fillMaxSize()) {
         when (uiState.user?.verificationStatus) {
@@ -49,9 +48,8 @@ fun FarmerLocationVerificationScreen(
             }
             else -> { 
                 if (uiState.showLocationPicker) {
-                    LocationPicker(
-                        placesClient = placesClient,
-                        onLocationSelected = { place -> viewModel.onPlaceSelected(place) },
+                    SimpleLocationPicker(
+                        onLocationSelected = { farmLocation -> viewModel.onFarmLocationSelected(farmLocation) },
                         onCancel = {
                             if (uiState.selectedPlace != null) {
                                 viewModel.cancelLocationChange()
