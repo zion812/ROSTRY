@@ -47,6 +47,14 @@ val EnthusiastVelvet = Color(0xFF4B0082)
 val EnthusiastGlass = Color(0x33FFFFFF)
 val EnthusiastSurface = Color(0xFF1A1A1A)
 
+// Psychology-Driven Colors (Premium UI Enhancement)
+val DeepNavy = Color(0xFF0A1628)      // Premium dark backgrounds, creates depth
+val ElectricBlue = Color(0xFF00D4FF)  // CTAs, interactive elements - grabs attention
+val Coral = Color(0xFFFF6B6B)          // Notifications, urgency - creates action
+val Emerald = Color(0xFF10B981)        // Success, health indicators - positive feedback
+val SoftGold = Color(0xFFFFE082)       // Highlights, achievements
+val DeepPurple = Color(0xFF2D1B4D)     // Aura backgrounds, mystique
+
 // Light Theme Scheme
 val RostryLightColors: ColorScheme = lightColorScheme(
     primary = RostryGreen,
@@ -113,7 +121,7 @@ val RostryDarkColors: ColorScheme = darkColorScheme(
     outline = Color(0xFF8A8A8A)
 )
 
-// Enthusiast Theme Schemes (Premium Experience)
+// Enthusiast Theme Schemes (Premium Experience with Psychology-Driven Colors)
 val EnthusiastDarkColors: ColorScheme = darkColorScheme(
     primary = EnthusiastGold,
     onPrimary = EnthusiastObsidian,
@@ -122,21 +130,29 @@ val EnthusiastDarkColors: ColorScheme = darkColorScheme(
     
     secondary = EnthusiastVelvet,
     onSecondary = White,
-    secondaryContainer = Color(0xFF310055),
+    secondaryContainer = DeepPurple,
     onSecondaryContainer = Color(0xFFE1BEE7),
     
-    tertiary = Color(0xFFAFAFAF), // Silver/Steel accent
-    onTertiary = EnthusiastObsidian,
+    tertiary = ElectricBlue, // Interactive elements, CTAs
+    onTertiary = DeepNavy,
+    tertiaryContainer = ElectricBlue.copy(alpha = 0.2f),
+    onTertiaryContainer = ElectricBlue,
     
-    background = Neutral950,
+    background = DeepNavy, // Premium dark background
     onBackground = White,
     
     surface = EnthusiastSurface,
     onSurface = White,
-    surfaceVariant = Color(0xFF2C2C2C),
+    surfaceVariant = Color(0xFF1A2238), // Slightly lighter than DeepNavy
     onSurfaceVariant = Color(0xFFBDBDBD),
     
-    outline = EnthusiastGoldVariant
+    error = Coral, // Urgency, warnings
+    onError = White,
+    errorContainer = Coral.copy(alpha = 0.2f),
+    onErrorContainer = Coral,
+    
+    outline = EnthusiastGoldVariant,
+    outlineVariant = Color(0xFF2D3A54)
 )
 
 val EnthusiastLightColors: ColorScheme = lightColorScheme(
@@ -147,13 +163,32 @@ val EnthusiastLightColors: ColorScheme = lightColorScheme(
     
     secondary = EnthusiastVelvet,
     onSecondary = White,
+    secondaryContainer = DeepPurple.copy(alpha = 0.15f),
+    onSecondaryContainer = DeepPurple,
+    
+    tertiary = ElectricBlue,
+    onTertiary = White,
+    tertiaryContainer = ElectricBlue.copy(alpha = 0.1f),
+    onTertiaryContainer = ElectricBlue,
     
     background = White,
-    onBackground = EnthusiastObsidian,
+    onBackground = DeepNavy,
     
     surface = Neutral50,
-    onSurface = EnthusiastObsidian
+    onSurface = DeepNavy,
+    surfaceVariant = Color(0xFFF0F4F8),
+    onSurfaceVariant = Color(0xFF4A5568),
+    
+    error = Coral,
+    onError = White,
+    errorContainer = Coral.copy(alpha = 0.1f),
+    onErrorContainer = Coral,
+    
+    outline = EnthusiastGoldVariant
 )
+
+// Success color extension for Enthusiast theme
+val SuccessColor = Emerald
 
 // Legacy Mappings
 val GeneralLightColors = RostryLightColors

@@ -84,9 +84,14 @@ import com.rio.rostry.ui.onboarding.OnboardingChecklistViewModel
 import com.rio.rostry.ui.enthusiast.components.EnthusiastActionCard
 import com.rio.rostry.ui.enthusiast.components.EnthusiastAlertCard
 import com.rio.rostry.ui.enthusiast.components.EnthusiastKpiCard
+import com.rio.rostry.ui.enthusiast.components.HeroChampionBanner
+import com.rio.rostry.ui.enthusiast.components.SpeedDialActions
+import com.rio.rostry.ui.enthusiast.components.SpeedDialAction
+import com.rio.rostry.ui.enthusiast.components.LiveActivityTicker
 import com.rio.rostry.ui.theme.Dimens
 import com.rio.rostry.ui.components.EnthusiastAuraBackground
 import com.rio.rostry.ui.components.PremiumCard
+import com.rio.rostry.ui.components.GradientButton
 import androidx.compose.ui.graphics.Brush
 import com.rio.rostry.ui.theme.EnthusiastGold
 
@@ -127,6 +132,14 @@ fun EnthusiastHomeScreen(
     val swipeState = rememberSwipeRefreshState(isRefreshing = refreshing)
     val activePairs by vm.activePairs.collectAsState()
     val quickStatus by vm.quickStatus.collectAsState()
+    
+    // Premium component data (Comment 2)
+    val topChampions by vm.topChampions.collectAsState()
+    val trustScore by vm.trustScore.collectAsState()
+    val urgentActivity by vm.urgentActivity.collectAsState()
+    val pendingTaskCounts by vm.pendingTaskCounts.collectAsState()
+    val scrollState = rememberScrollState()
+    
     var now by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -138,6 +151,7 @@ fun EnthusiastHomeScreen(
     val flock by flockVm.state.collectAsState()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showDialog by rememberSaveable { mutableStateOf(false) }
+    var speedDialExpanded by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val checklistVm: OnboardingChecklistViewModel = hiltViewModel()
@@ -151,25 +165,62 @@ fun EnthusiastHomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add to Farm")
-            }
+            // Replace FAB with SpeedDialActions (Comment 1)
+            SpeedDialActions(
+                isExpanded = speedDialExpanded,
+                onExpandToggle = { speedDialExpanded = !speedDialExpanded },
+                pendingTasks = mapOf(
+                    SpeedDialAction.VACCINATION to (pendingTaskCounts["vaccination"] ?: 0),
+                    SpeedDialAction.EGGS to (pendingTaskCounts["eggs"] ?: 0),
+                    SpeedDialAction.BREEDING to (pendingTaskCounts["hatching"] ?: 0)
+                ),
+                onActionClick = { action ->
+                    speedDialExpanded = false
+                    when (action) {
+                        SpeedDialAction.VACCINATION -> onOpenVaccination()
+                        SpeedDialAction.EGGS -> showDialog = true
+                        SpeedDialAction.ANALYTICS -> onOpenAnalytics()
+                        SpeedDialAction.BREEDING -> onOpenBreeding()
+                    }
+                }
+            )
         }
     ) { padding ->
-        EnthusiastAuraBackground {
+        // Use trust-score-based aura (Comment 1)
+        EnthusiastAuraBackground(trustScore = trustScore) {
             SwipeRefresh(state = swipeState, onRefresh = vm::refresh) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(Dimens.space_large)
                     .padding(padding),
                 verticalArrangement = Arrangement.spacedBy(Dimens.space_large)
             ) {
+        // Live Activity Ticker (Comment 1)
+        LiveActivityTicker(
+            activity = urgentActivity,
+            onDismiss = { /* Handled by LiveActivityTicker auto-dismiss */ },
+            onClick = { 
+                when (urgentActivity) {
+                    is com.rio.rostry.ui.enthusiast.components.UrgentActivity.HatchingDue -> onOpenBreeding()
+                    is com.rio.rostry.ui.enthusiast.components.UrgentActivity.SickBirds -> onOpenQuarantine()
+                    is com.rio.rostry.ui.enthusiast.components.UrgentActivity.Incubation -> onOpenBreeding()
+                    is com.rio.rostry.ui.enthusiast.components.UrgentActivity.VaccinationDue -> onOpenVaccination()
+                    else -> {}
+                }
+            }
+        )
+
+        // Hero Champion Banner (Comment 1)
+        if (topChampions.isNotEmpty()) {
+            HeroChampionBanner(
+                champions = topChampions,
+                scrollState = scrollState,
+                onShareCard = { champion -> onOpenRoosterCard(champion.id) }
+            )
+        }
+
         PremiumGateCard(
             icon = Icons.Filled.Verified,
             title = "Premium Enthusiast",
@@ -208,9 +259,9 @@ fun EnthusiastHomeScreen(
             }
             item {
                 EnthusiastKpiCard(
-                    title = "Engagement Score",
-                    value = ui.dashboard.engagementScore.toInt().toString(),
-                    icon = Icons.Filled.TrendingUp,
+                    title = "Trust Score",
+                    value = "${trustScore.toInt()}%",
+                    icon = Icons.Filled.Verified,
                     onClick = onOpenAnalytics
                 )
             }

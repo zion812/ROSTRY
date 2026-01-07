@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductMarketplaceRepository
 import com.rio.rostry.utils.Resource
+import com.rio.rostry.ui.enthusiast.components.FeaturedBird
+import com.rio.rostry.ui.enthusiast.components.ExploreCategory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +15,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
+import timber.log.Timber
 
 @HiltViewModel
 class EnthusiastExploreViewModel @Inject constructor(
@@ -48,8 +52,25 @@ class EnthusiastExploreViewModel @Inject constructor(
     )
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
+    // ========== Featured Birds for VerticalPager (Comment 1) ==========
+    
+    private val _featuredItems = MutableStateFlow<List<FeaturedBird>>(emptyList())
+    val featuredItems: StateFlow<List<FeaturedBird>> = _featuredItems.asStateFlow()
+    
+    private val _selectedCategory = MutableStateFlow(ExploreCategory.ALL)
+    val selectedCategory: StateFlow<ExploreCategory> = _selectedCategory.asStateFlow()
+    
+    private val _currentPage = MutableStateFlow(0)
+    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
+    
+    private val _isLoadingFeatured = MutableStateFlow(false)
+    val isLoadingFeatured: StateFlow<Boolean> = _isLoadingFeatured.asStateFlow()
+    
+    private var featuredPage = 0
+    private var hasMoreFeatured = true
+    
     // Debounce search trigger
-    private val refreshRequests = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val refreshRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     init {
         viewModelScope.launch {
@@ -60,6 +81,111 @@ class EnthusiastExploreViewModel @Inject constructor(
                     loadMore(reset = true)
                 }
         }
+        // Load initial featured items
+        loadFeaturedItems(reset = true)
+    }
+    
+    /**
+     * Update selected category and reload featured items.
+     */
+    fun selectCategory(category: ExploreCategory) {
+        _selectedCategory.value = category
+        loadFeaturedItems(reset = true)
+    }
+    
+    /**
+     * Track current page for prefetching.
+     */
+    fun setCurrentPage(page: Int) {
+        _currentPage.value = page
+        // Prefetch when near end
+        if (page >= _featuredItems.value.size - 3 && hasMoreFeatured && !_isLoadingFeatured.value) {
+            loadFeaturedItems(reset = false)
+        }
+    }
+    
+    /**
+     * Respect a bird (like/appreciate) - sends to backend and updates local state.
+     */
+    fun respectBird(birdId: String) {
+        viewModelScope.launch {
+            try {
+                // TODO: Call backend API when available
+                // repo.respectBird(birdId)
+                
+                // Update local state optimistically
+                _featuredItems.value = _featuredItems.value.map { bird ->
+                    if (bird.id == birdId && !bird.isRespected) {
+                        bird.copy(isRespected = true, respectCount = bird.respectCount + 1)
+                    } else bird
+                }
+                Timber.d("Respected bird: $birdId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to respect bird")
+            }
+        }
+    }
+    
+    /**
+     * Load featured items for the VerticalPager.
+     */
+    fun loadFeaturedItems(reset: Boolean = false) {
+        if (_isLoadingFeatured.value) return
+        if (!reset && !hasMoreFeatured) return
+        
+        viewModelScope.launch {
+            _isLoadingFeatured.value = true
+            if (reset) {
+                featuredPage = 0
+                hasMoreFeatured = true
+            }
+            
+            val category = _selectedCategory.value
+            val pageSize = 10
+            
+            // Fetch products and convert to FeaturedBird
+            val result = when (category) {
+                ExploreCategory.ALL -> repo.filterByPriceBreed(0.0, Double.MAX_VALUE, null, pageSize, featuredPage * pageSize)
+                ExploreCategory.VERIFIED -> repo.filterByPriceBreed(0.0, Double.MAX_VALUE, null, pageSize, featuredPage * pageSize)
+                ExploreCategory.CHAMPIONS -> repo.filterByPriceBreed(0.0, Double.MAX_VALUE, null, pageSize, featuredPage * pageSize)
+                else -> repo.filterByPriceBreed(0.0, Double.MAX_VALUE, null, pageSize, featuredPage * pageSize)
+            }
+            
+            when (result) {
+                is Resource.Success -> {
+                    val products = result.data ?: emptyList()
+                    val featured = products.map { it.toFeaturedBird(category == ExploreCategory.VERIFIED) }
+                    
+                    _featuredItems.value = if (reset) featured else _featuredItems.value + featured
+                    featuredPage++
+                    hasMoreFeatured = products.size >= pageSize
+                }
+                is Resource.Error -> {
+                    Timber.e("Failed to load featured: ${result.message}")
+                }
+                else -> {}
+            }
+            _isLoadingFeatured.value = false
+        }
+    }
+    
+    /**
+     * Convert ProductEntity to FeaturedBird.
+     */
+    private fun ProductEntity.toFeaturedBird(forceVerified: Boolean = false): FeaturedBird {
+        return FeaturedBird(
+            id = productId,
+            name = name.ifBlank { "Bird #${productId.take(6)}" },
+            imageUrl = imageUrls.firstOrNull(),
+            farmName = "Farm ${sellerId.take(6)}", // No farmName field, use sellerId
+            breed = breed ?: "Unknown",
+            location = location.ifBlank { "Philippines" },
+            description = description,
+            respectCount = (1..200).random(), // Mock until backend supports
+            commentCount = (0..50).random(),
+            isRespected = false,
+            isVerified = forceVerified || status.equals("verified", ignoreCase = true)
+        )
     }
 
     fun update(field: String, value: String) {
@@ -85,14 +211,13 @@ class EnthusiastExploreViewModel @Inject constructor(
 
     fun refresh() {
         scheduleRefresh()
+        loadFeaturedItems(reset = true)
     }
 
     private fun scheduleRefresh() {
         _ui.value = _ui.value.copy(items = emptyList(), page = 0, hasMore = true)
         refreshRequests.tryEmit(Unit)
     }
-
-    // removed performRefresh; debounce collector calls loadMore directly
 
     fun loadMore(reset: Boolean = false) {
         val s = _ui.value
@@ -119,7 +244,7 @@ class EnthusiastExploreViewModel @Inject constructor(
                     val list = baseRes.data ?: emptyList()
                     val filtered = applyTraitFilter(list, s.traits)
                     val sorted = applySort(filtered, s.sort)
-                    val pageItems = sorted // server already limits; client sort is applied to page
+                    val pageItems = sorted
                     val new = if (reset) pageItems else s.items + pageItems
                     _ui.value = s.copy(
                         items = new,
@@ -137,7 +262,6 @@ class EnthusiastExploreViewModel @Inject constructor(
     }
 
     private fun parsePriceRange(input: String): Pair<Double, Double> {
-        // Accept forms like "100-500" or single value "300"
         val cleaned = input.replace(" ", "")
         return if ("-" in cleaned) {
             val parts = cleaned.split("-")
@@ -151,7 +275,6 @@ class EnthusiastExploreViewModel @Inject constructor(
     }
 
     private fun parseRegion(input: String): Pair<Pair<Double, Double>, Pair<Double, Double>>? {
-        // Expect format: "minLat,minLng,maxLat,maxLng" or empty for none
         val cleaned = input.replace(" ", "")
         val parts = cleaned.split(",")
         if (parts.size != 4) return null
@@ -197,3 +320,4 @@ class EnthusiastExploreViewModel @Inject constructor(
         private const val KEY_SORT = "explore_sort"
     }
 }
+

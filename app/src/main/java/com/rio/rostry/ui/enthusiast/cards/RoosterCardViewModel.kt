@@ -11,6 +11,7 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.utils.RoosterCardUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,6 +26,10 @@ class RoosterCardViewModel @Inject constructor(
 
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
+    
+    // Template selection (Comment 3)
+    private val _selectedTemplate = MutableStateFlow<CardTemplate>(CardTemplate.Showstopper)
+    val selectedTemplate: StateFlow<CardTemplate> = _selectedTemplate.asStateFlow()
 
     fun loadProduct(productId: String) {
         viewModelScope.launch {
@@ -37,10 +42,26 @@ class RoosterCardViewModel @Inject constructor(
             }
         }
     }
+    
+    /**
+     * Select a card template.
+     */
+    fun selectTemplate(template: CardTemplate) {
+        _selectedTemplate.value = template
+    }
+    
+    /**
+     * Randomize template selection.
+     */
+    fun randomTemplate() {
+        val templates = CardTemplate.all()
+        val current = _selectedTemplate.value
+        val filtered = templates.filter { it != current }
+        _selectedTemplate.value = filtered.randomOrNull() ?: current
+    }
 
     fun captureAndShare(view: View, context: Context) {
-        // We need to capture the bitmap from the view
-        // Since the view might be not fully laid out if called too early, usually this is triggered by a button click
+        // Capture the bitmap from the view
         try {
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -55,3 +76,4 @@ class RoosterCardViewModel @Inject constructor(
         }
     }
 }
+

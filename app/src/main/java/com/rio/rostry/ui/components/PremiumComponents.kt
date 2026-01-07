@@ -1,6 +1,13 @@
 package com.rio.rostry.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -91,39 +98,91 @@ fun PremiumCard(
 
 /**
  * A background surface that provides the "Aura" effect for the Enthusiast persona.
+ * The aura color changes based on trust score:
+ * - Low (0-40): Muted gray gradient
+ * - Medium (40-70): Soft blue glow
+ * - High (70-100): Golden aura
+ * 
+ * Includes subtle pulsing animation for premium feel.
  */
 @Composable
 fun EnthusiastAuraBackground(
+    trustScore: Float = 50f,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "auraPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.05f,
+        targetValue = 0.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "auraPulseAlpha"
+    )
+    
+    // Determine aura colors based on trust score
+    val (primaryAuraColor, secondaryAuraColor) = when {
+        trustScore < 40f -> Pair(
+            Color(0xFF3A3A3A), // Muted gray
+            Color(0xFF2A2A2A)
+        )
+        trustScore < 70f -> Pair(
+            Color(0xFF1565C0).copy(alpha = 0.15f), // Soft blue
+            EnthusiastObsidian
+        )
+        else -> Pair(
+            EnthusiastGold.copy(alpha = pulseAlpha), // Golden with pulse
+            Color(0xFF2D1B4D) // Deep purple
+        )
+    }
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF2D1B4D), // Deep Purple
+                        secondaryAuraColor,
                         EnthusiastObsidian
                     ),
                     radius = 2000f
                 )
             )
     ) {
-        // Subtle top glow
+        // Aura glow layer
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            primaryAuraColor,
+                            Color.Transparent
+                        ),
+                        radius = 1200f
+                    )
+                )
+        )
+        // Subtle top gold glow (consistent premium feel)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            EnthusiastGold.copy(alpha = 0.05f),
+                            EnthusiastGold.copy(alpha = 0.03f),
                             Color.Transparent
                         ),
                         startY = 0f,
-                        endY = 1000f
+                        endY = 800f
                     )
                 )
         )
         content()
     }
 }
+
+// Required imports for new functionality
+private val infiniteTransition: Nothing? = null // Placeholder - actual import used
+

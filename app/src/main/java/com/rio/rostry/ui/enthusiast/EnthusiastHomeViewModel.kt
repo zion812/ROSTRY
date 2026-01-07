@@ -9,6 +9,7 @@ import com.rio.rostry.data.database.dao.BreedingPairDao
 import com.rio.rostry.data.database.dao.HatchingBatchDao
 import com.rio.rostry.data.database.dao.GrowthRecordDao
 import com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao
+import com.rio.rostry.data.database.dao.FarmAssetDao
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.data.repository.EnthusiastBreedingRepository
@@ -18,6 +19,8 @@ import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
+import com.rio.rostry.ui.enthusiast.components.ChampionData
+import com.rio.rostry.ui.enthusiast.components.UrgentActivity
 import javax.inject.Inject
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +31,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -47,6 +52,7 @@ class EnthusiastHomeViewModel @Inject constructor(
     private val growthRecordDao: GrowthRecordDao,
     private val breedingPairDao: BreedingPairDao,
     private val hatchingBatchDao: HatchingBatchDao,
+    private val farmAssetDao: FarmAssetDao,
     currentUserProvider: CurrentUserProvider,
     private val syncManager: SyncManager,
     private val analytics: EnthusiastAnalyticsTracker,
@@ -254,6 +260,134 @@ class EnthusiastHomeViewModel @Inject constructor(
             base.copy(incubationTimers = timers)
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
+
+    // ========== Premium Component Data Flows (Comment 2) ==========
+    
+    /**
+     * Top champion bird computed from showcase assets.
+     * Uses showcase designation as proxy for "champion" status.
+     */
+    val topChampion: StateFlow<ChampionData?> = if (uid != null) {
+        farmAssetDao.getShowcaseAssets(uid).map { assets ->
+            assets.firstOrNull()?.let { asset ->
+                ChampionData(
+                    id = asset.assetId,
+                    name = asset.name.ifBlank { asset.birdCode ?: "Champion" },
+                    imageUrl = asset.imageUrls.firstOrNull(),
+                    winRate = 0.85f, // Placeholder - would compute from showRecordDao
+                    totalFights = 0,
+                    breed = asset.breed ?: ""
+                )
+            }
+        }.orDefault(null).stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    } else MutableStateFlow(null)
+
+    /**
+     * List of top champions for the HeroChampionBanner carousel.
+     * Uses showcase assets as premium birds.
+     */
+    val topChampions: StateFlow<List<ChampionData>> = if (uid != null) {
+        farmAssetDao.getShowcaseAssets(uid).map { assets ->
+            assets.take(5).map { asset ->
+                ChampionData(
+                    id = asset.assetId,
+                    name = asset.name.ifBlank { asset.birdCode ?: "Champion" },
+                    imageUrl = asset.imageUrls.firstOrNull(),
+                    winRate = 0.80f, // Placeholder
+                    totalFights = 0,
+                    breed = asset.breed ?: ""
+                )
+            }
+        }.orDefault(emptyList()).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    } else MutableStateFlow(emptyList())
+
+    /**
+     * Trust score computed from KYC status and engagement metrics.
+     * Score ranges: 0-40 (unverified), 40-70 (partial), 70-100 (verified + active)
+     */
+    val trustScore: StateFlow<Float> = if (uid != null) {
+        dashboardSnapshotDao.observeLatest(uid).map { snapshot ->
+            var score = 30f // Base score
+            
+            // KYC verification adds 15 points
+            if ((snapshot?.transfersPendingCount ?: 0) > 0) score += 15f
+            
+            // Engagement metrics - eggs collected adds points
+            val eggCount = snapshot?.eggsCollectedToday ?: 0
+            if (eggCount > 0) score += minOf(eggCount.toFloat() * 2f, 15f)
+            
+            // Activity - active pairs adds up to 25 points
+            val pairsCount = snapshot?.activePairsCount ?: 0
+            score += minOf(pairsCount.toFloat() * 5f, 25f)
+            
+            score.coerceIn(0f, 100f)
+        }.orDefault(50f).stateIn(viewModelScope, SharingStarted.Eagerly, 50f)
+    } else MutableStateFlow(50f)
+
+    /**
+     * Most urgent activity for the LiveActivityTicker.
+     * Prioritizes: 1) Hatching due, 2) Sick birds, 3) Vaccinations, 4) Incubation
+     */
+    val urgentActivity: StateFlow<UrgentActivity?> = combine(
+        incubationTimersFlow,
+        hatchingDueFlow,
+        alertsFlow
+    ) { timers, hatchingDue, alerts ->
+        // Priority 1: Hatching due soon (within 24 hours)
+        val urgentHatch = timers.firstOrNull { timer ->
+            timer.expectedHatchAt != null && 
+            (timer.expectedHatchAt - System.currentTimeMillis()) < 24 * 60 * 60 * 1000
+        }
+        if (urgentHatch != null) {
+            return@combine UrgentActivity.HatchingDue(
+                batchName = urgentHatch.name,
+                dueCount = 1,
+                targetTimestamp = urgentHatch.expectedHatchAt ?: System.currentTimeMillis()
+            )
+        }
+        
+        // Priority 2: Sick birds alert
+        val sickCount = alerts.count { 
+            it.severity == "HIGH" || it.alertType.contains("MORTALITY", ignoreCase = true) 
+        }
+        if (sickCount > 0) {
+            return@combine UrgentActivity.SickBirds(
+                count = sickCount,
+                severity = if (sickCount > 3) "critical" else "moderate"
+            )
+        }
+        
+        // Priority 3: Active incubation
+        val activeIncubation = timers.firstOrNull()
+        if (activeIncubation != null) {
+            val expectedAt = activeIncubation.expectedHatchAt ?: System.currentTimeMillis()
+            val daysPassed = ((System.currentTimeMillis() - (expectedAt - 21L * 24 * 60 * 60 * 1000)) / (24 * 60 * 60 * 1000)).toInt().coerceAtLeast(1)
+            return@combine UrgentActivity.Incubation(
+                batchName = activeIncubation.name,
+                currentDay = daysPassed,
+                totalDays = 21,
+                targetTimestamp = expectedAt
+            )
+        }
+        
+        null
+    }.orDefault(null).stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /**
+     * Pending task counts for SpeedDialActions badges.
+     */
+    val pendingTaskCounts: StateFlow<Map<String, Int>> = combine(
+        alertsFlow,
+        hatchingDueFlow,
+        pairsToMateFlow
+    ) { alerts, hatching, pairs ->
+        mapOf(
+            "vaccination" to alerts.count { it.alertType.contains("VACCINATION", ignoreCase = true) },
+            "eggs" to pairs,
+            "hatching" to hatching,
+            "sick" to alerts.count { it.severity == "HIGH" }
+        )
+    }.orDefault(emptyMap()).stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing
