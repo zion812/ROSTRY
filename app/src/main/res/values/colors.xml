@@ -1,10 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+    <!-- ROSTRY Brand Colors -->
+    <color name="brand_green">#FF1B5E20</color>
+    <color name="brand_green_light">#FF4C8C4A</color>
+    <color name="brand_green_dark">#FF003300</color>
+    
+    <!-- Neutrals (Warm & Organic) -->
+    <color name="neutral_bg">#FFF5F2EB</color>
+    <color name="neutral_surface">#FFE4DED2</color>
+    <color name="neutral_text_primary">#FF212121</color>
+    <color name="neutral_text_secondary">#FF4E4E4E</color>
+    <color name="neutral_border">#FFD0C7BA</color>
+    
+    <!-- Functional Colors -->
+    <color name="error">#FFD32F2F</color>
+    <color name="warning">#FFFFC107</color>
+    <color name="success">#FF1B5E20</color>
+    
+    <!-- General Role -->
+    <color name="general_primary">#FF2E7D32</color>
+    <color name="general_accent">#FF009688</color>
+    
+    <!-- Farmer Role -->
+    <color name="farmer_primary">#FF4A8C2A</color>
+    <color name="farmer_accent">#FFD1A24E</color>
+    <color name="farmer_background">#FFF3E7D8</color>
+    
+    <!-- Enthusiast Role -->
+    <color name="enthusiast_primary">#FF673AB7</color>
+    <color name="enthusiast_electric">#FF00E5FF</color>
+    <color name="enthusiast_gold">#FFFFC107</color>
+    
+    <!-- Basic -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>
