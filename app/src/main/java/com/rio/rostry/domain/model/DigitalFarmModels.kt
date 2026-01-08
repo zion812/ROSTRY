@@ -176,7 +176,10 @@ data class FarmStats(
     val totalEggsToday: Int = 0,
     val birdsReadyForSale: Int = 0,
     val vaccinesDueToday: Int = 0,
-    val coins: Int = 0 // Gamification currency
+    val coins: Int = 0, // Gamification currency
+    // Farmer persona metrics
+    val totalBatches: Int = 0,
+    val feedUsageKg: Float = 0f
 )
 
 /**

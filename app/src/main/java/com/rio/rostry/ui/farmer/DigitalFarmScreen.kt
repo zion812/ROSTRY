@@ -353,7 +353,7 @@ private fun ErrorState(error: String, onRetry: () -> Unit) {
 
 /**
  * Farmer-specific stats bar with operational metrics.
- * Shows: Total Birds, Batches, Ready for Sale, Feed Usage
+ * Shows: Total Birds, Batches, Ready for Sale, Feed Usage (as per DigitalFarmConfig.FARMER)
  */
 @Composable
 private fun FarmerStatsBar(
@@ -369,8 +369,8 @@ private fun FarmerStatsBar(
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Total birds
@@ -381,12 +381,12 @@ private fun FarmerStatsBar(
                 color = Color(0xFF4CAF50)
             )
             
-            // Eggs today
+            // Batches (Farmer operational metric)
             StatItem(
-                icon = "🥚",
-                value = stats.totalEggsToday.toString(),
-                label = "Eggs",
-                color = Color(0xFFFFC107)
+                icon = "📦",
+                value = stats.totalBatches.toString(),
+                label = "Batches",
+                color = Color(0xFF2196F3)
             )
             
             // Ready for sale (gold star with pulse)
@@ -399,15 +399,13 @@ private fun FarmerStatsBar(
                 pulseValue = pulseValue
             )
             
-            // Vaccines due today
-            if (stats.vaccinesDueToday > 0) {
-                StatItem(
-                    icon = "💉",
-                    value = stats.vaccinesDueToday.toString(),
-                    label = "Due",
-                    color = Color(0xFFE53935)
-                )
-            }
+            // Feed Usage (Farmer operational metric)
+            StatItem(
+                icon = "🌾",
+                value = "%.1f".format(stats.feedUsageKg),
+                label = "Feed/kg",
+                color = Color(0xFF8D6E63)
+            )
         }
     }
 }

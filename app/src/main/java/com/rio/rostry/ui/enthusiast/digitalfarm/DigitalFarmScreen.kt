@@ -53,6 +53,12 @@ fun DigitalFarmScreen(
     val uiState by viewModel.uiState.collectAsState()
     val farmStats by viewModel.farmStats.collectAsState()
     val selectedBird by viewModel.selectedBird.collectAsState()
+    val config by viewModel.config.collectAsState()
+    
+    // Initialize config for Enthusiast on launch
+    LaunchedEffect(Unit) {
+        viewModel.setConfigForRole(UserType.ENTHUSIAST)
+    }
 
     // Animation time for idle animations
     val infiniteTransition = rememberInfiniteTransition(label = "farmAnim")
@@ -140,6 +146,7 @@ fun DigitalFarmScreen(
                         uiState = uiState,
                         animationTime = animationTime,
                         selectedBirdId = selectedBird?.productId,
+                        config = config,
                         onBirdTapped = { viewModel.onBirdTapped(it) },
                         onNurseryTapped = { viewModel.onNurseryTapped(it) },
                         onBreedingHutTapped = { viewModel.onBreedingHutTapped(it) },
@@ -211,6 +218,7 @@ private fun EnhancedFarmCanvas(
     uiState: DigitalFarmState,
     animationTime: Float,
     selectedBirdId: String?,
+    config: DigitalFarmConfig,
     onBirdTapped: (VisualBird) -> Unit,
     onNurseryTapped: (NurseryGroup) -> Unit,
     onBreedingHutTapped: (BreedingUnit) -> Unit,
@@ -226,7 +234,8 @@ private fun EnhancedFarmCanvas(
                         tapY = offset.y,
                         canvasWidth = size.width.toFloat(),
                         canvasHeight = size.height.toFloat(),
-                        state = uiState
+                        state = uiState,
+                        useLiteMode = config.groupingMode == GroupingMode.BY_BATCH
                     )
                     
                     when (result) {
@@ -244,7 +253,8 @@ private fun EnhancedFarmCanvas(
             renderFarm(
                 state = uiState,
                 animationTime = animationTime,
-                selectedBirdId = selectedBirdId
+                selectedBirdId = selectedBirdId,
+                config = config
             )
         }
     }

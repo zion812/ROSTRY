@@ -283,12 +283,20 @@ class DigitalFarmViewModel @Inject constructor(
             product.vaccinationRecordsJson?.contains("due") == true
         }
         
+        // Calculate batches (unique batchIds)
+        val totalBatches = products.mapNotNull { it.batchId }.distinct().size
+        
+        // Calculate feed usage (~120g per bird per day for gamecock breeds)
+        val feedUsageKg = farmState.totalBirds * 0.12f
+        
         return FarmStats(
             totalBirds = farmState.totalBirds,
             totalEggsToday = totalEggsToday,
             birdsReadyForSale = farmState.readyDisplay.size,
             vaccinesDueToday = vaccinesDue,
-            coins = 250 // TODO: Get from gamification system
+            coins = 250, // TODO: Get from gamification system
+            totalBatches = totalBatches,
+            feedUsageKg = feedUsageKg
         )
     }
 
