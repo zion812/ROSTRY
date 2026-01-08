@@ -60,28 +60,38 @@ fun DigitalFarmScreen(
         viewModel.setConfigForRole(UserType.ENTHUSIAST)
     }
 
-    // Animation time for idle animations
-    val infiniteTransition = rememberInfiniteTransition(label = "farmAnim")
-    val animationTime by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 100f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(100000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "time"
-    )
+    // Animation time for idle animations - GATED on RenderRate.DYNAMIC for future config support
+    val isDynamicMode = config.renderRate == RenderRate.DYNAMIC
+    
+    val animationTime: Float
+    val pulseAnim: Float
+    
+    if (isDynamicMode) {
+        val infiniteTransition = rememberInfiniteTransition(label = "farmAnim")
+        animationTime = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 100f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(100000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "time"
+        ).value
 
-    // Secondary pulsing animation
-    val pulseAnim by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
+        pulseAnim = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulse"
+        ).value
+    } else {
+        // STATIC mode: No animations, use fixed values
+        animationTime = 0f
+        pulseAnim = 0f
+    }
 
     // Colors
     val skyGradientTop = Color(0xFF1E90FF)

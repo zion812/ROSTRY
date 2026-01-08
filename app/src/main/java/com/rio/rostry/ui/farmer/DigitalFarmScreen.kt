@@ -27,6 +27,7 @@ import com.rio.rostry.domain.model.BreedingUnit
 import com.rio.rostry.domain.model.DigitalFarmState
 import com.rio.rostry.domain.model.FarmStats
 import com.rio.rostry.domain.model.NurseryGroup
+import com.rio.rostry.domain.model.RenderRate
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VisualBird as DomainVisualBird
 import com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmViewModel
@@ -80,28 +81,40 @@ fun DigitalFarmScreen(
         }
     }
 
-    // Animation time for idle animations
-    val infiniteTransition = rememberInfiniteTransition(label = "farmAnim")
-    val animationTime by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 100f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(100000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "time"
-    )
-
-    // Secondary pulsing animation for ready-to-sell badges
-    val pulseAnim by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
+    // Animation time for idle animations - GATED on RenderRate.DYNAMIC for lite mode performance
+    val isDynamicMode = config.renderRate == RenderRate.DYNAMIC
+    
+    // Only create transitions when in DYNAMIC mode (Enthusiast)
+    // STATIC mode (Farmer lite) skips animations entirely for performance
+    val animationTime: Float
+    val pulseAnim: Float
+    
+    if (isDynamicMode) {
+        val infiniteTransition = rememberInfiniteTransition(label = "farmAnim")
+        animationTime = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 100f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(100000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "time"
+        ).value
+        
+        pulseAnim = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulse"
+        ).value
+    } else {
+        // STATIC mode: No animations, use fixed values
+        animationTime = 0f
+        pulseAnim = 0f
+    }
 
     // Colors
     val skyGradientTop = Color(0xFF1E90FF)
