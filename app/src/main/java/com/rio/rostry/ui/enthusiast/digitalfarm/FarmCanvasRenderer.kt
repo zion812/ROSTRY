@@ -1266,6 +1266,25 @@ object FarmCanvasRenderer {
         val bobY = sin(animTime * 2f + x.hashCode() * 0.01f).toFloat() * 2f * bounceMultiplier
         val headBob = sin(animTime * 3f + y.hashCode() * 0.01f).toFloat() * 1f
 
+        // ==== VISUAL QUARANTINE ====
+        // Draw a warning halo for quarantined birds to emphasize bio-security
+        if (bird.isQuarantined) {
+            val quarantinePulse = (sin(animTime * 4f) * 0.15f + 0.85f).toFloat()
+            // Outer warning ring
+            drawCircle(
+                color = Color(0xFFFF5722).copy(alpha = 0.5f * quarantinePulse), // Orange/Red
+                radius = birdSize * 1.8f,
+                center = Offset(x, y + bobY),
+                style = Stroke(width = 3f)
+            )
+            // Inner warning glow
+            drawCircle(
+                color = Color(0xFFE53935).copy(alpha = 0.25f * quarantinePulse), // Red
+                radius = birdSize * 1.5f,
+                center = Offset(x, y + bobY)
+            )
+        }
+
         // Selection highlight
         if (isSelected) {
             drawCircle(

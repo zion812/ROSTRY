@@ -242,6 +242,10 @@ interface ProductDao {
     @Query("SELECT COUNT(*) FROM products WHERE sellerId = :farmerId AND isBatch = 1 AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
     suspend fun countBatchesByFarmer(farmerId: String): Int
 
+    /** Get active birds with weight data for proactive culling detection. */
+    @Query("SELECT * FROM products WHERE sellerId = :farmerId AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND weightGrams IS NOT NULL AND isBatch = 0")
+    suspend fun getActiveWithWeightByFarmer(farmerId: String): List<ProductEntity>
+
     // =========================================================================
     // Product-Asset Bridge: Queries linking marketplace listings to farm assets
     // =========================================================================

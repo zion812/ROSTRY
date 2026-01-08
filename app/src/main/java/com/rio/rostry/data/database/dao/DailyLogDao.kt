@@ -44,6 +44,14 @@ interface DailyLogDao {
     suspend fun getLogCountForFarmer(farmerId: String): Int
 
     // =========================================================================
+    // SUGGESTION QUERIES (for pre-filling Quick Log values)
+    // =========================================================================
+
+    /** Get the most recent feed amount logged by this farmer (for pre-filling Quick Log). */
+    @Query("SELECT feedKg FROM daily_logs WHERE farmerId = :farmerId AND feedKg IS NOT NULL ORDER BY logDate DESC LIMIT 1")
+    suspend fun getLastFeedAmount(farmerId: String): Double?
+
+    // =========================================================================
     // AGGREGATE QUERIES (for BatchSummary generation by LifecycleWorker)
     // =========================================================================
 

@@ -90,7 +90,8 @@ data class VisualBird(
     val motherId: String? = null, // For nursery orbiting
     val batchId: String? = null,  // For breeding unit grouping
     val isReadyForSale: Boolean = false,
-    val isListed: Boolean = false
+    val isListed: Boolean = false,
+    val isQuarantined: Boolean = false // Visual Quarantine: shows warning overlay
 ) {
     val ageText: String
         get() = when {

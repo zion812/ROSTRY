@@ -16,6 +16,9 @@ data class VerificationFormState(
     val showLocationPicker: Boolean = false,
     val upgradeType: UpgradeType? = null,
     val exifWarnings: List<String> = emptyList(),
+    // Contact information for farmer verification
+    val contactPhone: String = "",
+    val farmDescription: String = "",
     // Transient flags that define current flow state
     val isSubmitting: Boolean = false,
     val submissionSuccess: Boolean = false,

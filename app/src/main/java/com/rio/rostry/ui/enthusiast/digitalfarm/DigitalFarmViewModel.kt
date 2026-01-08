@@ -370,7 +370,8 @@ class DigitalFarmViewModel @Inject constructor(
             weightGrams = this.weightGrams,
             color = this.color,
             zone = zone,
-            statusIndicator = statusIndicator
+            statusIndicator = statusIndicator,
+            isQuarantined = this.healthStatus?.lowercase() in listOf("quarantined", "sick", "isolated")
         )
     }
 }

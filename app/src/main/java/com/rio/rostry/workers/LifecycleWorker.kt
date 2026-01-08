@@ -294,6 +294,11 @@ class LifecycleWorker @AssistedInject constructor(
             // PHASE 2: SALES PIPELINE - Market-Ready Harvest Detection
             // ============================================================
             detectMarketReadyBatches(now)
+            
+            // ============================================================
+            // PROACTIVE CULLING: Detect underperforming birds (bottom 10%)
+            // ============================================================
+            detectUnderperformingBirds(now)
 
             // Phase 3: Auto-expire market listings older than 30 days
             val thirtyDaysAgo = now - (30L * 24 * 60 * 60 * 1000)
@@ -476,6 +481,58 @@ class LifecycleWorker @AssistedInject constructor(
         }
         
         timber.log.Timber.d("Updated ages for $updatedCount farm assets in ${System.currentTimeMillis() - startTime}ms")
+    }
+    
+    /**
+     * PROACTIVE CULLING: Detect underperforming birds (bottom 10% weight for age).
+     * Creates alerts suggesting these birds for culling or separation.
+     */
+    private suspend fun detectUnderperformingBirds(now: Long) {
+        try {
+            val farmerIds = productDao.getDistinctSellerIds()
+            
+            for (farmerId in farmerIds) {
+                // Get all active birds with weight data
+                val birds = productDao.getActiveWithWeightByFarmer(farmerId)
+                if (birds.size < 10) continue // Need at least 10 birds for meaningful percentile
+                
+                // Group by age cohort (same age week)
+                val cohorts = birds.groupBy { it.ageWeeks ?: 0 }
+                
+                for ((ageWeeks, cohort) in cohorts) {
+                    if (cohort.size < 5) continue // Need at least 5 in cohort
+                    
+                    // Calculate 10th percentile weight
+                    val sortedByWeight = cohort.sortedBy { it.weightGrams ?: 0.0 }
+                    val cutoffIndex = (cohort.size * 0.1).toInt().coerceAtLeast(1)
+                    val bottom10Percent = sortedByWeight.take(cutoffIndex)
+                    
+                    for (bird in bottom10Percent) {
+                        val avgWeight = cohort.mapNotNull { it.weightGrams }.average()
+                        val birdWeight = bird.weightGrams ?: 0.0
+                        val percentBelowAvg = ((avgWeight - birdWeight) / avgWeight * 100).toInt()
+                        
+                        // Only alert if at least 20% below average
+                        if (percentBelowAvg >= 20) {
+                            alertDao.upsert(
+                                FarmAlertEntity(
+                                    alertId = "underperforming_${bird.productId}_${now / (24 * 60 * 60 * 1000)}",
+                                    farmerId = farmerId,
+                                    alertType = "UNDERPERFORMING_BIRD",
+                                    severity = "INFO",
+                                    message = "${bird.name ?: "Bird"} is ${percentBelowAvg}% below avg weight for ${ageWeeks}-week birds. Consider culling or separation.",
+                                    actionRoute = Routes.Builders.productDetails(bird.productId),
+                                    createdAt = now
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+            timber.log.Timber.d("Proactive culling check completed")
+        } catch (e: Exception) {
+            timber.log.Timber.e(e, "Error in detectUnderperformingBirds")
+        }
     }
     
     private fun getStartOfMonth(now: Long): Long {

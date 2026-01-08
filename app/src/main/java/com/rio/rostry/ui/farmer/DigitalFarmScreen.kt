@@ -62,6 +62,23 @@ fun DigitalFarmScreen(
     val farmStats by viewModel.farmStats.collectAsState()
     val selectedBird by viewModel.selectedBird.collectAsState()
     val config by viewModel.config.collectAsState()
+    
+    // Zone-Based Tasks: Track selected zone for bottom sheet
+    var selectedZone by remember { mutableStateOf<com.rio.rostry.domain.model.DigitalFarmZone?>(null) }
+    var zoneBirds by remember { mutableStateOf<List<DomainVisualBird>>(emptyList()) }
+    
+    // Collect tap results for zone handling
+    LaunchedEffect(Unit) {
+        viewModel.tapResult.collect { result ->
+            when (result) {
+                is com.rio.rostry.domain.model.FarmTapResult.ZoneTapped -> {
+                    selectedZone = result.zone
+                    zoneBirds = result.birds
+                }
+                else -> { /* Handled elsewhere */ }
+            }
+        }
+    }
 
     // Animation time for idle animations
     val infiniteTransition = rememberInfiniteTransition(label = "farmAnim")
@@ -199,6 +216,15 @@ fun DigitalFarmScreen(
                         onListForSale = { onListForSale(bird.productId) }
                     )
                 }
+            }
+            
+            // Zone-Based Tasks Bottom Sheet
+            if (selectedZone != null) {
+                ZoneTasksBottomSheet(
+                    zone = selectedZone!!,
+                    birdCount = zoneBirds.size,
+                    onDismiss = { selectedZone = null }
+                )
             }
         }
     }
@@ -767,6 +793,191 @@ private fun FarmFallbackListView(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Zone-Based Tasks Bottom Sheet
+ * Shows suggested tasks specific to the tapped zone.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ZoneTasksBottomSheet(
+    zone: com.rio.rostry.domain.model.DigitalFarmZone,
+    birdCount: Int,
+    onDismiss: () -> Unit
+) {
+    val zoneTasks = remember(zone) {
+        getTasksForZone(zone)
+    }
+    
+    val zoneColor = when (zone) {
+        com.rio.rostry.domain.model.DigitalFarmZone.NURSERY -> Color(0xFFFFF176) // Yellow
+        com.rio.rostry.domain.model.DigitalFarmZone.FREE_RANGE -> Color(0xFF81C784) // Green
+        com.rio.rostry.domain.model.DigitalFarmZone.GROW_OUT -> Color(0xFF64B5F6) // Blue
+        com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> Color(0xFFBA68C8) // Purple
+        com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> Color(0xFFFFD54F) // Gold
+        com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> Color(0xFFFF8A65) // Orange
+    }
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Zone Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = CircleShape,
+                        color = zoneColor.copy(alpha = 0.3f),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = getZoneIcon(zone),
+                                contentDescription = null,
+                                tint = zoneColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            getZoneName(zone),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "$birdCount birds",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                "Suggested Tasks",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Task List
+            zoneTasks.forEach { task ->
+                TaskItem(
+                    title = task.first,
+                    description = task.second,
+                    zoneColor = zoneColor
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+private fun getZoneName(zone: com.rio.rostry.domain.model.DigitalFarmZone): String = when (zone) {
+    com.rio.rostry.domain.model.DigitalFarmZone.NURSERY -> "Nursery Zone"
+    com.rio.rostry.domain.model.DigitalFarmZone.FREE_RANGE -> "Free Range Zone"
+    com.rio.rostry.domain.model.DigitalFarmZone.GROW_OUT -> "Grow-Out Zone"
+    com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> "Breeding Unit"
+    com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> "Ready Display"
+    com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> "Market Stand"
+}
+
+@Composable
+private fun getZoneIcon(zone: com.rio.rostry.domain.model.DigitalFarmZone): androidx.compose.ui.graphics.vector.ImageVector = when (zone) {
+    com.rio.rostry.domain.model.DigitalFarmZone.NURSERY -> Icons.Default.ChildCare
+    com.rio.rostry.domain.model.DigitalFarmZone.FREE_RANGE -> Icons.Default.Grass
+    com.rio.rostry.domain.model.DigitalFarmZone.GROW_OUT -> Icons.Default.TrendingUp
+    com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> Icons.Default.Favorite
+    com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> Icons.Default.Star
+    com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> Icons.Default.Storefront
+}
+
+private fun getTasksForZone(zone: com.rio.rostry.domain.model.DigitalFarmZone): List<Pair<String, String>> = when (zone) {
+    com.rio.rostry.domain.model.DigitalFarmZone.NURSERY -> listOf(
+        "Check Brooder Temperature" to "Ensure 32-35°C for chicks under 2 weeks",
+        "Refill Water" to "Clean and refill brooder waterers",
+        "Monitor Chick Health" to "Check for pasty vent or lethargy"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.FREE_RANGE -> listOf(
+        "Check Feed Levels" to "Refill feeders if running low",
+        "Monitor Flock Behavior" to "Watch for signs of stress or bullying",
+        "Collect Eggs" to "Check for any eggs in hidden spots"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.GROW_OUT -> listOf(
+        "Record Weights" to "Weekly weight check for growth tracking",
+        "Administer Vitamins" to "Add supplements to water",
+        "Check for Overcrowding" to "Ensure adequate space per bird"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> listOf(
+        "Collect & Log Eggs" to "Record daily egg production",
+        "Check Breeding Performance" to "Monitor fertility rates",
+        "Clean Nesting Boxes" to "Change bedding in nesting areas"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> listOf(
+        "Final Weight Check" to "Confirm market-ready weight",
+        "Update Listing Photos" to "Take fresh photos for marketplace",
+        "Process Orders" to "Check for any pending enquiries"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> listOf(
+        "Update Prices" to "Adjust prices based on market rates",
+        "Respond to Enquiries" to "Check and reply to buyer messages",
+        "Prepare for Handover" to "Ready birds for collection"
+    )
+}
+
+@Composable
+private fun TaskItem(
+    title: String,
+    description: String,
+    zoneColor: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = zoneColor.copy(alpha = 0.1f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircleOutline,
+                contentDescription = null,
+                tint = zoneColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

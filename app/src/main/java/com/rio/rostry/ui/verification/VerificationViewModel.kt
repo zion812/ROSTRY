@@ -88,7 +88,10 @@ class VerificationViewModel @Inject constructor(
         val requiredDocuments: List<String> = emptyList(),
         val requiredImages: List<String> = emptyList(),
         val canEdit: Boolean = true,
-        val lastSavedAt: Long? = null
+        val lastSavedAt: Long? = null,
+        // Contact information for farmer verification
+        val contactPhone: String = "",
+        val farmDescription: String = ""
     )
 
     private val gson = Gson()
@@ -138,7 +141,9 @@ class VerificationViewModel @Inject constructor(
             requiredDocuments = reqs.requiredDocuments,
             requiredImages = reqs.requiredImages,
             canEdit = user?.verificationStatus == VerificationStatus.UNVERIFIED || user?.verificationStatus == VerificationStatus.REJECTED,
-            lastSavedAt = lastSaved
+            lastSavedAt = lastSaved,
+            contactPhone = form.contactPhone,
+            farmDescription = form.farmDescription
         )
     }.stateIn(
         scope = viewModelScope,
@@ -251,6 +256,14 @@ class VerificationViewModel @Inject constructor(
      */
     fun onFarmLocationSelected(location: FarmLocation) {
         updateFormState { it.copy(farmLocation = location, showLocationPicker = false) }
+    }
+
+    fun updateContactPhone(phone: String) {
+        updateFormState { it.copy(contactPhone = phone) }
+    }
+
+    fun updateFarmDescription(description: String) {
+        updateFormState { it.copy(farmDescription = description) }
     }
 
     fun setUpgradeType(type: UpgradeType) {

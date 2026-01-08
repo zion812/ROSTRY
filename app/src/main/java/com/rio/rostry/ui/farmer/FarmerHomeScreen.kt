@@ -140,6 +140,31 @@ fun FarmerHomeScreen(
                     )
                 }
             }
+            
+            // Weather Card - Heat Stress Warning (Open-Meteo API)
+            item {
+                val weatherData by viewModel.weatherData.collectAsState()
+                val temperature = weatherData?.temperature?.toInt() ?: 28
+                val isHeatStress = weatherData?.isHeatStress ?: false
+                
+                WeatherCard(
+                    temperature = temperature,
+                    isHeatStress = isHeatStress,
+                    isLoading = weatherData == null,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            
+            // Predictive Feed Card - Breed-specific nutrition recommendations
+            item {
+                val feedRecommendation by viewModel.feedRecommendation.collectAsState()
+                feedRecommendation?.let { recommendation ->
+                    PredictiveFeedCard(
+                        recommendation = recommendation,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+            }
 
             // Quick Actions Row
             item {
@@ -173,6 +198,18 @@ fun FarmerHomeScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+            
+            // Flock Value Widget (Profitability) - shows estimated worth of standing flock
+            if (uiState.estimatedFlockValue > 0) {
+                item {
+                    FlockValueCard(
+                        estimatedValue = uiState.estimatedFlockValue,
+                        birdCount = uiState.activeBirdCount,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
             
             // Enthusiast Upgrade Recommendation Banner (for verified farmers with 50+ birds)
@@ -789,6 +826,7 @@ fun FarmerHomeScreen(
     // Quick Log Bottom Sheet (Farmer-First Phase 1)
     if (showQuickLogSheet) {
         val allProducts by viewModel.allProducts.collectAsState()
+        val suggestedFeed by viewModel.suggestedFeedKg.collectAsState()
         QuickLogBottomSheet(
             products = allProducts,
             onDismiss = { showQuickLogSheet = false },
@@ -801,7 +839,8 @@ fun FarmerHomeScreen(
                     snackbarHostState.showSnackbar("${logType.label} logged for $countText: $value ${logType.unit}")
                 }
                 showQuickLogSheet = false
-            }
+            },
+            suggestedFeedKg = suggestedFeed
         )
     }
 }
@@ -874,6 +913,202 @@ private fun EnthusiastUpgradeBanner(
                     modifier = Modifier.size(24.dp)
                 )
             }
+        }
+    }
+}
+
+/**
+ * Flock Value Card - Displays estimated market value of standing flock.
+ * Helps farmers understand the profitability of their farm at a glance.
+ * Formula: Birds × Avg Weight (1.5kg default) × ₹200/kg
+ */
+@Composable
+private fun FlockValueCard(
+    estimatedValue: Double,
+    birdCount: Int,
+    modifier: Modifier = Modifier
+) {
+    val formattedValue = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("en", "IN"))
+        .format(estimatedValue)
+    
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1B5E20) // Deep green for profitability
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Estimated Flock Value",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+                Text(
+                    formattedValue,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    "$birdCount birds × ₹300 avg/bird",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.TrendingUp,
+                contentDescription = "Profitability",
+                tint = Color(0xFF81C784), // Light green
+                modifier = Modifier.size(48.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Weather Card - Shows temperature and heat stress warning for poultry.
+ * Poultry is sensitive to heat stress above 32°C (90°F).
+ */
+@Composable
+private fun WeatherCard(
+    temperature: Int,
+    isHeatStress: Boolean,
+    isLoading: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor = when {
+        isLoading -> Color(0xFF78909C) // Gray while loading
+        isHeatStress -> Color(0xFFE53935) // Red for heat stress
+        else -> Color(0xFF42A5F5) // Blue for normal
+    }
+    
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (isHeatStress) Icons.Filled.Warning else Icons.Filled.WbSunny,
+                    contentDescription = if (isHeatStress) "Heat Warning" else "Weather",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "${temperature}°C",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = if (isHeatStress) "Heat Stress Alert! Ensure water & ventilation" else "Good weather for poultry",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Predictive Feed Card - Shows breed-specific feed recommendations.
+ */
+@Composable
+private fun PredictiveFeedCard(
+    recommendation: com.rio.rostry.domain.model.FeedRecommendation,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor = if (recommendation.isLowInventoryAlert) {
+        Color(0xFFFF7043) // Orange for low inventory warning
+    } else {
+        Color(0xFF66BB6A) // Green for normal
+    }
+    
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = recommendation.feedType.emoji,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "${recommendation.feedType.displayName} Feed",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Protein: ${recommendation.proteinTarget}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${String.format("%.1f", recommendation.dailyFeedKg)} kg/day",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "${String.format("%.1f", recommendation.weeklyFeedKg)} kg/week",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+            
+            if (recommendation.notes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = recommendation.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.9f),
+                    maxLines = 2
+                )
+            }
+            
+            // Bird count badge
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${recommendation.birdCount} birds • ${recommendation.stage.displayName} stage",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.7f)
+            )
         }
     }
 }

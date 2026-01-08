@@ -143,7 +143,7 @@ private fun ConfirmationView(
 
         DraftIndicator(lastSavedAt = uiState.lastSavedAt)
 
-        // 1. Location Section
+        // 1. Location Section with GPS Coordinates
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -155,13 +155,76 @@ private fun ConfirmationView(
                 Text(selectedPlace?.name ?: stringResource(R.string.your_location), style = MaterialTheme.typography.titleLarge)
                 Text(selectedPlace?.address ?: stringResource(R.string.address_not_selected), style = MaterialTheme.typography.bodyMedium)
                 
+                // GPS Coordinates Display
+                if (selectedPlace != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.GpsFixed, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text("GPS Coordinates", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "Lat: ${String.format("%.6f", selectedPlace.lat)}, Lng: ${String.format("%.6f", selectedPlace.lng)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+                
                 OutlinedButton(
                     onClick = { viewModel.changeLocation() },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = uiState.canEdit
                 ) {
+                    Icon(Icons.Default.MyLocation, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.change_location))
                 }
+            }
+        }
+
+        // 2. Contact Information Section
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Phone, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Contact Information", style = MaterialTheme.typography.titleMedium)
+                }
+                
+                OutlinedTextField(
+                    value = uiState.contactPhone,
+                    onValueChange = { viewModel.updateContactPhone(it) },
+                    label = { Text("Phone Number") },
+                    placeholder = { Text("e.g., +91 9876543210") },
+                    leadingIcon = { Icon(Icons.Default.Call, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.canEdit,
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone
+                    )
+                )
+
+                OutlinedTextField(
+                    value = uiState.farmDescription,
+                    onValueChange = { viewModel.updateFarmDescription(it) },
+                    label = { Text("Farm Description") },
+                    placeholder = { Text("Describe your farm, types of birds, facilities, etc.") },
+                    leadingIcon = { Icon(Icons.Default.Description, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.canEdit,
+                    minLines = 3,
+                    maxLines = 5
+                )
             }
         }
 
@@ -296,6 +359,25 @@ private fun ConfirmationView(
                 Text(stringResource(R.string.submitting))
             } else {
                 Text(stringResource(R.string.submit_verification))
+            }
+        }
+
+        // Contact Support Section
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Help, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text("Need help? WhatsApp or Call", style = MaterialTheme.typography.labelMedium)
+                    Text("8106312656", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
         

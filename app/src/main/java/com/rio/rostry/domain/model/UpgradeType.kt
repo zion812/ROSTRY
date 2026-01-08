@@ -24,8 +24,8 @@ enum class UpgradeType(
     GENERAL_TO_FARMER(
         displayName = "Become a Farmer",
         description = "Upgrade your account to access farming features",
-        requiredDocuments = listOf("GOVT_ID"),
-        requiredImages = listOf("SELFIE_WITH_CHICKEN", "FARM_PHOTO", "CHICKENS_PHOTO")
+        requiredDocuments = emptyList(),
+        requiredImages = emptyList()
     ),
 
     /**
@@ -35,8 +35,8 @@ enum class UpgradeType(
     FARMER_VERIFICATION(
         displayName = "Verify Farm",
         description = "Verify your farm to unlock marketplace listing",
-        requiredDocuments = listOf("GOVT_ID"),
-        requiredImages = listOf("SELFIE_WITH_CHICKEN", "FARM_PHOTO", "CHICKENS_PHOTO")
+        requiredDocuments = emptyList(),
+        requiredImages = emptyList()
     ),
 
     /**

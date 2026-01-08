@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +33,7 @@ fun QuickLogBottomSheet(
     products: List<ProductEntity>,  // Renamed from 'batches' - includes both birds and batches
     onDismiss: () -> Unit,
     onLogSubmit: (productIds: Set<String>, logType: QuickLogType, value: Double, notes: String?) -> Unit,
+    suggestedFeedKg: Double? = null, // UX Improvement: Pre-fill feed value
     modifier: Modifier = Modifier
 ) {
     // Multi-select: Track selected product IDs
@@ -41,6 +44,18 @@ fun QuickLogBottomSheet(
     var notes by remember { mutableStateOf("") }
     var showBirdSelector by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    
+    // Voice Log state
+    var isVoiceRecording by remember { mutableStateOf(false) }
+    var voiceTranscript by remember { mutableStateOf<String?>(null) }
+    var showVoiceConfirmDialog by remember { mutableStateOf(false) }
+    
+    // Pre-fill input when FEED is selected and we have a suggestion
+    LaunchedEffect(selectedLogType, suggestedFeedKg) {
+        if (selectedLogType == QuickLogType.FEED && inputValue.isBlank() && suggestedFeedKg != null) {
+            inputValue = suggestedFeedKg.toString()
+        }
+    }
 
     // Filter products based on search
     val filteredProducts = remember(products, searchQuery) {
@@ -79,12 +94,76 @@ fun QuickLogBottomSheet(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+                Row {
+                    // Voice Input Button
+                    IconButton(
+                        onClick = { isVoiceRecording = !isVoiceRecording },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = if (isVoiceRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            if (isVoiceRecording) Icons.Default.MicOff else Icons.Default.Mic,
+                            contentDescription = if (isVoiceRecording) "Stop recording" else "Voice input"
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+            
+            // Voice Recording Section (shown when recording)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isVoiceRecording,
+                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Mic,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "🎤 Listening...",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Try: \"Fed batch alpha 5 kilos\" or \"Mortality 2 birds\"",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        voiceTranscript?.let { transcript ->
+                            Text(
+                                "\"$transcript\"",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
 
             // Step 1: Select Birds/Batches (Multi-select)
             Text(

@@ -485,7 +485,7 @@ private fun AuthFlow(
                                 val intent = com.firebase.ui.auth.AuthUI.getInstance()
                                     .createSignInIntentBuilder()
                                     .setAvailableProviders(providers)
-                                    .setIsSmartLockEnabled(true)
+                                    .setIsSmartLockEnabled(false, true) // Disabled - causes hangs
                                     .build()
                                 launcher.launch(intent)
                             },

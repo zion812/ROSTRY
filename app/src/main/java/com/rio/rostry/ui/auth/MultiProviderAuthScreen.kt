@@ -88,7 +88,7 @@ fun MultiProviderAuthScreen(
                 val intent = AuthUI.getInstance()
                     .createSignInIntentBuilder()
                     .setAvailableProviders(providers)
-                    .setIsSmartLockEnabled(true)
+                    .setIsSmartLockEnabled(false, true) // Disabled - causes hangs on emulators
                     .build()
                 launcher.launch(intent)
             },

@@ -91,7 +91,14 @@ data class FarmerHomeUiState(
     val userName: String? = null,
     // Enthusiast Upgrade Prompts
     val activeBirdCount: Int = 0,
-    val showEnthusiastUpgradeBanner: Boolean = false
+    val showEnthusiastUpgradeBanner: Boolean = false,
+    // UX Improvements
+    val suggestedFeedKg: Double? = null,  // Pre-fill for Quick Log Feed
+    val estimatedFlockValue: Double = 0.0, // Profitability Widget
+    // Weather Card (Open-Meteo API)
+    val weatherTemperature: Double? = null,
+    val isHeatStress: Boolean = false,
+    val weatherLoading: Boolean = true
 )
 
 data class DashboardWidget(
@@ -190,7 +197,9 @@ class FarmerHomeViewModel @Inject constructor(
     private val evidenceOrderRepository: EvidenceOrderRepository, // Evidence Order System
     private val storageUsageRepository: com.rio.rostry.data.repository.StorageUsageRepository,
     private val dashboardCacheDao: DashboardCacheDao, // Split-Brain: Instant dashboard loading
-    private val farmActivityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository // Quick Log persistence
+    private val farmActivityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository, // Quick Log persistence
+    private val weatherRepository: com.rio.rostry.data.repository.WeatherRepository, // Open-Meteo Weather API
+    private val feedRecommendationEngine: com.rio.rostry.domain.usecase.FeedRecommendationEngine // Predictive Feed
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -214,10 +223,77 @@ class FarmerHomeViewModel @Inject constructor(
     private val _allProducts = MutableStateFlow<List<com.rio.rostry.data.database.entity.ProductEntity>>(emptyList())
     val allProducts: StateFlow<List<com.rio.rostry.data.database.entity.ProductEntity>> = _allProducts
 
+    // UX Improvements: Suggested Feed (pre-fill Quick Log)
+    private val _suggestedFeedKg = MutableStateFlow<Double?>(null)
+    val suggestedFeedKg: StateFlow<Double?> = _suggestedFeedKg
+    
+    // Weather data from Open-Meteo API
+    private val _weatherData = MutableStateFlow<com.rio.rostry.data.repository.WeatherData?>(null)
+    val weatherData: StateFlow<com.rio.rostry.data.repository.WeatherData?> = _weatherData
+    
+    // Predictive Feed Recommendation
+    private val _feedRecommendation = MutableStateFlow<com.rio.rostry.domain.model.FeedRecommendation?>(null)
+    val feedRecommendation: StateFlow<com.rio.rostry.domain.model.FeedRecommendation?> = _feedRecommendation
+
+    companion object {
+        /** Market price per kg (₹) for flock value estimation. Can be made configurable later. */
+        const val MARKET_PRICE_PER_KG = 200.0
+    }
+
     init {
         loadEvidenceOrderData()
         loadCachedDashboard() // Split-Brain: Load cached stats immediately
         loadAllProducts()
+        loadSuggestedFeedValue()
+        loadWeatherData() // Open-Meteo Weather
+        loadFeedRecommendation() // Predictive Feed
+    }
+    
+    /** Calculate predictive feed recommendation based on flock */
+    private fun loadFeedRecommendation() {
+        viewModelScope.launch {
+            try {
+                val products = _allProducts.value
+                if (products.isEmpty()) {
+                    // Wait for products to load, then recalculate
+                    _allProducts.collect { newProducts ->
+                        if (newProducts.isNotEmpty()) {
+                            val recommendation = feedRecommendationEngine.calculateRecommendation(newProducts)
+                            _feedRecommendation.value = recommendation
+                            Timber.d("Feed recommendation: ${recommendation?.feedType?.displayName} - ${recommendation?.dailyFeedKg} kg/day")
+                            return@collect
+                        }
+                    }
+                } else {
+                    val recommendation = feedRecommendationEngine.calculateRecommendation(products)
+                    _feedRecommendation.value = recommendation
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to calculate feed recommendation")
+            }
+        }
+    }
+    
+    /** Fetch weather data from Open-Meteo API */
+    private fun loadWeatherData() {
+        viewModelScope.launch {
+            try {
+                val weather = weatherRepository.getCurrentWeather()
+                _weatherData.value = weather
+                Timber.d("Weather loaded: ${weather.temperature}°C, heat stress: ${weather.isHeatStress}")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to load weather")
+                _weatherData.value = com.rio.rostry.data.repository.WeatherData.FALLBACK
+            }
+        }
+    }
+    
+    /** Refresh weather data (called on pull-to-refresh) */
+    fun refreshWeather() {
+        viewModelScope.launch {
+            val weather = weatherRepository.refreshWeather()
+            _weatherData.value = weather
+        }
     }
 
     // Split-Brain: Cached dashboard state for instant loading
@@ -264,6 +340,16 @@ class FarmerHomeViewModel @Inject constructor(
                         } ?: emptyList()
                     }
                 }
+            }
+        }
+    }
+
+    /** Load the last feed amount to suggest in Quick Log. */
+    private fun loadSuggestedFeedValue() {
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { farmerId ->
+                _suggestedFeedKg.value = dailyLogDao.getLastFeedAmount(farmerId)
+                Timber.d("Suggested Feed: ${_suggestedFeedKg.value}")
             }
         }
     }
@@ -475,7 +561,11 @@ class FarmerHomeViewModel @Inject constructor(
                     
                     // Computed fields
                     urgentKpiCount = primary.tasksOverdueCount + primary.vaccinationOverdueCount + monitoring.quarantineUpdatesDue + monitoring.batchesDueForSplit,
-                    isLoading = false
+                    isLoading = false,
+                    
+                    // UX Improvements: Estimated flock value (Birds × Avg Weight × ₹/kg)
+                    // Using 1.5kg avg weight as default; can be refined with actual weight data later
+                    estimatedFlockValue = userContext.activeBirdCount * 1.5 * MARKET_PRICE_PER_KG
                 )
                 
                 // Generate dynamic widgets based on the computed state
