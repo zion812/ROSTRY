@@ -10,6 +10,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +46,35 @@ fun FarmAssetListScreen(
     onAddAsset: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    
+    // Local UI state for search, sort, and view mode
+    var searchQuery by remember { mutableStateOf("") }
+    var sortBy by remember { mutableStateOf(SortOption.NAME) }
+    var isGridView by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+    
+    // Filtered and sorted assets
+    val displayAssets = remember(state.filteredAssets, searchQuery, sortBy) {
+        state.filteredAssets
+            .filter { asset ->
+                searchQuery.isBlank() || 
+                asset.name.contains(searchQuery, ignoreCase = true) ||
+                (asset.breed?.contains(searchQuery, ignoreCase = true) == true)
+            }
+            .sortedWith(
+                when (sortBy) {
+                    SortOption.NAME -> compareBy { it.name.lowercase() }
+                    SortOption.AGE -> compareByDescending { it.ageWeeks ?: 0 }
+                    SortOption.WEIGHT -> compareByDescending { it.weightGrams ?: 0 }
+                    SortOption.RECENT -> compareByDescending { it.updatedAt }
+                    SortOption.HEALTH -> compareBy { 
+                        when (it.healthStatus.uppercase()) {
+                            "SICK" -> 0; "INJURED" -> 1; "RECOVERING" -> 2; "HEALTHY" -> 3; else -> 4
+                        }
+                    }
+                }
+            )
+    }
 
     Scaffold(
         topBar = {
@@ -52,7 +86,13 @@ fun FarmAssetListScreen(
                     }
                 },
                 actions = {
-                    // Filter Chips could go here or in a row below
+                    // Grid/List Toggle
+                    IconButton(onClick = { isGridView = !isGridView }) {
+                        Icon(
+                            if (isGridView) Icons.Default.ViewList else androidx.compose.material.icons.Icons.Default.GridView,
+                            contentDescription = if (isGridView) "List View" else "Grid View"
+                        )
+                    }
                 }
             )
         },
@@ -63,12 +103,33 @@ fun FarmAssetListScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            // Filter Row
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text("Search birds by name or breed...") },
+                leadingIcon = { Icon(androidx.compose.material.icons.Icons.Default.Search, null) },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(androidx.compose.material.icons.Icons.Default.Clear, "Clear")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium
+            )
+            
+            // Filter & Sort Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 FilterChip(
                     selected = state.filter == "ANIMAL",
@@ -81,8 +142,46 @@ fun FarmAssetListScreen(
                     onClick = { viewModel.updateFilter("BATCH") },
                     label = { Text("Batches") }
                 )
+                
+                Spacer(Modifier.weight(1f))
+                
+                // Sort Dropdown
+                Box {
+                    FilterChip(
+                        selected = false,
+                        onClick = { showSortMenu = true },
+                        label = { Text(sortBy.label) },
+                        leadingIcon = { Icon(Icons.Default.FilterList, null, Modifier.size(16.dp)) }
+                    )
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false }
+                    ) {
+                        SortOption.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option.label) },
+                                onClick = { 
+                                    sortBy = option
+                                    showSortMenu = false
+                                },
+                                leadingIcon = {
+                                    if (sortBy == option) {
+                                        Icon(androidx.compose.material.icons.Icons.Default.Check, null, Modifier.size(18.dp))
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
+            // Results count
+            Text(
+                "${displayAssets.size} asset${if (displayAssets.size != 1) "s" else ""}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
             
             val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = state.isRefreshing)
             
@@ -147,7 +246,7 @@ fun FarmAssetListScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(state.filteredAssets) { asset ->
+                        items(displayAssets) { asset ->
                             FarmAssetItem(asset = asset, onClick = { onAssetClick(asset.assetId) })
                         }
                     }
@@ -484,4 +583,15 @@ private fun formatAge(weeks: Int?): String {
             else "$years year${if (years > 1) "s" else ""}, $remainingWeeks weeks old"
         }
     }
+}
+
+/**
+ * Sort options for farm asset list
+ */
+private enum class SortOption(val label: String) {
+    NAME("Name"),
+    AGE("Age"),
+    WEIGHT("Weight"),
+    RECENT("Recent"),
+    HEALTH("Health")
 }

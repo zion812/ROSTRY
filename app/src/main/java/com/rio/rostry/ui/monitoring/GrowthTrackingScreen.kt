@@ -45,6 +45,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.IconButton
 import com.rio.rostry.ui.components.GrowthChart
 import com.rio.rostry.ui.components.BirdSelectionSheet
@@ -247,6 +250,76 @@ fun GrowthTrackingScreen(
                         }
                     }
                 }
+                
+                // Growth Stats Summary Card
+                item {
+                    val sortedRecords = state.records.filter { it.weightGrams != null }.sortedBy { it.week }
+                    if (sortedRecords.size >= 2) {
+                        val latestWeight = sortedRecords.last().weightGrams!!
+                        val firstWeight = sortedRecords.first().weightGrams!!
+                        val daysBetween = ((sortedRecords.last().createdAt - sortedRecords.first().createdAt) / (1000 * 60 * 60 * 24)).coerceAtLeast(1)
+                        val avgDailyGain = (latestWeight - firstWeight) / daysBetween.toDouble()
+                        
+                        // Simple linear prediction for next 7 days
+                        val predicted7Day = latestWeight + (avgDailyGain * 7).toInt()
+                        
+                        // Breed benchmark (average for common breeds - can be extended)
+                        val breedBenchmark = mapOf(
+                            "Aseel" to 2500.0,
+                            "Shamo" to 3000.0,
+                            "Kadaknath" to 1800.0,
+                            "Default" to 2200.0
+                        )
+                        val selectedProduct = state.products.find { it.productId == pid.value }
+                        val breed = selectedProduct?.breed ?: "Default"
+                        val benchmark = breedBenchmark[breed] ?: breedBenchmark["Default"]!!
+                        val progressVsBenchmark = (latestWeight / benchmark * 100).toInt()
+                        
+                        ElevatedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Growth Analysis", style = MaterialTheme.typography.titleMedium)
+                                
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    GrowthStatItem(
+                                        label = "Current",
+                                        value = "${latestWeight}g",
+                                        icon = Icons.Filled.Info
+                                    )
+                                    GrowthStatItem(
+                                        label = "Daily Gain",
+                                        value = "${String.format("%.1f", avgDailyGain)}g/day",
+                                        icon = Icons.Filled.ArrowUpward
+                                    )
+                                    GrowthStatItem(
+                                        label = "7-Day Predict",
+                                        value = "${predicted7Day}g",
+                                        icon = Icons.Filled.DateRange
+                                    )
+                                }
+                                
+                                // Breed Benchmark Progress
+                                Column {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("vs $breed Benchmark", style = MaterialTheme.typography.labelMedium)
+                                        Text("$progressVsBenchmark%", style = MaterialTheme.typography.labelMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                    androidx.compose.material3.LinearProgressIndicator(
+                                        progress = { (progressVsBenchmark / 100f).coerceIn(0f, 1f) },
+                                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                                        color = if (progressVsBenchmark >= 80) Color(0xFF4CAF50) else if (progressVsBenchmark >= 50) Color(0xFFFF9800) else Color(0xFFD32F2F),
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    Text(
+                                        "Target: ${benchmark.toInt()}g (mature $breed)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
             
             items(items = state.records.sortedByDescending { it.createdAt }) { record ->
@@ -290,6 +363,33 @@ fun GrowthTrackingScreen(
                 pid.value = product.productId
                 showSheet.value = false
             }
+        )
+    }
+}
+
+@Composable
+private fun GrowthStatItem(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

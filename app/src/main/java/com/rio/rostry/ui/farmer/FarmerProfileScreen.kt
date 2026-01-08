@@ -38,6 +38,7 @@ import java.util.Locale
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmerProfileScreen(
@@ -48,12 +49,28 @@ fun FarmerProfileScreen(
     onUpgradeToEnthusiast: () -> Unit = {},  // NEW: Navigation to Enthusiast upgrade
 ) {
     val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     
     var showEditSheet by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showUpgradeSheet by remember { androidx.compose.runtime.mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
+    
+    // Handle upgrade success/error
+    LaunchedEffect(state.upgradeSuccess, state.upgradeError) {
+        if (state.upgradeSuccess) {
+            snackbarHostState.showSnackbar("Upgrade request submitted! Review in 24-48 hours.")
+            showUpgradeSheet = false
+            viewModel.clearUpgradeState()
+        }
+        state.upgradeError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.clearUpgradeState()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         if (state.isLoading) {
@@ -81,7 +98,8 @@ fun FarmerProfileScreen(
                     VerificationSection(
                         user = state.user,
                         onManageCertifications = onManageCertifications,
-                        onUpgradeToEnthusiast = onUpgradeToEnthusiast
+                        // Wire up upgrade to show the sheet
+                        onUpgradeToEnthusiast = { showUpgradeSheet = true }
                     )
                 }
 
@@ -187,6 +205,17 @@ fun FarmerProfileScreen(
             onProfileImagePicked = { uri ->
                 viewModel.uploadProfileImage(uri)
             }
+        )
+    }
+    
+    // Enthusiast Upgrade Sheet - Request form for role upgrade
+    if (showUpgradeSheet) {
+        EnthusiastUpgradeSheet(
+            onDismiss = { showUpgradeSheet = false },
+            onSubmit = { formData ->
+                viewModel.submitEnthusiastUpgrade(formData)
+            },
+            isSubmitting = state.isSubmittingUpgrade
         )
     }
 }

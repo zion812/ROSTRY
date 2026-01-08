@@ -13,6 +13,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -108,6 +112,18 @@ fun VaccinationScheduleScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
+                // Vaccination Calendar Widget - Color-coded month view
+                item {
+                    VaccinationCalendarWidget(
+                        dueTasks = state.dueTasks,
+                        overdueTasks = state.overdueTasks,
+                        records = state.records,
+                        onQuickComplete = { task ->
+                            showCompleteDialogFor.value = task
+                        }
+                    )
+                }
+                
                 item {
                     Text("Vaccination Schedule", style = MaterialTheme.typography.titleLarge)
                 }
@@ -503,5 +519,200 @@ fun VaccinationScheduleScreen(
                 showBirdSelectionSheet.value = false
             }
         )
+    }
+}
+
+/**
+ * Calendar widget showing current month with color-coded vaccination dates.
+ * Colors: Red = Overdue, Orange = Due Today, Green = Completed, Blue = Scheduled
+ */
+@Composable
+private fun VaccinationCalendarWidget(
+    dueTasks: List<com.rio.rostry.data.database.entity.TaskEntity>,
+    overdueTasks: List<com.rio.rostry.data.database.entity.TaskEntity>,
+    records: List<com.rio.rostry.data.database.entity.VaccinationRecordEntity>,
+    onQuickComplete: (com.rio.rostry.data.database.entity.TaskEntity) -> Unit
+) {
+    val calendar = remember { java.util.Calendar.getInstance() }
+    val currentMonth = remember { calendar.get(java.util.Calendar.MONTH) }
+    val currentYear = remember { calendar.get(java.util.Calendar.YEAR) }
+    val today = remember { calendar.get(java.util.Calendar.DAY_OF_MONTH) }
+    
+    // Build map of day -> status
+    val dayStatus = remember(dueTasks, overdueTasks, records) {
+        val map = mutableMapOf<Int, DayVaccinationStatus>()
+        val cal = java.util.Calendar.getInstance()
+        
+        // Mark overdue days (red)
+        overdueTasks.forEach { task ->
+            cal.timeInMillis = task.dueAt
+            if (cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear) {
+                map[cal.get(java.util.Calendar.DAY_OF_MONTH)] = DayVaccinationStatus.OVERDUE
+            }
+        }
+        
+        // Mark due days (orange) - only if not already overdue
+        dueTasks.forEach { task ->
+            cal.timeInMillis = task.dueAt
+            if (cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear) {
+                val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+                if (map[day] != DayVaccinationStatus.OVERDUE) {
+                    map[day] = DayVaccinationStatus.DUE
+                }
+            }
+        }
+        
+        // Mark completed days (green)
+        records.filter { it.administeredAt != null }.forEach { rec ->
+            cal.timeInMillis = rec.administeredAt!!
+            if (cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear) {
+                map[cal.get(java.util.Calendar.DAY_OF_MONTH)] = DayVaccinationStatus.COMPLETED
+            }
+        }
+        
+        // Mark scheduled (blue)
+        records.filter { it.administeredAt == null && it.scheduledAt > System.currentTimeMillis() }.forEach { rec ->
+            cal.timeInMillis = rec.scheduledAt
+            if (cal.get(java.util.Calendar.MONTH) == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear) {
+                val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+                if (map[day] == null) {
+                    map[day] = DayVaccinationStatus.SCHEDULED
+                }
+            }
+        }
+        
+        map
+    }
+    
+    // Get first day of week and days in month
+    calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+    val firstDayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1
+    val daysInMonth = calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    
+    val monthName = remember { 
+        java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault()).format(calendar.time)
+    }
+    
+    ElevatedCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                monthName, 
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+            
+            androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+            
+            // Day headers
+            Row(Modifier.fillMaxWidth()) {
+                listOf("S", "M", "T", "W", "T", "F", "S").forEach { day ->
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text(day, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            
+            androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+            
+            // Calendar grid
+            var dayCounter = 1
+            for (week in 0..5) {
+                if (dayCounter > daysInMonth) break
+                Row(Modifier.fillMaxWidth()) {
+                    for (dayOfWeek in 0..6) {
+                        if ((week == 0 && dayOfWeek < firstDayOfWeek) || dayCounter > daysInMonth) {
+                            // Empty cell
+                            androidx.compose.foundation.layout.Box(Modifier.weight(1f).height(36.dp))
+                        } else {
+                            val currentDay = dayCounter
+                            val status = dayStatus[currentDay]
+                            val isToday = currentDay == today
+                            
+                            CalendarDayCell(
+                                day = currentDay,
+                                status = status,
+                                isToday = isToday,
+                                modifier = Modifier.weight(1f)
+                            )
+                            dayCounter++
+                        }
+                    }
+                }
+            }
+            
+            // Legend
+            androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                LegendItem(color = androidx.compose.ui.graphics.Color(0xFFD32F2F), label = "Overdue")
+                LegendItem(color = androidx.compose.ui.graphics.Color(0xFFFF9800), label = "Due")
+                LegendItem(color = androidx.compose.ui.graphics.Color(0xFF4CAF50), label = "Done")
+                LegendItem(color = androidx.compose.ui.graphics.Color(0xFF2196F3), label = "Scheduled")
+            }
+        }
+    }
+}
+
+private enum class DayVaccinationStatus {
+    OVERDUE, DUE, SCHEDULED, COMPLETED
+}
+
+@Composable
+private fun CalendarDayCell(
+    day: Int,
+    status: DayVaccinationStatus?,
+    isToday: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val bgColor = when (status) {
+        DayVaccinationStatus.OVERDUE -> androidx.compose.ui.graphics.Color(0xFFD32F2F)
+        DayVaccinationStatus.DUE -> androidx.compose.ui.graphics.Color(0xFFFF9800)
+        DayVaccinationStatus.COMPLETED -> androidx.compose.ui.graphics.Color(0xFF4CAF50)
+        DayVaccinationStatus.SCHEDULED -> androidx.compose.ui.graphics.Color(0xFF2196F3)
+        null -> if (isToday) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent
+    }
+    
+    val textColor = if (status != null || isToday) {
+        if (status == null) MaterialTheme.colorScheme.onPrimaryContainer else androidx.compose.ui.graphics.Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    
+    androidx.compose.foundation.layout.Box(
+        modifier = modifier
+            .height(36.dp)
+            .padding(2.dp)
+            .background(
+                bgColor,
+                androidx.compose.foundation.shape.CircleShape
+            ),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        Text(
+            "$day",
+            style = MaterialTheme.typography.bodySmall,
+            color = textColor,
+            fontWeight = if (isToday || status != null) androidx.compose.ui.text.font.FontWeight.Bold else null
+        )
+    }
+}
+
+@Composable
+private fun LegendItem(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color, androidx.compose.foundation.shape.CircleShape)
+        )
+        Text(label, style = MaterialTheme.typography.labelSmall)
     }
 }

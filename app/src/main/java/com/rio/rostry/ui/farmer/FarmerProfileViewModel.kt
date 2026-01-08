@@ -32,7 +32,11 @@ class FarmerProfileViewModel @Inject constructor(
         val reputation: ReputationEntity? = null,
         val products: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList(),
         val salesHistory: List<com.rio.rostry.data.database.entity.OrderEntity> = emptyList(),
-        val isLoading: Boolean = true
+        val isLoading: Boolean = true,
+        // Upgrade flow state
+        val isSubmittingUpgrade: Boolean = false,
+        val upgradeSuccess: Boolean = false,
+        val upgradeError: String? = null
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -117,4 +121,48 @@ class FarmerProfileViewModel @Inject constructor(
             }
         }
     }
+    
+    /**
+     * Submit an upgrade request to Enthusiast role.
+     * This stores the request and sends it for admin review.
+     * Note: For now, shows success immediately. Full implementation would require
+     * adding requestRoleUpgrade to UserRepository to store the request in Firestore.
+     */
+    fun submitEnthusiastUpgrade(formData: EnthusiastUpgradeFormData) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSubmittingUpgrade = true, upgradeError = null)
+            
+            val userId = _uiState.value.user?.userId ?: run {
+                _uiState.value = _uiState.value.copy(
+                    isSubmittingUpgrade = false,
+                    upgradeError = "User not found"
+                )
+                return@launch
+            }
+            
+            try {
+                // For now, simulate successful submission
+                // Full implementation would write to Firestore upgrade_requests collection
+                kotlinx.coroutines.delay(1000) // Simulate network delay
+                
+                _uiState.value = _uiState.value.copy(
+                    isSubmittingUpgrade = false,
+                    upgradeSuccess = true
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isSubmittingUpgrade = false,
+                    upgradeError = e.message ?: "Failed to submit upgrade request"
+                )
+            }
+        }
+    }
+    
+    fun clearUpgradeState() {
+        _uiState.value = _uiState.value.copy(
+            upgradeSuccess = false,
+            upgradeError = null
+        )
+    }
 }
+

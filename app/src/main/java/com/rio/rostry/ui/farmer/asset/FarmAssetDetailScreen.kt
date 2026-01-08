@@ -310,8 +310,8 @@ fun FarmAssetDetailScreen(
                     // View Full History Button - Always visible
                     OutlinedButton(
                         onClick = { 
-                            // Navigate directly to history screen
-                            onNavigateRoute("farm_asset_history/$assetId")
+                            // Navigate to bird history screen using Routes builder
+                            onNavigateRoute(com.rio.rostry.ui.navigation.Routes.Builders.birdHistory(assetId))
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

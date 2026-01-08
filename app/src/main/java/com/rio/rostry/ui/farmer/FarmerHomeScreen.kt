@@ -687,7 +687,18 @@ fun FarmerHomeScreen(
                 isLocked = false
             )
             
-            val allFetcherCards = listOf(myFarmCard, farmLogCard) + fetcherCards
+            // Digital Farm Card - Lite visualization for farmers
+            val digitalFarmCard = FetcherCard(
+                title = "Digital Farm",
+                count = uiState.activeBirdCount, // Show total birds
+                badgeCount = 0,
+                icon = Icons.Filled.Landscape, // Visual representation of farm
+                action = "View Farm",
+                onClick = { viewModel.navigateToModule(Routes.FarmerNav.DIGITAL_FARM) },
+                isLocked = false
+            )
+            
+            val allFetcherCards = listOf(myFarmCard, digitalFarmCard, farmLogCard) + fetcherCards
 
             // Convert grid to rows to avoid nested lazy layout with stable keys
             val fetcherRows = allFetcherCards.chunked(2)
