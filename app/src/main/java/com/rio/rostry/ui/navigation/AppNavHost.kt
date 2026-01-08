@@ -1066,6 +1066,7 @@ private fun RoleNavGraph(
                 FarmAssetDetailScreen(
                     assetId = assetId,
                     onNavigateBack = { navController.popBackStack() },
+                    onNavigateRoute = { route -> navController.navigate(route) },
                     onCreateListing = { 
                         navController.navigate(Routes.Builders.createListingFromAsset(assetId))
                     },

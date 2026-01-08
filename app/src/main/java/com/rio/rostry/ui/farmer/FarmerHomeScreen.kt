@@ -75,6 +75,7 @@ fun FarmerHomeScreen(
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showQuickLogSheet by remember { mutableStateOf(false) }
+    var showEnthusiastUpgradeSheet by remember { mutableStateOf(false) }  // New state for upgrade form
     val onboardingViewModel: OnboardingChecklistViewModel = hiltViewModel()
     val checklistState by onboardingViewModel.uiState.collectAsState()
     var showCelebrationDialog by remember { mutableStateOf(false) }
@@ -217,7 +218,7 @@ fun FarmerHomeScreen(
                 item {
                     EnthusiastUpgradeBanner(
                         birdCount = uiState.activeBirdCount,
-                        onClick = { onNavigateRoute("upgrade/wizard/ENTHUSIAST") }
+                        onClick = { showEnthusiastUpgradeSheet = true }  // Show upgrade form sheet
                     )
                 }
             }
@@ -841,6 +842,20 @@ fun FarmerHomeScreen(
                 showQuickLogSheet = false
             },
             suggestedFeedKg = suggestedFeed
+        )
+    }
+    
+    // Enthusiast Upgrade Sheet - Request form for role upgrade
+    if (showEnthusiastUpgradeSheet) {
+        EnthusiastUpgradeSheet(
+            onDismiss = { showEnthusiastUpgradeSheet = false },
+            onSubmit = { formData ->
+                // TODO: Submit to upgrade repository
+                scope.launch {
+                    snackbarHostState.showSnackbar("Upgrade request submitted! Review in 24-48 hours.")
+                }
+                showEnthusiastUpgradeSheet = false
+            }
         )
     }
 }

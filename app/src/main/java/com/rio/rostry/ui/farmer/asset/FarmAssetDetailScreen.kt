@@ -22,6 +22,7 @@ fun FarmAssetDetailScreen(
     assetId: String,
     viewModel: FarmAssetDetailViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
+    onNavigateRoute: (String) -> Unit,  // Direct navigation for history
     onCreateListing: () -> Unit,
     onCreateAuction: () -> Unit,
     onViewHistory: (() -> Unit)? = null
@@ -300,16 +301,23 @@ fun FarmAssetDetailScreen(
                         }
                     }
                     
-                    // View History Button
-                    if (onViewHistory != null) {
-                        OutlinedButton(
-                            onClick = onViewHistory,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.History, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("View Full History")
-                        }
+                    // Recent History Section (Last 3 Events)
+                    RecentHistorySection(
+                        assetId = assetId,
+                        viewModel = viewModel
+                    )
+                    
+                    // View Full History Button - Always visible
+                    OutlinedButton(
+                        onClick = { 
+                            // Navigate directly to history screen
+                            onNavigateRoute("farm_asset_history/$assetId")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.History, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("View Full History")
                     }
 
                     // Showcase Toggle
@@ -503,3 +511,78 @@ private fun formatDate(timestamp: Long): String {
 }
 
 private fun Double.format(digits: Int): String = "%.${digits}f".format(this)
+
+/**
+ * Recent History Section - Shows last 3 activity events for the asset.
+ */
+@Composable
+private fun RecentHistorySection(
+    assetId: String,
+    viewModel: FarmAssetDetailViewModel
+) {
+    val recentEvents by viewModel.recentEvents.collectAsState()
+    
+    if (recentEvents.isNotEmpty()) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Recent Activity",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
+                
+                recentEvents.take(3).forEach { event ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = when (event.type.uppercase()) {
+                                "FEED" -> Icons.Default.Restaurant
+                                "WEIGHT" -> Icons.Default.Scale
+                                "VACCINATION" -> Icons.Default.Vaccines
+                                "MORTALITY" -> Icons.Default.Warning
+                                "HEALTH" -> Icons.Default.HealthAndSafety
+                                else -> Icons.Default.Event
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = event.type.replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = event.notes ?: formatDate(event.timestamp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                        Text(
+                            text = formatDate(event.timestamp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Simple data class for recent events (used by RecentHistorySection)
+ */
+data class RecentActivityEvent(
+    val type: String,
+    val timestamp: Long,
+    val notes: String? = null
+)

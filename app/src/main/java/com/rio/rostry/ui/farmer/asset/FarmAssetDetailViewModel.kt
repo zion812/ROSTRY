@@ -14,19 +14,44 @@ import javax.inject.Inject
 @HiltViewModel
 class FarmAssetDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: FarmAssetRepository
+    private val repository: FarmAssetRepository,
+    private val activityLogDao: com.rio.rostry.data.database.dao.FarmActivityLogDao
 ) : ViewModel() {
 
     private val assetId: String = savedStateHandle.get<String>("assetId") ?: ""
     
     private val _uiState = MutableStateFlow(FarmAssetDetailUiState())
     val uiState = _uiState.asStateFlow()
+    
+    // Recent events for inline history display
+    private val _recentEvents = MutableStateFlow<List<RecentActivityEvent>>(emptyList())
+    val recentEvents = _recentEvents.asStateFlow()
 
     init {
         if (assetId.isNotBlank()) {
             loadAsset()
+            loadRecentEvents()
         } else {
             _uiState.update { it.copy(isLoading = false, error = "Invalid asset ID") }
+        }
+    }
+    
+    private fun loadRecentEvents() {
+        viewModelScope.launch {
+            try {
+                activityLogDao.observeForProduct(assetId)
+                    .collect { logs ->
+                        _recentEvents.value = logs.take(3).map { log ->
+                            RecentActivityEvent(
+                                type = log.activityType,
+                                timestamp = log.createdAt,
+                                notes = log.notes
+                            )
+                        }
+                    }
+            } catch (e: Exception) {
+                // Silent fail - just show empty history
+            }
         }
     }
 

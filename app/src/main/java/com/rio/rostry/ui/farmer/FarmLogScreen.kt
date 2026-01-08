@@ -31,10 +31,16 @@ import com.rio.rostry.data.database.entity.FarmActivityLogEntity
 @Composable
 fun FarmLogScreen(
     onBack: () -> Unit,
+    onNavigateRoute: (String) -> Unit = {},  // Default route navigation
     onBirdClick: ((String) -> Unit)? = null,
     onActivityClick: ((FarmActivityLogEntity) -> Unit)? = null,
     viewModel: FarmLogViewModel = hiltViewModel()
 ) {
+    // Default activity click handler if not provided
+    val handleActivityClick: (FarmActivityLogEntity) -> Unit = onActivityClick ?: { activity ->
+        onNavigateRoute("farm_activity_detail/${activity.activityId}")
+    }
+    
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -170,8 +176,8 @@ fun FarmLogScreen(
                         ActivityLogCard(
                             log = log,
                             onClick = {
-                                // First priority: navigate to activity detail
-                                onActivityClick?.invoke(log)
+                                // Navigate to activity detail (uses default if onActivityClick null)
+                                handleActivityClick(log)
                                     // Fallback: navigate to bird if callback not provided
                                     ?: log.productId?.let { onBirdClick?.invoke(it) }
                             }
