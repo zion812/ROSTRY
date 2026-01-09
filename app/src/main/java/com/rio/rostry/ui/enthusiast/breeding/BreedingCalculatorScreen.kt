@@ -118,6 +118,14 @@ fun BreedingCalculatorScreen(
                 val p = prediction!!
                 Text("Prediction Results", style = MaterialTheme.typography.titleLarge)
                 
+                // Compatibility Score Card
+                CompatibilityScoreCard(
+                    sire = sire,
+                    dam = dam
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -253,5 +261,115 @@ fun BirdSelectionDialog(
                 }
             }
         }
+    }
+}
+
+/**
+ * Compatibility Score Card - Calculates and displays breed compatibility.
+ */
+@Composable
+private fun CompatibilityScoreCard(
+    sire: ProductEntity?,
+    dam: ProductEntity?
+) {
+    if (sire == null || dam == null) return
+    
+    // Calculate compatibility score based on various factors
+    val breedMatch = if (sire.breed?.equals(dam.breed, ignoreCase = true) == true) 30 else 15
+    val ageCompatibility = calculateAgeCompatibility(sire.ageWeeks, dam.ageWeeks)
+    val healthBonus = if (sire.healthStatus == "HEALTHY" && dam.healthStatus == "HEALTHY") 20 else 10
+    
+    val totalScore = minOf(100, breedMatch + ageCompatibility + healthBonus + 30) // Base 30 for having both parents
+    
+    val scoreColor = when {
+        totalScore >= 80 -> Color(0xFF4CAF50) // Green - Excellent
+        totalScore >= 60 -> Color(0xFFFFB300) // Amber - Good
+        totalScore >= 40 -> Color(0xFFFF9800) // Orange - Fair
+        else -> Color(0xFFD32F2F) // Red - Poor
+    }
+    
+    val recommendation = when {
+        totalScore >= 80 -> "Excellent Match! 🌟"
+        totalScore >= 60 -> "Good Pairing 👍"
+        totalScore >= 40 -> "Fair Compatibility"
+        else -> "Consider Other Options"
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = scoreColor.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Compatibility Score",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(Modifier.height(12.dp))
+            
+            // Score Circle
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(8.dp)
+            ) {
+                CircularProgressIndicator(
+                    progress = { totalScore / 100f },
+                    modifier = Modifier.height(80.dp).width(80.dp),
+                    color = scoreColor,
+                    strokeWidth = 8.dp,
+                    trackColor = scoreColor.copy(alpha = 0.2f)
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "$totalScore%",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = scoreColor
+                    )
+                }
+            }
+            
+            Text(
+                recommendation,
+                style = MaterialTheme.typography.titleSmall,
+                color = scoreColor,
+                fontWeight = FontWeight.SemiBold
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            // Score breakdown
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ScoreFactor("Breed", if (breedMatch >= 30) "✓ Same" else "Mixed")
+                ScoreFactor("Age", if (ageCompatibility >= 20) "✓ Ideal" else "Okay")
+                ScoreFactor("Health", if (healthBonus >= 20) "✓ Both" else "Check")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScoreFactor(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+    }
+}
+
+private fun calculateAgeCompatibility(sireAge: Int?, damAge: Int?): Int {
+    if (sireAge == null || damAge == null) return 15
+    val ageDiff = kotlin.math.abs(sireAge - damAge)
+    return when {
+        ageDiff <= 8 -> 25  // Within 2 months difference
+        ageDiff <= 16 -> 20 // Within 4 months
+        ageDiff <= 26 -> 15 // Within 6 months
+        else -> 10
     }
 }

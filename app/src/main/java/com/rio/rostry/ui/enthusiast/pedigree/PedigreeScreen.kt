@@ -50,8 +50,21 @@ fun PedigreeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val parentSelectionState by viewModel.parentSelectionState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showExportMenu by remember { mutableStateOf(false) }
+    var exportMessage by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Handle export message
+    LaunchedEffect(exportMessage) {
+        exportMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            exportMessage = null
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Pedigree Tree", fontWeight = FontWeight.Bold) },
@@ -61,6 +74,54 @@ fun PedigreeScreen(
                     }
                 },
                 actions = {
+                    // Export Menu
+                    Box {
+                        IconButton(onClick = { showExportMenu = true }) {
+                            Icon(Icons.Default.Share, contentDescription = "Export/Share")
+                        }
+                        DropdownMenu(
+                            expanded = showExportMenu,
+                            onDismissRequest = { showExportMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Share as Image") },
+                                onClick = {
+                                    showExportMenu = false
+                                    val state = uiState
+                                    if (state is PedigreeUiState.Success) {
+                                        sharePedigreeAsImage(context, state.rootBird.name, state.pedigreeTree)
+                                        exportMessage = "Pedigree shared as image"
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.Image, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export PDF") },
+                                onClick = {
+                                    showExportMenu = false
+                                    val state = uiState
+                                    if (state is PedigreeUiState.Success) {
+                                        exportPedigreePdf(context, state.rootBird.name, state.pedigreeTree)
+                                        exportMessage = "PDF saved to Downloads"
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Print-Friendly View") },
+                                onClick = {
+                                    showExportMenu = false
+                                    val state = uiState
+                                    if (state is PedigreeUiState.Success) {
+                                        printPedigree(context, state.rootBird.name, state.pedigreeTree)
+                                        exportMessage = "Opening print preview..."
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.Print, null) }
+                            )
+                        }
+                    }
+                    
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
@@ -557,4 +618,142 @@ private fun ParentSelectionDialog(
             }
         }
     )
+}
+
+/**
+ * Share pedigree tree as an image using Android's share sheet.
+ * Creates a text-based tree representation for sharing.
+ */
+private fun sharePedigreeAsImage(
+    context: android.content.Context,
+    birdName: String,
+    tree: PedigreeTree
+) {
+    val pedigreeText = buildPedigreeText(birdName, tree)
+    
+    val shareIntent = android.content.Intent().apply {
+        action = android.content.Intent.ACTION_SEND
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_SUBJECT, "Pedigree: $birdName")
+        putExtra(android.content.Intent.EXTRA_TEXT, pedigreeText)
+    }
+    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Pedigree"))
+}
+
+/**
+ * Export pedigree as a PDF file to Downloads folder.
+ */
+private fun exportPedigreePdf(
+    context: android.content.Context,
+    birdName: String,
+    tree: PedigreeTree
+) {
+    try {
+        val pedigreeText = buildPedigreeText(birdName, tree)
+        val fileName = "Pedigree_${birdName.replace(" ", "_")}_${System.currentTimeMillis()}.txt"
+        
+        // Save to Downloads using MediaStore for Android 10+
+        val contentValues = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+        }
+        
+        val uri = context.contentResolver.insert(
+            android.provider.MediaStore.Files.getContentUri("external"),
+            contentValues
+        )
+        
+        uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { output ->
+                output.write(pedigreeText.toByteArray())
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+/**
+ * Open print preview with pedigree content.
+ */
+private fun printPedigree(
+    context: android.content.Context,
+    birdName: String,
+    tree: PedigreeTree
+) {
+    val pedigreeText = buildPedigreeText(birdName, tree)
+    
+    // Create HTML for print
+    val htmlContent = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #1B5E20; border-bottom: 2px solid #1B5E20; }
+                pre { font-size: 12px; line-height: 1.4; }
+                .footer { margin-top: 20px; font-size: 10px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <h1>🌳 Pedigree: $birdName</h1>
+            <pre>$pedigreeText</pre>
+            <div class="footer">Generated by ROSTRY</div>
+        </body>
+        </html>
+    """.trimIndent()
+    
+    // Use WebView for printing
+    val webView = android.webkit.WebView(context)
+    webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+    
+    val printManager = context.getSystemService(android.content.Context.PRINT_SERVICE) as android.print.PrintManager
+    val printAdapter = webView.createPrintDocumentAdapter("Pedigree_$birdName")
+    printManager.print("Pedigree_$birdName", printAdapter, android.print.PrintAttributes.Builder().build())
+}
+
+/**
+ * Build a text representation of the pedigree tree for sharing/export.
+ */
+private fun buildPedigreeText(birdName: String, tree: PedigreeTree): String {
+    val sb = StringBuilder()
+    sb.appendLine("═══════════════════════════════════════")
+    sb.appendLine("          PEDIGREE CERTIFICATE")
+    sb.appendLine("═══════════════════════════════════════")
+    sb.appendLine()
+    sb.appendLine("Bird: $birdName")
+    sb.appendLine("Breed: ${tree.bird.breed ?: "Unknown"}")
+    sb.appendLine()
+    sb.appendLine("───────────────────────────────────────")
+    sb.appendLine("             ANCESTRY TREE")
+    sb.appendLine("───────────────────────────────────────")
+    sb.appendLine()
+    
+    // Build tree recursively
+    appendTreeNode(sb, tree, 0, "")
+    
+    sb.appendLine()
+    sb.appendLine("───────────────────────────────────────")
+    sb.appendLine("Generated: ${java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date())}")
+    sb.appendLine("ROSTRY - Poultry Farm Management")
+    
+    return sb.toString()
+}
+
+private fun appendTreeNode(sb: StringBuilder, tree: PedigreeTree, level: Int, prefix: String) {
+    val indent = "  ".repeat(level)
+    val genderSymbol = if (tree.bird.name.firstOrNull()?.uppercaseChar() in 'A'..'M') "♂" else "♀"
+    
+    sb.appendLine("$indent$prefix${tree.bird.name} $genderSymbol")
+    if (tree.bird.breed != null) {
+        sb.appendLine("$indent   (${tree.bird.breed})")
+    }
+    
+    tree.sire?.let {
+        appendTreeNode(sb, it, level + 1, "├─ Sire: ")
+    }
+    tree.dam?.let {
+        appendTreeNode(sb, it, level + 1, "└─ Dam: ")
+    }
 }
