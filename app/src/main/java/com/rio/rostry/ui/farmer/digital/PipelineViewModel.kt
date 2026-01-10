@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.FarmAssetRepository
+import com.rio.rostry.data.database.dao.HatchingBatchDao
+import com.rio.rostry.data.database.dao.EggCollectionDao
 import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,11 +16,15 @@ import javax.inject.Inject
 /**
  * ViewModel for the DigitalFarmPipeline component.
  * Provides stage counts, navigation events, and pipeline-specific data.
+ * 
+ * ENHANCED: Now includes real hatching/incubation data from HatchingBatchDao and EggCollectionDao.
  */
 @HiltViewModel
 class PipelineViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val farmAssetRepository: FarmAssetRepository,
+    private val hatchingBatchDao: HatchingBatchDao,
+    private val eggCollectionDao: EggCollectionDao,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
@@ -36,17 +42,21 @@ class PipelineViewModel @Inject constructor(
     private fun loadPipelineData() {
         viewModelScope.launch {
             val userId = currentUserProvider.userIdOrNull() ?: return@launch
+            val now = System.currentTimeMillis()
 
-            // Only count from products (birds/batches), not from farm_assets (equipment/infrastructure)
-            productRepository.getProductsBySeller(userId).collect { productsRes ->
-                val products = (productsRes.data ?: emptyList())
-                    .filter { (it.lifecycleStatus ?: "ACTIVE") == "ACTIVE" }
-
-                // Calculate stage counts
+            // Combine product data with hatching data for the LIVE PIPELINE
+            combine(
+                productRepository.getProductsBySeller(userId).map { res ->
+                    (res.data ?: emptyList()).filter { (it.lifecycleStatus ?: "ACTIVE") == "ACTIVE" }
+                },
+                hatchingBatchDao.observeActiveForFarmer(userId, now),
+                hatchingBatchDao.observeTotalActiveEggs(userId, now)
+            ) { products, activeBatchCount, totalEggsIncubating ->
+                
+                // Calculate stage counts from products
                 val stageCounts = mutableMapOf<LifecycleStage, Int>()
 
                 products.forEach { product ->
-                    // Count batches by their quantity, individual birds as 1
                     val count = if (product.isBatch == true) {
                         product.quantity?.toInt() ?: 1
                     } else {
@@ -65,18 +75,27 @@ class PipelineViewModel @Inject constructor(
                 val totalBirds = products.sumOf { 
                     if (it.isBatch == true) it.quantity?.toInt() ?: 1 else 1 
                 }
-                val hatchingCount = 0 // Would come from HatchingBatch repository
+                
+                // LIVE PIPELINE: Real hatching counts!
+                val hatchingCount = activeBatchCount
+                val eggsInIncubation = totalEggsIncubating ?: 0
+                
                 val readyToGrowCount = products.count { (it.ageWeeks ?: 0) in 7..8 }
                 val readyToLayCount = products.count { (it.ageWeeks ?: 0) in 17..18 }
 
-                _uiState.value = PipelineUiState(
+                PipelineUiState(
                     totalBirds = totalBirds,
                     hatchingCount = hatchingCount,
+                    eggsInIncubation = eggsInIncubation,
                     stageCounts = stageCounts,
                     readyToGrowCount = readyToGrowCount,
                     readyToLayCount = readyToLayCount,
                     isLoading = false
                 )
+            }.catch { e ->
+                emit(_uiState.value.copy(isLoading = false))
+            }.collect { state ->
+                _uiState.value = state
             }
         }
     }
@@ -86,11 +105,16 @@ class PipelineViewModel @Inject constructor(
             _navigationEvent.emit(route)
         }
     }
+    
+    fun refresh() {
+        loadPipelineData()
+    }
 }
 
 data class PipelineUiState(
     val totalBirds: Int = 0,
     val hatchingCount: Int = 0,
+    val eggsInIncubation: Int = 0, // NEW: Real egg count in incubation
     val stageCounts: Map<LifecycleStage, Int> = emptyMap(),
     val readyToGrowCount: Int = 0,
     val readyToLayCount: Int = 0,

@@ -1604,6 +1604,7 @@ private fun RoleNavGraph(
                 onBack = { navController.popBackStack() },
                 onOpenAddressSelection = { navController.navigate(Routes.ADDRESS_SELECTION) },
                 onNavigateToAdminVerification = { navController.navigate(Routes.ADMIN_VERIFICATION) },
+                onNavigateToBackupRestore = { navController.navigate(Routes.Settings.BACKUP_RESTORE) },
                 lastSelectedAddressJson = lastSelected,
                 isAdmin = state.isAdmin,
                 pendingCount = state.pendingVerificationCount
@@ -1612,6 +1613,83 @@ private fun RoleNavGraph(
         composable(Routes.VERIFY_FARMER_LOCATION) {
             FarmerLocationVerificationScreen(onDone = { navController.popBackStack() })
         }
+        
+        // ============ NEW: Missing Screen Registrations ============
+        
+        // FCR Calculator Screen (Financial Analytics)
+        composable(
+            route = Routes.Monitoring.FCR_CALCULATOR,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId")
+            if (assetId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.FCRCalculatorScreen(
+                    assetId = assetId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Backup & Restore Screen
+        composable(Routes.Settings.BACKUP_RESTORE) {
+            com.rio.rostry.ui.settings.BackupRestoreScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Monthly Report Screen (Analytics)
+        composable(Routes.Analytics.MONTHLY_REPORT) {
+            com.rio.rostry.ui.analytics.MonthlyReportScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Hatchability Tracker Dashboard
+        composable(Routes.Hatchability.TRACKER) {
+            com.rio.rostry.ui.enthusiast.hatchability.HatchabilityTrackerScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onPairClick = { pairId ->
+                    navController.navigate(Routes.Hatchability.analysis(pairId))
+                }
+            )
+        }
+        
+        // Hatchability Analysis per Pair
+        composable(
+            route = Routes.Hatchability.ANALYSIS,
+            arguments = listOf(navArgument("pairId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val pairId = backStackEntry.arguments?.getString("pairId")
+            if (pairId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid pair ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.hatchability.HatchabilityAnalysisScreen(
+                    pairId = pairId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Egg Tray Visual Grid
+        composable(
+            route = Routes.Hatchability.EGG_TRAY,
+            arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val collectionId = backStackEntry.arguments?.getString("collectionId")
+            if (collectionId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid collection ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.hatchability.EggTrayScreen(
+                    collectionId = collectionId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // ============ END: Missing Screen Registrations ============
+        
         composable(Routes.VERIFY_ENTHUSIAST_KYC) {
             EnthusiastKycScreen(onDone = { navController.popBackStack() })
         }

@@ -45,6 +45,9 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.ui.enthusiast.explore.NearbyFarmersSection
 import com.rio.rostry.ui.enthusiast.explore.LearningContentSection
 import com.rio.rostry.ui.enthusiast.explore.LearningModule
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.launch
 
 @Composable
@@ -270,13 +273,18 @@ private fun ExploreHeader(
             text = "Explore",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.semantics { contentDescription = "Explore page heading" }
         )
         Spacer(Modifier.height(16.dp))
 
         // Modern Search Bar
         Surface(
-            modifier = Modifier.fillMaxWidth().height(50.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .testTag("explore_search_bar")
+                .semantics { contentDescription = "Search field. ${ if (query.isEmpty()) "Empty" else "Contains: $query" }" },
             shape = RoundedCornerShape(25.dp),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             tonalElevation = 2.dp
@@ -287,7 +295,7 @@ private fun ExploreHeader(
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = null,
+                    contentDescription = "Search icon",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.width(12.dp))
@@ -306,16 +314,24 @@ private fun ExploreHeader(
                             color = MaterialTheme.colorScheme.onSurface
                         ),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("explore_search_input")
                     )
                 }
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = onClearQuery) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurface)
+                    IconButton(
+                        onClick = onClearQuery,
+                        modifier = Modifier.testTag("explore_clear_search")
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 } else {
-                    IconButton(onClick = onScanQr) {
-                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    IconButton(
+                        onClick = onScanQr,
+                        modifier = Modifier.testTag("explore_scan_qr")
+                    ) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR code to search product", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
         }

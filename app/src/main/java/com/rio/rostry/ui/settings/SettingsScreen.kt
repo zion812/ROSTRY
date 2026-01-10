@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -34,6 +35,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenAddressSelection: () -> Unit,
     onNavigateToAdminVerification: () -> Unit = {},
+    onNavigateToBackupRestore: () -> Unit = {},
     lastSelectedAddressJson: String? = null,
     isAdmin: Boolean = false,
     pendingCount: Int = 0
@@ -101,6 +103,19 @@ fun SettingsScreen(
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
             )
 
+            Text("Data & Storage", style = MaterialTheme.typography.titleMedium)
+            ListItem(
+                headlineContent = { Text("Backup & Restore") },
+                supportingContent = { Text("Export or import your farm data") },
+                leadingContent = {
+                    Icon(Icons.Filled.Backup, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                },
+                trailingContent = {
+                    TextButton(onClick = onNavigateToBackupRestore) { Text("Open") }
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+
             Text("Location & Address", style = MaterialTheme.typography.titleMedium)
             ListItem(
                 headlineContent = { Text("Pick address (Google Maps Web)") },
@@ -122,5 +137,3 @@ fun SettingsScreen(
         }
     }
 }
-
-

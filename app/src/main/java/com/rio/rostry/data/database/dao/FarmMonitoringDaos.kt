@@ -93,6 +93,22 @@ interface MortalityRecordDao {
 
     @Query("SELECT * FROM mortality_records WHERE productId = :productId ORDER BY occurredAt DESC")
     suspend fun getByProduct(productId: String): List<MortalityRecordEntity>
+    
+    // ========================================
+    // Cost Aggregation Queries
+    // ========================================
+    
+    /** Get total mortality financial impact for a specific asset (all time) */
+    @Query("SELECT COALESCE(SUM(financialImpactInr), 0.0) FROM mortality_records WHERE productId = :assetId")
+    suspend fun getTotalMortalityImpactForAsset(assetId: String): Double
+    
+    /** Get total mortality count for a specific asset */
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM mortality_records WHERE productId = :assetId")
+    suspend fun getTotalMortalityCountForAsset(assetId: String): Int
+    
+    /** Get total mortality financial impact across all assets for a farmer */
+    @Query("SELECT COALESCE(SUM(financialImpactInr), 0.0) FROM mortality_records WHERE farmerId = :farmerId")
+    suspend fun getTotalMortalityImpactByFarmer(farmerId: String): Double
 }
 
 @Dao
@@ -161,6 +177,22 @@ interface VaccinationRecordDao {
 
     @Query("SELECT * FROM vaccination_records WHERE vaccinationId = :vaccinationId LIMIT 1")
     suspend fun getById(vaccinationId: String): VaccinationRecordEntity?
+    
+    // ========================================
+    // Cost Aggregation Queries
+    // ========================================
+    
+    /** Get total vaccination costs for a specific asset (all time) */
+    @Query("SELECT COALESCE(SUM(costInr), 0.0) FROM vaccination_records WHERE productId = :assetId")
+    suspend fun getTotalVaccinationCostsForAsset(assetId: String): Double
+    
+    /** Get total vaccination costs for a specific asset within a date range */
+    @Query("SELECT COALESCE(SUM(costInr), 0.0) FROM vaccination_records WHERE productId = :assetId AND administeredAt BETWEEN :startDate AND :endDate")
+    suspend fun getTotalVaccinationCostsForAssetInRange(assetId: String, startDate: Long, endDate: Long): Double
+    
+    /** Get total vaccination costs across all assets for a farmer */
+    @Query("SELECT COALESCE(SUM(costInr), 0.0) FROM vaccination_records WHERE farmerId = :farmerId")
+    suspend fun getTotalVaccinationCostsByFarmer(farmerId: String): Double
 }
 
 @Dao
@@ -212,6 +244,14 @@ interface HatchingBatchDao {
     /** Count batches currently incubating (status = INCUBATING or ACTIVE with expectedHatchAt in future) */
     @Query("SELECT COUNT(*) FROM hatching_batches WHERE farmerId = :farmerId AND status IN ('INCUBATING', 'ACTIVE') AND expectedHatchAt > :now")
     suspend fun countIncubatingForFarmer(farmerId: String, now: Long = System.currentTimeMillis()): Int
+    
+    /** Update incubation conditions (temperature and humidity) for a batch */
+    @Query("UPDATE hatching_batches SET temperatureC = :temperature, humidityPct = :humidity, updatedAt = :updatedAt WHERE batchId = :batchId")
+    suspend fun updateConditions(batchId: String, temperature: Double?, humidity: Double?, updatedAt: Long = System.currentTimeMillis())
+    
+    /** Decrement egg count after candling (removing infertile/dead eggs) */
+    @Query("UPDATE hatching_batches SET eggsCount = eggsCount - :count, updatedAt = :updatedAt WHERE batchId = :batchId AND eggsCount >= :count")
+    suspend fun decrementEggs(batchId: String, count: Int, updatedAt: Long = System.currentTimeMillis())
 }
 
 @Dao

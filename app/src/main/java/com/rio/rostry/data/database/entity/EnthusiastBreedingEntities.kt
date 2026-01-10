@@ -65,6 +65,33 @@ data class EggCollectionEntity(
     val qualityGrade: String,
     val weight: Double? = null,
     val notes: String? = null,
+    
+    // ========================================
+    // Enhanced Egg Log Fields
+    // ========================================
+    
+    // Detailed egg counts for visual tray
+    val goodCount: Int = 0,
+    val damagedCount: Int = 0,
+    val brokenCount: Int = 0,
+    
+    // Visual tray layout - JSON encoding of egg positions and statuses
+    // Format: "row:col:status,row:col:status,..."
+    val trayLayoutJson: String? = null,
+    
+    // ========================================
+    // Hatchability Tracking Fields
+    // ========================================
+    
+    // Whether these eggs were set for hatching
+    val setForHatching: Boolean = false,
+    
+    // Link to the hatching batch if set for incubation
+    val linkedBatchId: String? = null,
+    
+    // Date when eggs were placed in incubator
+    val setForHatchingAt: Long? = null,
+    
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,

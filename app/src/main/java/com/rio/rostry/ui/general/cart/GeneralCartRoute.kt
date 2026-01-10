@@ -48,6 +48,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -242,13 +245,21 @@ private fun CartItemCard(
     onDecrement: () -> Unit,
     onRemove: () -> Unit
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = "${item.name}, ${item.quantity.toInt()} items at ₹${"%.2f".format(item.price)} each. Subtotal ₹${"%.2f".format(item.subtotal)}"
+        }
+    ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = item.imageUrl,
-                    contentDescription = "Product image",
-                    modifier = Modifier.height(80.dp).fillMaxWidth(0.3f)
+                    contentDescription = "${item.name} product image",
+                    modifier = Modifier
+                        .height(80.dp)
+                        .fillMaxWidth(0.3f)
+                        .testTag("cart_item_image_${item.productId}")
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -256,15 +267,34 @@ private fun CartItemCard(
                     Text(item.location, style = MaterialTheme.typography.bodySmall)
                     Text("₹${"%.2f".format(item.price)} / ${item.unit}", style = MaterialTheme.typography.bodyMedium)
                 }
-                IconButton(onClick = onRemove) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Remove from cart")
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier
+                        .testTag("cart_remove_${item.productId}")
+                        .semantics { contentDescription = "Remove ${item.name} from cart" }
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = null)
                 }
             }
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onDecrement) { Text("-") }
-                    Text("${"%.1f".format(item.quantity)}", style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = onIncrement) { Text("+") }
+                    TextButton(
+                        onClick = onDecrement,
+                        modifier = Modifier
+                            .testTag("cart_decrement_${item.productId}")
+                            .semantics { contentDescription = "Decrease quantity of ${item.name}" }
+                    ) { Text("-") }
+                    Text(
+                        "${"%.1f".format(item.quantity)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { contentDescription = "Quantity: ${item.quantity.toInt()}" }
+                    )
+                    TextButton(
+                        onClick = onIncrement,
+                        modifier = Modifier
+                            .testTag("cart_increment_${item.productId}")
+                            .semantics { contentDescription = "Increase quantity of ${item.name}" }
+                    ) { Text("+") }
                 }
                 Text("Subtotal ₹${"%.2f".format(item.subtotal)}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }

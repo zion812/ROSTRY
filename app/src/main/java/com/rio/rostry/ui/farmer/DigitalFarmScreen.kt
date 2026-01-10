@@ -52,7 +52,9 @@ fun DigitalFarmScreen(
     onBack: () -> Unit,
     onManageBird: (String) -> Unit,
     onViewLineage: (String) -> Unit,
-    onListForSale: (String) -> Unit
+    onListForSale: (String) -> Unit,
+    onTimelapse: () -> Unit = {},
+    onShare: () -> Unit = {}
 ) {
     // Set Farmer-specific configuration
     LaunchedEffect(Unit) {
@@ -134,12 +136,12 @@ fun DigitalFarmScreen(
                 },
                 actions = {
                     // Time-lapse button
-                    IconButton(onClick = { /* TODO: Time-lapse mode */ }) {
-                        Icon(Icons.Default.History, contentDescription = "History")
+                    IconButton(onClick = onTimelapse) {
+                        Icon(Icons.Default.History, contentDescription = "Time-lapse view")
                     }
                     // Share button
-                    IconButton(onClick = { /* TODO: Share screenshot */ }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    IconButton(onClick = onShare) {
+                        Icon(Icons.Default.Share, contentDescription = "Share farm screenshot")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

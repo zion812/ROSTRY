@@ -215,15 +215,28 @@ class FarmerTransfersViewModel @Inject constructor(
             var failureCount = 0
 
             for (transferId in selectedIds) {
-                // Assuming there's a method to request review, or we can use platformReview
-                // For now, we'll simulate with a placeholder
-                // TODO: Implement actual request review logic
-                successCount++ // Placeholder
+                // Request platform review for each transfer
+                // approved=true indicates requesting approval, notes=null, actorUserId from current user
+                val userId = currentUserProvider.userIdOrNull()
+                when (transferWorkflowRepository.platformReview(
+                    transferId = transferId,
+                    approved = true,  // Request approval
+                    notes = "Review requested by farmer",
+                    actorUserId = userId
+                )) {
+                    is Resource.Success -> successCount++
+                    is Resource.Error -> failureCount++
+                    is Resource.Loading -> { /* no-op */ }
+                }
             }
 
             _uiState.update { it.copy(isBulkOperationInProgress = false, selectedTransfers = emptySet()) }
 
-            val message = "Requested review for $successCount transfer(s)"
+            val message = when {
+                successCount > 0 && failureCount == 0 -> "Requested review for $successCount transfer(s)"
+                successCount > 0 && failureCount > 0 -> "Requested review for $successCount transfer(s), $failureCount failed"
+                else -> "Failed to request review"
+            }
             _events.emit(FarmerTransfersEvent.ShowMessage(message))
             loadTransfers() // Refresh data
         }

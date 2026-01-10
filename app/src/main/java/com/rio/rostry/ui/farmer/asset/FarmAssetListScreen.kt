@@ -123,6 +123,51 @@ fun FarmAssetListScreen(
                 shape = MaterialTheme.shapes.medium
             )
             
+            // Quick Filter Chips Row with counts
+            val filterCounts by viewModel.filterCounts.collectAsState()
+            val currentQuickFilter by viewModel.currentQuickFilter.collectAsState()
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                QuickFilter.entries.take(4).forEach { filter ->
+                    val count = filterCounts[filter] ?: 0
+                    val isSelected = currentQuickFilter == filter
+                    
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.applyQuickFilter(filter) },
+                        label = { 
+                            Text(
+                                text = if (filter == QuickFilter.ALL) "All" else "${filter.icon} ${filter.displayName}",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        trailingIcon = if (count > 0 && filter != QuickFilter.ALL) {
+                            {
+                                Surface(
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                    color = if (isSelected) 
+                                        MaterialTheme.colorScheme.primaryContainer 
+                                    else 
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(
+                                        text = count.toString(),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        } else null
+                    )
+                }
+            }
+            
             // Filter & Sort Row
             Row(
                 modifier = Modifier

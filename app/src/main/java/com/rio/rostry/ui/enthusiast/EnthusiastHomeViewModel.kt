@@ -446,6 +446,38 @@ class EnthusiastHomeViewModel @Inject constructor(
 
     fun consumeQuickStatus() { _quickStatus.value = null }
 
+    /**
+     * Dismiss an alert by marking it as read in the database.
+     * Called from EnthusiastAlertCard onDismiss callback.
+     */
+    fun dismissAlert(alertId: String) {
+        viewModelScope.launch {
+            try {
+                farmAlertDao.markRead(alertId)
+                Timber.d("Alert dismissed: $alertId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to dismiss alert $alertId")
+            }
+        }
+    }
+
+    /**
+     * Dismiss all currently displayed alerts.
+     */
+    fun dismissAllAlerts() {
+        viewModelScope.launch {
+            try {
+                val currentAlerts = ui.value.alerts
+                currentAlerts.forEach { alert ->
+                    farmAlertDao.markRead(alert.alertId)
+                }
+                Timber.d("Dismissed ${currentAlerts.size} alerts")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to dismiss all alerts")
+            }
+        }
+    }
+
     private fun startOfDay(now: Long): Long {
         val oneDay = 24L * 60 * 60 * 1000
         return now - (now % oneDay)

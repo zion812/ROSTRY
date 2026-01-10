@@ -24,6 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +35,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import com.rio.rostry.domain.model.VerificationStatus
+
 
 @Composable
 fun FarmerMarketScreen(
@@ -65,7 +69,10 @@ fun FarmerMarketScreen(
     traceableSelected: Boolean = false,
     nonTraceableSelected: Boolean = false,
     onScanQr: () -> Unit = {},
-    verificationStatus: VerificationStatus = VerificationStatus.UNVERIFIED
+    verificationStatus: VerificationStatus = VerificationStatus.UNVERIFIED,
+    // NEW: Promote and Reports navigation callbacks
+    onOpenPromoteListings: () -> Unit = {},
+    onOpenReports: () -> Unit = {}
 ) {
     var showVerificationPendingDialog by remember { mutableStateOf(false) }
     var showVerificationRejectedDialog by remember { mutableStateOf(false) }
@@ -210,7 +217,9 @@ fun FarmerMarketScreen(
                         } else {
                             showVerificationPendingDialog = true 
                         }
-                    }
+                    },
+                    onOpenPromoteListings = onOpenPromoteListings,
+                    onOpenReports = onOpenReports
                 )
             }
         }
@@ -459,7 +468,9 @@ private fun SellManager(
     metricsOrders: Int,
     metricsViews: Int,
     verificationStatus: VerificationStatus,
-    onShowVerificationDialog: () -> Unit
+    onShowVerificationDialog: () -> Unit,
+    onOpenPromoteListings: () -> Unit,
+    onOpenReports: () -> Unit
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -492,13 +503,13 @@ private fun SellManager(
                 QuickActionButton(
                     icon = Icons.Default.TrendingUp,
                     label = "Promote",
-                    onClick = { /* TODO */ },
+                    onClick = onOpenPromoteListings,
                     modifier = Modifier.weight(1f)
                 )
                 QuickActionButton(
                     icon = Icons.Default.Analytics,
                     label = "Reports",
-                    onClick = { /* TODO */ },
+                    onClick = onOpenReports,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -590,13 +601,16 @@ private fun QuickActionButton(
         shape = RoundedCornerShape(12.dp),
         color = if (enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shadowElevation = 1.dp,
-        modifier = modifier.height(80.dp)
+        modifier = modifier
+            .height(80.dp)
+            .testTag("quick_action_${label.lowercase().replace(" ", "_")}")
+            .semantics { contentDescription = "$label button" }
     ) {
         Column(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
         }

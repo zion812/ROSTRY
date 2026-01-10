@@ -4,23 +4,46 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAssetEntity
 import com.rio.rostry.data.repository.FarmAssetRepository
+import com.rio.rostry.data.repository.FarmFinancialsRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Preset actionable filters for quick filtering.
+ */
+enum class QuickFilter(val displayName: String, val icon: String) {
+    ALL("All", "🏠"),
+    READY_TO_LAY("Ready to Lay", "🥚"),
+    CULL_CANDIDATES("Cull Candidates", "⚠️"),
+    VACCINATION_DUE("Vaccination Due", "💉"),
+    HEALTHY("Healthy", "✅"),
+    SICK("Needs Attention", "🏥")
+}
+
 @HiltViewModel
 class FarmAssetListViewModel @Inject constructor(
     private val repository: FarmAssetRepository,
+    private val financialsRepository: FarmFinancialsRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FarmAssetListUiState())
     val uiState = _uiState.asStateFlow()
+    
+    // Quick filter counts
+    private val _filterCounts = MutableStateFlow<Map<QuickFilter, Int>>(emptyMap())
+    val filterCounts = _filterCounts.asStateFlow()
+    
+    // Current quick filter
+    private val _currentQuickFilter = MutableStateFlow(QuickFilter.ALL)
+    val currentQuickFilter = _currentQuickFilter.asStateFlow()
 
     init {
         loadAssets()
+        loadFilterCounts()
     }
 
     private fun loadAssets() {
@@ -40,7 +63,7 @@ class FarmAssetListViewModel @Inject constructor(
                                 state.copy(
                                     isLoading = false,
                                     assets = result.data ?: emptyList(),
-                                    filteredAssets = filterAssets(result.data ?: emptyList(), state.filter)
+                                    filteredAssets = filterAssets(result.data ?: emptyList(), state.filter, _currentQuickFilter.value)
                                 )
                             }
                         }
@@ -49,13 +72,48 @@ class FarmAssetListViewModel @Inject constructor(
                 }
         }
     }
+    
+    /**
+     * Load counts for quick filters.
+     */
+    private fun loadFilterCounts() {
+        val userId = auth.currentUser?.uid ?: return
+        
+        viewModelScope.launch {
+            combine(
+                financialsRepository.getReadyToLayCount(userId),
+                financialsRepository.getCullCandidatesCount(userId),
+                financialsRepository.getVaccinationDueSoonCount(userId)
+            ) { readyToLay, cullCandidates, vaccinationDue ->
+                mapOf(
+                    QuickFilter.READY_TO_LAY to readyToLay,
+                    QuickFilter.CULL_CANDIDATES to cullCandidates,
+                    QuickFilter.VACCINATION_DUE to vaccinationDue
+                )
+            }.collect { counts ->
+                _filterCounts.value = counts
+            }
+        }
+    }
+    
+    /**
+     * Apply a quick filter.
+     */
+    fun applyQuickFilter(filter: QuickFilter) {
+        _currentQuickFilter.value = filter
+        _uiState.update { state ->
+            state.copy(
+                filteredAssets = filterAssets(state.assets, state.filter, filter)
+            )
+        }
+    }
 
     fun updateFilter(filter: String) {
         _uiState.update { state ->
             val newFilter = if (state.filter == filter) null else filter // Toggle
             state.copy(
                 filter = newFilter,
-                filteredAssets = filterAssets(state.assets, newFilter)
+                filteredAssets = filterAssets(state.assets, newFilter, _currentQuickFilter.value)
             )
         }
     }
@@ -71,12 +129,50 @@ class FarmAssetListViewModel @Inject constructor(
                     error = if (result is Resource.Error) result.message else null
                 )
             }
+            loadFilterCounts() // Refresh counts
         }
     }
 
-    private fun filterAssets(assets: List<FarmAssetEntity>, filter: String?): List<FarmAssetEntity> {
-        return if (filter == null) assets
-        else assets.filter { it.assetType.equals(filter, ignoreCase = true) || it.status.equals(filter, ignoreCase = true) }
+    private fun filterAssets(
+        assets: List<FarmAssetEntity>, 
+        filter: String?,
+        quickFilter: QuickFilter = QuickFilter.ALL
+    ): List<FarmAssetEntity> {
+        var filtered = assets
+        
+        // Apply type/status filter
+        if (filter != null) {
+            filtered = filtered.filter { 
+                it.assetType.equals(filter, ignoreCase = true) || it.status.equals(filter, ignoreCase = true) 
+            }
+        }
+        
+        // Apply quick filter
+        filtered = when (quickFilter) {
+            QuickFilter.ALL -> filtered
+            QuickFilter.READY_TO_LAY -> filtered.filter { 
+                it.gender?.equals("FEMALE", ignoreCase = true) == true && 
+                it.ageWeeks != null && it.ageWeeks in 18..22 
+            }
+            QuickFilter.CULL_CANDIDATES -> filtered.filter { 
+                it.healthStatus.equals("POOR", ignoreCase = true) || 
+                (it.ageWeeks != null && it.ageWeeks > 72) 
+            }
+            QuickFilter.VACCINATION_DUE -> filtered.filter { 
+                it.nextVaccinationDate != null && 
+                it.nextVaccinationDate <= System.currentTimeMillis() + (3 * 24 * 60 * 60 * 1000)
+            }
+            QuickFilter.HEALTHY -> filtered.filter { 
+                it.healthStatus.equals("HEALTHY", ignoreCase = true) 
+            }
+            QuickFilter.SICK -> filtered.filter { 
+                it.healthStatus.equals("SICK", ignoreCase = true) || 
+                it.healthStatus.equals("POOR", ignoreCase = true) ||
+                it.healthStatus.equals("WATCH", ignoreCase = true)
+            }
+        }
+        
+        return filtered
     }
 }
 
@@ -88,3 +184,4 @@ data class FarmAssetListUiState(
     val filter: String? = null, // e.g. "BATCH", "ANIMAL", "ACTIVE"
     val isRefreshing: Boolean = false
 )
+

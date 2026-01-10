@@ -77,6 +77,7 @@ data class FarmerHomeUiState(
     val analyticsInsights: List<ActionableInsight> = emptyList(),
     val verificationStatus: com.rio.rostry.domain.model.VerificationStatus = com.rio.rostry.domain.model.VerificationStatus.UNVERIFIED,
     val recentActivity: List<com.rio.rostry.data.repository.monitoring.OnboardingActivity> = emptyList(),
+    val recentActivityCount: Int = 0,  // Count for Farm Log card
     val widgets: List<DashboardWidget> = emptyList(),
     val farmAssetCount: Int = 0, // Count of farm assets for My Farm card
     // Evidence Order System fields

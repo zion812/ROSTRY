@@ -109,4 +109,41 @@ interface FarmAssetDao {
     /** Get all active farmer IDs (for batch processing) */
     @Query("SELECT DISTINCT farmerId FROM farm_assets WHERE isDeleted = 0")
     suspend fun getAllFarmerIds(): List<String>
+    
+    // ========================================
+    // Cost-Per-Bird Analysis Queries
+    // ========================================
+    
+    /** Get current quantity for an asset */
+    @Query("SELECT quantity FROM farm_assets WHERE assetId = :assetId")
+    suspend fun getCurrentQuantity(assetId: String): Double?
+    
+    /** Get assets ready to lay (females aged 18-22 weeks) */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND gender = 'FEMALE' AND ageWeeks >= 18 AND ageWeeks <= 22 AND isDeleted = 0")
+    fun getReadyToLayBirds(farmerId: String): Flow<List<FarmAssetEntity>>
+    
+    /** Get cull candidates (aged > 72 weeks OR sick) */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND (ageWeeks > 72 OR healthStatus = 'SICK') AND isDeleted = 0")
+    fun getCullCandidates(farmerId: String): Flow<List<FarmAssetEntity>>
+    
+    /** Get assets with vaccination due within the next N days */
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND nextVaccinationDate IS NOT NULL AND nextVaccinationDate BETWEEN :now AND :future AND isDeleted = 0")
+    fun getVaccinationDueSoon(farmerId: String, now: Long, future: Long): Flow<List<FarmAssetEntity>>
+    
+    /** Count ready to lay birds */
+    @Query("SELECT COUNT(*) FROM farm_assets WHERE farmerId = :farmerId AND gender = 'FEMALE' AND ageWeeks >= 18 AND ageWeeks <= 22 AND isDeleted = 0")
+    fun countReadyToLayBirds(farmerId: String): Flow<Int>
+    
+    /** Count cull candidates */
+    @Query("SELECT COUNT(*) FROM farm_assets WHERE farmerId = :farmerId AND (ageWeeks > 72 OR healthStatus = 'SICK') AND isDeleted = 0")
+    fun countCullCandidates(farmerId: String): Flow<Int>
+    
+    /** Count vaccination due soon */
+    @Query("SELECT COUNT(*) FROM farm_assets WHERE farmerId = :farmerId AND nextVaccinationDate IS NOT NULL AND nextVaccinationDate BETWEEN :now AND :future AND isDeleted = 0")
+    fun countVaccinationDueSoon(farmerId: String, now: Long, future: Long): Flow<Int>
+    
+    /** Count active assets for a farmer (for profitability dashboard) */
+    @Query("SELECT COUNT(*) FROM farm_assets WHERE farmerId = :farmerId AND status = 'ACTIVE' AND isDeleted = 0")
+    suspend fun countActiveByFarmer(farmerId: String): Int
 }
+

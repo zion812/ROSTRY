@@ -66,5 +66,29 @@ interface DailyLogDao {
     /** Total number of unique products logged in the date range. */
     @Query("SELECT COUNT(DISTINCT productId) FROM daily_logs WHERE farmerId = :farmerId AND logDate BETWEEN :start AND :end")
     suspend fun getActiveProductCountBetween(farmerId: String, start: Long, end: Long): Int
+    
+    // =========================================================================
+    // FCR (Feed Conversion Ratio) QUERIES
+    // =========================================================================
+    
+    /** Get total feed consumed for a product in a date range (for FCR calculation) */
+    @Query("SELECT COALESCE(SUM(feedKg), 0.0) FROM daily_logs WHERE productId = :productId AND logDate BETWEEN :startDate AND :endDate AND feedKg IS NOT NULL")
+    suspend fun getTotalFeedForProduct(productId: String, startDate: Long, endDate: Long): Double
+    
+    /** Get initial weight for FCR calculation (earliest weight in range) */
+    @Query("SELECT weightGrams FROM daily_logs WHERE productId = :productId AND logDate >= :startDate AND weightGrams IS NOT NULL ORDER BY logDate ASC LIMIT 1")
+    suspend fun getInitialWeightForProduct(productId: String, startDate: Long): Double?
+    
+    /** Get final weight for FCR calculation (latest weight in range) */
+    @Query("SELECT weightGrams FROM daily_logs WHERE productId = :productId AND logDate <= :endDate AND weightGrams IS NOT NULL ORDER BY logDate DESC LIMIT 1")
+    suspend fun getFinalWeightForProduct(productId: String, endDate: Long): Double?
+    
+    /** Get feed and weight logs for a product in a date range (for trend analysis) */
+    @Query("SELECT * FROM daily_logs WHERE productId = :productId AND logDate BETWEEN :startDate AND :endDate AND (feedKg IS NOT NULL OR weightGrams IS NOT NULL) ORDER BY logDate ASC")
+    fun observeFeedAndWeightLogs(productId: String, startDate: Long, endDate: Long): Flow<List<DailyLogEntity>>
+    
+    /** Get average feed consumption per day for a product */
+    @Query("SELECT COALESCE(AVG(feedKg), 0.0) FROM daily_logs WHERE productId = :productId AND logDate BETWEEN :startDate AND :endDate AND feedKg IS NOT NULL")
+    suspend fun getAverageDailyFeedForProduct(productId: String, startDate: Long, endDate: Long): Double
 }
 

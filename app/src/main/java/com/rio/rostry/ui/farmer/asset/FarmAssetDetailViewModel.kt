@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAssetEntity
+import com.rio.rostry.data.repository.CostPerBirdAnalysis
 import com.rio.rostry.data.repository.FarmAssetRepository
+import com.rio.rostry.data.repository.FarmFinancialsRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -15,13 +17,21 @@ import javax.inject.Inject
 class FarmAssetDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: FarmAssetRepository,
-    private val activityLogDao: com.rio.rostry.data.database.dao.FarmActivityLogDao
+    private val activityLogDao: com.rio.rostry.data.database.dao.FarmActivityLogDao,
+    private val financialsRepository: FarmFinancialsRepository
 ) : ViewModel() {
 
     private val assetId: String = savedStateHandle.get<String>("assetId") ?: ""
     
     private val _uiState = MutableStateFlow(FarmAssetDetailUiState())
     val uiState = _uiState.asStateFlow()
+    
+    // Cost analysis for the asset
+    private val _costAnalysis = MutableStateFlow<CostPerBirdAnalysis?>(null)
+    val costAnalysis = _costAnalysis.asStateFlow()
+    
+    private val _costAnalysisLoading = MutableStateFlow(false)
+    val costAnalysisLoading = _costAnalysisLoading.asStateFlow()
     
     // Recent events for inline history display
     private val _recentEvents = MutableStateFlow<List<RecentActivityEvent>>(emptyList())
@@ -31,6 +41,7 @@ class FarmAssetDetailViewModel @Inject constructor(
         if (assetId.isNotBlank()) {
             loadAsset()
             loadRecentEvents()
+            loadCostAnalysis()
         } else {
             _uiState.update { it.copy(isLoading = false, error = "Invalid asset ID") }
         }
@@ -52,6 +63,28 @@ class FarmAssetDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Silent fail - just show empty history
             }
+        }
+    }
+    
+    /**
+     * Load cost-per-bird analysis for this asset.
+     */
+    fun loadCostAnalysis() {
+        viewModelScope.launch {
+            financialsRepository.getCostPerBird(assetId)
+                .collect { result ->
+                    when (result) {
+                        is Resource.Loading -> _costAnalysisLoading.value = true
+                        is Resource.Success -> {
+                            _costAnalysisLoading.value = false
+                            _costAnalysis.value = result.data
+                        }
+                        is Resource.Error -> {
+                            _costAnalysisLoading.value = false
+                            // Silent fail for cost analysis - not critical
+                        }
+                    }
+                }
         }
     }
 
@@ -95,6 +128,7 @@ class FarmAssetDetailViewModel @Inject constructor(
                 is Resource.Success -> {
                     _uiState.update { it.copy(isUpdating = false, successMessage = "Quantity updated") }
                     loadAsset() // Refresh
+                    loadCostAnalysis() // Refresh cost analysis
                 }
                 is Resource.Error -> {
                     _uiState.update { it.copy(isUpdating = false, error = result.message) }
@@ -140,3 +174,4 @@ data class FarmAssetDetailUiState(
     val error: String? = null,
     val successMessage: String? = null
 )
+

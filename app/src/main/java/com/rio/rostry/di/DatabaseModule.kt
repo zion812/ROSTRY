@@ -665,4 +665,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideFarmTimelineEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmTimelineEventDao = db.farmTimelineEventDao()
+
+    // Enthusiast Show Records DAO
+    @Provides
+    @Singleton
+    fun provideShowRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.ShowRecordDao = db.showRecordDao()
 }

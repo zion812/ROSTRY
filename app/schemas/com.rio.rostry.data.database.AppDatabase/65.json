@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 65,
-    "identityHash": "d06a63a83b98a7a4816800d2e6c5a793",
+    "identityHash": "e42146c4f9d5259287cf55a29fcf0597",
     "entities": [
       {
         "tableName": "users",
@@ -7211,7 +7211,7 @@
       },
       {
         "tableName": "egg_collections",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`collectionId` TEXT NOT NULL, `pairId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `eggsCollected` INTEGER NOT NULL, `collectedAt` INTEGER NOT NULL, `qualityGrade` TEXT NOT NULL, `weight` REAL, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`collectionId`), FOREIGN KEY(`pairId`) REFERENCES `breeding_pairs`(`pairId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`collectionId` TEXT NOT NULL, `pairId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `eggsCollected` INTEGER NOT NULL, `collectedAt` INTEGER NOT NULL, `qualityGrade` TEXT NOT NULL, `weight` REAL, `notes` TEXT, `goodCount` INTEGER NOT NULL, `damagedCount` INTEGER NOT NULL, `brokenCount` INTEGER NOT NULL, `trayLayoutJson` TEXT, `setForHatching` INTEGER NOT NULL, `linkedBatchId` TEXT, `setForHatchingAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, PRIMARY KEY(`collectionId`), FOREIGN KEY(`pairId`) REFERENCES `breeding_pairs`(`pairId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "collectionId",
@@ -7258,6 +7258,45 @@
             "fieldPath": "notes",
             "columnName": "notes",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "goodCount",
+            "columnName": "goodCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "damagedCount",
+            "columnName": "damagedCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brokenCount",
+            "columnName": "brokenCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trayLayoutJson",
+            "columnName": "trayLayoutJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "setForHatching",
+            "columnName": "setForHatching",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "linkedBatchId",
+            "columnName": "linkedBatchId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "setForHatchingAt",
+            "columnName": "setForHatchingAt",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "createdAt",
@@ -11864,7 +11903,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd06a63a83b98a7a4816800d2e6c5a793')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e42146c4f9d5259287cf55a29fcf0597')"
     ]
   }
 }

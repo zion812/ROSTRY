@@ -261,6 +261,21 @@ private fun IncubationTab(vm: BreedingFlowViewModel, onOpenBatchDetail: (String)
     var expected by rememberSaveable { mutableStateOf("") }
     var temp by rememberSaveable { mutableStateOf("") }
     var hum by rememberSaveable { mutableStateOf("") }
+    
+    // Update Conditions dialog state
+    var showUpdateConditions by rememberSaveable { mutableStateOf(false) }
+    var updateBatchId by rememberSaveable { mutableStateOf("") }
+    var updateTemp by rememberSaveable { mutableStateOf("") }
+    var updateHum by rememberSaveable { mutableStateOf("") }
+    
+    // Candle Eggs dialog state
+    var showCandleEggs by rememberSaveable { mutableStateOf(false) }
+    var candleBatchId by rememberSaveable { mutableStateOf("") }
+    var candleFertile by rememberSaveable { mutableStateOf("0") }
+    var candleInfertile by rememberSaveable { mutableStateOf("0") }
+    var candleDead by rememberSaveable { mutableStateOf("0") }
+    var candleNotes by rememberSaveable { mutableStateOf("") }
+    
     val batches by vm.incubationBatches.collectAsState()
     ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Active Batches")
@@ -281,8 +296,20 @@ private fun IncubationTab(vm: BreedingFlowViewModel, onOpenBatchDetail: (String)
                             Text(etaText)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { /* TODO: update conditions dialog */ }) { Text("Update Conditions") }
-                            OutlinedButton(onClick = { /* TODO: candle eggs action */ }) { Text("Candle Eggs") }
+                            OutlinedButton(onClick = { 
+                                updateBatchId = b.batchId
+                                updateTemp = b.temperatureC?.toString() ?: ""
+                                updateHum = b.humidityPct?.toString() ?: ""
+                                showUpdateConditions = true
+                            }) { Text("Update Conditions") }
+                            OutlinedButton(onClick = { 
+                                candleBatchId = b.batchId
+                                candleFertile = "0"
+                                candleInfertile = "0"
+                                candleDead = "0"
+                                candleNotes = ""
+                                showCandleEggs = true
+                            }) { Text("Candle Eggs") }
                             OutlinedButton(onClick = { onOpenBatchDetail(b.batchId) }) { Text("View Logs") }
                         }
                     }
@@ -292,6 +319,8 @@ private fun IncubationTab(vm: BreedingFlowViewModel, onOpenBatchDetail: (String)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { show = true }) { Text("Start Batch") }
         }
+        
+        // Start Incubation Dialog
         if (show) {
             AlertDialog(
                 onDismissRequest = { show = false },
@@ -313,6 +342,84 @@ private fun IncubationTab(vm: BreedingFlowViewModel, onOpenBatchDetail: (String)
                     }, enabled = !vm.submitting.collectAsState().value) { Text("Start") }
                 },
                 dismissButton = { OutlinedButton(onClick = { show = false }) { Text("Cancel") } }
+            )
+        }
+        
+        // Update Conditions Dialog
+        if (showUpdateConditions) {
+            AlertDialog(
+                onDismissRequest = { showUpdateConditions = false },
+                title = { Text("Update Incubation Conditions") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = updateTemp, 
+                            onValueChange = { updateTemp = it.filter { ch -> ch.isDigit() || ch == '.' } }, 
+                            label = { Text("Temperature \u00B0C") }
+                        )
+                        OutlinedTextField(
+                            value = updateHum, 
+                            onValueChange = { updateHum = it.filter { ch -> ch.isDigit() || ch == '.' } }, 
+                            label = { Text("Humidity %") }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        vm.updateIncubationConditions(
+                            updateBatchId, 
+                            updateTemp.toDoubleOrNull(), 
+                            updateHum.toDoubleOrNull()
+                        )
+                        showUpdateConditions = false
+                    }, enabled = !vm.submitting.collectAsState().value) { Text("Update") }
+                },
+                dismissButton = { OutlinedButton(onClick = { showUpdateConditions = false }) { Text("Cancel") } }
+            )
+        }
+        
+        // Candle Eggs Dialog
+        if (showCandleEggs) {
+            AlertDialog(
+                onDismissRequest = { showCandleEggs = false },
+                title = { Text("Candle Eggs - Record Results") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = candleFertile, 
+                            onValueChange = { candleFertile = it.filter { ch -> ch.isDigit() } }, 
+                            label = { Text("Fertile Eggs") }
+                        )
+                        OutlinedTextField(
+                            value = candleInfertile, 
+                            onValueChange = { candleInfertile = it.filter { ch -> ch.isDigit() } }, 
+                            label = { Text("Infertile Eggs") }
+                        )
+                        OutlinedTextField(
+                            value = candleDead, 
+                            onValueChange = { candleDead = it.filter { ch -> ch.isDigit() } }, 
+                            label = { Text("Dead Embryos") }
+                        )
+                        OutlinedTextField(
+                            value = candleNotes, 
+                            onValueChange = { candleNotes = it }, 
+                            label = { Text("Notes (optional)") }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        vm.logCandling(
+                            candleBatchId,
+                            candleFertile.toIntOrNull() ?: 0,
+                            candleInfertile.toIntOrNull() ?: 0,
+                            candleDead.toIntOrNull() ?: 0,
+                            candleNotes.ifBlank { null }
+                        )
+                        showCandleEggs = false
+                    }, enabled = !vm.submitting.collectAsState().value) { Text("Save") }
+                },
+                dismissButton = { OutlinedButton(onClick = { showCandleEggs = false }) { Text("Cancel") } }
             )
         }
     } }
@@ -518,4 +625,47 @@ class BreedingFlowViewModel @Inject constructor(
     fun openEggDialogFor(id: String) { /* handled in UI */ }
     fun navigateToIncubationFromPair(id: String) { /* handled by parent navigation; no-op here */ }
     fun postMessage(msg: String) { _message.value = msg }
+    
+    // Update incubation conditions (temperature and humidity)
+    fun updateIncubationConditions(batchId: String, temperature: Double?, humidity: Double?) {
+        viewModelScope.launch {
+            _submitting.value = true
+            try {
+                hatchingBatchDao.updateConditions(batchId, temperature, humidity)
+                postMessage("Conditions updated")
+            } catch (e: Exception) {
+                postMessage("Failed to update conditions: ${'$'}{e.message}")
+            }
+            _submitting.value = false
+        }
+    }
+    
+    // Log egg candling results
+    fun logCandling(batchId: String, fertile: Int, infertile: Int, dead: Int, notes: String?) {
+        viewModelScope.launch {
+            _submitting.value = true
+            try {
+                // Log as a hatch event with candling details
+                val candlingNotes = buildString {
+                    append("Candling: Fertile=${'$'}fertile, Infertile=${'$'}infertile, Dead=${'$'}dead")
+                    if (!notes.isNullOrBlank()) append(". ${'$'}notes")
+                }
+                when (val res = repo.logHatch(batchId, null, "CANDLING", candlingNotes)) {
+                    is Resource.Success -> {
+                        // Update batch with removed infertile/dead eggs
+                        val removedCount = infertile + dead
+                        if (removedCount > 0) {
+                            hatchingBatchDao.decrementEggs(batchId, removedCount)
+                        }
+                        postMessage("Candling logged: ${'$'}fertile fertile, removed ${'$'}removedCount")
+                    }
+                    is Resource.Error -> postMessage(res.message ?: "Failed to log candling")
+                    is Resource.Loading -> {}
+                }
+            } catch (e: Exception) {
+                postMessage("Failed to log candling: ${'$'}{e.message}")
+            }
+            _submitting.value = false
+        }
+    }
 }

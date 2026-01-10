@@ -45,4 +45,49 @@ interface FarmActivityLogDao {
     
     @Query("DELETE FROM farm_activity_logs WHERE activityId = :activityId")
     suspend fun delete(activityId: String)
+    
+    // ========================================
+    // Cost-Per-Bird Analysis Queries
+    // ========================================
+    
+    /** Get total expenses for a specific asset (bird/batch) within a date range */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType IN ('EXPENSE', 'FEED', 'MEDICATION') AND createdAt BETWEEN :startDate AND :endDate")
+    suspend fun getTotalExpensesForAsset(assetId: String, startDate: Long, endDate: Long): Double
+    
+    /** Get total expenses for a specific asset (all time) */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType IN ('EXPENSE', 'FEED', 'MEDICATION')")
+    suspend fun getTotalExpensesForAssetAllTime(assetId: String): Double
+    
+    /** Get feed expenses for a specific asset */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType = 'FEED'")
+    suspend fun getTotalFeedExpensesForAsset(assetId: String): Double
+    
+    /** Get medication expenses for a specific asset */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType = 'MEDICATION'")
+    suspend fun getTotalMedicationExpensesForAsset(assetId: String): Double
+    
+    /** Get general expenses for a specific asset */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType = 'EXPENSE'")
+    suspend fun getTotalOtherExpensesForAsset(assetId: String): Double
+    
+    // ========================================
+    // Farm-Level Aggregate Queries (Profitability Dashboard)
+    // ========================================
+    
+    /** Get total feed expenses across all assets for a farmer */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = 'FEED'")
+    suspend fun getTotalFeedExpensesByFarmer(farmerId: String): Double
+    
+    /** Get total medication expenses across all assets for a farmer */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = 'MEDICATION'")
+    suspend fun getTotalMedicationExpensesByFarmer(farmerId: String): Double
+    
+    /** Get total other expenses across all assets for a farmer */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = 'EXPENSE'")
+    suspend fun getTotalOtherExpensesByFarmer(farmerId: String): Double
+    
+    /** Get total expenses between dates for a farmer (for monthly reports) */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end")
+    suspend fun getTotalExpensesByFarmerBetween(farmerId: String, start: Long, end: Long): Double
 }
+

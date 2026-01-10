@@ -145,6 +145,8 @@ object Routes {
     object Settings {
         const val ROOT = "settings"
         const val ADDRESS_SELECTION = "settings/address_selection"
+        // NEW: Backup & Restore
+        const val BACKUP_RESTORE = "settings/backup_restore"
     }
 
     // Admin routes (only accessible to admin users)
@@ -163,6 +165,8 @@ object Routes {
         const val ENTHUSIAST = "analytics/enthusiast"
         const val REPORTS = "analytics/reports"
         const val DASHBOARD = "analytics/dashboard"
+        // NEW: Monthly Farm Report
+        const val MONTHLY_REPORT = "analytics/monthly_report"
     }
 
     object Monitoring {
@@ -187,6 +191,9 @@ object Routes {
         const val MORTALITY_DETAIL = "monitoring/mortality/{deathId}"
         const val FARM_ACTIVITY_DETAIL = "monitoring/activity/{activityId}"
         const val BIRD_HISTORY = "monitoring/history/{assetId}"
+        
+        // NEW: Financial Analytics Routes
+        const val FCR_CALCULATOR = "monitoring/fcr/{assetId}"
     }
 
     // Loveable product feature routes
@@ -265,6 +272,16 @@ object Routes {
         fun transferCode(productId: String) = "enthusiast/transfer_code/$productId"
         fun showcaseCard(productId: String) = "enthusiast/showcase/$productId"
         fun showLog(productId: String) = "enthusiast/show_log/$productId"
+    }
+    
+    // NEW: Enhanced Egg Log and Hatchability Routes
+    object Hatchability {
+        const val TRACKER = "hatchability/tracker"
+        const val ANALYSIS = "hatchability/analysis/{pairId}"
+        const val EGG_TRAY = "hatchability/egg_tray/{collectionId}"
+        
+        fun analysis(pairId: String) = "hatchability/analysis/$pairId"
+        fun eggTray(collectionId: String) = "hatchability/egg_tray/$collectionId"
     }
 
     object Sync {
@@ -357,7 +374,13 @@ object Routes {
             FarmerNav.CREATE_LISTING_FROM_ASSET,
             FarmerNav.CREATE_AUCTION_FROM_ASSET,
             // Farm Activity Log
-            Monitoring.FARM_LOG
+            Monitoring.FARM_LOG,
+            // Financial Analytics
+            Monitoring.FCR_CALCULATOR,
+            // Settings
+            Settings.BACKUP_RESTORE,
+            // Analytics
+            Analytics.MONTHLY_REPORT
         )
     )
 
@@ -417,7 +440,13 @@ object Routes {
             EnthusiastNav.CLAIM_TRANSFER,
             EnthusiastNav.SHOWCASE_CARD,
             EnthusiastNav.SHOW_LOG,
-            EnthusiastNav.HALL_OF_FAME
+            EnthusiastNav.HALL_OF_FAME,
+            // Hatchability Features
+            Hatchability.TRACKER,
+            Hatchability.ANALYSIS,
+            Hatchability.EGG_TRAY,
+            // Settings
+            Settings.BACKUP_RESTORE
         )
     )
 

@@ -679,7 +679,7 @@ fun FarmerHomeScreen(
             // Farm Log Card - Entry point to comprehensive activity log
             val farmLogCard = FetcherCard(
                 title = "Farm Log",
-                count = 0, // TODO: Show count of recent activities
+                count = uiState.recentActivity.size, // Show count of recent activities
                 badgeCount = 0,
                 icon = Icons.Filled.History, // Represents activity history
                 action = "View All",
@@ -861,7 +861,8 @@ fun FarmerHomeScreen(
         EnthusiastUpgradeSheet(
             onDismiss = { showEnthusiastUpgradeSheet = false },
             onSubmit = { formData ->
-                // TODO: Submit to upgrade repository
+                // Navigate to upgrade wizard with Enthusiast role target
+                viewModel.navigateToModule(Routes.Builders.upgradeWizard(com.rio.rostry.domain.model.UserType.ENTHUSIAST))
                 scope.launch {
                     snackbarHostState.showSnackbar("Upgrade request submitted! Review in 24-48 hours.")
                 }

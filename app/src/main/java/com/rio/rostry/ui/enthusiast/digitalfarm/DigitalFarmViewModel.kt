@@ -3,6 +3,7 @@ package com.rio.rostry.ui.enthusiast.digitalfarm
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rio.rostry.data.database.dao.CoinLedgerDao
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.domain.model.*
@@ -29,7 +30,8 @@ import kotlin.random.Random
 @HiltViewModel
 class DigitalFarmViewModel @Inject constructor(
     private val productRepository: ProductRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val coinLedgerDao: CoinLedgerDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DigitalFarmState(isLoading = true))
@@ -276,7 +278,7 @@ class DigitalFarmViewModel @Inject constructor(
         return (diff / (7 * 24 * 60 * 60 * 1000L)).toInt()
     }
 
-    private fun calculateStats(products: List<ProductEntity>, farmState: DigitalFarmState): FarmStats {
+    private suspend fun calculateStats(products: List<ProductEntity>, farmState: DigitalFarmState): FarmStats {
         val totalEggsToday = farmState.breedingUnits.sumOf { it.eggsCollectedToday }
         val vaccinesDue = products.count { product ->
             // Check if vaccine is due today (simplified logic)
@@ -289,12 +291,23 @@ class DigitalFarmViewModel @Inject constructor(
         // Calculate feed usage (~120g per bird per day for gamecock breeds)
         val feedUsageKg = farmState.totalBirds * 0.12f
         
+        // Get coin balance from gamification system
+        val userId = currentUserProvider.userIdOrNull()
+        val coinBalance = if (userId != null) {
+            try {
+                coinLedgerDao.userCoinBalance(userId)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to fetch coin balance, using default")
+                0
+            }
+        } else 0
+        
         return FarmStats(
             totalBirds = farmState.totalBirds,
             totalEggsToday = totalEggsToday,
             birdsReadyForSale = farmState.readyDisplay.size,
             vaccinesDueToday = vaccinesDue,
-            coins = 250, // TODO: Get from gamification system
+            coins = coinBalance,
             totalBatches = totalBatches,
             feedUsageKg = feedUsageKg
         )
