@@ -148,4 +148,57 @@ interface ProductRepository {
     suspend fun seedStarterKits()
 
     suspend fun updateStage(productId: String, stage: com.rio.rostry.domain.model.LifecycleStage, transitionAt: Long)
+
+    // ==================== Data Integrity Helpers ====================
+
+    /**
+     * Checks if a product's records are locked for editing.
+     * Records are locked if:
+     * - recordsLockedAt is set (manual lock by transfer or admin), OR
+     * - Product is older than autoLockAfterDays (time-based lock)
+     *
+     * @param product The product to check
+     * @param nowMillis Current timestamp (for testing)
+     * @return true if records are locked, false otherwise
+     */
+    fun isRecordsLocked(product: ProductEntity, nowMillis: Long = System.currentTimeMillis()): Boolean {
+        // Manual lock takes precedence
+        if (product.recordsLockedAt != null) return true
+        
+        // Time-based lock: check if product was created more than autoLockAfterDays ago
+        val lockDays = product.autoLockAfterDays
+        val lockThreshold = nowMillis - (lockDays * 24L * 60 * 60 * 1000)
+        return product.createdAt < lockThreshold
+    }
+
+    /**
+     * Checks if a specific record can be edited based on product lock and record age.
+     * 
+     * @param product The product the record belongs to
+     * @param recordCreatedAt When the record was created
+     * @param nowMillis Current timestamp
+     * @return true if the record can be edited, false if locked
+     */
+    fun canEditRecord(
+        product: ProductEntity, 
+        recordCreatedAt: Long, 
+        nowMillis: Long = System.currentTimeMillis()
+    ): Boolean {
+        // If product records are locked, no edits allowed
+        if (isRecordsLocked(product, nowMillis)) return false
+        
+        // Records older than 30 days cannot be edited (time-based record lock)
+        val recordLockDays = 30
+        val recordLockThreshold = nowMillis - (recordLockDays * 24L * 60 * 60 * 1000)
+        return recordCreatedAt >= recordLockThreshold
+    }
+
+    /**
+     * Locks all records for a product (typically called during transfer).
+     *
+     * @param productId The product to lock
+     * @param lockedAt The lock timestamp
+     * @return Resource.Success if lock succeeds
+     */
+    suspend fun lockRecords(productId: String, lockedAt: Long = System.currentTimeMillis()): Resource<Unit>
 }

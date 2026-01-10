@@ -132,7 +132,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FarmProfileEntity::class,
         FarmTimelineEventEntity::class
     ],
-    version = 65, // 65: Glass Box Farm Profile (FarmProfileEntity, FarmTimelineEventEntity); 64: Auction enhancements
+    version = 66, // 66: Data Integrity (recordsLockedAt, correctionOf, editCount, snapshots); 65: Glass Box Farm Profile
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -675,6 +675,44 @@ abstract class AppDatabase : RoomDatabase() {
                 
                 // Bid indexes
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_bids_auctionId_amount` ON `bids` (`auctionId`, `amount`)")
+            }
+        }
+
+        // Data Integrity Schema - Trust & Traceability (65 → 66)
+        val MIGRATION_65_66 = object : Migration(65, 66) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // ProductEntity: Lock and audit fields
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `recordsLockedAt` INTEGER")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `autoLockAfterDays` INTEGER NOT NULL DEFAULT 30")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `lineageHistoryJson` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `editCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `lastEditedBy` TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_recordsLockedAt` ON `products` (`recordsLockedAt`)")
+                
+                // GrowthRecordEntity: Correction and batch tracking
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `correctionOf` TEXT")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `editCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `lastEditedBy` TEXT")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `isBatchLevel` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `growth_records` ADD COLUMN `sourceBatchId` TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_growth_records_correctionOf` ON `growth_records` (`correctionOf`)")
+                
+                // VaccinationRecordEntity: Audit fields
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `correctionOf` TEXT")
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `editCount` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `vaccination_records` ADD COLUMN `lastEditedBy` TEXT")
+                
+                // MortalityRecordEntity: Batch split tracking
+                db.execSQL("ALTER TABLE `mortality_records` ADD COLUMN `affectedProductIds` TEXT")
+                db.execSQL("ALTER TABLE `mortality_records` ADD COLUMN `affectsAllChildren` INTEGER NOT NULL DEFAULT 0")
+                
+                // TransferEntity: Data snapshots at transfer time
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `growthSnapshotJson` TEXT")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `healthSnapshotJson` TEXT")
+                db.execSQL("ALTER TABLE `transfers` ADD COLUMN `transferCodeExpiresAt` INTEGER")
+                
+                // DailyBirdLogEntity: Structured performance scoring
+                db.execSQL("ALTER TABLE `daily_bird_logs` ADD COLUMN `performanceScoreJson` TEXT")
             }
         }
 

@@ -36,7 +36,13 @@ data class GrowthRecordEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    // Data Integrity & Audit
+    val correctionOf: String? = null,     // Points to original record if this is a correction
+    val editCount: Int = 0,               // Number of edits to this record
+    val lastEditedBy: String? = null,     // User who made last edit
+    val isBatchLevel: Boolean = false,    // True if copied from pre-split batch
+    val sourceBatchId: String? = null     // Original batch ID if copied on split
 ) {
     @Ignore
     fun getMediaItems(): List<MediaItem> {
@@ -114,7 +120,10 @@ data class MortalityRecordEntity(
     val occurredAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    // Data Integrity: Batch tracking for split scenarios
+    val affectedProductIds: String? = null,   // JSON array of affected individual IDs after split
+    val affectsAllChildren: Boolean = false   // True if applies to all from sourceBatchId
 ) {
     @Ignore
     fun getMediaItems(): List<MediaItem> {
@@ -161,7 +170,11 @@ data class VaccinationRecordEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    // Data Integrity & Audit
+    val correctionOf: String? = null,     // Points to original if correction
+    val editCount: Int = 0,               // Number of edits
+    val lastEditedBy: String? = null      // User who made last edit
 ) {
     @Ignore
     fun getMediaItems(): List<MediaItem> {

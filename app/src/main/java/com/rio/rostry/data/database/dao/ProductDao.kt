@@ -268,6 +268,23 @@ interface ProductDao {
      */
     @Query("SELECT COUNT(*) > 0 FROM products WHERE sourceAssetId = :assetId AND isDeleted = 0")
     suspend fun hasListingForAsset(assetId: String): Boolean
+
+    // =========================================================================
+    // Data Integrity: Record locking for trust & traceability
+    // =========================================================================
+
+    /**
+     * Lock all records for a product (typically called during transfer).
+     * Sets recordsLockedAt timestamp to prevent future edits.
+     */
+    @Query("UPDATE products SET recordsLockedAt = :lockedAt, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun lockRecords(productId: String, lockedAt: Long, updatedAt: Long)
+
+    /**
+     * Increment edit count and track last editor for a product.
+     */
+    @Query("UPDATE products SET editCount = editCount + 1, lastEditedBy = :editorId, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun incrementEditCount(productId: String, editorId: String, updatedAt: Long)
 }
 
 data class StageCount(

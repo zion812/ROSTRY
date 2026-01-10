@@ -25,6 +25,7 @@ data class DailyBirdLogEntity(
     val weight: Double? = null,
     val feedIntakeGrams: Double? = null,
     val notes: String? = null,
-    val performanceRating: Int? = null, // 1-10
+    val performanceRating: Int? = null, // Legacy: 1-10
+    val performanceScoreJson: String? = null, // Structured: {"speed":8,"stamina":7,"temperament":9}
     val createdAt: Long = System.currentTimeMillis()
 )

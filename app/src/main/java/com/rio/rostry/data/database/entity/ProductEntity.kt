@@ -146,7 +146,14 @@ data class ProductEntity(
     
     // Showcase & External Media (Feature-based storage control)
     val isShowcased: Boolean = false,           // True if in profile showcase
-    val externalVideoUrl: String? = null        // YouTube/Instagram link (Enthusiast only)
+    val externalVideoUrl: String? = null,       // YouTube/Instagram link (Enthusiast only)
+    
+    // Data Integrity & Audit (Phase 1 - Trust & Traceability)
+    val recordsLockedAt: Long? = null,          // Manual lock timestamp (by transfer or admin)
+    val autoLockAfterDays: Int = 30,            // Time-based lock fallback
+    val lineageHistoryJson: String? = null,     // Audit trail for lineage corrections
+    val editCount: Int = 0,                     // Number of edits to core fields
+    val lastEditedBy: String? = null            // User who made last edit
 ) {
     /**
      * Returns true if this product is a public market listing (requires verification to create).

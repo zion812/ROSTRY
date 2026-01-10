@@ -64,6 +64,10 @@ data class TransferEntity(
     val lineageSnapshotJson: String? = null, // Serialized pedigree at transfer time
     val claimedAt: Long? = null,             // When recipient claimed the bird
     val transferType: String = "STANDARD",   // "STANDARD", "OWNERSHIP_HANDSHAKE"
+    // Data Integrity: Full snapshot at transfer
+    val growthSnapshotJson: String? = null,  // Key anchor week weights at transfer
+    val healthSnapshotJson: String? = null,  // Vaccination summary at transfer
+    val transferCodeExpiresAt: Long? = null, // 15-min expiry for security
     // ==================================================
     
     val initiatedAt: Long = System.currentTimeMillis(),

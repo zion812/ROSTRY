@@ -168,4 +168,13 @@ class ProductRepositoryImpl @Inject constructor(
     override suspend fun updateStage(productId: String, stage: com.rio.rostry.domain.model.LifecycleStage, transitionAt: Long) {
         productDao.updateStage(productId, stage, transitionAt, System.currentTimeMillis())
     }
+
+    override suspend fun lockRecords(productId: String, lockedAt: Long): Resource<Unit> {
+        return try {
+            productDao.lockRecords(productId, lockedAt, System.currentTimeMillis())
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error("Failed to lock records: ${e.message}")
+        }
+    }
 }
