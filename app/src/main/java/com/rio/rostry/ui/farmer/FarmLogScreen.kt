@@ -94,7 +94,7 @@ fun FarmLogScreen(
                         }
                         Icon(
                             Icons.Default.CurrencyRupee,
-                            contentDescription = null,
+                            contentDescription = "Total expenses indicator",
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -122,7 +122,7 @@ fun FarmLogScreen(
                         leadingIcon = {
                             Icon(
                                 getIconForType(type),
-                                contentDescription = null,
+                                contentDescription = "$type filter",
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -148,7 +148,7 @@ fun FarmLogScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             Icons.Default.History,
-                            contentDescription = null,
+                            contentDescription = "No activity logs",
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
@@ -214,7 +214,7 @@ private fun ActivityLogCard(
             ) {
                 Icon(
                     getIconForType(log.activityType),
-                    contentDescription = null,
+                    contentDescription = "${log.activityType} activity",
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
