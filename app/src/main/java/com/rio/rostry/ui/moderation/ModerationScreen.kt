@@ -294,7 +294,7 @@ fun VerificationCard(
                     Text(
                         v.upgradeType.displayName, 
                         modifier = Modifier.padding(4.dp),
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }

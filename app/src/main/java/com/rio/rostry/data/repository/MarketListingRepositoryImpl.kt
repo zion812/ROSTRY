@@ -3,19 +3,27 @@ package com.rio.rostry.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.rio.rostry.data.database.dao.FarmAssetDao
+import com.rio.rostry.data.database.dao.InventoryItemDao
 import com.rio.rostry.data.database.dao.MarketListingDao
+import com.rio.rostry.data.database.entity.InventoryItemEntity
 import com.rio.rostry.data.database.entity.MarketListingEntity
 import com.rio.rostry.utils.Resource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MarketListingRepositoryImpl @Inject constructor(
     private val dao: MarketListingDao,
+    private val farmAssetDao: FarmAssetDao,
+    private val inventoryDao: InventoryItemDao,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) : MarketListingRepository {
@@ -65,7 +73,7 @@ class MarketListingRepositoryImpl @Inject constructor(
     override suspend fun deleteListing(listingId: String): Resource<Unit> {
         return try {
             firestore.collection("market_listings").document(listingId).delete().await()
-            dao.changeListingStatusAndActive(listingId, "DELETED", false) // Need to add this method to DAO or use update
+            dao.changeListingStatusAndActive(listingId, "DELETED", false)
              // Fallback to manual update if custom query missing
             Resource.Success(Unit) 
         } catch(e: Exception) {
@@ -102,4 +110,122 @@ class MarketListingRepositoryImpl @Inject constructor(
     override suspend fun syncListings(): Resource<Unit> {
         return Resource.Success(Unit) // Placeholder
     }
+    
+    /**
+     * Creates a market listing from an existing farm asset.
+     * 
+     * Offline-First Flow:
+     * 1. Load source asset from Room
+     * 2. Validate asset can be listed
+     * 3. Create InventoryItemEntity (dirty=true)
+     * 4. Create MarketListingEntity (dirty=true)
+     * 5. Mark source asset as LISTED
+     * 
+     * SyncWorker will handle Firestore uploads later.
+     */
+    override suspend fun createListingFromAsset(
+        assetId: String,
+        price: Double,
+        quantity: Double,
+        title: String,
+        description: String
+    ): Resource<String> = withContext(Dispatchers.IO) {
+        try {
+            Timber.d("createListingFromAsset: Starting for asset $assetId")
+            
+            // 1. Load source asset from Room
+            val asset = farmAssetDao.findById(assetId)
+            if (asset == null) {
+                Timber.e("createListingFromAsset: Asset not found")
+                return@withContext Resource.Error("Asset not found")
+            }
+            
+            // 2. Validate
+            val userId = auth.currentUser?.uid
+            if (userId == null) {
+                Timber.e("createListingFromAsset: Not authenticated")
+                return@withContext Resource.Error("Not authenticated")
+            }
+            
+            if (asset.farmerId != userId) {
+                Timber.e("createListingFromAsset: Not owner of asset")
+                return@withContext Resource.Error("You can only list your own assets")
+            }
+            
+            if (asset.listingId != null) {
+                Timber.e("createListingFromAsset: Asset already listed")
+                return@withContext Resource.Error("Asset is already listed")
+            }
+            
+            if (quantity > asset.quantity) {
+                Timber.e("createListingFromAsset: Quantity exceeds available")
+                return@withContext Resource.Error("Quantity exceeds available stock")
+            }
+            
+            if (price <= 0) {
+                return@withContext Resource.Error("Price must be greater than zero")
+            }
+            
+            val now = System.currentTimeMillis()
+            
+            // 3. Create Inventory Item (for stock tracking)
+            val inventoryId = UUID.randomUUID().toString()
+            val inventory = InventoryItemEntity(
+                inventoryId = inventoryId,
+                farmerId = userId,
+                sourceAssetId = assetId,
+                sourceBatchId = asset.batchId,
+                name = title,
+                category = asset.category,
+                quantityAvailable = quantity,
+                unit = asset.unit,
+                qualityGrade = asset.healthStatus,
+                createdAt = now,
+                updatedAt = now,
+                dirty = true  // Mark for sync
+            )
+            inventoryDao.upsert(inventory)
+            Timber.d("createListingFromAsset: Inventory created $inventoryId")
+            
+            // 4. Create Market Listing
+            val listingId = UUID.randomUUID().toString()
+            val listing = MarketListingEntity(
+                listingId = listingId,
+                sellerId = userId,
+                inventoryId = inventoryId,
+                title = title,
+                description = description,
+                price = price,
+                category = asset.category,
+                imageUrls = asset.imageUrls,
+                locationName = asset.locationName,
+                latitude = asset.latitude,
+                longitude = asset.longitude,
+                minOrderQuantity = 1.0,
+                maxOrderQuantity = quantity,
+                status = "PUBLISHED",
+                isActive = true,
+                createdAt = now,
+                updatedAt = now,
+                dirty = true  // Mark for sync
+            )
+            dao.upsert(listing)
+            Timber.d("createListingFromAsset: Listing created $listingId")
+            
+            // 5. Mark source asset as LISTED
+            farmAssetDao.markAsListed(
+                assetId = assetId,
+                listingId = listingId,
+                listedAt = now,
+                updatedAt = now
+            )
+            Timber.d("createListingFromAsset: Asset marked as listed")
+            
+            Resource.Success(listingId)
+        } catch (e: Exception) {
+            Timber.e(e, "createListingFromAsset: Failed")
+            Resource.Error(e.message ?: "Failed to create listing from asset")
+        }
+    }
 }
+

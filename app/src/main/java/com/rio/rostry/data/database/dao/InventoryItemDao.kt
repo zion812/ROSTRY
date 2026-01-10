@@ -38,4 +38,10 @@ interface InventoryItemDao {
      */
     @Query("SELECT * FROM farm_inventory")
     fun getAllInventory(): Flow<List<InventoryItemEntity>>
+    
+    /**
+     * Synchronous get by ID for inventory allocation operations.
+     */
+    @Query("SELECT * FROM farm_inventory WHERE inventoryId = :id LIMIT 1")
+    suspend fun getInventoryByIdSync(id: String): InventoryItemEntity?
 }

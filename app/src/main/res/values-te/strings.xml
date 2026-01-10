@@ -93,4 +93,75 @@
     <string name="contact_support">మద్దతును సంప్రదించండి</string>
     <string name="report_issue">సమస్యను నివేదించండి</string>
     <string name="sign_in_to_view_profile">మీ ప్రొఫైల్‌ను చూడటానికి సైన్ ఇన్ చేయండి</string>
+    
+    <!-- Farm Management strings -->
+    <string name="farm_assets">వ్యవసాయ ఆస్తులు</string>
+    <string name="create_asset">ఆస్తిని సృష్టించండి</string>
+    <string name="sell_this_asset">ఈ ఆస్తిని అమ్మండి</string>
+    <string name="fixed_price">స్థిర ధర</string>
+    <string name="auction">వేలం</string>
+    <string name="reserve_price">రిజర్వ్ ధర</string>
+    <string name="buy_now_price">ఇప్పుడు కొనుగోలు ధర</string>
+    <string name="starting_bid">ప్రారంభ బిడ్</string>
+    <string name="bid_increment">బిడ్ పెరుగుదల</string>
+    <string name="health_status">ఆరోగ్య స్థితి</string>
+    <string name="vaccination_schedule">టీకా షెడ్యూల్</string>
+    <string name="livestock">పశువులు</string>
+    <string name="birds">పక్షులు</string>
+    <string name="flock">గుంపు</string>
+    <string name="single_bird">ఒక్క పక్షి</string>
+    <string name="asset_details">ఆస్తి వివరాలు</string>
+    <string name="ready_to_sell">అమ్మడానికి సిద్ధం?</string>
+    <string name="view_listing">జాబితా చూడండి</string>
+    <string name="already_listed">ఇప్పటికే జాబితాలో ఉంది</string>
+    
+    <!-- Sync Status strings -->
+    <string name="syncing">సింక్ అవుతోంది</string>
+    <string name="pending_sync">పెండింగ్ సింక్</string>
+    <string name="sync_failed">సింక్ విఫలమైంది</string>
+    <string name="last_synced">చివరిగా సింక్ చేయబడింది</string>
+    <string name="sync_now">ఇప్పుడు సింక్ చేయండి</string>
+    <string name="all_synced">అన్నీ సింక్ అయ్యాయి</string>
+    <string name="items_pending">%d అంశాలు పెండింగ్‌లో ఉన్నాయి</string>
+    <string name="sync_conflicts">సింక్ వైరుధ్యాలు</string>
+    <string name="keep_local">స్థానికంగా ఉంచండి</string>
+    <string name="keep_remote">రిమోట్ ఉంచండి</string>
+    <string name="conflict_resolution">వైరుధ్య పరిష్కారం</string>
+    
+    <!-- Evidence Order strings -->
+    <string name="upload_payment_proof">చెల్లింపు రుజువు అప్‌లోడ్ చేయండి</string>
+    <string name="enter_otp">OTP నమోదు చేయండి</string>
+    <string name="delivery_confirmed">డెలివరీ నిర్ధారించబడింది</string>
+    <string name="order_tracking">ఆర్డర్ ట్రాకింగ్</string>
+    <string name="raise_dispute">వివాదం లేవనెత్తండి</string>
+    <string name="payment_verified">చెల్లింపు ధృవీకరించబడింది</string>
+    <string name="awaiting_payment">చెల్లింపు కోసం ఎదురుచూస్తోంది</string>
+    <string name="order_dispatched">ఆర్డర్ పంపబడింది</string>
+    <string name="order_delivered">ఆర్డర్ డెలివరీ అయింది</string>
+    <string name="buyer_review">కొనుగోలుదారు సమీక్ష</string>
+    <string name="seller_reviews">విక్రేత సమీక్షలు</string>
+    
+    <!-- Digital Farm strings -->
+    <string name="digital_farm">డిజిటల్ ఫార్మ్</string>
+    <string name="breeding_pen">బ్రీడింగ్ పెన్</string>
+    <string name="feeding_area">ఆహారం ప్రాంతం</string>
+    <string name="water_station">నీటి స్టేషన్</string>
+    <string name="free_range">ఫ్రీ రేంజ్</string>
+    <string name="egg_collection">గుడ్డు సేకరణ</string>
+    <string name="coop">కూప్</string>
+    <string name="zone_capacity">జోన్ సామర్థ్యం</string>
+    <string name="birds_count">%d పక్షులు</string>
+    
+    <!-- Settings strings -->
+    <string name="settings">సెట్టింగ్‌లు</string>
+    <string name="language">భాష</string>
+    <string name="notifications">నోటిఫికేషన్లు</string>
+    <string name="theme">థీమ్</string>
+    <string name="dark_mode">డార్క్ మోడ్</string>
+    <string name="account">ఖాతా</string>
+    <string name="about">గురించి</string>
+    <string name="version">వెర్షన్</string>
+    <string name="privacy_policy">గోప్యతా విధానం</string>
+    <string name="terms_of_service">సేవా నిబంధనలు</string>
+    <string name="logout">లాగ్‌అవుట్</string>
 </resources>

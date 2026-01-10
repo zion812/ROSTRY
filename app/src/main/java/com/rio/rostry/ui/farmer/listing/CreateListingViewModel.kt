@@ -3,25 +3,20 @@ package com.rio.rostry.ui.farmer.listing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAssetEntity
-import com.rio.rostry.data.database.entity.InventoryItemEntity
-import com.rio.rostry.data.database.entity.MarketListingEntity
 import com.rio.rostry.data.repository.FarmAssetRepository
-import com.rio.rostry.data.repository.InventoryRepository
 import com.rio.rostry.data.repository.MarketListingRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
+
 
 @HiltViewModel
 class CreateListingViewModel @Inject constructor(
     private val assetRepository: FarmAssetRepository,
-    private val inventoryRepository: InventoryRepository,
     private val listingRepository: MarketListingRepository,
-    private val rbac: com.rio.rostry.domain.rbac.RbacGuard,
-    private val auth: com.google.firebase.auth.FirebaseAuth
+    private val rbac: com.rio.rostry.domain.rbac.RbacGuard
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateListingUiState())
@@ -75,12 +70,16 @@ class CreateListingViewModel @Inject constructor(
     fun submitListing() {
         val currentState = _uiState.value
         val asset = currentState.asset ?: return
-        val user = auth.currentUser ?: return
         
         timber.log.Timber.d("submitListing: Starting listing creation for asset ${asset.assetId}")
 
         if (currentState.quantityToSell <= 0 || currentState.listingPrice <= 0) {
             _uiState.update { it.copy(error = "Invalid price or quantity") }
+            return
+        }
+        
+        if (currentState.listingTitle.isBlank()) {
+            _uiState.update { it.copy(error = "Please enter a title") }
             return
         }
 
@@ -99,64 +98,31 @@ class CreateListingViewModel @Inject constructor(
                 return@launch
             }
 
-            _uiState.update { it.copy(isSubmitting = true) }
-            try {
-                // 1. Create Inventory Item
-                val inventoryId = UUID.randomUUID().toString()
-                timber.log.Timber.d("submitListing: Creating inventory item $inventoryId")
-                
-                val inventory = InventoryItemEntity(
-                    inventoryId = inventoryId,
-                    farmerId = user.uid,
-                    sourceAssetId = asset.assetId,
-                    name = currentState.listingTitle,
-                    category = asset.category,
-                    quantityAvailable = currentState.quantityToSell,
-                    unit = asset.unit,
-                    createdAt = System.currentTimeMillis()
-                )
-                
-                // Add Inventory
-                val invResult = inventoryRepository.addInventory(inventory)
-                if (invResult is Resource.Error) {
-                    throw Exception("Failed to create inventory: ${invResult.message}")
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
+            
+            // Use the new repository method for offline-first listing creation
+            val result = listingRepository.createListingFromAsset(
+                assetId = asset.assetId,
+                price = currentState.listingPrice,
+                quantity = currentState.quantityToSell,
+                title = currentState.listingTitle,
+                description = currentState.listingDescription
+            )
+            
+            when (result) {
+                is Resource.Success -> {
+                    timber.log.Timber.d("submitListing: Listing created with ID ${result.data}")
+                    _uiState.update { it.copy(isSubmitting = false, isSuccess = true) }
                 }
-                timber.log.Timber.d("submitListing: Inventory created successfully")
-
-                // 2. Create Market Listing
-                val listingId = UUID.randomUUID().toString()
-                timber.log.Timber.d("submitListing: Creating market listing $listingId")
-                
-                val listing = MarketListingEntity(
-                    listingId = listingId,
-                    sellerId = user.uid,
-                    inventoryId = inventoryId,
-                    title = currentState.listingTitle,
-                    description = currentState.listingDescription,
-                    price = currentState.listingPrice,
-                    category = asset.category,
-                    imageUrls = asset.imageUrls,
-                    status = "PUBLISHED",
-                    isActive = true,
-                    createdAt = System.currentTimeMillis()
-                )
-                
-                // Publish Listing
-                val listResult = listingRepository.publishListing(listing)
-                if (listResult is Resource.Error) {
-                    throw Exception("Failed to publish listing: ${listResult.message}")
+                is Resource.Error -> {
+                    timber.log.Timber.e("submitListing: Failed - ${result.message}")
+                    _uiState.update { 
+                        it.copy(isSubmitting = false, error = result.message ?: "Failed to create listing") 
+                    }
                 }
-                timber.log.Timber.d("submitListing: Listing published successfully")
-                
-                // 3. Mark source asset as LISTED (instead of deducting quantity)
-                val now = System.currentTimeMillis()
-                assetRepository.markAsListed(asset.assetId, listingId, now)
-                timber.log.Timber.d("submitListing: Asset marked as LISTED with listingId=$listingId")
-
-                _uiState.update { it.copy(isSubmitting = false, isSuccess = true) }
-            } catch (e: Exception) {
-                timber.log.Timber.e(e, "submitListing: Failed")
-                _uiState.update { it.copy(isSubmitting = false, error = e.message ?: "Failed to create listing") }
+                is Resource.Loading -> {
+                    // Should not reach here for suspend function
+                }
             }
         }
     }

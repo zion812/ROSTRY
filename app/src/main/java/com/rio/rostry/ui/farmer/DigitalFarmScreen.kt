@@ -668,9 +668,9 @@ private fun FarmerBirdActionSheet(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Sell, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Sell, contentDescription = null, tint = Color(0xFF3E2723), modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("List for Sale", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("List for Sale", color = Color(0xFF3E2723), fontWeight = FontWeight.Bold)
                 }
             }
         }

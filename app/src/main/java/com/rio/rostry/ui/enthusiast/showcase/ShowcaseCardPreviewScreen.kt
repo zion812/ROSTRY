@@ -323,12 +323,12 @@ fun ShowcaseCardMiniPreview(
                         Icons.Default.AutoAwesome,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = Color.Black
+                        tint = Color(0xFF3E2723)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         "Generate Card",
-                        color = Color.Black,
+                        color = Color(0xFF3E2723),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )

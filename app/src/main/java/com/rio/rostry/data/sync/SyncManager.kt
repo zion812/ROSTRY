@@ -1298,4 +1298,117 @@ class SyncManager @Inject constructor(
             return Resource.Error(e.message ?: "Sync failed")
         }
     }
+    
+    // Sync state tracking
+    @Volatile private var syncInProgress = false
+    
+    /**
+     * Check if a sync is currently in progress.
+     */
+    fun isSyncInProgress(): Boolean = syncInProgress
+    
+    /**
+     * Check if there are pending items to sync.
+     */
+    suspend fun hasPendingSync(): Boolean = withContext(Dispatchers.IO) {
+        outboxDao.getPendingPrioritized(limit = 1).isNotEmpty()
+    }
+    
+    /**
+     * Detect conflicts between local and remote data.
+     * Returns list of conflicts that need user resolution.
+     * 
+     * Note: This is a simplified implementation that looks at dirty local records.
+     * Real conflict detection happens during syncAll() and emits ConflictEvents.
+     */
+    suspend fun detectConflicts(): List<SyncConflict> = withContext(Dispatchers.IO) {
+        val conflicts = mutableListOf<SyncConflict>()
+        
+        try {
+            // Check for dirty products that may have conflicts
+            val dirtyProducts = productDao.getUpdatedSince(0L, limit = 100).filter { it.dirty }
+            for (local in dirtyProducts) {
+                // Simple heuristic: if dirty and last sync was recent, it's potentially conflicting
+                val sinceLastSync = System.currentTimeMillis() - local.updatedAt
+                if (sinceLastSync < 60_000) { // Less than 1 minute since update
+                    conflicts.add(SyncConflict(
+                        entityType = "Product",
+                        entityId = local.productId,
+                        conflictingFields = listOf("pending_sync"),
+                        localTimestamp = local.updatedAt,
+                        remoteTimestamp = 0L
+                    ))
+                }
+            }
+            
+            // Check for dirty transfers
+            val dirtyTransfers = transferDao.getUpdatedSince(0L, limit = 100).filter { it.dirty }
+            for (local in dirtyTransfers) {
+                val sinceLastSync = System.currentTimeMillis() - local.updatedAt
+                if (sinceLastSync < 60_000) {
+                    conflicts.add(SyncConflict(
+                        entityType = "Transfer",
+                        entityId = local.transferId,
+                        conflictingFields = listOf("pending_sync"),
+                        localTimestamp = local.updatedAt,
+                        remoteTimestamp = 0L
+                    ))
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to detect conflicts")
+        }
+        
+        conflicts
+    }
+    
+    /**
+     * Resolve a conflict by keeping either local or remote version.
+     */
+    suspend fun resolveConflict(
+        entityId: String,
+        entityType: String,
+        useLocal: Boolean
+    ): Unit = withContext(Dispatchers.IO) {
+        try {
+            when (entityType) {
+                "Product" -> {
+                    if (useLocal) {
+                        // Push local to remote
+                        val local = productDao.findById(entityId)
+                        if (local != null) {
+                            firestoreService.pushProducts(listOf(local))
+                            productDao.insertProducts(listOf(local.copy(dirty = false, updatedAt = System.currentTimeMillis())))
+                        }
+                    } else {
+                        // Re-fetch from remote by triggering a sync
+                        // (Full implementation would fetch individual product but SyncRemote doesn't have that method)
+                        val local = productDao.findById(entityId)
+                        if (local != null) {
+                            // Mark as not dirty to accept whatever comes from next sync
+                            productDao.insertProducts(listOf(local.copy(dirty = false)))
+                        }
+                    }
+                }
+                "Transfer" -> {
+                    if (useLocal) {
+                        val local = transferDao.getById(entityId)
+                        if (local != null) {
+                            firestoreService.pushTransfers(listOf(local))
+                            transferDao.upsert(local.copy(dirty = false, updatedAt = System.currentTimeMillis()))
+                        }
+                    } else {
+                        val local = transferDao.getById(entityId)
+                        if (local != null) {
+                            transferDao.upsert(local.copy(dirty = false))
+                        }
+                    }
+                }
+                // Add more entity types as needed
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to resolve conflict for $entityType:$entityId")
+            throw e
+        }
+    }
 }

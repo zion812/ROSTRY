@@ -106,4 +106,86 @@ class InventoryRepositoryImpl @Inject constructor(
     override fun getAllInventory(): Flow<Resource<List<InventoryItemEntity>>> {
         return dao.getAllInventory().map { Resource.Success(it) }
     }
+    
+    /**
+     * Allocate inventory for an order - reserves stock to prevent over-selling.
+     */
+    override suspend fun allocateInventory(inventoryId: String, quantity: Double): Resource<Unit> {
+        return try {
+            val item = dao.getInventoryByIdSync(inventoryId)
+                ?: return Resource.Error("Inventory not found")
+            
+            if (item.quantityAvailable < quantity) {
+                return Resource.Error("Insufficient stock: ${item.quantityAvailable} available, $quantity requested")
+            }
+            
+            val updated = item.copy(
+                quantityAvailable = item.quantityAvailable - quantity,
+                quantityReserved = (item.quantityReserved ?: 0.0) + quantity,
+                dirty = true,
+                updatedAt = System.currentTimeMillis()
+            )
+            
+            dao.updateInventory(updated)
+            Timber.d("Allocated $quantity units from inventory $inventoryId")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to allocate inventory")
+            Resource.Error(e.message ?: "Failed to allocate inventory")
+        }
+    }
+    
+    /**
+     * Release inventory back to available stock (e.g., cancelled order).
+     */
+    override suspend fun releaseInventory(inventoryId: String, quantity: Double): Resource<Unit> {
+        return try {
+            val item = dao.getInventoryByIdSync(inventoryId)
+                ?: return Resource.Error("Inventory not found")
+            
+            val reserved = item.quantityReserved ?: 0.0
+            val releaseAmount = quantity.coerceAtMost(reserved)
+            
+            val updated = item.copy(
+                quantityAvailable = item.quantityAvailable + releaseAmount,
+                quantityReserved = reserved - releaseAmount,
+                dirty = true,
+                updatedAt = System.currentTimeMillis()
+            )
+            
+            dao.updateInventory(updated)
+            Timber.d("Released $releaseAmount units back to inventory $inventoryId")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to release inventory")
+            Resource.Error(e.message ?: "Failed to release inventory")
+        }
+    }
+    
+    /**
+     * Confirm sold inventory - removes from reserved (after successful delivery).
+     * Since InventoryItemEntity doesn't track sold quantity, we just reduce reserved.
+     */
+    override suspend fun confirmSold(inventoryId: String, quantity: Double): Resource<Unit> {
+        return try {
+            val item = dao.getInventoryByIdSync(inventoryId)
+                ?: return Resource.Error("Inventory not found")
+            
+            val reserved = item.quantityReserved ?: 0.0
+            val confirmAmount = quantity.coerceAtMost(reserved)
+            
+            val updated = item.copy(
+                quantityReserved = reserved - confirmAmount,
+                dirty = true,
+                updatedAt = System.currentTimeMillis()
+            )
+            
+            dao.updateInventory(updated)
+            Timber.d("Confirmed sale of $confirmAmount units from inventory $inventoryId")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to confirm sold inventory")
+            Resource.Error(e.message ?: "Failed to confirm sold")
+        }
+    }
 }

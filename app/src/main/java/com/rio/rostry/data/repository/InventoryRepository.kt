@@ -33,4 +33,19 @@ interface InventoryRepository {
      * where we need to map inventory data (quantity, unit) to product entities.
      */
     fun getAllInventory(): Flow<Resource<List<InventoryItemEntity>>>
+    
+    /**
+     * Allocate inventory for an order - reserves stock to prevent over-selling.
+     */
+    suspend fun allocateInventory(inventoryId: String, quantity: Double): Resource<Unit>
+    
+    /**
+     * Release inventory back to available stock (e.g., cancelled order).
+     */
+    suspend fun releaseInventory(inventoryId: String, quantity: Double): Resource<Unit>
+    
+    /**
+     * Confirm sold inventory - removes from reserved (after successful delivery).
+     */
+    suspend fun confirmSold(inventoryId: String, quantity: Double): Resource<Unit>
 }
