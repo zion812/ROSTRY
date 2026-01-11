@@ -74,19 +74,12 @@ fun EnthusiastDashboardTabs(
 
 @Composable
 private fun OverviewTab(onOpenReports: () -> Unit, onOpenFeed: () -> Unit, onOpenEggCollection: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
-            onOpenReports = onOpenReports,
-            onOpenFeed = onOpenFeed,
-            onOpenEggCollection = onOpenEggCollection
-        )
-    }
+    // EnthusiastDashboardScreen already contains a LazyColumn, so we must NOT wrap it in verticalScroll
+    com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
+        onOpenReports = onOpenReports,
+        onOpenFeed = onOpenFeed,
+        onOpenEggCollection = onOpenEggCollection
+    )
 }
 
 @Composable
