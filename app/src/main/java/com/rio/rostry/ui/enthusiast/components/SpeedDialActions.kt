@@ -85,10 +85,10 @@ data class QuickActionItem(
 )
 
 /**
- * Apple Shortcuts-inspired floating action dock with radial layout.
+ * Apple Shortcuts-inspired floating action dock with horizontal layout.
  * Features:
  * - Central FAB with expand/collapse animation
- * - Radial action buttons with 90° spacing
+ * - Horizontal action buttons in a row
  * - Pulsing badges for pending tasks
  * - Long-press quick actions menu
  */
@@ -117,32 +117,23 @@ fun SpeedDialActions(
         label = "fabScale"
     )
     
-    Box(
+    // Horizontal Row layout for FABs
+    androidx.compose.foundation.layout.Row(
         modifier = modifier,
-        contentAlignment = Alignment.BottomEnd
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Action buttons (positioned radially)
-        SpeedDialAction.values().forEachIndexed { index, action ->
-            val angle = -90.0 - (index * 45.0) // Start from top, go clockwise
-            val distance by animateDpAsState(
-                targetValue = if (expanded) 80.dp else 0.dp,
-                animationSpec = tween(200 + index * 50),
-                label = "actionDistance$index"
-            )
-            
-            val offsetX = (distance.value * cos(Math.toRadians(angle))).dp
-            val offsetY = (distance.value * sin(Math.toRadians(angle))).dp
-            
-            AnimatedVisibility(
-                visible = expanded,
-                enter = scaleIn(animationSpec = tween(200, delayMillis = index * 30)) + 
-                        fadeIn(animationSpec = tween(150, delayMillis = index * 30)),
-                exit = scaleOut(animationSpec = tween(150)) + fadeOut(animationSpec = tween(100))
+        // Action buttons (only shown when expanded, appear to the LEFT of main FAB)
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(animationSpec = tween(150)) + scaleIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(100)) + scaleOut(animationSpec = tween(150))
+        ) {
+            androidx.compose.foundation.layout.Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(offsetX.roundToPx(), offsetY.roundToPx()) }
-                ) {
+                SpeedDialAction.values().forEach { action ->
                     val pendingCount = pendingTasks[action] ?: 0
                     
                     Box(
@@ -208,7 +199,7 @@ fun SpeedDialActions(
             }
         }
         
-        // Central FAB
+        // Central FAB (always on the right)
         FloatingActionButton(
             onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
