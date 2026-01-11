@@ -1487,6 +1487,90 @@ private fun RoleNavGraph(
             )
         }
 
+        // ============ Missing Enthusiast Routes (Deep Audit Fix) ============
+        
+        // Pedigree Screen - View lineage/ancestry of a bird
+        composable(
+            route = Routes.EnthusiastNav.PEDIGREE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            if (productId.isBlank()) {
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.pedigree.PedigreeScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onBirdClick = { id -> navController.navigate(Routes.Builders.productDetails(id)) }
+                )
+            }
+        }
+        
+        // Showcase Card Preview Screen
+        composable(
+            route = Routes.EnthusiastNav.SHOWCASE_CARD,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            if (productId.isBlank()) {
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.showcase.ShowcaseCardPreviewScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Transfer Code Screen
+        composable(
+            route = Routes.EnthusiastNav.TRANSFER_CODE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            if (productId.isBlank()) {
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.transfer.TransferCodeScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Claim Transfer Screen
+        composable(Routes.EnthusiastNav.CLAIM_TRANSFER) {
+            com.rio.rostry.ui.enthusiast.transfer.ClaimTransferScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onClaimSuccess = { 
+                    navController.popBackStack(Routes.EnthusiastNav.HOME, inclusive = false)
+                }
+            )
+        }
+        
+        // Show Log Screen
+        composable(
+            route = Routes.EnthusiastNav.SHOW_LOG,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            if (productId.isBlank()) {
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
+                    productId = productId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Hall of Fame Screen
+        composable(Routes.EnthusiastNav.HALL_OF_FAME) {
+            com.rio.rostry.ui.enthusiast.halloffame.HallOfFameScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onBirdClick = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
+        // ============ END: Missing Enthusiast Routes ============
+
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onVerifyFarmerLocation = { navController.navigate(Routes.VERIFY_FARMER_LOCATION) },
