@@ -1569,6 +1569,48 @@ private fun RoleNavGraph(
             )
         }
         
+        // ============ Hatchability Routes ============
+        
+        // Hatchability Tracker - Dashboard for all breeding pairs
+        composable(Routes.Hatchability.TRACKER) {
+            com.rio.rostry.ui.enthusiast.hatchability.HatchabilityTrackerScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onPairClick = { pairId -> navController.navigate(Routes.Hatchability.analysis(pairId)) }
+            )
+        }
+        
+        // Hatchability Analysis - Detailed stats for a specific pair
+        composable(
+            route = Routes.Hatchability.ANALYSIS,
+            arguments = listOf(navArgument("pairId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val pairId = backStackEntry.arguments?.getString("pairId") ?: ""
+            if (pairId.isBlank()) {
+                ErrorScreen(message = "Invalid pair ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.hatchability.HatchabilityAnalysisScreen(
+                    pairId = pairId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Egg Tray - Visual grid of eggs with status
+        composable(
+            route = Routes.Hatchability.EGG_TRAY,
+            arguments = listOf(navArgument("collectionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val collectionId = backStackEntry.arguments?.getString("collectionId") ?: ""
+            if (collectionId.isBlank()) {
+                ErrorScreen(message = "Invalid collection ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.hatchability.EggTrayScreen(
+                    collectionId = collectionId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
         // ============ END: Missing Enthusiast Routes ============
 
         composable(Routes.PROFILE) {
