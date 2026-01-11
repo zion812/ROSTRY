@@ -445,6 +445,12 @@ object Routes {
             Hatchability.TRACKER,
             Hatchability.ANALYSIS,
             Hatchability.EGG_TRAY,
+            // Digital Farm & Premium Features
+            EnthusiastNav.DIGITAL_FARM,
+            EnthusiastNav.ROOSTER_CARD,
+            EnthusiastNav.BREEDING_CALCULATOR,
+            EnthusiastNav.PERFORMANCE_JOURNAL,
+            EnthusiastNav.VIRTUAL_ARENA,
             // Settings
             Settings.BACKUP_RESTORE
         )
