@@ -91,6 +91,15 @@ import com.rio.rostry.ui.enthusiast.components.HeroChampionBanner
 import com.rio.rostry.ui.enthusiast.components.SpeedDialActions
 import com.rio.rostry.ui.enthusiast.components.SpeedDialAction
 import com.rio.rostry.ui.enthusiast.components.LiveActivityTicker
+import com.rio.rostry.ui.enthusiast.components.CollapsibleSection
+import com.rio.rostry.ui.enthusiast.components.ContextualActionBar
+import com.rio.rostry.ui.enthusiast.components.QuickAction
+import com.rio.rostry.ui.enthusiast.components.EnthusiastQuickActions
+import com.rio.rostry.ui.enthusiast.components.QuickStatsRow
+import com.rio.rostry.ui.enthusiast.components.QuickStat
+import com.rio.rostry.ui.enthusiast.components.EnthusiastStats
+import com.rio.rostry.ui.enthusiast.components.TodaysFocusCard
+import com.rio.rostry.ui.enthusiast.components.FocusPriority
 import com.rio.rostry.ui.theme.Dimens
 import com.rio.rostry.ui.components.EnthusiastAuraBackground
 import com.rio.rostry.ui.components.PremiumCard
@@ -241,317 +250,231 @@ fun EnthusiastHomeScreen(
             )
         }
 
-        // Performance Overview
-        Text("Performance Overview", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = Dimens.space_xl))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
-            item {
-                EnthusiastKpiCard(
-                    title = "Breeding Success",
-                    value = "${(ui.dashboard.breedingSuccessRate * 100).toInt()}%",
-                    icon = Icons.Filled.Favorite,
-                    onClick = onOpenAnalytics
-                )
-            }
-            item {
-                EnthusiastKpiCard(
-                    title = "Transfers",
-                    value = ui.dashboard.transfers.toString(),
-                    icon = Icons.Filled.Send,
-                    onClick = onOpenTransfers
-                )
-            }
-            item {
-                EnthusiastKpiCard(
-                    title = "Trust Score",
-                    value = "${trustScore.toInt()}%",
-                    icon = Icons.Filled.Verified,
-                    onClick = onOpenAnalytics
-                )
-            }
-        }
-        if (ui.topBloodlines.isNotEmpty()) {
-            EnthusiastActionCard(
-                title = "Top Bloodlines",
-                icon = Icons.Filled.Star,
-                content = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ui.topBloodlines.forEach { (id, eggs) ->
-                            AssistChip(onClick = { onOpenTraceability(id) }, label = { Text("${id.take(8)}… ($eggs)") })
-                        }
-                    }
-                },
-                actions = {}
+        // Today's Focus Card - Shows most urgent item
+        val hatchingDueCount = ui.hatchingDueCount
+        if (hatchingDueCount > 0) {
+            TodaysFocusCard(
+                title = "$hatchingDueCount Eggs Ready to Hatch",
+                subtitle = "Due within 7 days",
+                icon = Icons.Filled.EggAlt,
+                priority = FocusPriority.URGENT,
+                ctaText = "Check Now",
+                onCta = onOpenBreeding
+            )
+        } else if (ui.sickBirdsCount > 0) {
+            TodaysFocusCard(
+                title = "${ui.sickBirdsCount} Birds Need Attention",
+                subtitle = "Health check required",
+                icon = Icons.Filled.Warning,
+                priority = FocusPriority.IMPORTANT,
+                ctaText = "Review Now",
+                onCta = onOpenQuarantine
             )
         }
-        // Quick Actions
-        Text("Quick Actions", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = Dimens.space_xl))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
-            OutlinedButton(onClick = onOpenAnalytics) {
-                Icon(Icons.Filled.TrendingUp, contentDescription = null)
-                Text("Analytics")
-            }
-            OutlinedButton(onClick = onOpenPerformanceAnalytics) {
-                Icon(Icons.Filled.Favorite, contentDescription = null)
-                Text("Performance")
-            }
-            OutlinedButton(onClick = onOpenFinancialAnalytics) {
-                Icon(Icons.Filled.TrendingUp, contentDescription = null)
-                Text("Financial")
-            }
-            OutlinedButton(onClick = onOpenNotifications) {
-                Icon(Icons.Filled.Warning, contentDescription = null)
-                Text("Notifications")
-            }
-            OutlinedButton(onClick = onOpenReports) {
-                Icon(Icons.Filled.TrendingUp, contentDescription = null)
-                Text("Reports")
-            }
-            OutlinedButton(onClick = onOpenMonitoringDashboard) {
-                Icon(Icons.Filled.TrendingUp, contentDescription = null)
-                Text("Monitoring")
+
+        // Quick Stats Row - Horizontal scrollable KPIs
+        QuickStatsRow(
+            stats = listOf(
+                EnthusiastStats.breedingSuccess(ui.dashboard.breedingSuccessRate.toFloat()),
+                EnthusiastStats.transfers(ui.dashboard.transfers.toInt()),
+                EnthusiastStats.trustScore(trustScore)
+            ),
+            onStatClick = { index ->
+                when (index) {
+                    0 -> onOpenAnalytics()
+                    1 -> onOpenTransfers()
+                    2 -> onOpenAnalytics()
+                }
+            },
+            modifier = Modifier.padding(vertical = Dimens.space_medium)
+        )
+
+        // Top Bloodlines (simplified)
+        if (ui.topBloodlines.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Top Bloodlines:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ui.topBloodlines.take(3).forEach { (id, eggs) ->
+                    AssistChip(
+                        onClick = { onOpenTraceability(id) },
+                        label = { Text("${id.take(6)}…") }
+                    )
+                }
             }
         }
 
-        // Breeding Management
-        Text("Breeding Management", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = Dimens.space_xl))
+        // Contextual Action Bar - Smart 3 actions based on state
+        ContextualActionBar(
+            actions = buildList {
+                // Show eggs action if eggs were collected today or need logging
+                add(EnthusiastQuickActions.LOG_EGGS.copy(badgeCount = pendingTaskCounts["eggs"] ?: 0))
+                // Show vaccination if due
+                add(EnthusiastQuickActions.VACCINATION.copy(badgeCount = pendingTaskCounts["vaccination"] ?: 0))
+                // Show breeding if pairs need attention
+                add(EnthusiastQuickActions.BREEDING.copy(badgeCount = pendingTaskCounts["hatching"] ?: 0))
+            },
+            onActionClick = { actionId ->
+                when (actionId) {
+                    "log_eggs" -> showDialog = true
+                    "vaccination" -> onOpenVaccination()
+                    "breeding" -> onOpenBreeding()
+                    "analytics" -> onOpenAnalytics()
+                    "add_bird" -> onNavigateToAddBird()
+                }
+            },
+            modifier = Modifier.padding(vertical = Dimens.space_medium)
+        )
 
-        EnthusiastActionCard(
-            title = "Pairs to Mate",
+        // Breeding Management - Collapsed by default for cleaner UI
+        CollapsibleSection(
+            title = "Breeding",
             icon = Icons.Filled.Favorite,
-            count = ui.pairsToMateCount,
-            description = "${ui.pairsToMateCount} pairs need attention",
-            actions = {
-                OutlinedButton(onClick = onOpenBreeding) { Text("View Pairs") }
-                if (ui.pairsToMateCount == 0) {
-                    Button(onClick = onOpenBreeding) { Text("Create Pair") }
+            badgeCount = ui.pairsToMateCount + ui.hatchingDueCount,
+            initiallyExpanded = ui.pairsToMateCount > 0 || ui.hatchingDueCount > 0
+        ) {
+            // Simple summary row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${ui.pairsToMateCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Pairs", style = MaterialTheme.typography.labelSmall)
                 }
-                OutlinedButton(onClick = onOpenBreedingCalculator) { Text("Calculator") }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${ui.hatchingDueCount}", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Hatching", style = MaterialTheme.typography.labelSmall)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${ui.eggsCollectedToday}", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Eggs", style = MaterialTheme.typography.labelSmall)
+                }
             }
-        )
+            
+            Spacer(Modifier.size(Dimens.space_medium))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenBreeding, modifier = Modifier.weight(1f)) { Text("Manage") }
+                Button(onClick = { showDialog = true }, modifier = Modifier.weight(1f)) { Text("Log Eggs") }
+            }
+        }
         
-        // Monitoring & Journal
-        EnthusiastActionCard(
+        // Monitoring - Collapsed by default
+        CollapsibleSection(
             title = "Monitoring",
-            icon = Icons.Filled.Timer, 
-            count = ui.sickBirdsCount,
-            description = if (ui.sickBirdsCount > 0) "${ui.sickBirdsCount} birds need care" else "All systems normal",
-             actions = {
-                if (ui.sickBirdsCount > 0) {
-                    Button(onClick = onOpenQuarantine, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                        Text("Review Sick Birds")
-                    }
+            icon = Icons.Filled.Timer,
+            badgeCount = ui.sickBirdsCount,
+            initiallyExpanded = ui.sickBirdsCount > 0
+        ) {
+            if (ui.sickBirdsCount > 0) {
+                Button(
+                    onClick = onOpenQuarantine,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("${ui.sickBirdsCount} Birds Need Care")
                 }
-                OutlinedButton(onClick = onOpenPerformanceJournal) {
-                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Daily Journal")
-                }
-             }
-        )
-
-        EnthusiastActionCard(
-            title = "Virtual Arena",
-            icon = Icons.Filled.EmojiEvents,
-            count = 3, // Mock active competitions
-            description = "3 Active Competitions",
-            actions = {
-                Button(onClick = onOpenVirtualArena) { Text("Enter Arena") }
+            } else {
+                Text("✓ All birds healthy", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        )
-
-        EnthusiastActionCard(
-            title = "Eggs Collected Today",
-            icon = Icons.Filled.EggAlt,
-            count = ui.eggsCollectedToday,
-            description = "${ui.eggsCollectedToday} eggs logged",
-            actions = {
-                OutlinedButton(onClick = { showDialog = true }) { Text("Log Collection") }
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenPerformanceJournal, modifier = Modifier.weight(1f)) { Text("Journal") }
+                OutlinedButton(onClick = onOpenVirtualArena, modifier = Modifier.weight(1f)) { Text("Arena") }
             }
-        )
+        }
+
+        // Dialog for egg collection
         if (showDialog) {
-            // Hoist dialog inputs so both text and buttons can access them
             var selectedPairId by rememberSaveable { mutableStateOf(activePairs.firstOrNull()?.pairId ?: "") }
             var countText by rememberSaveable { mutableStateOf("") }
             var grade by rememberSaveable { mutableStateOf("A") }
-            var weightText by rememberSaveable { mutableStateOf("") }
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { showDialog = false },
-                title = { Text("Quick Egg Collection") },
+                title = { Text("Log Eggs") },
                 text = {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Pair selector (simple chips from active pairs)
-                        if (activePairs.isEmpty()) {
-                            Text("No active pairs found")
-                        } else {
+                        if (activePairs.isNotEmpty()) {
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                                 activePairs.take(4).forEach { p ->
                                     AssistChip(onClick = { selectedPairId = p.pairId }, label = { Text(p.pairId.take(6)) })
                                 }
                             }
                         }
-                        OutlinedTextField(value = selectedPairId, onValueChange = { selectedPairId = it }, label = { Text("Pair ID") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = countText, onValueChange = { countText = it.filter { ch -> ch.isDigit() } }, label = { Text("Egg count") }, modifier = Modifier.fillMaxWidth())
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(value = grade, onValueChange = { grade = it.take(2).uppercase() }, label = { Text("Grade (A/B/C)") }, modifier = Modifier.weight(1f))
-                            OutlinedTextField(value = weightText, onValueChange = { weightText = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Weight (g, optional)") }, modifier = Modifier.weight(1f))
-                        }
-                        quickStatus?.let { msg -> Text(msg) }
+                        OutlinedTextField(value = countText, onValueChange = { countText = it.filter { ch -> ch.isDigit() } }, label = { Text("Count") }, modifier = Modifier.fillMaxWidth())
                     }
                 },
                 confirmButton = {
                     Button(onClick = {
                         val count = countText.toIntOrNull() ?: 0
-                        val weight = weightText.toDoubleOrNull()
-                        vm.quickCollectEggs(selectedPairId.trim(), count, grade.ifBlank { "A" }, weight)
+                        vm.quickCollectEggs(selectedPairId.trim(), count, grade.ifBlank { "A" }, null)
                         showDialog = false
                     }) { Text("Save") }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDialog = false }) { Text("Cancel") }
-                },
+                }
             )
         }
 
-        EnthusiastActionCard(
-            title = "Incubation Timers",
-            icon = Icons.Filled.Timer,
-            count = ui.incubationTimers.size,
-            description = if (ui.incubationTimers.isEmpty()) "No active batches" else null,
-            actions = {
-                OutlinedButton(onClick = onOpenBreeding) { Text("View Batches") }
-                if (ui.incubationTimers.isEmpty()) {
-                    Button(onClick = onNavigateToAddBatch) { Text("Start Batch") }
-                }
-            },
-            content = {
-                if (ui.incubationTimers.isNotEmpty()) {
-                    Column {
-                        ui.incubationTimers.take(5).forEach { t ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text(t.name, modifier = Modifier.weight(1f))
-                                val remaining = (t.expectedHatchAt ?: 0L) - now
-                                val text = if (remaining > 0) formatCountdown(remaining) else "–"
-                                Text("ETA: $text")
-                            }
-                        }
-                    }
+        // Transfers - Simple card if pending
+        if (ui.pendingTransfersCount > 0 || ui.disputedTransfersCount > 0) {
+            CollapsibleSection(
+                title = "Transfers",
+                icon = Icons.Filled.Send,
+                badgeCount = ui.pendingTransfersCount + ui.disputedTransfersCount,
+                initiallyExpanded = ui.disputedTransfersCount > 0
+            ) {
+                Text("${ui.pendingTransfersCount} pending • ${ui.disputedTransfersCount} disputed", 
+                    style = MaterialTheme.typography.bodyMedium)
+                Button(onClick = onOpenTransfers, modifier = Modifier.fillMaxWidth()) { 
+                    Text("Review Transfers") 
                 }
             }
-        )
+        }
 
-        EnthusiastActionCard(
-            title = "Hatching Due (7 days)",
-            icon = Icons.Filled.EggAlt,
-            count = ui.hatchingDueCount,
-            description = "${ui.hatchingDueCount} batches due soon",
-            badge = if (ui.hatchingDueCount > 0) ui.hatchingDueCount to MaterialTheme.colorScheme.tertiary else null,
-            actions = {
-                OutlinedButton(onClick = onOpenBreeding) { Text("View Schedule") }
-                if (ui.hatchingDueCount == 0) {
-                    Button(onClick = onNavigateToAddBatch) { Text("Start Batch") }
-                }
-            }
-        )
-
-        EnthusiastActionCard(
-            title = "Weekly Growth Updates",
-            icon = Icons.Filled.TrendingUp,
-            count = ui.weeklyGrowthUpdatesCount,
-            description = "${ui.weeklyGrowthUpdatesCount} growth records this week",
-            actions = {
-                OutlinedButton(onClick = onOpenMonitoringDashboard) { Text("Log Growth") }
-            }
-        )
-
-        EnthusiastActionCard(
-            title = "Breeder Status Checks",
-            icon = Icons.Filled.Favorite,
-            count = ui.breederStatusChecks.size,
-            description = if (ui.breederStatusChecks.isEmpty()) "No breeder updates" else null,
-            actions = {
-                OutlinedButton(onClick = onOpenBreeding) { Text("View Details") }
-            },
-            content = {
-                if (ui.breederStatusChecks.isNotEmpty()) {
-                    Column {
-                        ui.breederStatusChecks.take(5).forEach { s ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text("Pair ${s.pairId}", modifier = Modifier.weight(1f))
-                                Text("${"%.0f".format(s.hatchSuccessRate * 100)}%")
-                            }
-                        }
-                    }
-                }
-            }
-        )
-
-        EnthusiastActionCard(
-            title = "Transfers",
-            icon = Icons.Filled.Send,
-            count = ui.pendingTransfersCount + ui.disputedTransfersCount,
-            description = "Pending: ${ui.pendingTransfersCount} • Disputed: ${ui.disputedTransfersCount}",
-            badge = if (ui.disputedTransfersCount > 0) ui.disputedTransfersCount to MaterialTheme.colorScheme.error else null,
-            actions = {
-                OutlinedButton(onClick = onOpenTransfers) { Text("Verify") }
-                Button(onClick = onOpenTransfers) { Text("New Transfer") }
-            }
-        )
-
-        EnthusiastActionCard(
-            title = "Events Today",
-            icon = Icons.Filled.Event,
-            count = ui.eventsToday.size,
-            description = if (ui.eventsToday.isEmpty()) "No events today" else null,
-            actions = {},
-            content = {
-                if (ui.eventsToday.isNotEmpty()) {
-                    Column {
-                        ui.eventsToday.take(5).forEach { e ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text(e.title, modifier = Modifier.weight(1f))
-                                Text("Starts: ${e.startTime}")
-                            }
-                        }
-                    }
-                }
-            }
-        )
-
-        EnthusiastAlertCard(
-            alerts = ui.alerts,
-            onDismiss = { vm.dismissAllAlerts() }
-        )
-
-        // Farm Operations
-        Text("Farm Operations", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = Dimens.space_xl))
-
-        EnthusiastActionCard(
-            title = "Flock Board",
+        // Farm Operations - Collapsed always-available section
+        CollapsibleSection(
+            title = "Farm",
             icon = Icons.Filled.Agriculture,
-            description = "Active birds: ${flock.activeBirds} • Breeding pairs: ${flock.breedingPairs} • Chicks: ${flock.chicks}\nVaccinations due: ${flock.vaccinationsDue} • Recent mortality: ${flock.recentMortality}",
-            actions = {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.space_medium)) {
-                    OutlinedButton(onClick = onOpenVaccination) { Text("Vaccination") }
-                    OutlinedButton(onClick = onOpenMortality) { Text("Mortality") }
-                    OutlinedButton(onClick = onOpenQuarantine) { Text("Quarantine") }
-                    OutlinedButton(onClick = onOpenBreeding) { Text("Breeding") }
+            badgeCount = flock.vaccinationsDue
+        ) {
+            // Simple stats row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${flock.activeBirds}", style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Birds", style = MaterialTheme.typography.labelSmall)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${flock.breedingPairs}", style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Pairs", style = MaterialTheme.typography.labelSmall)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${flock.chicks}", style = MaterialTheme.typography.titleLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Chicks", style = MaterialTheme.typography.labelSmall)
                 }
             }
-        )
+            
+            Spacer(Modifier.size(Dimens.space_medium))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenVaccination, modifier = Modifier.weight(1f)) { Text("Vaccinate") }
+                OutlinedButton(onClick = onOpenMortality, modifier = Modifier.weight(1f)) { Text("Mortality") }
+            }
+        }
 
-        EnthusiastActionCard(
-            title = "Top Sellers & Market Insights",
-            icon = Icons.Filled.TrendingUp,
-            description = "Trending breed: Malay • Avg price ↑ 12% WoW",
-            actions = {},
-            content = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    var id by rememberSaveable { mutableStateOf("") }
-                    OutlinedTextField(value = id, onValueChange = { id = it }, label = { Text("Trace ID") })
-                    Button(onClick = { if (id.isNotBlank()) onOpenTraceability(id) }) { Text("Trace") }
-                }
-            }
-                )
+        // Alerts - Only show if there are any
+        if (ui.alerts.isNotEmpty()) {
+            EnthusiastAlertCard(
+                alerts = ui.alerts,
+                onDismiss = { vm.dismissAllAlerts() }
+            )
+        }
             }
         }
     }
