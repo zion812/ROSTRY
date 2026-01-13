@@ -231,23 +231,9 @@ class RoleUpgradeViewModel @Inject constructor(
         val upgradeType = currentState.upgradeType ?: return
 
         viewModelScope.launch {
-            // For FARMER to ENTHUSIAST, we trigger migration
-            if (currentState.upgradeType == UpgradeType.FARMER_TO_ENTHUSIAST) {
-                val user = currentState.user ?: return@launch
-                _uiState.value = _uiState.value.copy(isUpgrading = true)
-                when (val result = userRepository.initiateRoleMigration(user.userId)) {
-                    is Resource.Success -> {
-                        // Status will be tracked via observation
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = _uiState.value.copy(isUpgrading = false, error = result.message)
-                    }
-                    else -> {}
-                }
-            } else {
-                // Navigate to verification flow for other types
-                _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
-            }
+            // Navigate to verification flow for all upgrade types including FARMER_TO_ENTHUSIAST
+            // The verification screen will handle the actual upgrade after admin approval
+            _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
         }
     }
 

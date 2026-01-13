@@ -256,6 +256,10 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindEnthusiastVerificationRepository(impl: com.rio.rostry.data.repository.EnthusiastVerificationRepositoryImpl): com.rio.rostry.data.repository.EnthusiastVerificationRepository
+
+    @Binds
+    @Singleton
     abstract fun bindFarmAssetRepository(impl: com.rio.rostry.data.repository.FarmAssetRepositoryImpl): com.rio.rostry.data.repository.FarmAssetRepository
 
     @Binds

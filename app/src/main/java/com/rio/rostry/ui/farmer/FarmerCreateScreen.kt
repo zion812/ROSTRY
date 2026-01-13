@@ -404,177 +404,201 @@ private fun BasicInfoStep(
             )
         }
         
-        // Price Type
-        Text("Price Type", style = MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = state.priceType == PriceType.Fixed,
-                onClick = { onUpdate { it.copy(priceType = PriceType.Fixed) } },
-                label = { Text("Fixed Price") }
-            )
-            FilterChip(
-                selected = state.priceType == PriceType.Auction,
-                onClick = { onUpdate { it.copy(priceType = PriceType.Auction) } },
-                label = { Text("Auction") }
-            )
-        }
-        
-        // Price
-        if (state.priceType == PriceType.Fixed) {
-            OutlinedTextField(
-                value = state.price?.toString() ?: "",
-                onValueChange = { newPrice -> onUpdate { it.copy(price = newPrice.toDoubleOrNull()) } },
-                label = { Text("Price (₹) *") },
-                isError = errors.containsKey("price"),
-                supportingText = errors["price"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            OutlinedTextField(
-                value = state.auctionStartPrice?.toString() ?: "",
-                onValueChange = { newPrice -> onUpdate { it.copy(auctionStartPrice = newPrice.toDoubleOrNull()) } },
-                label = { Text("Starting Price (₹) *") },
-                isError = errors.containsKey("auctionStartPrice"),
-                supportingText = errors["auctionStartPrice"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-        
-        // Dates with date pickers
-        var showFromDatePicker by remember { mutableStateOf(false) }
-        var showToDatePicker by remember { mutableStateOf(false) }
-        
-        OutlinedTextField(
-            value = state.availableFrom,
-            onValueChange = { },
-            label = { Text("Available From (yyyy-mm-dd) *") },
-            readOnly = true,
-            isError = errors.containsKey("availableFrom"),
-            supportingText = errors["availableFrom"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-            trailingIcon = {
-                IconButton(onClick = { showFromDatePicker = true }) {
-                    Icon(Icons.Filled.CalendarToday, "Pick date")
-                }
-            },
-            modifier = Modifier.fillMaxWidth().clickable { showFromDatePicker = true }
-        )
-        
-        OutlinedTextField(
-            value = state.availableTo,
-            onValueChange = { },
-            label = { Text("Available To (yyyy-mm-dd) *") },
-            readOnly = true,
-            isError = errors.containsKey("availableTo"),
-            supportingText = errors["availableTo"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-            trailingIcon = {
-                IconButton(onClick = { showToDatePicker = true }) {
-                    Icon(Icons.Filled.CalendarToday, "Pick date")
-                }
-            },
-            modifier = Modifier.fillMaxWidth().clickable { showToDatePicker = true }
-        )
-        
-        // Date picker dialogs
-        if (showFromDatePicker) {
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = System.currentTimeMillis()
-            )
-            DatePickerDialog(
-                onDismissRequest = { showFromDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                            val date = formatter.format(java.util.Date(millis))
-                            onUpdate { it.copy(availableFrom = date) }
-                        }
-                        showFromDatePicker = false
-                    }) {
-                        Text("OK")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showFromDatePicker = false }) {
-                        Text("Cancel")
-                    }
-                }
-            ) {
-                DatePicker(state = datePickerState)
-            }
-        }
-
-        if (showToDatePicker) {
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = System.currentTimeMillis()
-            )
-            DatePickerDialog(
-                onDismissRequest = { showToDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                            val date = formatter.format(java.util.Date(millis))
-                            onUpdate { it.copy(availableTo = date) }
-                        }
-                        showToDatePicker = false
-                    }) {
-                        Text("OK")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showToDatePicker = false }) {
-                        Text("Cancel")
-                    }
-                }
-            ) {
-                DatePicker(state = datePickerState)
-            }
-        }
-
-        // Delivery Options
-        Divider(modifier = Modifier.padding(top = 16.dp))
-        Text("Delivery Options", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
-
-        // Delivery options chips
-        val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            allDeliveryOptions.forEach { option ->
-                FilterChip(
-                    selected = state.deliveryOptions.contains(option),
-                    onClick = {
-                        val updatedOptions = if (state.deliveryOptions.contains(option)) {
-                            state.deliveryOptions - option
-                        } else {
-                            state.deliveryOptions + option
-                        }
-                        onUpdate { it.copy(deliveryOptions = updatedOptions) }
-                    },
-                    label = { Text(option.replace("_", " ")) }
+        // List for Sale Toggle (NEW)
+        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("List for Sale?", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Enable to set price and availability dates",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Switch(
+                checked = state.listForSale,
+                onCheckedChange = { listForSale -> onUpdate { it.copy(listForSale = listForSale) } }
+            )
         }
+        
+        // Pricing Section - Only shown when listing for sale
+        if (state.listForSale) {
+            // Price Type
+            Text("Price Type", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.priceType == PriceType.Fixed,
+                    onClick = { onUpdate { it.copy(priceType = PriceType.Fixed) } },
+                    label = { Text("Fixed Price") }
+                )
+                FilterChip(
+                    selected = state.priceType == PriceType.Auction,
+                    onClick = { onUpdate { it.copy(priceType = PriceType.Auction) } },
+                    label = { Text("Auction") }
+                )
+            }
+        
+            // Price
+            if (state.priceType == PriceType.Fixed) {
+                OutlinedTextField(
+                    value = state.price?.toString() ?: "",
+                    onValueChange = { newPrice -> onUpdate { it.copy(price = newPrice.toDoubleOrNull()) } },
+                    label = { Text("Price (₹) *") },
+                    isError = errors.containsKey("price"),
+                    supportingText = errors["price"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = state.auctionStartPrice?.toString() ?: "",
+                    onValueChange = { newPrice -> onUpdate { it.copy(auctionStartPrice = newPrice.toDoubleOrNull()) } },
+                    label = { Text("Starting Price (₹) *") },
+                    isError = errors.containsKey("auctionStartPrice"),
+                    supportingText = errors["auctionStartPrice"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        
+            // Dates with date pickers
+            var showFromDatePicker by remember { mutableStateOf(false) }
+            var showToDatePicker by remember { mutableStateOf(false) }
+            
+            OutlinedTextField(
+                value = state.availableFrom,
+                onValueChange = { },
+                label = { Text("Available From (yyyy-mm-dd) *") },
+                readOnly = true,
+                isError = errors.containsKey("availableFrom"),
+                supportingText = errors["availableFrom"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                trailingIcon = {
+                    IconButton(onClick = { showFromDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarToday, "Pick date")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().clickable { showFromDatePicker = true }
+            )
+            
+            OutlinedTextField(
+                value = state.availableTo,
+                onValueChange = { },
+                label = { Text("Available To (yyyy-mm-dd) *") },
+                readOnly = true,
+                isError = errors.containsKey("availableTo"),
+                supportingText = errors["availableTo"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                trailingIcon = {
+                    IconButton(onClick = { showToDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarToday, "Pick date")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().clickable { showToDatePicker = true }
+            )
+            
+            // Date picker dialogs
+            if (showFromDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = System.currentTimeMillis()
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showFromDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                val date = formatter.format(java.util.Date(millis))
+                                onUpdate { it.copy(availableFrom = date) }
+                            }
+                            showFromDatePicker = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showFromDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
 
-        // Delivery cost
-        OutlinedTextField(
-            value = state.deliveryCost?.toString() ?: "",
-            onValueChange = { value ->
-                onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
-            },
-            label = { Text("Delivery Cost (₹)") },
-            placeholder = { Text("0.00") },
-            modifier = Modifier.fillMaxWidth()
-        )
+            if (showToDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = System.currentTimeMillis()
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showToDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                val date = formatter.format(java.util.Date(millis))
+                                onUpdate { it.copy(availableTo = date) }
+                            }
+                            showToDatePicker = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showToDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
 
-        // Lead time days
-        OutlinedTextField(
-            value = state.leadTimeDays?.toString() ?: "",
-            onValueChange = { value ->
-                onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
-            },
-            label = { Text("Lead Time (days)") },
-            placeholder = { Text("Number of days notice required") },
-            modifier = Modifier.fillMaxWidth()
-        )
+            // Delivery Options
+            Divider(modifier = Modifier.padding(top = 16.dp))
+            Text("Delivery Options", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
+
+            // Delivery options chips
+            val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                allDeliveryOptions.forEach { option ->
+                    FilterChip(
+                        selected = state.deliveryOptions.contains(option),
+                        onClick = {
+                            val updatedOptions = if (state.deliveryOptions.contains(option)) {
+                                state.deliveryOptions - option
+                            } else {
+                                state.deliveryOptions + option
+                            }
+                            onUpdate { it.copy(deliveryOptions = updatedOptions) }
+                        },
+                        label = { Text(option.replace("_", " ")) }
+                    )
+                }
+            }
+
+            // Delivery cost
+            OutlinedTextField(
+                value = state.deliveryCost?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
+                },
+                label = { Text("Delivery Cost (₹)") },
+                placeholder = { Text("0.00") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Lead time days
+            OutlinedTextField(
+                value = state.leadTimeDays?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
+                },
+                label = { Text("Lead Time (days)") },
+                placeholder = { Text("Number of days notice required") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } // End of listForSale conditional
     }
 }
 

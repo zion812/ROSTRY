@@ -101,7 +101,8 @@ fun SpeedDialActions(
     onActionClick: (SpeedDialAction) -> Unit = {},
     quickActions: Map<SpeedDialAction, List<QuickActionItem>> = emptyMap()
 ) {
-    var expanded by remember { mutableStateOf(isExpanded) }
+    // Use external state directly to avoid dual FAB rendering
+    val expanded = isExpanded
     var showQuickActionsFor by remember { mutableStateOf<SpeedDialAction?>(null) }
     val haptic = LocalHapticFeedback.current
     
@@ -203,7 +204,6 @@ fun SpeedDialActions(
         FloatingActionButton(
             onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                expanded = !expanded
                 onExpandToggle()
             },
             containerColor = MaterialTheme.colorScheme.primary,

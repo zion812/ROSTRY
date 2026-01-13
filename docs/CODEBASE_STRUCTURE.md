@@ -94,10 +94,11 @@ Reusable UI components (22 files):
 #### Authentication (`ui/auth/`)
 ```
 ui/auth/
-├── LoginScreen.kt
-├── OtpScreen.kt
 ├── AuthViewModel.kt
-├── PhoneLinkScreen.kt
+├── AuthWelcomeScreen.kt
+├── AuthWelcomeViewModel.kt
+├── OtpVerificationScreenNew.kt
+├── PhoneAuthScreenNew.kt
 └── ...
 ```
 
@@ -107,13 +108,26 @@ ui/farmer/
 ├── FarmerHomeScreen.kt
 ├── FarmerHomeViewModel.kt
 ├── FarmerMarketScreen.kt
+├── FarmerCreateScreen.kt
+├── FarmerCreateViewModel.kt
+├── FarmerCommunityScreen.kt
+├── FarmerProfileScreen.kt
+├── DigitalFarmScreen.kt
+├── FarmLogScreen.kt
+├── ComplianceScreen.kt
 ├── asset/
+│   ├── FarmAssetListScreen.kt
 │   ├── FarmAssetDetailScreen.kt
-│   └── FarmAssetDetailViewModel.kt
-├── compliance/
-├── dashboard/
-├── inventory/
+│   ├── FarmAssetListViewModel.kt
+│   ├── FarmAssetDetailViewModel.kt
+│   ├── BirdHistoryScreen.kt
+│   └── BirdHistoryViewModel.kt
 ├── listing/
+│   ├── CreateListingScreen.kt
+│   └── CreateListingViewModel.kt
+├── verification/
+│   ├── FarmVerificationScreen.kt
+│   └── FarmVerificationViewModel.kt
 └── ...
 ```
 
@@ -122,84 +136,146 @@ ui/farmer/
 ui/enthusiast/
 ├── EnthusiastHomeScreen.kt
 ├── EnthusiastHomeViewModel.kt
+├── EnthusiastExploreScreen.kt
+├── EnthusiastExploreViewModel.kt
+├── EnthusiastCreateScreen.kt
+├── EnthusiastTransfersScreen.kt
+├── EnthusiastFlockViewModel.kt
 ├── digitalfarm/
 │   ├── DigitalFarmScreen.kt          # Canvas-based farm visualization
 │   ├── DigitalFarmViewModel.kt       # Zone grouping, weather/time state
-│   └── FarmCanvasRenderer.kt         # 2.5D rendering engine (~2040 lines)
-│       ├── Day/night cycle rendering
-│       ├── Weather effects (rain, wind, clouds)
-│       ├── Flocking algorithm for birds
-│       ├── Age-based visual progression
-│       ├── 8 placeable building types
-│       ├── Resource bars, daily tasks
-│       ├── Performance charts (line/bar/pie)
-│       ├── Pedigree tree visualization
-│       ├── Leaderboards, competitions
-│       └── Offline indicators
+│   └── PipelineViewModel.kt          # Digital farm pipeline processing
 ├── breeding/
-├── eggcollection/
-├── shows/
+│   ├── BreedingFlowScreen.kt
+│   ├── BreedingCalculatorScreen.kt
+│   ├── BreedingCalculatorViewModel.kt
+│   ├── EggCollectionScreen.kt
+│   └── EggCollectionViewModel.kt
+├── dashboard/
+├── pedigree/
+│   ├── PedigreeScreen.kt
+│   └── PedigreeViewModel.kt
+├── cards/
+│   ├── RoosterCardScreen.kt
+│   └── RoosterCardViewModel.kt
+├── showcase/
+│   ├── ShowcaseCardPreviewScreen.kt
+│   └── ShowcaseCardViewModel.kt
+├── journal/
+│   ├── PerformanceJournalScreen.kt
+│   └── PerformanceJournalViewModel.kt
+├── arena/
+│   ├── VirtualArenaScreen.kt
+│   └── VirtualArenaViewModel.kt
+├── halloffame/
+│   ├── HallOfFameScreen.kt
+│   └── HallOfFameViewModel.kt
+├── hatchability/
+│   ├── HatchabilityTrackerScreen.kt
+│   └── HatchabilityAnalysisScreen.kt
+├── showrecords/
+│   ├── ShowRecordsScreen.kt
+│   └── ShowRecordsViewModel.kt
+├── transfer/
+│   ├── TransferCodeScreen.kt
+│   ├── ClaimTransferScreen.kt
+│   └── TransferCodeViewModel.kt
 └── ...
 ```
 
 #### Monitoring (`ui/monitoring/`)
 ```
 ui/monitoring/
-├── GrowthTrackingScreen.kt
+├── FarmMonitoringScreen.kt
+├── FarmMonitoringViewModel.kt
 ├── VaccinationScheduleScreen.kt
-├── HatcheryManagementScreen.kt
-├── BreedingManagementScreen.kt
+├── VaccinationViewModel.kt
+├── VaccinationDetailScreen.kt
+├── VaccinationDetailViewModel.kt
+├── GrowthTrackingScreen.kt
+├── GrowthViewModel.kt
+├── GrowthRecordDetailScreen.kt
+├── GrowthRecordDetailViewModel.kt
+├── MortalityTrackingScreen.kt
+├── MortalityViewModel.kt
+├── MortalityDetailScreen.kt
+├── MortalityDetailViewModel.kt
 ├── QuarantineManagementScreen.kt
-├── WeightLogScreen.kt
+├── QuarantineViewModel.kt
+├── BreedingManagementScreen.kt
+├── BreedingManagementViewModel.kt
+├── HatchingProcessScreen.kt
+├── HatchingViewModel.kt
+├── FarmPerformanceScreen.kt
+├── DailyLogScreen.kt
+├── DailyLogViewModel.kt
+├── TasksScreen.kt
+├── TasksViewModel.kt
+├── FCRCalculatorScreen.kt
+├── FCRCalculatorViewModel.kt
+├── BatchSplitViewModel.kt
+├── BatchHierarchyViewModel.kt
 └── ...
 ```
 
 #### Social (`ui/social/`)
 ```
 ui/social/
-├── feed/
-│   ├── FeedScreen.kt
-│   └── FeedViewModel.kt
+├── SocialFeedScreen.kt
+├── SocialFeedViewModel.kt
+├── LeaderboardScreen.kt
+├── LeaderboardViewModel.kt
+├── LiveBroadcastScreen.kt
 ├── profile/
 │   ├── SocialProfileScreen.kt
 │   └── SocialProfileViewModel.kt
-├── groups/
-├── events/
-├── messaging/
+├── stories/
+│   ├── StoryViewerScreen.kt
+│   ├── StoryCreatorScreen.kt
+│   └── StoryCreatorViewModel.kt
+├── discussion/
+│   ├── DiscussionDetailScreen.kt
+│   └── DiscussionDetailViewModel.kt
 └── ...
 ```
 
 #### Orders (`ui/order/`)
 ```
 ui/order/
-├── MyOrdersScreen.kt
-├── OrderDetailScreen.kt
+├── OrderTrackingScreen.kt
+├── OrderTrackingViewModel.kt
 ├── evidence/
-│   ├── CreateOrderScreen.kt
-│   ├── OrderChatIntegration.kt
-│   ├── PaymentDeliveryScreens.kt
-│   ├── PaymentVerifyScreen.kt
-│   └── DisputeScreens.kt
+│   ├── MyOrdersScreen.kt
+│   ├── EvidenceOrderViewModel.kt
+│   └── MyOrdersViewModel.kt
 └── ...
 ```
 
 #### Analytics (`ui/analytics/`)
 ```
 ui/analytics/
-├── AnalyticsDashboardScreen.kt
-├── PerformanceInsightsScreen.kt
-├── ExportScreen.kt
-├── RecommendationsScreen.kt
+├── GeneralDashboardScreen.kt
+├── GeneralDashboardViewModel.kt
+├── FarmerDashboardScreen.kt
+├── FarmerDashboardViewModel.kt
+├── EnthusiastDashboardScreen.kt
+├── EnthusiastDashboardViewModel.kt
+├── ReportsScreen.kt
+├── ReportsViewModel.kt
+├── MonthlyReportScreen.kt
+├── MonthlyReportViewModel.kt
 └── ...
 ```
 
 #### Traceability (`ui/traceability/`)
 ```
 ui/traceability/
-├── FamilyTreeScreen.kt
-├── LineageDetailScreen.kt
-├── TransferHistoryScreen.kt
-└── ...
+├── TraceabilityScreen.kt
+├── TraceabilityViewModel.kt
+├── LineagePreviewScreen.kt
+├── LineagePreviewViewModel.kt
+├── FamilyTreeView.kt
+└── NodeEventTimelineSheet.kt
 ```
 
 #### Verification (`ui/verification/`)
@@ -207,7 +283,8 @@ ui/traceability/
 ui/verification/
 ├── FarmerLocationVerificationScreen.kt
 ├── VerificationViewModel.kt
-├── DocumentUploadScreen.kt
+├── EnthusiastVerificationScreen.kt
+├── EnthusiastVerificationViewModel.kt
 └── ...
 ```
 
@@ -216,6 +293,287 @@ ui/verification/
 ui/admin/
 ├── AdminVerificationScreen.kt        # Admin Dashboard for KYC reviews
 ├── AdminVerificationViewModel.kt     # Verification logic and approval flow
+└── ...
+```
+
+#### Transfer Features (`ui/transfer/`)
+```
+ui/transfer/
+├── TransferDetailsScreen.kt
+├── TransferDetailsViewModel.kt
+├── TransferVerificationScreen.kt
+├── TransferVerificationViewModel.kt
+├── TransferCreateScreen.kt
+├── TransferCreateViewModel.kt
+└── ...
+```
+
+#### Marketplace (`ui/marketplace/`)
+```
+ui/marketplace/
+├── MarketplaceSandboxScreen.kt
+├── MarketplaceSandboxViewModel.kt
+└── ...
+```
+
+#### Product (`ui/product/`)
+```
+ui/product/
+├── ProductDetailsScreen.kt
+├── ProductDetailsViewModel.kt
+└── ...
+```
+
+#### General (`ui/general/`)
+```
+ui/general/
+├── GeneralHomeScreen.kt
+├── GeneralHomeViewModel.kt
+├── GeneralHomeViewModel.kt
+├── cart/
+│   ├── GeneralCartScreen.kt
+│   └── GeneralCartViewModel.kt
+├── market/
+│   ├── GeneralMarketScreen.kt
+│   └── GeneralMarketViewModel.kt
+├── explore/
+│   ├── GeneralExploreScreen.kt
+│   └── GeneralExploreViewModel.kt
+├── wishlist/
+│   ├── WishlistScreen.kt
+│   └── WishlistViewModel.kt
+├── profile/
+│   ├── GeneralProfileScreen.kt
+│   └── GeneralProfileViewModel.kt
+└── ...
+```
+
+#### Settings (`ui/settings/`)
+```
+ui/settings/
+├── SettingsScreen.kt
+├── SettingsViewModel.kt
+├── BackupRestoreScreen.kt
+├── BackupRestoreViewModel.kt
+├── AddressSelectionWebViewScreen.kt
+└── ...
+```
+
+#### Messaging (`ui/messaging/`)
+```
+ui/messaging/
+├── ThreadScreen.kt
+├── ThreadViewModel.kt
+├── GroupChatScreen.kt
+└── GroupChatViewModel.kt
+```
+
+#### Notifications (`ui/notifications/`)
+```
+ui/notifications/
+├── NotificationsScreen.kt
+├── NotificationsViewModel.kt
+└── ...
+```
+
+#### Components (`ui/components/`)
+```
+ui/components/
+├── SyncStatusIndicator.kt
+├── SyncStatusViewModel.kt
+├── OfflineBanner.kt
+├── LoadingIndicator.kt
+├── ErrorView.kt
+├── EmptyState.kt
+├── ProductCard.kt
+├── SearchBar.kt
+├── FilterChips.kt
+├── BirdSelectionSheet.kt
+├── StatCard.kt
+├── Timeline.kt
+├── WizardStepper.kt
+└── ...
+```
+
+#### Onboarding (`ui/onboarding/`)
+```
+ui/onboarding/
+├── OnboardFarmBirdScreen.kt
+├── OnboardFarmBirdViewModel.kt
+├── OnboardFarmBatchScreen.kt
+├── OnboardFarmBatchViewModel.kt
+├── OnboardingScreen.kt
+├── OnboardingViewModel.kt
+├── OnboardingChecklistViewModel.kt
+└── ...
+```
+
+#### Auction (`ui/auction/`)
+```
+ui/auction/
+├── AuctionScreen.kt
+├── AuctionViewModel.kt
+├── CreateAuctionScreen.kt
+└── CreateAuctionViewModel.kt
+```
+
+#### Events (`ui/events/`)
+```
+ui/events/
+├── EventsScreen.kt
+└── EventsViewModel.kt
+```
+
+#### Expert (`ui/expert/`)
+```
+ui/expert/
+├── ExpertBookingScreen.kt
+└── ExpertViewModel.kt
+```
+
+#### Moderation (`ui/moderation/`)
+```
+ui/moderation/
+├── ModerationScreen.kt
+└── ModerationViewModel.kt
+```
+
+#### Gamification (`ui/gamification/`)
+```
+ui/gamification/
+├── AchievementsScreen.kt
+└── AchievementsViewModel.kt
+```
+
+#### Insights (`ui/insights/`)
+```
+ui/insights/
+├── InsightsScreen.kt
+└── InsightsViewModel.kt
+```
+
+#### Feedback (`ui/feedback/`)
+```
+ui/feedback/
+├── FeedbackScreen.kt
+└── FeedbackViewModel.kt
+```
+
+#### Support (`ui/support/`)
+```
+ui/support/
+├── HelpScreen.kt
+└── ...
+```
+
+#### Community (`ui/community/`)
+```
+ui/community/
+├── CommunityHubScreen.kt
+└── CommunityHubViewModel.kt
+```
+
+#### Search (`ui/search/`)
+```
+ui/search/
+├── ProductSearchScreen.kt
+└── ProductSearchViewModel.kt
+```
+
+#### Farm (`ui/farm/`)
+```
+ui/farm/
+├── FarmActivityDetailScreen.kt
+└── FarmActivityDetailViewModel.kt
+```
+
+#### IoT (`ui/iot/`)
+```
+ui/iot/
+├── IoTDataScreen.kt
+└── ...
+```
+
+#### Accessibility (`ui/accessibility/`)
+```
+ui/accessibility/
+├── AccessibilitySettingsScreen.kt
+└── ...
+```
+
+#### Main (`ui/main/`)
+```
+ui/main/
+├── MainViewModel.kt
+└── ...
+```
+
+#### Profile (`ui/profile/`)
+```
+ui/profile/
+├── ProfileScreen.kt
+├── ProfileViewModel.kt
+├── EditProfileScreen.kt
+├── ProfileEditViewModel.kt
+├── StorageQuotaScreen.kt
+└── StorageQuotaViewModel.kt
+```
+
+#### Scan (`ui/scan/`)
+```
+ui/scan/
+├── QrScannerScreen.kt
+└── QrScannerViewModel.kt
+```
+
+#### Session (`ui/session/`)
+```
+ui/session/
+├── SessionViewModel.kt
+└── ...
+```
+
+#### Splash (`ui/splash/`)
+```
+ui/splash/
+├── SplashScreen.kt
+└── ...
+```
+
+#### Start (`ui/start/`)
+```
+ui/start/
+├── StartScreen.kt
+└── StartViewModel.kt
+```
+
+#### Sync (`ui/sync/`)
+```
+ui/sync/
+├── SyncIssuesScreen.kt
+└── ...
+```
+
+#### Theme (`ui/theme/`)
+```
+ui/theme/
+├── Theme.kt
+├── Color.kt
+├── Typography.kt
+└── Shapes.kt
+```
+
+#### Utils (`ui/utils/`)
+```
+ui/utils/
+├── Extensions.kt
+└── ...
+```
+
+#### Animations (`ui/animations/`)
+```
+ui/animations/
+├── AnimationUtils.kt
 └── ...
 ```
 
@@ -280,6 +638,57 @@ ui/admin/
 | `TransferEntity.kt` | transfers |
 | `AnalyticsEntities.kt` | analytics tables |
 | `CommunityEntities.kt` | community features |
+| `AuctionEntity.kt` | auctions |
+| `BidEntity.kt` | bids |
+| `CartItemEntity.kt` | cart_items |
+| `ChatMessageEntity.kt` | chat_messages |
+| `CoinEntity.kt` | coins |
+| `CoinLedgerEntity.kt` | coin_ledger |
+| `CompetitionEntryEntity.kt` | competition_entries |
+| `DailyBirdLogEntity.kt` | daily_bird_logs |
+| `DashboardCacheEntity.kt` | dashboard_cache |
+| `DeliveryHubEntity.kt` | delivery_hubs |
+| `EnthusiastBreedingEntities.kt` | enthusiast breeding tables |
+| `EnthusiastVerificationEntity.kt` | enthusiast_verification |
+| `EventRsvpEntity.kt` | event_rsvps |
+| `FamilyTreeEntity.kt` | family_trees |
+| `FarmActivityLogEntity.kt` | farm_activity_logs |
+| `FarmMonitoringEntities.kt` | farm monitoring tables |
+| `FarmProfileEntity.kt` | farm_profiles |
+| `FarmTimelineEventEntity.kt` | farm_timeline_events |
+| `FarmVerificationEntity.kt` | farm_verification |
+| `GamificationEntities.kt` | gamification tables |
+| `GeneticAnalysisEntity.kt` | genetic_analysis |
+| `InventoryItemEntity.kt` | inventory_items |
+| `InvoiceEntities.kt` | invoice tables |
+| `IoTDataEntity.kt` | iot_data |
+| `IoTDeviceEntity.kt` | iot_devices |
+| `MarketListingEntity.kt` | market_listings |
+| `MyVotesEntity.kt` | my_votes |
+| `NewFarmMonitoringEntities.kt` | new farm monitoring tables |
+| `NotificationEntity.kt` | notifications |
+| `OrderItemEntity.kt` | order_items |
+| `OrderTrackingEventEntity.kt` | order_tracking_events |
+| `OutboxEntity.kt` | outbox |
+| `PaymentEntity.kt` | payments |
+| `ProductFtsEntity.kt` | product_fts (full-text search) |
+| `ProductTrackingEntity.kt` | product_tracking |
+| `RateLimitEntity.kt` | rate_limits |
+| `RefundEntity.kt` | refunds |
+| `ReviewEntity.kt` | reviews |
+| `RoleMigrationEntity.kt` | role_migrations |
+| `ShowRecordEntity.kt` | show_records |
+| `StorageQuotaEntity.kt` | storage_quota |
+| `SyncStateEntity.kt` | sync_state |
+| `TraceabilityEntities.kt` | traceability tables |
+| `TransferWorkflowEntities.kt` | transfer_workflow tables |
+| `UploadTaskEntity.kt` | upload_tasks |
+| `VerificationDraftEntity.kt` | verification_drafts |
+| `VerificationRequestEntity.kt` | verification_requests |
+| `WishlistEntity.kt` | wishlists |
+| `BreedEntity.kt` | breeds |
+| `BreedingPairEntity.kt` | breeding_pairs |
+| `BatchSummaryEntity.kt` | batch_summaries |
 
 #### DAOs (`data/database/dao/`)
 
@@ -305,7 +714,7 @@ ui/admin/
 
 ### Repositories (`data/repository/`)
 
-47+ repository implementations:
+57+ repository implementations across multiple subdirectories:
 
 | Repository | Domain |
 |------------|--------|
@@ -316,6 +725,7 @@ ui/admin/
 | `EvidenceOrderRepositoryImpl.kt` | Evidence-based orders |
 | `SocialRepositoryImpl.kt` | Social platform |
 | `TransferWorkflowRepositoryImpl.kt` | Ownership transfers |
+| `TransferRepositoryImpl.kt` | Transfer operations |
 | `FarmAssetRepositoryImpl.kt` | Farm assets |
 | `VaccinationRepositoryImpl.kt` | Vaccinations |
 | `AnalyticsRepositoryImpl.kt` | Analytics |
@@ -323,6 +733,79 @@ ui/admin/
 | `GamificationRepositoryImpl.kt` | Achievements |
 | `BreedingRepositoryImpl.kt` | Breeding management |
 | `CommunityRepositoryImpl.kt` | Community features |
+| `AuctionRepositoryImpl.kt` | Auction functionality |
+| `CartRepositoryImpl.kt` | Shopping cart |
+| `ChatRepositoryImpl.kt` | Chat messaging |
+| `CoinRepositoryImpl.kt` | Coin wallet system |
+| `EnthusiastBreedingRepositoryImpl.kt` | Enthusiast breeding |
+| `EnthusiastVerificationRepositoryImpl.kt` | Enthusiast verification |
+| `FamilyTreeRepositoryImpl.kt` | Family tree management |
+| `FarmActivityLogRepositoryImpl.kt` | Farm activity logs |
+| `FarmVerificationRepositoryImpl.kt` | Farm verification |
+| `FeedbackRepositoryImpl.kt` | Feedback system |
+| `HatchabilityRepository.kt` | Hatchability tracking |
+| `InventoryRepositoryImpl.kt` | Inventory management |
+| `InvoiceRepositoryImpl.kt` | Invoice management |
+| `LikesRepositoryImpl.kt` | Social likes |
+| `LogisticsRepositoryImpl.kt` | Logistics |
+| `MarketListingRepositoryImpl.kt` | Market listings |
+| `PaymentRepositoryImpl.kt` | Payment processing |
+| `ProductMarketplaceRepositoryImpl.kt` | Product marketplace |
+| `ReviewRepositoryImpl.kt` | Reviews and ratings |
+| `SaleCompletionService.kt` | Sale completion |
+| `StorageRepositoryImpl.kt` | Storage management |
+| `StorageUsageRepositoryImpl.kt` | Storage usage tracking |
+| `TrackingRepositoryImpl.kt` | Tracking |
+| `VerificationDraftRepositoryImpl.kt` | Verification drafts |
+| `VirtualArenaRepositoryImpl.kt` | Virtual arena |
+| `WeatherRepositoryImpl.kt` | Weather data |
+| `WishlistRepositoryImpl.kt` | Wishlist |
+| `BirdHealthRepositoryImpl.kt` | Bird health |
+| `FarmFinancialsRepositoryImpl.kt` | Farm financials |
+| `FarmOnboardingRepositoryImpl.kt` | Farm onboarding |
+| `RoleUpgradeMigrationRepositoryImpl.kt` | Role upgrade migrations |
+| `OnboardingChecklistRepositoryImpl.kt` | Onboarding checklists |
+| `OrderManagementRepositoryImpl.kt` | Order management |
+| `ReportGenerationRepositoryImpl.kt` | Report generation |
+| `TaskRepositoryImpl.kt` | Task management |
+| `DailyLogRepositoryImpl.kt` | Daily logs |
+| `GrowthRepositoryImpl.kt` | Growth tracking |
+| `MortalityRepositoryImpl.kt` | Mortality tracking |
+| `QuarantineRepositoryImpl.kt` | Quarantine management |
+| `HatchingRepositoryImpl.kt` | Hatching process |
+| `FarmPerformanceRepositoryImpl.kt` | Farm performance |
+| `MessagingRepositoryImpl.kt` | Messaging |
+| `PedigreeRepositoryImpl.kt` | Pedigree tracking |
+| `BreedRepositoryImpl.kt` | Breed information |
+
+#### Monitoring Repositories (`data/repository/monitoring/`)
+| Repository | Domain |
+|------------|--------|
+| `DailyLogRepositoryImpl.kt` | Daily logs |
+| `FarmOnboardingRepositoryImpl.kt` | Farm onboarding |
+| `TaskRepositoryImpl.kt` | Task management |
+| `GrowthRepositoryImpl.kt` | Growth tracking |
+| `VaccinationRepositoryImpl.kt` | Vaccination tracking |
+| `MortalityRepositoryImpl.kt` | Mortality tracking |
+| `QuarantineRepositoryImpl.kt` | Quarantine management |
+| `HatchingRepositoryImpl.kt` | Hatching process |
+| `FarmPerformanceRepositoryImpl.kt` | Farm performance |
+| `BreedingRepositoryImpl.kt` | Breeding management |
+| `FarmAlertRepositoryImpl.kt` | Farm alerts |
+| `ListingDraftRepositoryImpl.kt` | Listing drafts |
+| `FarmerDashboardRepositoryImpl.kt` | Farmer dashboard |
+
+#### Social Repositories (`data/repository/social/`)
+| Repository | Domain |
+|------------|--------|
+| `SocialRepositoryImpl.kt` | Social platform |
+| `MessagingRepositoryImpl.kt` | Messaging |
+| `RepositoriesSocial.kt` | Social repositories |
+
+#### Enthusiast Repositories (`data/repository/enthusiast/`)
+| Repository | Domain |
+|------------|--------|
+| `EnthusiastBreedingRepositoryImpl.kt` | Enthusiast breeding features |
 
 ### Auth (`data/auth/`)
 
@@ -343,42 +826,68 @@ ui/admin/
 
 ## Dependency Injection (`di/`)
 
-20 Hilt modules:
+21 Hilt modules:
 
 | Module | Bindings |
 |--------|----------|
+| `AnalyticsModule.kt` | Analytics and reporting dependencies |
+| `AppEntryPoints.kt` | Hilt entry points for application components |
 | `AppModule.kt` | App-level singletons |
-| `DatabaseModule.kt` | Room, DAOs, migrations |
-| `NetworkModule.kt` | Retrofit, OkHttp, Firebase |
+| `AuthModuleNew.kt` | Authentication-related dependencies |
+| `CoilModule.kt` | Image loading dependencies |
+| `DatabaseModule.kt` | Room database, DAOs, migrations |
+| `HttpModule.kt` | HTTP client dependencies |
+| `LocationModule.kt` | Location services dependencies |
+| `LoveabilityModule.kt` | Gamification and engagement dependencies |
+| `MediaUploadInitializer.kt` | Media upload initialization |
+| `NetworkModule.kt` | Network client dependencies |
+| `NotifModule.kt` | Notification dependencies |
+| `PlacesModule.kt` | Google Places API dependencies |
+| `RemoteModule.kt` | Remote data source dependencies |
 | `RepositoryModule.kt` | Repository bindings |
-| `AuthModule.kt` | Auth components |
-| `WorkerModule.kt` | WorkManager |
-| `PlacesModule.kt` | Google Places |
-| `LocationModule.kt` | Location services |
-| `AnalyticsModule.kt` | Analytics bindings |
-| `SocialModule.kt` | Social bindings |
+| `SessionModule.kt` | Session management dependencies |
+| `UpgradeModule.kt` | Role upgrade dependencies |
+| `UtilsModule.kt` | Utility dependencies |
+| `VerificationModule.kt` | Verification dependencies |
+| `ViewModelModule.kt` | ViewModel dependencies |
+| `WorkerBaseHelper.kt` | Worker base helper dependencies |
 
 ---
 
 ## Workers (`workers/`)
 
-26 background workers:
+30+ background workers:
 
 | Worker | Schedule | Purpose |
 |--------|----------|---------|
-| `SyncWorker.kt` | 6 hours | Room/Firebase sync |
-| `OutboxSyncWorker.kt` | On connectivity | Pending uploads |
+| `SyncWorker.kt` | 8 hours | Room/Firebase sync (reduced from 6h for quota optimization) |
+| `OutboxSyncWorker.kt` | On connectivity | Pending uploads and batched operations |
+| `PullSyncWorker.kt` | On demand | Pull remote changes |
 | `FarmMonitoringWorker.kt` | Daily | Health checks |
 | `VaccinationReminderWorker.kt` | Daily | Vaccine reminders |
 | `LifecycleWorker.kt` | Daily | Milestone reminders |
 | `ModerationWorker.kt` | Periodic | Content scanning |
-| `OutgoingMessageWorker.kt` | On demand | Message delivery |
+| `OutgoingMessageWorker.kt` | On demand | Message delivery (now replaced by OutboxSyncWorker) |
 | `TransferTimeoutWorker.kt` | Periodic | SLA enforcement |
 | `AnalyticsAggregationWorker.kt` | Daily | Metrics aggregation |
 | `MediaUploadWorker.kt` | On demand | Media uploads |
-| `EvidenceOrderWorker.kt` | On demand | Order processing |
+| `EvidenceOrderWorker.kt` | On demand | Quote expiry, payment reminders, delivery confirmations |
 | `PrefetchWorker.kt` | Conditional | Content caching |
 | `CommunityEngagementWorker.kt` | 12 hours | Recommendations |
+| `QuarantineReminderWorker.kt` | Daily | Health monitoring alerts |
+| `PersonalizationWorker.kt` | Periodic | AI-driven recommendations |
+| `StorageQuotaMonitorWorker.kt` | Periodic | Storage usage tracking |
+| `AuctionCloserWorker.kt` | Periodic | Automatic auction completion |
+| `AutoBackupWorker.kt` | Daily | Automatic data backup |
+| `DatabaseMaintenanceWorker.kt` | Weekly | Database optimization |
+| `RoleUpgradeMigrationWorker.kt` | On demand | Role-based data migration |
+| `VerificationUploadWorker.kt` | On demand | Verification document processing |
+| `ReportingWorker.kt` | Daily | Report generation |
+| `FarmPerformanceWorker.kt` | Daily | Farm performance aggregation |
+| `OrderStatusWorker.kt` | Periodic | Order status updates |
+| `LegacyProductMigrationWorker.kt` | One-time | Migration from old architecture |
+| `EnthusiastPerformanceWorker.kt` | Daily | Enthusiast performance metrics |
+| `NotificationFlushWorker.kt` | On demand | Batch notification delivery |
 
 ---
 
@@ -531,6 +1040,7 @@ grep -r "interface.*Repository" --include="*.kt"
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 4.3 | 2026-01-13 | Updated counts and structure to reflect current implementation: 114+ ViewModels, 57+ Repositories, 30+ Workers, 61+ Entity files, 21 DI Modules |
 | 4.2 | 2025-12-29 | Documentation Audit & Update (Phase 1-10) |
 | 4.1 | 2025-12-27 | Digital Farm 2.0 (weather, buildings, gamification) |
 | 4.0 | 2025-12-25 | Complete restructure, Digital Farm, Evidence Orders |

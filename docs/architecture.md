@@ -58,9 +58,11 @@ Status: Active
 ```
 
 ### UI Layer (`ui/`)
-- Composables in feature packages (e.g., `ui/analytics/`, `ui/social/`, `ui/traceability/`).
+- Composables in feature packages (e.g., `ui/analytics/`, `ui/social/`, `ui/traceability/`, `ui/enthusiast/`, `ui/farmer/`, `ui/monitoring/`, `ui/transfer/`, `ui/marketplace/`, `ui/verification/`, `ui/onboarding/`, `ui/orders/`, `ui/auction/`, `ui/gamification/`, `ui/insights/`, `ui/feedback/`, `ui/support/`, `ui/community/`, `ui/expert/`, `ui/events/`, `ui/moderation/`, `ui/messaging/`, `ui/profile/`, `ui/settings/`, `ui/scan/`, `ui/splash/`, `ui/start/`, `ui/sync/`, `ui/theme/`, `ui/utils/`, `ui/animations/`, `ui/components/`, `ui/home/`, `ui/search/`, `ui/farm/`, `ui/digital/`, `ui/halloffame/`, `ui/journal/`, `ui/arena/`, `ui/breeding/`, `ui/showcase/`, `ui/cards/`, `ui/pedigree/`, `ui/hatchability/`, `ui/showrecords/`, `ui/transfer/`, `ui/iot/`, `ui/accessibility/`, `ui/admin/`).
 - `MainActivity.kt` hosts `AppNavHost()` within `ROSTRYTheme`.
 - Navigation centralized in `ui/navigation/Routes.kt` and `AppNavHost.kt`. Feature composables use callback parameters (e.g., `onFarmerProfileClick`, `onMessage`) to delegate navigation to the host, ensuring decoupling and testability.
+- **Current Count**: 114+ ViewModels across all feature packages.
+- **Key UI Features**: Digital Farm (2.5D isometric engine with weather effects and flocking algorithm), Evidence-Based Order System, Transfer Workflow, Community Hub, Farm Monitoring (growth, vaccination, mortality, quarantine, breeding, hatching), Traceability with lineage tracking, Analytics Dashboard, Gamification with achievements, AI Personalization, and many more specialized UI components.
 
 ### ViewModel Layer (`ui/...ViewModel.kt`)
 - Extend `BaseViewModel` or `ViewModel` with Hilt injection.
@@ -71,6 +73,12 @@ Status: Active
 - Encapsulate business logic, data orchestration, validation, and synchronization.
 - Example: `TransferWorkflowRepositoryImpl` manages initiation, verification, disputes, audits, and notifications for transfers.
 - Social, analytics, logistics, payments, and marketplace domains each have dedicated repositories.
+- **Current Count**: 57+ repositories across multiple subdirectories including monitoring, social, and enthusiast-specific repositories.
+- **Subdirectories**:
+  - `monitoring/` - Farm monitoring repositories (Growth, Vaccination, Mortality, DailyLog, Task, etc.)
+  - `social/` - Social platform repositories (SocialRepository, MessagingRepository)
+  - `enthusiast/` - Enthusiast-specific repositories (EnthusiastBreedingRepository)
+- **Key Repositories**: UserRepository, ProductRepository, TransferRepository, TraceabilityRepository, FarmAssetRepository, EvidenceOrderRepository, AuctionRepository, ChatRepository, CoinRepository, CommunityRepository, FarmVerificationRepository, EnthusiastVerificationRepository, FamilyTreeRepository, InvoiceRepository, LogisticsRepository, MarketListingRepository, OrderRepository, PaymentRepository, ReviewRepository, WishlistRepository, and many more specialized repositories.
 
 ### Data Layer
 - **Room**: Entities and DAOs in `data/database/entity/` and `data/database/dao/`. `AppDatabase` registers over 120 tables.
@@ -88,17 +96,30 @@ Status: Active
   - Enables easier testing and previewing of screens without MockNavController.
 
 ## 4. Background Jobs & Synchronization
-- `RostryApp.kt` schedules 26+ workers on startup:
-  - **Sync** (`SyncWorker`) every 6 hours for Room/Firebase harmonization.
+- `RostryApp.kt` schedules 30+ workers on startup:
+  - **Sync** (`SyncWorker`) every 8 hours for Room/Firebase harmonization (reduced from 4h to 6h for quota optimization).
   - **Lifecycle** (`LifecycleWorker`) for milestone reminders.
   - **Transfer Timeout** (`TransferTimeoutWorker`) for SLA enforcement.
   - **Moderation** (`ModerationWorker`) for content scanning.
-  - **Outgoing Messaging** (`OutgoingMessageWorker`) to flush queued DMs.
+  - **Outgoing Messaging** (`OutgoingMessageWorker`) to flush queued DMs (replaced by `OutboxSyncWorker`).
+  - **Outbox Sync** (`OutboxSyncWorker`) handles all message delivery and batched operations.
+  - **Pull Sync** (`PullSyncWorker`) for fetching remote changes.
   - **Analytics Aggregation** & **Reporting** workers for dashboards.
   - **Prefetch** (`PrefetchWorker`) for content caching under safe conditions.
   - **Community Engagement** (`CommunityEngagementWorker`) for personalized recommendations every 12 hours.
   - **Farm Monitoring** (`FarmMonitoringWorker`) for daily health checks and alerts.
   - **Vaccination Reminders** (`VaccinationReminderWorker`) for schedule notifications.
+  - **Quarantine Reminders** (`QuarantineReminderWorker`) for health monitoring alerts.
+  - **Personalization** (`PersonalizationWorker`) for AI-driven recommendations.
+  - **Media Upload** (`MediaUploadWorker`) for resumable media uploads.
+  - **Storage Quota Monitor** (`StorageQuotaMonitorWorker`) for usage tracking.
+  - **Evidence Order** (`EvidenceOrderWorker`) for quote expiry, payment reminders, and delivery confirmations.
+  - **Legacy Product Migration** (`LegacyProductMigrationWorker`) for one-time migration from old architecture.
+  - **Auction Closer** (`AuctionCloserWorker`) for automatic auction completion.
+  - **Auto Backup** (`AutoBackupWorker`) for automatic data backup.
+  - **Database Maintenance** (`DatabaseMaintenanceWorker`) for database optimization.
+  - **Role Upgrade Migration** (`RoleUpgradeMigrationWorker`) for role-based data migration.
+  - **Verification Upload** (`VerificationUploadWorker`) for verification document processing.
 - Workers leverage Hilt WorkManager integration and operate with network/battery constraints and custom WorkRequest cadence defined in each worker file.
 
 See `background-jobs.md` for detailed worker configuration and monitoring.
@@ -454,11 +475,27 @@ class UserPreferencesDataStore @Inject constructor(
 ### Module Organization
 
 **Files in `di/` package**:
+- `AnalyticsModule.kt` - Analytics and reporting dependencies
+- `AppEntryPoints.kt` - Hilt entry points for application components
 - `AppModule.kt` - Application-level dependencies
-- `NetworkModule.kt` - Retrofit, Firebase, OkHttp
+- `AuthModuleNew.kt` - Authentication-related dependencies
+- `CoilModule.kt` - Image loading dependencies
 - `DatabaseModule.kt` - Room database, DAOs
+- `HttpModule.kt` - HTTP client dependencies
+- `LocationModule.kt` - Location services dependencies
+- `LoveabilityModule.kt` - Gamification and engagement dependencies
+- `MediaUploadInitializer.kt` - Media upload initialization
+- `NetworkModule.kt` - Network client dependencies
+- `NotifModule.kt` - Notification dependencies
+- `PlacesModule.kt` - Google Places API dependencies
+- `RemoteModule.kt` - Remote data source dependencies
 - `RepositoryModule.kt` - Repository bindings
-- `WorkerModule.kt` - WorkManager dependencies
+- `SessionModule.kt` - Session management dependencies
+- `UpgradeModule.kt` - Role upgrade dependencies
+- `UtilsModule.kt` - Utility dependencies
+- `VerificationModule.kt` - Verification dependencies
+- `ViewModelModule.kt` - ViewModel dependencies
+- `WorkerBaseHelper.kt` - Worker base helper dependencies
 
 ### Scopes
 

@@ -183,6 +183,108 @@ fun EnthusiastAuraBackground(
     }
 }
 
-// Required imports for new functionality
-private val infiniteTransition: Nothing? = null // Placeholder - actual import used
+/**
+ * A glassmorphic card variant with blur effect and subtle border.
+ * Perfect for overlaying content on Enthusiast screens.
+ */
+@Composable
+fun GlassCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        label = "glassCardScale"
+    )
+    val haptic = LocalHapticFeedback.current
+
+    val clickModifier = if (onClick != null) {
+        Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
+        )
+    } else {
+        Modifier
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.2f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.1f))
+            .then(clickModifier)
+            .padding(16.dp)
+    ) {
+        content()
+    }
+}
+
+/**
+ * Premium button with gradient background for Enthusiast CTAs.
+ */
+@Composable
+fun PremiumButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    gradient: Brush = Brush.horizontalGradient(
+        colors = listOf(
+            EnthusiastGold,
+            EnthusiastGoldVariant
+        )
+    )
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        label = "buttonScale"
+    )
+    val haptic = LocalHapticFeedback.current
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = if (enabled) 1f else 0.5f
+            }
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (enabled) gradient else Brush.linearGradient(
+                colors = listOf(Color.Gray, Color.DarkGray)
+            ))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                }
+            )
+            .padding(horizontal = 24.dp, vertical = 12.dp)
+    ) {
+        androidx.compose.material3.Text(
+            text = text,
+            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+            color = if (enabled) EnthusiastObsidian else Color.White.copy(alpha = 0.6f)
+        )
+    }
+}
 

@@ -136,7 +136,10 @@ fun EnthusiastHomeScreen(
     onOpenRoosterCard: (String) -> Unit = {},
     onOpenBreedingCalculator: () -> Unit = {},
     onOpenPerformanceJournal: () -> Unit = {},
-    onOpenVirtualArena: () -> Unit = {}
+    onOpenVirtualArena: () -> Unit = {},
+    // Farmer Parity Callbacks
+    onOpenFarmAssets: () -> Unit = {},
+    onOpenFarmLog: () -> Unit = {}
 ) {
     val vm: EnthusiastHomeViewModel = hiltViewModel()
     val ui by vm.ui.collectAsState()
@@ -462,6 +465,11 @@ fun EnthusiastHomeScreen(
             
             Spacer(Modifier.size(Dimens.space_medium))
             
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onOpenFarmAssets, modifier = Modifier.weight(1f)) { Text("Manage Flock") }
+                OutlinedButton(onClick = onOpenFarmLog, modifier = Modifier.weight(1f)) { Text("Farm Log") }
+            }
+            Spacer(Modifier.size(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onOpenVaccination, modifier = Modifier.weight(1f)) { Text("Vaccinate") }
                 OutlinedButton(onClick = onOpenMortality, modifier = Modifier.weight(1f)) { Text("Mortality") }

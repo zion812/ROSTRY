@@ -84,16 +84,16 @@ fun PedigreeScreen(
                             onDismissRequest = { showExportMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Share as Image") },
+                                text = { Text("Share Text Summary") },
                                 onClick = {
                                     showExportMenu = false
                                     val state = uiState
                                     if (state is PedigreeUiState.Success) {
                                         sharePedigreeAsImage(context, state.rootBird.name, state.pedigreeTree)
-                                        exportMessage = "Pedigree shared as image"
+                                        exportMessage = "Pedigree shared"
                                     }
                                 },
-                                leadingIcon = { Icon(Icons.Default.Image, null) }
+                                leadingIcon = { Icon(Icons.Default.Description, null) }
                             )
                             DropdownMenuItem(
                                 text = { Text("Export PDF") },

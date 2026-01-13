@@ -27,6 +27,11 @@ import kotlinx.coroutines.delay
 import java.util.UUID
 import javax.inject.Inject
 import android.content.Context
+import android.location.Location
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.utils.notif.FarmNotifier
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -74,7 +79,15 @@ class OnboardFarmBirdViewModel @Inject constructor(
         val healthStatus: String = "OK",
         val breedingHistory: String = "",
         val awards: String = "",
-        val location: String = ""
+        val location: String = "",
+        val latitude: Double? = null,
+        val longitude: Double? = null,
+        // Marketplace listing options
+        val listForSale: Boolean = false,
+        val deliveryOptions: List<String> = emptyList(),
+        val deliveryCost: Double? = null,
+        val leadTimeDays: Int? = null,
+        val price: Double? = null
     )
 
     data class LineageState(
@@ -103,7 +116,8 @@ class OnboardFarmBirdViewModel @Inject constructor(
         val savedId: String? = null,
         val uploadProgress: Map<String, Int> = emptyMap(),
         val uploadStatus: Map<String, String> = emptyMap(),
-        val warning: String? = null
+        val warning: String? = null,
+        val isDetectingLocation: Boolean = false
     )
 
     private val _state = MutableStateFlow(WizardState())
@@ -191,6 +205,56 @@ class OnboardFarmBirdViewModel @Inject constructor(
     }
     fun updateMedia(transform: (MediaState) -> MediaState) {
         _state.value = _state.value.copy(media = transform(_state.value.media))
+    }
+
+    private val fusedLocationClient: FusedLocationProviderClient by lazy {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    fun autoDetectLocation() {
+        if (_state.value.isDetectingLocation) return
+        _state.value = _state.value.copy(isDetectingLocation = true, error = null)
+        
+        viewModelScope.launch {
+            try {
+                val cancellationTokenSource = CancellationTokenSource()
+                fusedLocationClient.getCurrentLocation(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    cancellationTokenSource.token
+                ).addOnSuccessListener { location: Location? ->
+                    if (location != null) {
+                        _state.value = _state.value.copy(
+                            isDetectingLocation = false,
+                            coreDetails = _state.value.coreDetails.copy(
+                                latitude = location.latitude,
+                                longitude = location.longitude,
+                                location = "GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
+                            )
+                        )
+                    } else {
+                        _state.value = _state.value.copy(
+                            isDetectingLocation = false,
+                            error = "Unable to detect location. Please try again or select manually."
+                        )
+                    }
+                }.addOnFailureListener { e ->
+                    _state.value = _state.value.copy(
+                        isDetectingLocation = false,
+                        error = "Location detection failed: ${e.message}"
+                    )
+                }
+            } catch (e: SecurityException) {
+                _state.value = _state.value.copy(
+                    isDetectingLocation = false,
+                    error = "Location permission required. Please grant location access."
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isDetectingLocation = false,
+                    error = "Location detection failed: ${e.message}"
+                )
+            }
+        }
     }
 
     fun previousStep(onBack: () -> Unit) {
@@ -290,12 +354,14 @@ class OnboardFarmBirdViewModel @Inject constructor(
                 if (s.coreDetails.awards.isNotBlank()) append("\nAwards: ${s.coreDetails.awards}")
             },
             category = "BIRD",
-            price = 0.0,
+            price = if (s.coreDetails.listForSale) s.coreDetails.price ?: 0.0 else 0.0,
             quantity = 1.0,
             unit = "unit",
             location = s.coreDetails.location,
+            latitude = s.coreDetails.latitude,
+            longitude = s.coreDetails.longitude,
             isBatch = false,
-            status = "private",
+            status = if (s.coreDetails.listForSale) "available" else "private",
             stage = mapAgeGroupToStage(s.ageGroup),
             lifecycleStatus = "ACTIVE",
             createdAt = now,
@@ -320,7 +386,11 @@ class OnboardFarmBirdViewModel @Inject constructor(
             documentUrls = s.media.documentUris,
             vaccinationRecordsJson = if (s.coreDetails.vaccinationRecords.isNotBlank()) {
                 com.google.gson.Gson().toJson(listOf(mapOf("note" to s.coreDetails.vaccinationRecords, "date" to now)))
-            } else null
+            } else null,
+            // Sale/delivery fields
+            deliveryOptions = if (s.coreDetails.listForSale) s.coreDetails.deliveryOptions else emptyList(),
+            deliveryCost = if (s.coreDetails.listForSale) s.coreDetails.deliveryCost else null,
+            leadTimeDays = if (s.coreDetails.listForSale) s.coreDetails.leadTimeDays else null
         )
         _state.value = s.copy(saving = true, error = null)
         android.util.Log.d("OnboardBird", "save(): starting addProduct, productId=$productId")

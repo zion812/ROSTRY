@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -56,12 +57,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.rio.rostry.ui.components.ShimmerEffect
 import com.rio.rostry.ui.enthusiast.components.CategoryPills
 import com.rio.rostry.ui.enthusiast.components.CompactCategoryPills
 import com.rio.rostry.ui.enthusiast.components.ExploreCategory
+import com.rio.rostry.ui.enthusiast.components.AnimatedTabRow
 import com.rio.rostry.ui.enthusiast.components.SwipeableFullScreenCard
 import com.rio.rostry.ui.social.VideoPlayer
 import kotlinx.coroutines.launch
@@ -90,15 +93,15 @@ fun EnthusiastExploreTabs(
     val scope = rememberCoroutineScope()
     
     Column(Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = tabIndex) {
-            tabs.forEachIndexed { idx, title ->
-                Tab(
-                    selected = tabIndex == idx,
-                    onClick = { tabIndex = idx; viewModel.loadTab(idx) },
-                    text = { Text(title) }
-                )
+        // Custom animated tab indicator
+        AnimatedTabRow(
+            selectedTabIndex = tabIndex,
+            tabs = tabs,
+            onTabSelected = { idx ->
+                tabIndex = idx
+                viewModel.loadTab(idx)
             }
-        }
+        )
         when (tabIndex) {
             0 -> ImmersiveExploreFeed(
                 featuredItems = featuredItems,
@@ -383,9 +386,18 @@ private fun ProductsTab(products: List<com.rio.rostry.data.database.entity.Produ
                 modifier = Modifier.fillMaxSize()
             )
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(products) { p ->
-                ElevatedCard(onClick = { onOpenProduct(p.productId) }) {
+        // Staggered grid for products (Pinterest-like)
+        androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid(
+            columns = androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells.Fixed(2),
+            verticalItemSpacing = 12.dp,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(products.size) { index ->
+                val p = products[index]
+                ElevatedCard(
+                    onClick = { onOpenProduct(p.productId) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(p.name, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                         Text("$${p.price}")

@@ -117,6 +117,7 @@ class FarmerCreateViewModel @Inject constructor(
         val traceability: Traceability = Traceability.NonTraceable,
         val ageGroup: AgeGroup = AgeGroup.Chick,
         val title: String = "",
+        val listForSale: Boolean = false,  // NEW: Toggle for marketplace listing
         val priceType: PriceType = PriceType.Fixed,
         val price: Double? = null,
         val auctionStartPrice: Double? = null,
@@ -560,14 +561,19 @@ class FarmerCreateViewModel @Inject constructor(
         return when (step) {
             WizardStep.BASICS -> buildMap {
                 if (state.basicInfo.title.isBlank()) put("title", "Title is required")
-                if (state.basicInfo.priceType == PriceType.Fixed && state.basicInfo.price == null) {
-                    put("price", "Enter valid price")
+                
+                // Only validate marketplace fields if listing for sale
+                if (state.basicInfo.listForSale) {
+                    if (state.basicInfo.priceType == PriceType.Fixed && state.basicInfo.price == null) {
+                        put("price", "Enter valid price")
+                    }
+                    if (state.basicInfo.priceType == PriceType.Auction && state.basicInfo.auctionStartPrice == null) {
+                        put("auctionStartPrice", "Enter valid start price")
+                    }
+                    if (state.basicInfo.availableFrom.isBlank()) put("availableFrom", "Start date required")
+                    if (state.basicInfo.availableTo.isBlank()) put("availableTo", "End date required")
                 }
-                if (state.basicInfo.priceType == PriceType.Auction && state.basicInfo.auctionStartPrice == null) {
-                    put("auctionStartPrice", "Enter valid start price")
-                }
-                if (state.basicInfo.availableFrom.isBlank()) put("availableFrom", "Start date required")
-                if (state.basicInfo.availableTo.isBlank()) put("availableTo", "End date required")
+                
                 if (state.basicInfo.quantity < 1) {
                     put("quantity", "Quantity must be at least 1")
                 }

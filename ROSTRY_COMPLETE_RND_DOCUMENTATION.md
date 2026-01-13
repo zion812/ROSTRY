@@ -1,7 +1,7 @@
 # ROSTRY Complete System Documentation for R&D Team
 
-**Version:** 1.2.1
-**Date:** 2025-12-29
+**Version:** 1.2.2
+**Date:** 2026-01-13
 **Security Level:** INTERNAL USE ONLY
 **Status:** VALIDATED
 
@@ -22,17 +22,17 @@ The system is built on specific principles:
 ### Technology Stack Summary
 -   **Architecture**: Clean Architecture (MVVM) + Single Activity
 -   **UI**: Jetpack Compose + Material 3
--   **Database**: Room + SQLCipher (Version 59, 120+ Entities)
+-   **Database**: Room + SQLCipher (Version 65, 120+ Entities)
 -   **Network/Cloud**: Firebase (Auth, Firestore, Storage, Functions, FCM)
--   **DI**: Hilt (20+ Modules)
--   **Async**: Coroutines + Flow + WorkManager (26+ Workers)
+-   **DI**: Hilt (21+ Modules)
+-   **Async**: Coroutines + Flow + WorkManager (30+ Workers)
 -   **Testing**: JUnit 5, MockK, Turbine, Robolectric
 
 ### Key Metrics
 -   **Documentation**: 125+ Files (Consolidated here)
--   **Data Layer**: 47+ Repositories, 120+ Entities (Core), 40+ DAOs
--   **UI Layer**: 90+ ViewModels, 220+ Screens/Components
--   **Background**: 26 Workers for sync and automation
+-   **Data Layer**: 57+ Repositories, 120+ Entities (Core), 40+ DAOs
+-   **UI Layer**: 114+ ViewModels, 220+ Screens/Components
+-   **Background**: 30+ Workers for sync and automation
 
 ---
 
@@ -55,6 +55,9 @@ ROSTRY includes a specialized Admin Portal for managing user trust and system in
     4.  Updates propagate atomically to Firestore to trigger role upgrades.
     5.  **Feedback Loop**: Admin action triggers `PROFILE_SYNC` FCM message -> Client executes silent `UserRepository` refresh -> UI updates immediately.
 -   **Integration**: Seamlessly embedded in `AppNavHost` with deep links from Profile and Settings screens.
+-   **57+ Repositories** across multiple subdirectories including monitoring, social, and enthusiast-specific repositories
+-   **Subdirectories**: monitoring/, social/, enthusiast/
+-   **Key Repositories**: UserRepository, ProductRepository, OrderRepository, EvidenceOrderRepository, SocialRepository, TransferWorkflowRepository, FarmAssetRepository, VaccinationRepository, AnalyticsRepository, TraceabilityRepository, GamificationRepository, BreedingRepository, CommunityRepository, AuctionRepository, CartRepository, ChatRepository, CoinRepository, EnthusiastBreedingRepository, EnthusiastVerificationRepository, FamilyTreeRepository, FarmActivityLogRepository, FarmVerificationRepository, FeedbackRepository, HatchabilityRepository, InventoryRepository, InvoiceRepository, LikesRepository, LogisticsRepository, MarketListingRepository, PaymentRepository, ProductMarketplaceRepository, ReviewRepository, SaleCompletionService, StorageRepository, StorageUsageRepository, TraceabilityRepository, TrackingRepository, TransferRepository, TransferWorkflowRepository, VerificationDraftRepository, VirtualArenaRepository, WeatherRepository, WishlistRepository, BirdHealthRepository, FarmFinancialsRepository, FarmOnboardingRepository, RoleUpgradeMigrationRepository, OnboardingChecklistRepository, OrderManagementRepository, ReportGenerationRepository, TaskRepository, DailyLogRepository, GrowthRepository, MortalityRepository, QuarantineRepository, HatchingRepository, FarmPerformanceRepository, MessagingRepository, PedigreeRepository, BreedRepository
 
 
 
@@ -75,6 +78,14 @@ Hilt is used throughout. Key scopes:
 -   `@Singleton`: Repositories, Database, Network Clients.
 -   `@ActivityRetainedScoped`: User Session data.
 -   `@ViewModelScoped`: Screen-specific logic.
+-   **21+ DI Modules** organizing dependencies across the application
+-   **RepositoryModule** binds all 57+ repository interfaces to implementations
+-   **BaseViewModel** pattern for common error handling across 114+ ViewModels
+-   **Entry Points** for accessing dependencies from non-Hilt classes
+-   **Qualifiers** for distinguishing multiple implementations of the same type
+-   **PaymentModule** for payment gateway binding
+-   **MediaUploadInitializer** for media upload initialization
+-   **AppEntryPoints** for accessing application-level dependencies
 
 ### Navigation Architecture
 Single Activity `AppNavHost` managing feature graphs:
@@ -82,6 +93,11 @@ Single Activity `AppNavHost` managing feature graphs:
 -   `FarmerNavGraph`: Monitoring, Marketplace, Analytics.
 -   `SocialNavGraph`: Feed, Messaging, Community.
 -   `EnthusiastNavGraph`: Breeding, Collection, Shows.
+-   **114+ ViewModels** across all feature packages
+-   **StateFlow** is used consistently across all ViewModels for predictable state management
+-   **SavedStateHandle** is utilized for process death survival and navigation arguments
+-   **Paging 3** is integrated with StateFlow for efficient list loading
+-   **combine** and **flatMapLatest** operators are used for complex state composition
 
 ### Offline-First Strategy
 The **Room Database** is the Single Source of Truth.
@@ -116,7 +132,11 @@ The **Room Database** is the Single Source of Truth.
 ### Database
 -   **Room**: Object Mapping.
 -   **SQLCipher**: 256-bit AES encryption for `rostry.db`.
--   **Migrations**: Complex history from v1 to v54 (current).
+-   **Migrations**: Complex history from v1 to v65 (current).
+-   **61+ Entity files** with 120+ entities across multiple subdirectories
+-   **Repository Layer** with 57+ repositories across multiple subdirectories including monitoring, social, and enthusiast-specific repositories
+-   **Subdirectories**: monitoring/, social/, enthusiast/
+-   **Key Repositories**: UserRepository, ProductRepository, OrderRepository, EvidenceOrderRepository, SocialRepository, TransferWorkflowRepository, FarmAssetRepository, VaccinationRepository, AnalyticsRepository, TraceabilityRepository, GamificationRepository, BreedingRepository, CommunityRepository, AuctionRepository, CartRepository, ChatRepository, CoinRepository, EnthusiastBreedingRepository, EnthusiastVerificationRepository, FamilyTreeRepository, FarmActivityLogRepository, FarmVerificationRepository, FeedbackRepository, HatchabilityRepository, InventoryRepository, InvoiceRepository, LikesRepository, LogisticsRepository, MarketListingRepository, PaymentRepository, ProductMarketplaceRepository, ReviewRepository, SaleCompletionService, StorageRepository, StorageUsageRepository, TraceabilityRepository, TrackingRepository, TransferRepository, TransferWorkflowRepository, VerificationDraftRepository, VirtualArenaRepository, WeatherRepository, WishlistRepository, BirdHealthRepository, FarmFinancialsRepository, FarmOnboardingRepository, RoleUpgradeMigrationRepository, OnboardingChecklistRepository, OrderManagementRepository, ReportGenerationRepository, TaskRepository, DailyLogRepository, GrowthRepository, MortalityRepository, QuarantineRepository, HatchingRepository, FarmPerformanceRepository, MessagingRepository, PedigreeRepository, BreedRepository
 
 ---
 
@@ -168,6 +188,9 @@ A 10-state workflow ensures trust:
 -   **Modules**: Growth, Vaccination, Mortality, Quarantine, Hatching, Breeding.
 -   **Daily Logs**: Unified entry point for observations.
 -   **Tasks**: Automated reminders generated by `LifecycleWorker`.
+-   **FCR Calculator**: Feed conversion ratio analytics.
+-   **Farm Activity Log**: Comprehensive farm activity tracking.
+-   **Batch Management**: Batch creation, splitting, and tracking.
 
 ### 5.6 Digital Farm Visualization 2.0 (NEW - Enhanced)
 -   **2.5D Isometric Engine**: Premium rendering with Z-ordering (~2040 lines).
@@ -187,6 +210,24 @@ A 10-state workflow ensures trust:
 -   **Leaderboards**: Ranked entries with gold/silver/bronze indicators.
 -   **Farm Sharing**: Public showcase with reactions (Like, Love, Wow, Follow) and visitor tracking.
 -   **Offline Mode**: Cached snapshots with 24-hour expiry for offline viewing.
+
+### 5.7 Farm Asset Management
+-   **Farm Asset List**: "My Farm" tab destination for asset management.
+-   **Farm Asset Detail**: View/manage individual assets.
+-   **Create Asset**: Add new farm assets.
+-   **Create Listing from Asset**: Publish assets to marketplace.
+-   **Create Auction from Asset**: Auction assets.
+-   **Bird History**: Unified timeline for birds/batches.
+-   **Asset Tracking**: Complete asset lifecycle tracking.
+
+### 5.8 Evidence-Based Order System
+-   **10-State Workflow**: Enquiry → Quote → Agreement → Advance Payment → Verification → Dispatch → Delivery → Completion.
+-   **Payment Proof**: Verification with evidence upload.
+-   **Delivery OTP**: Secure delivery confirmation.
+-   **Dispute Resolution**: Order dispute handling.
+-   **Order Tracking**: Complete order lifecycle tracking.
+-   **Payment Verification**: Payment verification workflows.
+-   **Review System**: Order and seller reviews.
 
 ### 5.7 Traceability & Lineage Tracking
 -   **Family Tree**: Recursive traversal of parents (`PedigreeScreen`).
@@ -215,6 +256,20 @@ A 10-state workflow ensures trust:
     -   `DigitalCertificateComposable`: QR-coded ownership certificates.
     -   `HallOfFameScreen`: Top birds by value and achievements.
 
+### 5.10 Enthusiast Features
+-   **Breeding Calculator**: Advanced breeding prediction algorithms.
+-   **Performance Journal**: Detailed performance tracking.
+-   **Virtual Arena**: Competitive virtual poultry events.
+-   **Egg Collection**: Egg tracking and management.
+-   **Hatchability Tracker**: Hatchability analysis and tracking.
+-   **Egg Tray**: Visual grid of eggs with status.
+-   **Rooster Card**: Shareable bird cards.
+-   **Showcase Card**: Bird showcase functionality.
+-   **Claim Transfer**: Transfer claiming functionality.
+-   **Show Log**: Detailed show records.
+-   **Pedigree Management**: Advanced lineage tracking.
+-   **Digital Coop Features**: Specialized enthusiast features.
+
 ---
 
 ## 6. UI/UX Architecture
@@ -223,6 +278,12 @@ A 10-state workflow ensures trust:
 -   **Components**: 22+ Reusable atoms (Buttons, Cards, Inputs).
 -   **Screens**: `Scaffold` based with consistent TopBar/BottomBar.
 -   **Accessibility**: Semantics enabled, tested for TalkBack.
+-   **114+ ViewModels** across all feature packages
+-   **StateFlow** is used consistently across all ViewModels for predictable state management
+-   **SavedStateHandle** is utilized for process death survival and navigation arguments
+-   **Paging 3** is integrated with StateFlow for efficient list loading
+-   **combine** and **flatMapLatest** operators are used for complex state composition
+-   **BaseViewModel** pattern provides centralized error handling for all ViewModels
 
 ---
 
@@ -293,32 +354,67 @@ app/src/main/java/com/rio/rostry/
 
 ## 10. Implementation Patterns
 
-### MVVM with Result State
-ViewModels expose `StateFlow<UiState<T>>`.
+### MVVM with Resource State
+ViewModels expose `StateFlow<Resource<T>>` using the Resource sealed class.
 ```kotlin
-sealed class UiState<out T> {
-    object Loading : UiState<Nothing>()
-    data class Success<T>(val data: T) : UiState<T>()
-    data class Error(val message: String) : UiState<Nothing>()
+sealed class Resource<out T> {
+    object Loading : Resource<Nothing>()
+    data class Success<T>(val data: T) : Resource<T>()
+    data class Error(val message: String?, val exception: Exception? = null) : Resource<Nothing>()
 }
 ```
+- **114+ ViewModels** follow the BaseViewModel pattern with standardized error handling
+- **StateFlow** is used consistently across all ViewModels for predictable state management
+- **SavedStateHandle** is utilized for process death survival and navigation arguments
+- **DataStore** is used for user preferences and settings
+- **Paging 3** is integrated with StateFlow for efficient list loading
+- **combine** and **flatMapLatest** operators are used for complex state composition
+- **BaseViewModel** pattern provides centralized error handling for all ViewModels
+- **Extension functions** for handling Resource types
 
 ### Repository Pattern
 Repositories handle data strategies.
 -   `fetchX()`: Returns `Flow<T>` from Room.
 -   `refreshX()`: Triggers network sync.
+-   **57+ repositories** across multiple subdirectories including monitoring, social, and enthusiast-specific repositories
+-   **Subdirectories**: monitoring/, social/, enthusiast/
+-   **Key Repositories**: UserRepository, ProductRepository, OrderRepository, EvidenceOrderRepository, SocialRepository, TransferWorkflowRepository, FarmAssetRepository, VaccinationRepository, AnalyticsRepository, TraceabilityRepository, GamificationRepository, BreedingRepository, CommunityRepository, AuctionRepository, CartRepository, ChatRepository, CoinRepository, EnthusiastBreedingRepository, EnthusiastVerificationRepository, FamilyTreeRepository, FarmActivityLogRepository, FarmVerificationRepository, FeedbackRepository, HatchabilityRepository, InventoryRepository, InvoiceRepository, LikesRepository, LogisticsRepository, MarketListingRepository, PaymentRepository, ProductMarketplaceRepository, ReviewRepository, SaleCompletionService, StorageRepository, StorageUsageRepository, TraceabilityRepository, TrackingRepository, TransferRepository, TransferWorkflowRepository, VerificationDraftRepository, VirtualArenaRepository, WeatherRepository, WishlistRepository, BirdHealthRepository, FarmFinancialsRepository, FarmOnboardingRepository, RoleUpgradeMigrationRepository, OnboardingChecklistRepository, OrderManagementRepository, ReportGenerationRepository, TaskRepository, DailyLogRepository, GrowthRepository, MortalityRepository, QuarantineRepository, HatchingRepository, FarmPerformanceRepository, MessagingRepository, PedigreeRepository, BreedRepository
 
 ---
 
 ## 11. Background Processing (WorkManager)
 
-**Catalog (Partial List of 26):**
-1.  `SyncWorker`: Core data synchronization.
-2.  `MediaUploadWorker`: Resumable upload for large evidence files.
-3.  `LifecycleWorker`: Daily check for age-based transitions (Chick -> Juvenile).
-4.  `VaccinationReminderWorker`: Generates tasks for due vaccines.
-5.  `FarmPerformanceWorker`: Aggregates weekly stats.
-6.  `OutgoingMessageWorker`: Flushes chat queue.
+**Catalog (Complete List of 30+):**
+1.  `SyncWorker`: Core data synchronization (8-hour intervals reduced from 6h for quota optimization).
+2.  `OutboxSyncWorker`: Handles all message delivery and batched operations.
+3.  `PullSyncWorker`: Fetches remote changes.
+4.  `MediaUploadWorker`: Resumable upload for large evidence files.
+5.  `LifecycleWorker`: Daily check for age-based transitions (Chick -> Juvenile).
+6.  `VaccinationReminderWorker`: Generates tasks for due vaccines.
+7.  `FarmPerformanceWorker`: Aggregates weekly stats.
+8.  `OutgoingMessageWorker`: Flushes chat queue (now replaced by OutboxSyncWorker).
+9.  `TransferTimeoutWorker`: SLA enforcement for transfers.
+10. `ModerationWorker`: Content scanning and moderation.
+11. `AnalyticsAggregationWorker`: Daily metrics aggregation.
+12. `ReportingWorker`: Report generation.
+13. `EvidenceOrderWorker`: Quote expiry, payment reminders, delivery confirmations.
+14. `PrefetchWorker`: Content caching under safe conditions.
+15. `CommunityEngagementWorker`: Personalized recommendations every 12 hours.
+16. `QuarantineReminderWorker`: Health monitoring alerts.
+17. `PersonalizationWorker`: AI-driven recommendations.
+18. `StorageQuotaMonitorWorker`: Storage usage tracking.
+19. `AuctionCloserWorker`: Automatic auction completion.
+20. `AutoBackupWorker`: Automatic data backup.
+21. `DatabaseMaintenanceWorker`: Database optimization.
+22. `RoleUpgradeMigrationWorker`: Role-based data migration.
+23. `VerificationUploadWorker`: Verification document processing.
+24. `OrderStatusWorker`: Order status updates.
+25. `LegacyProductMigrationWorker`: One-time migration from old architecture.
+26. `EnthusiastPerformanceWorker`: Enthusiast performance metrics.
+27. `NotificationFlushWorker`: Batch notification delivery.
+28. `FarmMonitoringWorker`: Daily health checks and alerts.
+29. `DailyLogWorker`: Daily log processing.
+30. `TaskWorker`: Task management and scheduling.
 
 ---
 

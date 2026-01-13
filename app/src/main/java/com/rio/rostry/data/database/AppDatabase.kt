@@ -130,7 +130,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FarmActivityLogEntity::class,
         // Glass Box Farm Profile (public transparency)
         FarmProfileEntity::class,
-        FarmTimelineEventEntity::class
+        FarmTimelineEventEntity::class,
+        // Enthusiast Verification
+        EnthusiastVerificationEntity::class
     ],
     version = 66, // 66: Data Integrity (recordsLockedAt, correctionOf, editCount, snapshots); 65: Glass Box Farm Profile
     exportSchema = true // Export Room schema JSONs to support migration testing.
@@ -151,6 +153,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun syncStateDao(): SyncStateDao
     abstract fun farmVerificationDao(): FarmVerificationDao
+    abstract fun enthusiastVerificationDao(): EnthusiastVerificationDao
     abstract fun auctionDao(): AuctionDao
     abstract fun bidDao(): BidDao
     abstract fun cartDao(): CartDao

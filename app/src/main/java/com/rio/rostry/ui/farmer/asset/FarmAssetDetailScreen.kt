@@ -320,37 +320,67 @@ fun FarmAssetDetailScreen(
                         Text("View Full History")
                     }
 
-                    // Showcase Toggle
+                    // View Pedigree Button
+                    OutlinedButton(
+                        onClick = { 
+                            onNavigateRoute(com.rio.rostry.ui.navigation.Routes.EnthusiastNav.pedigree(assetId))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.AccountTree, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("View Family Tree")
+                    }
+
+                    // Showcase Toggle & Share
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = if (asset.isShowcase) CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         ) else CardDefaults.cardColors()
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Showcase on Profile",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "Display this asset publicly on your farm profile",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Showcase on Profile",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Display publicly on your farm profile",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = asset.isShowcase,
+                                    onCheckedChange = { viewModel.toggleShowcase() },
+                                    enabled = !state.isUpdating
                                 )
                             }
-                            Switch(
-                                checked = asset.isShowcase,
-                                onCheckedChange = { viewModel.toggleShowcase() },
-                                enabled = !state.isUpdating
-                            )
+                            
+                            Spacer(Modifier.height(16.dp))
+                            
+                            // Generate Showcase Card Button
+                            Button(
+                                onClick = { 
+                                    onNavigateRoute(com.rio.rostry.ui.navigation.Routes.EnthusiastNav.showcaseCard(assetId))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFFD700),
+                                    contentColor = Color(0xFF3E2723)
+                                )
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Generate Shareable Card")
+                            }
                         }
                     }
 

@@ -340,6 +340,10 @@ object DatabaseModule {
 
     @Provides
     @Singleton
+    fun provideEnthusiastVerificationDao(appDatabase: AppDatabase): com.rio.rostry.data.database.dao.EnthusiastVerificationDao = appDatabase.enthusiastVerificationDao()
+
+    @Provides
+    @Singleton
     fun provideAuctionDao(appDatabase: AppDatabase): AuctionDao = appDatabase.auctionDao()
 
     @Provides

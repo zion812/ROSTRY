@@ -7,12 +7,12 @@ Status: Active
 
 # ROSTRY Documentation Index
 
-📍 **This is the primary documentation index.** For high-level system overview, see `blueprint.md`. For quick setup, see `../QUICK_START.md`.
+📍 **This is the primary documentation index.** For high-level system overview, see `../SYSTEM_BLUEPRINT.md`. For quick setup, see `../QUICK_START.md`.
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2026-01-04  
-**Documentation Version**: 4.2
+**Last Updated**: 2026-01-13
+**Documentation Version**: 4.3
 
 📘 **NEW: Complete System Reference** - See `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` for the comprehensive R&D Master Document that provides end-to-end coverage of the entire codebase, including architecture, detailed features, and implementation patterns.
 
@@ -47,13 +47,13 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 - `architecture.md` — Big picture
 - `state-management.md`, `dependency-injection.md`, `error-handling.md` — Focused guides
 - `adrs/` — Architecture decisions
-- `blueprint.md` — System overview for stakeholders
+- `../SYSTEM_BLUEPRINT.md` — System overview for stakeholders
 
 ### For Product Managers / Stakeholders
 - `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` — The Master R&D Documentation (Single Source of Truth)
 - `../SYSTEM_BLUEPRINT.md` — High-level system blueprint
-- `blueprint.md` — High-level system overview
-- `roadmap.md` — Feature roadmap and priorities
+- `../SYSTEM_BLUEPRINT.md` — High-level system overview
+- `../ROADMAP.md` — Feature roadmap and priorities
 - `analytics-dashboard.md` — Key metrics and insights
 
 ## System Reference (SINF)
@@ -63,6 +63,13 @@ The documentation folder consolidates deep-dive guides to help new and existing 
 | `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` | **R&D Master Document.** The comprehensive technical reference for the R&D team. Covers EVERY aspect of the system in detail. | ✅ Master |
 | `../ROSTRY_RND_QUICK_REFERENCE.md` | **R&D Cheat Sheet.** Quick links, common commands, and API reference. | ✅ New |
 | `../SYSTEM_BLUEPRINT.md` | **System Blueprint.** High-level architecture and functional breakdown. | ✅ Stable |
+
+## Updated Counts
+- **114+ ViewModels** across all feature packages
+- **57+ Repositories** across multiple subdirectories
+- **30+ Workers** for background processing
+- **61+ Entity files** with 120+ entities
+- **21 DI Modules** for dependency injection
 
 ## Documentation Hierarchy
 

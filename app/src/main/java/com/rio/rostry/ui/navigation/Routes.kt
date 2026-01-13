@@ -292,6 +292,7 @@ object Routes {
     object Upgrade {
         const val WIZARD = "upgrade/wizard/{targetRole}"
         const val POST_ONBOARDING = "upgrade/post_onboarding/{newRole}"
+        const val ENTHUSIAST_VERIFICATION = "upgrade/enthusiast/verification"
     }
 
     private val generalConfig = RoleNavigationConfig(
@@ -380,7 +381,13 @@ object Routes {
             // Settings
             Settings.BACKUP_RESTORE,
             // Analytics
-            Analytics.MONTHLY_REPORT
+            Analytics.MONTHLY_REPORT,
+            // Upgrade paths - Farmer can access enthusiast verification when upgrading
+            Upgrade.ENTHUSIAST_VERIFICATION,
+            Common.VERIFY_ENTHUSIAST_KYC,
+            // Farm asset pedigree and showcase card views
+            EnthusiastNav.PEDIGREE,
+            EnthusiastNav.SHOWCASE_CARD
         )
     )
 
@@ -452,7 +459,34 @@ object Routes {
             EnthusiastNav.PERFORMANCE_JOURNAL,
             EnthusiastNav.VIRTUAL_ARENA,
             // Settings
-            Settings.BACKUP_RESTORE
+            Settings.BACKUP_RESTORE,
+            // Farmer Parity Features
+            FarmerNav.FARM_ASSETS,
+            FarmerNav.ASSET_DETAILS,
+            FarmerNav.CREATE_ASSET,
+            FarmerNav.CREATE_LISTING_FROM_ASSET,
+            FarmerNav.CREATE_AUCTION_FROM_ASSET,
+            Monitoring.FARM_LOG,
+            Monitoring.FCR_CALCULATOR,
+            // Core Monitoring Parity
+            Monitoring.VACCINATION,
+            Monitoring.MORTALITY,
+            Monitoring.QUARANTINE,
+            Monitoring.BREEDING,
+            Monitoring.GROWTH,
+            Monitoring.HATCHING,
+            Monitoring.HATCHING_BATCH,
+            Monitoring.DASHBOARD,
+            Monitoring.PERFORMANCE,
+            Monitoring.DAILY_LOG,
+            Monitoring.DAILY_LOG_PRODUCT,
+            Monitoring.TASKS,
+            // Monitoring Detail Views
+            Monitoring.VACCINATION_DETAIL,
+            Monitoring.GROWTH_DETAIL,
+            Monitoring.MORTALITY_DETAIL,
+            Monitoring.FARM_ACTIVITY_DETAIL,
+            Monitoring.BIRD_HISTORY
         )
     )
 

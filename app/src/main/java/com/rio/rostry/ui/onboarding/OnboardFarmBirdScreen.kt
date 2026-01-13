@@ -167,15 +167,69 @@ fun OnboardFarmBirdScreen(
                     )
                     coreErrors["name"]?.let { Text(it) }
                     
-                    // Location Selector
+                    // Location Selector - Manual Options
                     Text("Location", style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val loc = state.coreDetails.location
                         listOf("Coop", "Free Range", "Quarantine").forEach { l ->
-                            if (loc == l) {
-                                Button(onClick = { vm.updateCoreDetails { it.copy(location = l) } }) { Text(l) }
+                            if (loc == l || loc.startsWith("GPS:") && l == "Coop") {
+                                Button(onClick = { vm.updateCoreDetails { it.copy(location = l, latitude = null, longitude = null) } }) { Text(l) }
                             } else {
-                                OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(location = l) } }) { Text(l) }
+                                OutlinedButton(onClick = { vm.updateCoreDetails { it.copy(location = l, latitude = null, longitude = null) } }) { Text(l) }
+                            }
+                        }
+                    }
+                    
+                    // GPS Auto-Detect Location
+                    Spacer(Modifier.height(8.dp))
+                    Text("Or detect GPS location:", style = MaterialTheme.typography.bodySmall)
+                    
+                    // Location permission launcher
+                    val locationPermissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission()
+                    ) { isGranted ->
+                        if (isGranted) {
+                            vm.autoDetectLocation()
+                        }
+                    }
+                    
+                    Button(
+                        onClick = {
+                            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                vm.autoDetectLocation()
+                            } else {
+                                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                            }
+                        },
+                        enabled = !state.isDetectingLocation,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Auto-detect GPS location" }
+                    ) {
+                        if (state.isDetectingLocation) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.padding(end = 8.dp).height(18.dp).fillMaxWidth(0.1f),
+                                strokeWidth = 2.dp
+                            )
+                            Text("Detecting...")
+                        } else {
+                            Text("📍 Auto-Detect My Location")
+                        }
+                    }
+                    
+                    // Show detected GPS coordinates
+                    if (state.coreDetails.latitude != null && state.coreDetails.longitude != null) {
+                        androidx.compose.material3.Card(
+                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("✓ Location captured", style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    "Lat: ${String.format("%.4f", state.coreDetails.latitude)}, Lng: ${String.format("%.4f", state.coreDetails.longitude)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
                         }
                     }
@@ -297,6 +351,100 @@ fun OnboardFarmBirdScreen(
                             coreErrors["breedingHistory"]?.let { Text(it) }
                         }
                         else -> {}
+                    }
+                    
+                    // List for Sale Toggle Section
+                    Spacer(Modifier.height(16.dp))
+                    androidx.compose.material3.Divider()
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("List for Sale?", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Enable to set price and delivery options",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = state.coreDetails.listForSale,
+                            onCheckedChange = { listForSale ->
+                                vm.updateCoreDetails { it.copy(listForSale = listForSale) }
+                            }
+                        )
+                    }
+                    
+                    // Conditional Delivery Options - Only shown when List for Sale is enabled
+                    if (state.coreDetails.listForSale) {
+                        Spacer(Modifier.height(16.dp))
+                        
+                        // Price field
+                        OutlinedTextField(
+                            value = state.coreDetails.price?.toString() ?: "",
+                            onValueChange = { text ->
+                                vm.updateCoreDetails { it.copy(price = text.toDoubleOrNull()) }
+                            },
+                            label = { Text("Price (₹)") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Enter price" }
+                        )
+                        
+                        Spacer(Modifier.height(12.dp))
+                        Text("Delivery Options", style = MaterialTheme.typography.labelLarge)
+                        
+                        // Delivery options chips
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+                            allDeliveryOptions.forEach { option ->
+                                androidx.compose.material3.FilterChip(
+                                    selected = state.coreDetails.deliveryOptions.contains(option),
+                                    onClick = {
+                                        val updatedOptions = if (state.coreDetails.deliveryOptions.contains(option)) {
+                                            state.coreDetails.deliveryOptions - option
+                                        } else {
+                                            state.coreDetails.deliveryOptions + option
+                                        }
+                                        vm.updateCoreDetails { it.copy(deliveryOptions = updatedOptions) }
+                                    },
+                                    label = { Text(option.replace("_", " ")) }
+                                )
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(8.dp))
+                        
+                        // Delivery cost
+                        OutlinedTextField(
+                            value = state.coreDetails.deliveryCost?.toString() ?: "",
+                            onValueChange = { text ->
+                                vm.updateCoreDetails { it.copy(deliveryCost = text.toDoubleOrNull()) }
+                            },
+                            label = { Text("Delivery Cost (₹)") },
+                            placeholder = { Text("0.00") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Enter delivery cost" }
+                        )
+                        
+                        Spacer(Modifier.height(8.dp))
+                        
+                        // Lead time days
+                        OutlinedTextField(
+                            value = state.coreDetails.leadTimeDays?.toString() ?: "",
+                            onValueChange = { text ->
+                                vm.updateCoreDetails { it.copy(leadTimeDays = text.toIntOrNull()) }
+                            },
+                            label = { Text("Lead Time (days)") },
+                            placeholder = { Text("Number of days notice required") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Enter lead time days" }
+                        )
                     }
                 }
                 OnboardFarmBirdViewModel.WizardStep.LINEAGE -> {

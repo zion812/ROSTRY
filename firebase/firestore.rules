@@ -125,6 +125,27 @@ service cloud.firestore {
         ]);
     }
 
+    // ===== Enthusiast Verifications Collection =====
+    // Users can read/write their own verification data, admins can read all and update status
+    match /enthusiast_verifications/{verificationId} {
+      // Owners: Read their own verifications
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Owners: Create their own verifications
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'PENDING';
+
+      // Admins: Read all
+      allow read: if isAdmin();
+
+      // Admins: Update moderation fields only (status, reviewedAt, reviewedBy, rejectionReason)
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'reviewedAt', 'reviewedBy', 'rejectionReason', 'updatedAt'
+        ]);
+    }
+
     // ===== Chat Messages =====
     // All roles: Own chats only
     match /chats/{messageId} {

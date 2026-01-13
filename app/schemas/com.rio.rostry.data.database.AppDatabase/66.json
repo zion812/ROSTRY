@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 66,
-    "identityHash": "31fd0ace97ca40e1916f5f032258f70f",
+    "identityHash": "82520898162382c99959cdbc81b8ce12",
     "entities": [
       {
         "tableName": "users",
@@ -12000,11 +12000,152 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "enthusiast_verifications",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`verificationId` TEXT NOT NULL, `userId` TEXT NOT NULL, `experienceYears` INTEGER, `birdCount` INTEGER, `specializations` TEXT, `achievementsDescription` TEXT, `referenceContacts` TEXT, `verificationDocumentUrls` TEXT NOT NULL, `profilePhotoUrl` TEXT, `farmPhotoUrls` TEXT, `status` TEXT NOT NULL, `submittedAt` INTEGER, `reviewedAt` INTEGER, `reviewedBy` TEXT, `rejectionReason` TEXT, `adminNotes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`verificationId`), FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "verificationId",
+            "columnName": "verificationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "experienceYears",
+            "columnName": "experienceYears",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "birdCount",
+            "columnName": "birdCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "specializations",
+            "columnName": "specializations",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "achievementsDescription",
+            "columnName": "achievementsDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "referenceContacts",
+            "columnName": "referenceContacts",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "verificationDocumentUrls",
+            "columnName": "verificationDocumentUrls",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profilePhotoUrl",
+            "columnName": "profilePhotoUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "farmPhotoUrls",
+            "columnName": "farmPhotoUrls",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "submittedAt",
+            "columnName": "submittedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reviewedAt",
+            "columnName": "reviewedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reviewedBy",
+            "columnName": "reviewedBy",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rejectionReason",
+            "columnName": "rejectionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "adminNotes",
+            "columnName": "adminNotes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "verificationId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_enthusiast_verifications_userId",
+            "unique": false,
+            "columnNames": [
+              "userId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_enthusiast_verifications_userId` ON `${TABLE_NAME}` (`userId`)"
+          },
+          {
+            "name": "index_enthusiast_verifications_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_enthusiast_verifications_status` ON `${TABLE_NAME}` (`status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "users",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "userId"
+            ],
+            "referencedColumns": [
+              "userId"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '31fd0ace97ca40e1916f5f032258f70f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '82520898162382c99959cdbc81b8ce12')"
     ]
   }
 }

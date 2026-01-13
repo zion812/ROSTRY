@@ -728,7 +728,7 @@ private fun RoleNavScaffold(
                 val showCreateFab = when {
                     isFarmer -> false
                     isEnthusiast -> currentRoute in setOf(
-                        Routes.EnthusiastNav.HOME,
+                        // Routes.EnthusiastNav.HOME, // Uses custom SpeedDialActions
                         Routes.EnthusiastNav.EXPLORE,
                         Routes.Social.FEED,
                         Routes.EnthusiastNav.DASHBOARD
@@ -1124,6 +1124,27 @@ private fun RoleNavGraph(
         }
         
         // ============ END: Farm Asset Management Routes ============
+        
+        // Bird History Screen - view all activity logs for a specific bird
+        composable(
+            route = Routes.Monitoring.BIRD_HISTORY,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId") ?: return@composable
+            com.rio.rostry.ui.farmer.asset.BirdHistoryScreen(
+                assetId = assetId,
+                onNavigateBack = { navController.popBackStack() },
+                onEventClick = { eventId, eventType ->
+                    // Navigate to appropriate event detail screen based on type
+                    when (eventType) {
+                        "VACCINATION" -> navController.navigate(Routes.Builders.vaccinationDetail(eventId))
+                        "GROWTH" -> navController.navigate(Routes.Builders.growthDetail(eventId))
+                        "MORTALITY" -> navController.navigate(Routes.Builders.mortalityDetail(eventId))
+                        else -> navController.navigate(Routes.Builders.farmActivityDetail(eventId))
+                    }
+                }
+            )
+        }
 
         // Create Auction from Asset - publish asset to auction
         composable(
@@ -1384,7 +1405,9 @@ private fun RoleNavGraph(
                 onOpenRoosterCard = { pid -> navController.navigate(Routes.Builders.roosterCard(pid)) },
                 onOpenBreedingCalculator = { navController.navigate(Routes.Builders.breedingCalculator()) },
                 onOpenPerformanceJournal = { navController.navigate(Routes.Builders.performanceJournal()) },
-                onOpenVirtualArena = { navController.navigate(Routes.Builders.virtualArena()) }
+                onOpenVirtualArena = { navController.navigate(Routes.Builders.virtualArena()) },
+                onOpenFarmAssets = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
+                onOpenFarmLog = { navController.navigate(Routes.Monitoring.FARM_LOG) }
             )
         }
 
@@ -1460,6 +1483,31 @@ private fun RoleNavGraph(
                 onVerifyTransfer = { id -> navController.navigate(Routes.Builders.transferVerify(id)) },
                 onCreateTransfer = { navController.navigate(Routes.TRANSFER_CREATE) },
                 onOpenTraceability = { id -> navController.navigate(Routes.Builders.traceability(id)) }
+            )
+        }
+
+
+        
+        // Pedigree View
+        composable(
+            route = Routes.EnthusiastNav.PEDIGREE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.pedigree.PedigreeScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onBirdClick = { id -> navController.navigate(Routes.Builders.productDetails(id)) }
+            )
+        }
+        
+        // Showcase Card Preview
+        composable(
+            route = Routes.EnthusiastNav.SHOWCASE_CARD,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.showcase.ShowcaseCardPreviewScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -1609,6 +1657,392 @@ private fun RoleNavGraph(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+        }
+        
+        // Rooster Card Screen - Shareable card for a bird
+        composable(
+            route = Routes.EnthusiastNav.ROOSTER_CARD,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            if (productId.isBlank()) {
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.cards.RoosterCardScreen(
+                    productId = productId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Breeding Calculator Screen
+        composable(Routes.EnthusiastNav.BREEDING_CALCULATOR) {
+            com.rio.rostry.ui.enthusiast.breeding.BreedingCalculatorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Performance Journal Screen
+        composable(Routes.EnthusiastNav.PERFORMANCE_JOURNAL) {
+            com.rio.rostry.ui.enthusiast.journal.PerformanceJournalScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Virtual Arena Screen
+        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
+            com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // ============ Monitoring Routes ============
+        
+        // Farm Log Screen - Comprehensive activity log
+        composable(Routes.Monitoring.FARM_LOG) {
+            com.rio.rostry.ui.farmer.FarmLogScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateRoute = { route -> navController.navigate(route) },
+                onBirdClick = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
+        // FCR Calculator Screen
+        composable(
+            route = Routes.Monitoring.FCR_CALCULATOR,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
+            if (assetId.isBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.FCRCalculatorScreen(
+                    assetId = assetId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // ============ Order Routes ============
+        
+        // My Orders Screen - Buyer view
+        composable(Routes.Order.MY_ORDERS) {
+            com.rio.rostry.ui.order.evidence.MyOrdersScreen(
+                isFarmer = false,
+                onNavigateBack = { navController.popBackStack() },
+                onOrderClick = { orderId -> navController.navigate(Routes.Builders.orderDetails(orderId)) },
+                onQuoteClick = { quoteId, isBuyer -> 
+                    navController.navigate(Routes.Order.quoteNegotiation(quoteId, isBuyer))
+                },
+                onPaymentVerify = { paymentId -> 
+                    navController.navigate(Routes.Order.paymentVerify(paymentId))
+                }
+            )
+        }
+        
+        // My Orders Screen - Farmer/Seller view
+        composable(Routes.Order.MY_ORDERS_FARMER) {
+            com.rio.rostry.ui.order.evidence.MyOrdersScreen(
+                isFarmer = true,
+                onNavigateBack = { navController.popBackStack() },
+                onOrderClick = { orderId -> navController.navigate(Routes.Builders.orderDetails(orderId)) },
+                onQuoteClick = { quoteId, isBuyer -> 
+                    navController.navigate(Routes.Order.quoteNegotiation(quoteId, isBuyer))
+                },
+                onPaymentVerify = { paymentId -> 
+                    navController.navigate(Routes.Order.paymentVerify(paymentId))
+                }
+            )
+        }
+        
+        // ============ Monitoring Detail Routes ============
+        
+        // Vaccination Detail Screen
+        composable(
+            route = Routes.Monitoring.VACCINATION_DETAIL,
+            arguments = listOf(navArgument("vaccinationId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val vaccinationId = backStackEntry.arguments?.getString("vaccinationId") ?: ""
+            if (vaccinationId.isBlank()) {
+                ErrorScreen(message = "Invalid vaccination ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.monitoring.VaccinationDetailScreen(
+                    vaccinationId = vaccinationId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+                )
+            }
+        }
+        
+        // Farm Activity Detail Screen
+        composable(
+            route = Routes.Monitoring.FARM_ACTIVITY_DETAIL,
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            if (activityId.isBlank()) {
+                ErrorScreen(message = "Invalid activity ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.farmer.FarmActivityDetailScreen(
+                    activityId = activityId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+                )
+            }
+        }
+        
+        // ============ Settings Routes ============
+        
+        // Backup & Restore Screen
+        composable(Routes.Settings.BACKUP_RESTORE) {
+            com.rio.rostry.ui.settings.BackupRestoreScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Daily Log Screen (general entry point)
+        composable(Routes.Monitoring.DAILY_LOG) {
+            com.rio.rostry.ui.monitoring.DailyLogScreen(
+                onNavigateBack = { navController.popBackStack() },
+                productId = null,
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
+            )
+        }
+        
+        // Daily Log Screen for specific product
+        composable(
+            route = Routes.Monitoring.DAILY_LOG_PRODUCT,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.monitoring.DailyLogScreen(
+                onNavigateBack = { navController.popBackStack() },
+                productId = productId.ifBlank { null },
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
+            )
+        }
+        
+        // Tasks Screen
+        composable(Routes.Monitoring.TASKS) {
+            com.rio.rostry.ui.monitoring.TasksScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
+        // Farm Performance Screen
+        composable(Routes.Monitoring.PERFORMANCE) {
+            com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
+        }
+        
+        // ============ Core Monitoring Feature Routes ============
+        
+        // Vaccination Schedule Screen
+        composable(Routes.Monitoring.VACCINATION) {
+            com.rio.rostry.ui.monitoring.VaccinationScheduleScreen(
+                onListProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Mortality Tracking Screen
+        composable(Routes.Monitoring.MORTALITY) {
+            com.rio.rostry.ui.monitoring.MortalityTrackingScreen(
+                productId = null
+            )
+        }
+        
+        // Growth Tracking Screen
+        composable(Routes.Monitoring.GROWTH) {
+            com.rio.rostry.ui.monitoring.GrowthTrackingScreen(
+                productId = "",
+                onListProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
+        // Breeding Management Screen
+        composable(Routes.Monitoring.BREEDING) {
+            com.rio.rostry.ui.monitoring.BreedingManagementScreen(
+                onBack = { navController.popBackStack() },
+                onListProduct = { productId, _ -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
+        // Quarantine Management Screen
+        composable(Routes.Monitoring.QUARANTINE) {
+            com.rio.rostry.ui.monitoring.QuarantineManagementScreen(
+                productId = ""
+            )
+        }
+        
+        // Hatching Process Screen
+        composable(Routes.Monitoring.HATCHING) {
+            com.rio.rostry.ui.monitoring.HatchingProcessScreen()
+        }
+        
+        // ============ Analytics Routes ============
+        
+        // Farmer Analytics Dashboard
+        composable(Routes.Analytics.FARMER) {
+            com.rio.rostry.ui.analytics.FarmerDashboardScreen(
+                onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.Social.FEED) }
+            )
+        }
+        
+        // Enthusiast Analytics Dashboard
+        composable(Routes.Analytics.ENTHUSIAST) {
+            com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
+                onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) },
+                onOpenFeed = { navController.navigate(Routes.Social.FEED) },
+                onOpenPerformance = { navController.navigate(Routes.Monitoring.PERFORMANCE) },
+                onOpenFinancial = { /* TODO: Financial screen */ },
+                onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
+                onOpenEggCollection = { navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION) },
+                onKpiTap = { kpi -> /* TODO: KPI detail */ }
+            )
+        }
+        
+        // ============ General Role Routes ============
+        
+        // General Home Screen
+        composable(Routes.GeneralNav.HOME) {
+            com.rio.rostry.ui.screens.HomeGeneralScreen(
+                onProfile = { navController.navigate(Routes.PROFILE) },
+                onBrowseMarketplace = { navController.navigate(Routes.GeneralNav.MARKET) },
+                onSearchProducts = { navController.navigate(Routes.GeneralNav.MARKET) },
+                onViewWishlist = { navController.navigate("wishlist") },
+                onMyOrders = { navController.navigate(Routes.Order.MY_ORDERS) },
+                onProductDetails = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onUpgradeToFarmer = { navController.navigate(Routes.Builders.upgradeWizard(com.rio.rostry.domain.model.UserType.FARMER)) },
+                onUpgradeToEnthusiast = { navController.navigate(Routes.Builders.upgradeWizard(com.rio.rostry.domain.model.UserType.ENTHUSIAST)) },
+                onJoinCommunity = { navController.navigate(Routes.Social.FEED) }
+            )
+        }
+        
+        // General Market Screen
+        composable(Routes.GeneralNav.MARKET) {
+            com.rio.rostry.ui.general.market.GeneralMarketRoute(
+                onOpenProductDetails = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onOpenTraceability = { productId -> navController.navigate("traceability/$productId") }
+            )
+        }
+        
+        // General Explore Screen
+        composable(Routes.GeneralNav.EXPLORE) {
+            com.rio.rostry.ui.general.explore.GeneralExploreRoute(
+                onOpenSocialFeed = { navController.navigate(Routes.Social.FEED) },
+                onOpenMessages = { threadId -> navController.navigate("messages/$threadId") },
+                onFarmerProfileClick = { farmerId -> navController.navigate("profile/$farmerId") },
+                onViewFarmersMap = { /* TODO: Map view */ },
+                onScanQr = { navController.navigate(Routes.Scan.QR) }
+            )
+        }
+        
+        // General Discover (alias to Explore)
+        composable(Routes.GeneralNav.DISCOVER) {
+            com.rio.rostry.ui.general.explore.GeneralExploreRoute(
+                onOpenSocialFeed = { navController.navigate(Routes.Social.FEED) },
+                onOpenMessages = { threadId -> navController.navigate("messages/$threadId") },
+                onFarmerProfileClick = { farmerId -> navController.navigate("profile/$farmerId") },
+                onViewFarmersMap = { /* TODO: Map view */ },
+                onScanQr = { navController.navigate(Routes.Scan.QR) }
+            )
+        }
+        
+        // General Cart Screen
+        composable(Routes.GeneralNav.CART) {
+            com.rio.rostry.ui.general.cart.GeneralCartRoute(
+                onCheckoutComplete = { orderId -> navController.navigate(Routes.Builders.orderDetails(orderId)) }
+            )
+        }
+        
+        // Wishlist Screen
+        composable("wishlist") {
+            com.rio.rostry.ui.general.wishlist.WishlistScreen(
+                onOpenProductDetails = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) }
+            )
+        }
+        
+        // ============ Farmer Core Routes ============
+        
+        // Farmer Home Screen
+        composable(Routes.FarmerNav.HOME) {
+            com.rio.rostry.ui.farmer.FarmerHomeScreen(
+                onOpenAlerts = { navController.navigate(Routes.Notifications.LIST) },
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) },
+                onNavigateRoute = { route -> navController.navigate(route) }
+            )
+        }
+        
+        // Farmer Market Screen
+        composable(Routes.FarmerNav.MARKET) {
+            com.rio.rostry.ui.farmer.FarmerMarketScreen(
+                onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
+                onEditListing = { id -> navController.navigate("farmer/edit/$id") },
+                onBoostListing = { _ -> /* TODO */ },
+                onPauseListing = { _ -> /* TODO */ },
+                onOpenOrder = { orderId -> navController.navigate(Routes.Builders.orderDetails(orderId)) },
+                onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onScanQr = { navController.navigate(Routes.Scan.QR) },
+                onOpenPromoteListings = { /* TODO */ },
+                onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) }
+            )
+        }
+        
+        // Farmer Create Screen
+        composable(Routes.FarmerNav.CREATE) {
+            com.rio.rostry.ui.farmer.FarmerCreateScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // ============ Enthusiast Core Routes ============
+        
+        // Enthusiast Home Screen
+        composable(Routes.EnthusiastNav.HOME) {
+            com.rio.rostry.ui.enthusiast.EnthusiastHomeScreen(
+                onOpenProfile = { navController.navigate(Routes.PROFILE) },
+                onOpenAnalytics = { navController.navigate(Routes.Analytics.ENTHUSIAST) },
+                onOpenTransfers = { navController.navigate(Routes.EnthusiastNav.TRANSFERS) },
+                onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
+                onOpenNotifications = { navController.navigate(Routes.Notifications.LIST) },
+                onVerifyKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
+                onOpenVaccination = { navController.navigate(Routes.Monitoring.VACCINATION) },
+                onOpenMortality = { navController.navigate(Routes.Monitoring.MORTALITY) },
+                onOpenQuarantine = { navController.navigate(Routes.Monitoring.QUARANTINE) },
+                onOpenBreeding = { navController.navigate(Routes.Monitoring.BREEDING) },
+                onNavigateRoute = { route -> navController.navigate(route) },
+                onOpenBreedingCalculator = { navController.navigate(Routes.EnthusiastNav.BREEDING_CALCULATOR) },
+                onOpenPerformanceJournal = { navController.navigate(Routes.EnthusiastNav.PERFORMANCE_JOURNAL) },
+                onOpenVirtualArena = { navController.navigate(Routes.EnthusiastNav.VIRTUAL_ARENA) },
+                onOpenFarmAssets = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
+                onOpenFarmLog = { navController.navigate(Routes.Monitoring.FARM_LOG) }
+            )
+        }
+        
+        // Enthusiast Explore Screen
+        composable(Routes.EnthusiastNav.EXPLORE) {
+            com.rio.rostry.ui.enthusiast.EnthusiastExploreScreen(
+                onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onOpenEvent = { eventId -> /* TODO: event detail */ },
+                onShare = { _ -> /* TODO: share */ },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Enthusiast Transfers Screen
+        composable(Routes.EnthusiastNav.TRANSFERS) {
+            com.rio.rostry.ui.enthusiast.EnthusiastTransfersScreen(
+                onOpenTransfer = { transferId -> navController.navigate("transfer/$transferId") },
+                onVerifyTransfer = { transferId -> navController.navigate("transfer/$transferId") },
+                onCreateTransfer = { navController.navigate(Routes.EnthusiastNav.TRANSFER_CODE) },
+                onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         
         // ============ END: Missing Enthusiast Routes ============
@@ -1817,7 +2251,16 @@ private fun RoleNavGraph(
         // ============ END: Missing Screen Registrations ============
         
         composable(Routes.VERIFY_ENTHUSIAST_KYC) {
-            EnthusiastKycScreen(onDone = { navController.popBackStack() })
+            com.rio.rostry.ui.enthusiast.verification.EnthusiastVerificationScreen(
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+
+        // Explicit upgrade path for Farmer -> Enthusiast
+        composable(Routes.Upgrade.ENTHUSIAST_VERIFICATION) {
+            com.rio.rostry.ui.enthusiast.verification.EnthusiastVerificationScreen(
+                onNavigateUp = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.ADMIN_VERIFICATION) {
@@ -1851,11 +2294,9 @@ private fun RoleNavGraph(
                         FarmerLocationVerificationScreen(onDone = { navController.popBackStack() })
                     }
                     com.rio.rostry.domain.model.UpgradeType.FARMER_TO_ENTHUSIAST -> {
-                         val vm: VerificationViewModel = hiltViewModel()
-                        LaunchedEffect(upgradeType) {
-                             vm.setUpgradeType(upgradeType)
-                        }
-                        EnthusiastKycScreen(onDone = { navController.popBackStack() })
+                        com.rio.rostry.ui.enthusiast.verification.EnthusiastVerificationScreen(
+                            onNavigateUp = { navController.popBackStack() }
+                        )
                     }
                 }
             }
