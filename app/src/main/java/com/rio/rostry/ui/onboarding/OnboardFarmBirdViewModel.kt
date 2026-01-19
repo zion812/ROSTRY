@@ -217,43 +217,76 @@ class OnboardFarmBirdViewModel @Inject constructor(
         
         viewModelScope.launch {
             try {
-                val cancellationTokenSource = CancellationTokenSource()
-                fusedLocationClient.getCurrentLocation(
-                    Priority.PRIORITY_HIGH_ACCURACY,
-                    cancellationTokenSource.token
-                ).addOnSuccessListener { location: Location? ->
-                    if (location != null) {
-                        _state.value = _state.value.copy(
-                            isDetectingLocation = false,
-                            coreDetails = _state.value.coreDetails.copy(
-                                latitude = location.latitude,
-                                longitude = location.longitude,
-                                location = "GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
+                // Try last known location first for immediate results
+                try {
+                    val lastLocTask = fusedLocationClient.lastLocation
+                    lastLocTask.addOnSuccessListener { location: Location? ->
+                        if (location != null) {
+                            // Found last location
+                            _state.value = _state.value.copy(
+                                isDetectingLocation = false,
+                                coreDetails = _state.value.coreDetails.copy(
+                                    latitude = location.latitude,
+                                    longitude = location.longitude,
+                                    location = "GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
+                                )
                             )
-                        )
-                    } else {
-                        _state.value = _state.value.copy(
-                            isDetectingLocation = false,
-                            error = "Unable to detect location. Please try again or select manually."
-                        )
+                        } else {
+                            // Last location null, request current location
+                            requestCurrentLocation()
+                        }
+                    }.addOnFailureListener {
+                        // Failed to get last location, try current
+                        requestCurrentLocation()
                     }
-                }.addOnFailureListener { e ->
+                } catch (e: SecurityException) {
                     _state.value = _state.value.copy(
                         isDetectingLocation = false,
-                        error = "Location detection failed: ${e.message}"
+                        error = "Location permission required. Please grant location access."
                     )
                 }
-            } catch (e: SecurityException) {
-                _state.value = _state.value.copy(
-                    isDetectingLocation = false,
-                    error = "Location permission required. Please grant location access."
-                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isDetectingLocation = false,
                     error = "Location detection failed: ${e.message}"
                 )
             }
+        }
+    }
+
+    private fun requestCurrentLocation() {
+        try {
+            val cancellationTokenSource = CancellationTokenSource()
+            fusedLocationClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                cancellationTokenSource.token
+            ).addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    _state.value = _state.value.copy(
+                        isDetectingLocation = false,
+                        coreDetails = _state.value.coreDetails.copy(
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            location = "GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
+                        )
+                    )
+                } else {
+                    _state.value = _state.value.copy(
+                        isDetectingLocation = false,
+                        error = "Unable to detect location. Please try outdoors or enable GPS."
+                    )
+                }
+            }.addOnFailureListener { e ->
+                _state.value = _state.value.copy(
+                    isDetectingLocation = false,
+                    error = "Location detection failed: ${e.message}"
+                )
+            }
+        } catch (e: SecurityException) {
+             _state.value = _state.value.copy(
+                isDetectingLocation = false,
+                error = "Location permission required."
+            )
         }
     }
 

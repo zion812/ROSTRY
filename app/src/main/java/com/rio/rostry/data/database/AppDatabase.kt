@@ -132,9 +132,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FarmProfileEntity::class,
         FarmTimelineEventEntity::class,
         // Enthusiast Verification
-        EnthusiastVerificationEntity::class
+        EnthusiastVerificationEntity::class,
+        // Calendar System
+        FarmEventEntity::class
     ],
-    version = 66, // 66: Data Integrity (recordsLockedAt, correctionOf, editCount, snapshots); 65: Glass Box Farm Profile
+    version = 68, // 68: Lifecycle SubStage
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -264,6 +266,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Farm Activity Log DAO (expenses, sanitation, etc.)
     abstract fun farmActivityLogDao(): FarmActivityLogDao
+
+    // Calendar DAO
+    abstract fun farmEventDao(): FarmEventDao
     
     // Glass Box Farm Profile DAOs
     abstract fun farmProfileDao(): FarmProfileDao
@@ -620,7 +625,10 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_37_38: Migration = Converters.MIGRATION_37_38
         val MIGRATION_56_57: Migration = Converters.MIGRATION_56_57
         val MIGRATION_57_58: Migration = Converters.MIGRATION_57_58
+
         val MIGRATION_58_59: Migration = Converters.MIGRATION_58_59
+        // 66 -> 67
+        // val MIGRATION_66_67 defined in companion object directly
 
         // FarmAsset sale lifecycle columns (62 → 63)
         val MIGRATION_62_63 = object : Migration(62, 63) {
@@ -716,6 +724,42 @@ abstract class AppDatabase : RoomDatabase() {
                 
                 // DailyBirdLogEntity: Structured performance scoring
                 db.execSQL("ALTER TABLE `daily_bird_logs` ADD COLUMN `performanceScoreJson` TEXT")
+            }
+        }
+
+        // Calendar System (66 -> 67)
+        val MIGRATION_66_67 = object : Migration(66, 67) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `farm_events` (
+                        `eventId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `eventType` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `scheduledAt` INTEGER NOT NULL,
+                        `completedAt` INTEGER,
+                        `recurrence` TEXT NOT NULL,
+                        `productId` TEXT,
+                        `batchId` TEXT,
+                        `reminderBefore` INTEGER NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `metadata` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_events_farmerId` ON `farm_events` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_events_scheduledAt` ON `farm_events` (`scheduledAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_events_eventType` ON `farm_events` (`eventType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_events_status` ON `farm_events` (`status`)")
+            }
+        }
+
+        // Add lifecycleSubStage to farm_assets (67 -> 68)
+        val MIGRATION_67_68 = object : Migration(67, 68) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `lifecycleSubStage` TEXT")
             }
         }
 

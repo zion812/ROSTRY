@@ -590,7 +590,11 @@ private fun RecentHistorySection(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = event.notes ?: formatDate(event.timestamp),
+                                text = when (event.type.uppercase()) {
+                                    "FEED" -> event.quantity?.let { "${it}kg feed" } ?: (event.notes ?: "Feed recorded")
+                                    "WEIGHT" -> event.quantity?.let { "${it.toInt()}g weight" } ?: (event.notes ?: "Weight recorded")
+                                    else -> event.notes ?: formatDate(event.timestamp)
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
@@ -614,5 +618,6 @@ private fun RecentHistorySection(
 data class RecentActivityEvent(
     val type: String,
     val timestamp: Long,
-    val notes: String? = null
+    val notes: String? = null,
+    val quantity: Double? = null
 )

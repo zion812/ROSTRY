@@ -260,7 +260,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_55_56,
             AppDatabase.MIGRATION_56_57,
             AppDatabase.MIGRATION_57_58,
-            AppDatabase.MIGRATION_59_60
+            AppDatabase.MIGRATION_59_60,
+            AppDatabase.MIGRATION_66_67,
+            AppDatabase.MIGRATION_67_68
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -660,6 +662,10 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideFarmActivityLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmActivityLogDao = db.farmActivityLogDao()
+
+    @Provides
+    @Singleton
+    fun provideFarmEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.FarmEventDao = db.farmEventDao()
 
     // Glass Box Farm Profile DAOs
     @Provides

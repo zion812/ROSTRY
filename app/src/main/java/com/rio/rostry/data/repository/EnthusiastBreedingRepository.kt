@@ -29,6 +29,7 @@ interface EnthusiastBreedingRepository {
     fun observeHatchingDue(farmerId: String, withinDays: Int = 1): Flow<List<HatchingBatchEntity>>
     suspend fun collectEggs(pairId: String, count: Int, grade: String, weight: Double?): Resource<Unit>
     suspend fun startIncubation(collectionId: String, expectedAt: Long, temp: Double?, humidity: Double?): Resource<Unit>
+    fun observeActivePairs(farmerId: String): Flow<List<BreedingPairEntity>>
 }
 
 @Singleton
@@ -264,5 +265,9 @@ class EnthusiastBreedingRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error("Failed to start incubation: ${e.message}")
         }
+    }
+
+    override fun observeActivePairs(farmerId: String): Flow<List<BreedingPairEntity>> {
+        return breedingPairDao.observeActive(farmerId)
     }
 }

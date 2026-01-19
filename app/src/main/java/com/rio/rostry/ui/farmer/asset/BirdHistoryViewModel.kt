@@ -47,7 +47,8 @@ sealed class TimelineEvent(
         override val timestamp: Long,
         val activityType: String,
         val description: String?,
-        val amountInr: Double?
+        val amountInr: Double?,
+        val quantity: Double? = null
     ) : TimelineEvent(id, timestamp, "ACTIVITY")
 
     data class DailyLog(
@@ -148,7 +149,8 @@ class BirdHistoryViewModel @Inject constructor(
                             timestamp = a.createdAt,
                             activityType = a.activityType,
                             description = a.description,
-                            amountInr = a.amountInr
+                            amountInr = a.amountInr,
+                            quantity = a.quantity
                         )
                     )
                 }

@@ -1,9 +1,68 @@
-> Task :app:clean
-> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preDebugBuild UP-TO-DATE
-> Task :app:generateDebugBuildConfig
-> Task :app:processDebugNavigationResources
-> Task :app:generateDebugResValues
-> Task :app:compileDebugNavigationResources
-> Task :app:checkDebugAarMetadata
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:injectCrashlyticsMappingFileIdDebug UP-TO-DATE
+> Task :app:injectCrashlyticsVersionControlInfoDebug UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/data/database/entity/FarmEventEntity.kt:10:5 No parameter with name 'indexes' found.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/ui/farmer/calendar/FarmCalendarViewModel.kt:29:5 Modifier 'private' is not applicable to 'value parameter'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/ui/farmer/calendar/FarmCalendarViewModel.kt:43:50 Unresolved reference 'sessionManager'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/ui/farmer/calendar/FarmCalendarViewModel.kt:44:10 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/ui/farmer/calendar/FarmCalendarViewModel.kt:44:56 Unresolved reference 'sessionManager'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/ui/farmer/calendar/FarmCalendarViewModel.kt:44:94 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/ui/farmer/calendar/FarmCalendarViewModel.kt:91:26 Unresolved reference 'sessionManager'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/workers/EventReminderWorker.kt:46:63 Argument type mismatch: actual type is 'kotlin.Long', but 'kotlin.String' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/workers/EventReminderWorker.kt:46:68 No value passed for parameter 'endTime'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/src/main/java/com/rio/rostry/workers/EventReminderWorker.kt:48:27 For-loop range must have an 'iterator()' method.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 8s
+35 actionable tasks: 1 executed, 34 up-to-date

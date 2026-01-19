@@ -299,6 +299,7 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         com.rio.rostry.workers.NotificationFlushWorker.schedule(this)
         com.rio.rostry.workers.StorageQuotaMonitorWorker.enqueuePeriodic(this)
         com.rio.rostry.workers.EvidenceOrderWorker.schedule(this) // Critical: Quote expiry, payment reminders, delivery confirmations
+        com.rio.rostry.workers.EventReminderWorker.schedule(this) // Calendar event reminders
         
         // One-time migration: Legacy ProductEntity → New Farm Asset Architecture
         scheduleLegacyMigration(workManager)

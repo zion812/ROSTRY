@@ -27,6 +27,7 @@ enum class QuickFilter(val displayName: String, val icon: String) {
 class FarmAssetListViewModel @Inject constructor(
     private val repository: FarmAssetRepository,
     private val financialsRepository: FarmFinancialsRepository,
+    private val activityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
@@ -110,11 +111,91 @@ class FarmAssetListViewModel @Inject constructor(
 
     fun updateFilter(filter: String) {
         _uiState.update { state ->
-            val newFilter = if (state.filter == filter) null else filter // Toggle
+            val newFilter = if (filter == "ALL") null else filter
             state.copy(
                 filter = newFilter,
-                filteredAssets = filterAssets(state.assets, newFilter, _currentQuickFilter.value)
+                filteredAssets = filterAssets(state.assets, newFilter, _currentQuickFilter.value),
+                selectedAssetIds = emptySet(), // Clear selection on filter change
+                isSelectionMode = false
             )
+        }
+    }
+
+    // Selection Handling
+    fun toggleSelection(assetId: String) {
+        _uiState.update { state ->
+            val currentSelected = state.selectedAssetIds.toMutableSet()
+            if (currentSelected.contains(assetId)) {
+                currentSelected.remove(assetId)
+            } else {
+                currentSelected.add(assetId)
+            }
+            state.copy(
+                selectedAssetIds = currentSelected,
+                isSelectionMode = currentSelected.isNotEmpty()
+            )
+        }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(selectedAssetIds = emptySet(), isSelectionMode = false) }
+    }
+
+    fun selectAll() {
+        _uiState.update { state ->
+            val allIds = state.filteredAssets.map { it.assetId }.toSet()
+            state.copy(
+                selectedAssetIds = allIds,
+                isSelectionMode = true
+            )
+        }
+    }
+
+    /**
+     * Submit a log entry for all selected assets.
+     */
+    fun submitBulkLog(
+        activityType: String,
+        value: Double,
+        notes: String?
+    ) {
+        viewModelScope.launch {
+            val userId = auth.currentUser?.uid ?: return@launch
+            val selectedIds = _uiState.value.selectedAssetIds
+            
+            if (selectedIds.isEmpty()) return@launch
+            
+            // Map QuickLogType or raw string to appropriate fields
+            val logType = activityType.uppercase()
+            val quantity = if (logType == "FEED" || logType == "WEIGHT") value else null
+            val amount = if (logType == "EXPENSE") value else null
+            
+            val category = when(logType) {
+                "FEED" -> "Feed"
+                "VACCINATION" -> "Health - Vaccination"
+                else -> "General"
+            }
+            
+            selectedIds.forEach { assetId ->
+                try {
+                    activityLogRepository.logActivity(
+                        farmerId = userId,
+                        productId = assetId,
+                        activityType = logType,
+                        amount = amount,
+                        quantity = quantity,
+                        category = category,
+                        description = "Bulk $logType Log",
+                        notes = notes
+                    )
+                } catch (e: Exception) {
+                    // Log error but continue
+                    e.printStackTrace()
+                }
+            }
+            
+            // Clear selection after successful bulk action
+            clearSelection()
         }
     }
 
@@ -182,6 +263,10 @@ data class FarmAssetListUiState(
     val filteredAssets: List<FarmAssetEntity> = emptyList(),
     val error: String? = null,
     val filter: String? = null, // e.g. "BATCH", "ANIMAL", "ACTIVE"
-    val isRefreshing: Boolean = false
-)
+    val isRefreshing: Boolean = false,
+    val selectedAssetIds: Set<String> = emptySet(), // Multi-selection state
+    val isSelectionMode: Boolean = false
+) {
+    val selectionCount: Int get() = selectedAssetIds.size
+}
 

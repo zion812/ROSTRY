@@ -98,6 +98,10 @@ interface FarmAssetDao {
     @Query("UPDATE farm_assets SET ageWeeks = :ageWeeks, updatedAt = :updatedAt WHERE assetId = :assetId")
     suspend fun updateAgeWeeks(assetId: String, ageWeeks: Int, updatedAt: Long)
     
+    /** Update lifecycle sub-stage */
+    @Query("UPDATE farm_assets SET lifecycleSubStage = :subStage, updatedAt = :updatedAt WHERE assetId = :assetId")
+    suspend fun updateLifecycleSubStage(assetId: String, subStage: String, updatedAt: Long)
+    
     /** Get market-ready assets (weight >= 1500g and not listed) */
     @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND weightGrams >= :minWeight AND status = 'ACTIVE' AND listingId IS NULL AND isDeleted = 0")
     suspend fun getMarketReadyAssets(farmerId: String, minWeight: Double = 1500.0): List<FarmAssetEntity>

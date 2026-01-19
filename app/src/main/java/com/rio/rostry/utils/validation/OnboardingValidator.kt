@@ -15,7 +15,10 @@ object OnboardingValidator {
         val healthStatus: String = "OK",
         val breedingHistory: String = "",
         val awards: String = "",
-        val location: String = ""
+        val location: String = "",
+        // Marketplace fields
+        val price: Double? = null,
+        val deliveryOptions: List<String> = emptyList()
     )
 
     data class LineageState(
@@ -40,17 +43,36 @@ object OnboardingValidator {
     fun validateCoreDetails(
         details: CoreDetailsState,
         ageGroup: AgeGroup,
-        isTraceable: Boolean
+        isTraceable: Boolean,
+        listForSale: Boolean = false
     ): Map<String, String> {
         val errors = mutableMapOf<String, String>()
         if (details.name.isBlank()) errors["name"] = "Name is required"
         if (details.birthDate == null) errors["birthDate"] = "Birth date is required"
-        if (details.location.isBlank()) errors["location"] = "Location is required"
+        
+        // Location is only strictly required if listing for sale, otherwise optional (or warn)
+        if (listForSale && details.location.isBlank()) {
+            errors["location"] = "Location is required for marketplace listing"
+        }
+        
         val weight = details.weightGrams.toDoubleOrNull()
         if (weight == null || weight <= 0.0) errors["weightGrams"] = "Valid weight (g) required"
+        
         if (isTraceable && details.gender.equals("Unknown", ignoreCase = true)) {
             errors["gender"] = "Gender is required for traceable birds"
         }
+        
+        // Marketplace validation
+        if (listForSale) {
+            if (details.price == null || details.price <= 0.0) {
+                errors["price"] = "Valid price is required for sale"
+            }
+            if (details.deliveryOptions.isEmpty()) {
+                errors["deliveryOptions"] = "Select at least one delivery option"
+            }
+            // Delivery cost is optional (defaults to 0 or manual negotiation), lead time optional (default usually)
+        }
+
         when (ageGroup) {
             AgeGroup.CHICK -> {
                 if (isTraceable && details.birthPlace.isBlank()) errors["birthPlace"] = "Birth place is required"

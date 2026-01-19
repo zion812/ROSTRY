@@ -174,6 +174,8 @@ object Routes {
         const val MORTALITY = "monitoring/mortality"
         const val QUARANTINE = "monitoring/quarantine"
         const val BREEDING = "monitoring/breeding"
+        const val BREEDING_UNIT = "monitoring/breeding/unit"
+        const val BREEDING_PERFORMANCE = "monitoring/breeding/performance"
         const val GROWTH = "monitoring/growth"
         const val HATCHING = "monitoring/hatching"
         // Detail deep-link route for batch
@@ -231,6 +233,12 @@ object Routes {
         const val CREATE_ASSET = "farmer/create_asset"
         const val CREATE_LISTING_FROM_ASSET = "farmer/create_listing/{assetId}"
         const val CREATE_AUCTION_FROM_ASSET = "farmer/create_auction/{assetId}"
+        
+        // NEW: Calendar Route
+        const val CALENDAR = "farmer/calendar"
+
+        // NEW: Feed History Route
+        const val FEED_HISTORY = "farmer/feed_history"
         
         // Glass Box Farm Profile Routes
         const val PUBLIC_PROFILE_PREVIEW = "farmer/profile/preview"  // Farmer previews own public profile
@@ -374,8 +382,16 @@ object Routes {
             FarmerNav.CREATE_ASSET,
             FarmerNav.CREATE_LISTING_FROM_ASSET,
             FarmerNav.CREATE_AUCTION_FROM_ASSET,
+            // Calendar
+            FarmerNav.CALENDAR,
             // Farm Activity Log
             Monitoring.FARM_LOG,
+            // Monitoring Detail Views
+            Monitoring.VACCINATION_DETAIL,
+            Monitoring.GROWTH_DETAIL,
+            Monitoring.MORTALITY_DETAIL,
+            Monitoring.FARM_ACTIVITY_DETAIL,
+            Monitoring.BIRD_HISTORY,
             // Financial Analytics
             Monitoring.FCR_CALCULATOR,
             // Settings
@@ -513,6 +529,7 @@ object Routes {
     const val AUTH_PHONE_VERIFY = Auth.PHONE_VERIFY
     const val HOME_GENERAL = GeneralNav.HOME
     const val HOME_FARMER = FarmerNav.HOME
+    const val FARMER_CALENDAR = FarmerNav.CALENDAR
     const val HOME_ENTHUSIAST = EnthusiastNav.HOME
     const val PROFILE = Common.PROFILE
     const val USER_PROFILE = User.PROFILE
@@ -780,7 +797,7 @@ object Routes {
         fun syncIssues() = SYNC_ISSUES
 
         fun syncStatus() = SYNC_STATUS
-
+        
         fun upgradeWizard(targetRole: UserType): String = "upgrade/wizard/${targetRole.name}"
         
         fun upgradePostOnboarding(newRole: UserType): String = "upgrade/post_onboarding/${newRole.name}"

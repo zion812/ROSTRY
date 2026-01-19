@@ -1039,6 +1039,18 @@ private fun RoleNavGraph(
             )
         }
         
+        composable(Routes.FarmerNav.CALENDAR) {
+            com.rio.rostry.ui.farmer.calendar.FarmCalendarScreen(
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+        
+        composable(Routes.FarmerNav.FEED_HISTORY) {
+            com.rio.rostry.ui.farmer.feed.FeedHistoryScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
         // ============ NEW: Farm Asset Management Routes (Phase 1 of Farm-Market Separation) ============
         
         // Farm Assets List - "My Farm" tab destination
@@ -2824,6 +2836,53 @@ private fun RoleNavGraph(
             deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/performance" })
         ) {
             com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
+        }
+
+        composable(Routes.Monitoring.BREEDING_UNIT) {
+            com.rio.rostry.ui.farmer.breeding.BreedingUnitScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Monitoring.BREEDING_PERFORMANCE) {
+            com.rio.rostry.ui.monitoring.BreedingPerformanceScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Routes.MONITORING_DAILY_LOG_PRODUCT,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.monitoring.DailyLogScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird()) },
+                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch()) }
+            )
+        }
+        
+        // Farm Activity Detail Screen
+        composable(
+            route = Routes.Monitoring.FARM_ACTIVITY_DETAIL,
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            com.rio.rostry.ui.farmer.log.FarmActivityDetailScreen(
+                activityId = activityId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.MONITORING_FARM_LOG) {
+            com.rio.rostry.ui.farmer.FarmLogScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateRoute = { route -> navController.navigate(route) },
+                onActivityClick = { activity -> 
+                     navController.navigate(Routes.Builders.farmActivityDetail(activity.activityId))
+                }
+            )
         }
         
         // Farm-Marketplace Bridge: Deep link to add product to farm monitoring

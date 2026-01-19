@@ -152,11 +152,13 @@ fun OnboardFarmBirdScreen(
                             healthStatus = state.coreDetails.healthStatus,
                             breedingHistory = state.coreDetails.breedingHistory,
                             awards = state.coreDetails.awards,
-                            location = state.coreDetails.location
+                            location = state.coreDetails.location,
+                            price = state.coreDetails.price,
+                            deliveryOptions = state.coreDetails.deliveryOptions
                         )
                         val ageGroup = state.ageGroup ?: OnboardingValidator.AgeGroup.CHICK
                         val isTraceable = state.isTraceable ?: false
-                        OnboardingValidator.validateCoreDetails(details, ageGroup, isTraceable)
+                        OnboardingValidator.validateCoreDetails(details, ageGroup, isTraceable, state.coreDetails.listForSale)
                     } else mapOf("step" to "Select previous options")
                     OutlinedTextField(
                         value = state.coreDetails.name,
@@ -213,6 +215,16 @@ fun OnboardFarmBirdScreen(
                         } else {
                             Text("📍 Auto-Detect My Location")
                         }
+                    }
+
+                    // Show detection error if any
+                    state.error?.let { err ->
+                        Text(
+                            text = err,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                        )
                     }
                     
                     // Show detected GPS coordinates
@@ -393,6 +405,7 @@ fun OnboardFarmBirdScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Enter price" }
                         )
+                        coreErrors["price"]?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                         
                         Spacer(Modifier.height(12.dp))
                         Text("Delivery Options", style = MaterialTheme.typography.labelLarge)
@@ -415,6 +428,7 @@ fun OnboardFarmBirdScreen(
                                 )
                             }
                         }
+                        coreErrors["deliveryOptions"]?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                         
                         Spacer(Modifier.height(8.dp))
                         

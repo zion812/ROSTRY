@@ -64,12 +64,19 @@ class LifecycleWorker @AssistedInject constructor(
     private val taskGenerator: TaskGenerator, // Farmer-First: Auto-generate daily tasks
     private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao, // Farm asset lifecycle
     private val farmProfileRepository: com.rio.rostry.data.repository.FarmProfileRepository, // Glass Box timeline
+    private val farmEventDao: com.rio.rostry.data.database.dao.FarmEventDao,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             val now = System.currentTimeMillis()
             MilestoneNotifier.ensureChannel(applicationContext)
+            
+            // ============================================================
+            // CALENDAR SYSTEM: Daily Event Briefing
+            // ============================================================
+            generateDailyBriefing(now)
+
             // Restrict to active birds with known birth dates to reduce load
             val products = productDao.getActiveWithBirth()
             for (p in products) {
@@ -473,6 +480,12 @@ class LifecycleWorker @AssistedInject constructor(
                     if (asset.ageWeeks != ageWeeks) {
                         farmAssetDao.updateAgeWeeks(asset.assetId, ageWeeks, now)
                         updatedCount++
+                        
+                        // Update granular sub-stage
+                        val subStage = com.rio.rostry.domain.model.LifecycleSubStage.fromAge(ageWeeks).name
+                        if (asset.lifecycleSubStage != subStage) {
+                            farmAssetDao.updateLifecycleSubStage(asset.assetId, subStage, now)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -580,5 +593,30 @@ class LifecycleWorker @AssistedInject constructor(
         // If current day is already Sunday past time, push to next Sunday
         if (cal.timeInMillis < now) cal.add(java.util.Calendar.WEEK_OF_YEAR, 1)
         return cal.timeInMillis
+    }
+
+    private suspend fun generateDailyBriefing(now: Long) {
+        try {
+            val endOfDay = endOfDay(now)
+            val farmerIds = productDao.getDistinctSellerIds() // Best proxy for active farmers
+            
+            for (farmerId in farmerIds) {
+                // Get events for today that are not completed
+                val events = farmEventDao.getEventsByDateRange(farmerId, now, endOfDay)
+                    .first() // Flow -> List
+                    .filter { it.status != com.rio.rostry.data.database.entity.EventStatus.COMPLETED }
+                
+                if (events.isNotEmpty()) {
+                    // Send a single summary notification
+                    FarmNotifier.dailyBriefing(
+                        applicationContext,
+                        events.size,
+                        events.first().title
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            timber.log.Timber.e(e, "Error generating daily briefing")
+        }
     }
 }

@@ -56,7 +56,8 @@ class FarmAssetDetailViewModel @Inject constructor(
                             RecentActivityEvent(
                                 type = log.activityType,
                                 timestamp = log.createdAt,
-                                notes = log.notes
+                                notes = log.notes,
+                                quantity = log.quantity
                             )
                         }
                     }

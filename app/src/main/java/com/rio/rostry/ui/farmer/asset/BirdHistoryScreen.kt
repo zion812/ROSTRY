@@ -250,7 +250,14 @@ private fun getEventDescription(event: TimelineEvent): String = when (event) {
     is TimelineEvent.Vaccination -> if (event.isAdministered) "Administered" else "Scheduled"
     is TimelineEvent.Growth -> event.weightGrams?.let { "${it.toInt()}g" } ?: "Weight recorded"
     is TimelineEvent.Mortality -> "${event.quantity} birds - ${event.causeCategory}"
-    is TimelineEvent.Activity -> event.amountInr?.let { "₹%.2f".format(it) } ?: (event.description ?: "Activity recorded")
+    is TimelineEvent.Activity -> {
+        val qty = event.quantity
+        when (event.activityType) {
+            "FEED" -> qty?.let { "${it}kg feed" } ?: (event.description ?: "Feed recorded")
+            "WEIGHT" -> qty?.let { "${it.toInt()}g weight" } ?: (event.description ?: "Weight recorded")
+            else -> event.amountInr?.let { "₹%.2f".format(it) } ?: (event.description ?: "Activity recorded")
+        }
+    }
     is TimelineEvent.DailyLog -> buildString {
         event.feedKg?.let { append("Feed: ${it}kg ") }
         event.weightGrams?.let { append("Weight: ${it.toInt()}g") }

@@ -59,6 +59,7 @@ data class FarmAssetEntity(
     val description: String = "",
     val imageUrls: List<String> = emptyList(),
     val notes: String? = null,
+    val lifecycleSubStage: String? = null, // e.g. BROODING, GROWER_EARLY (from LifecycleSubStage)
     
     // Traceability
     val parentIdsJson: String? = null, // JSON list of parent asset IDs

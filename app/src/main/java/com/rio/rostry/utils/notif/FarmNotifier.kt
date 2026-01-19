@@ -477,4 +477,53 @@ object FarmNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(("farm_" + "harvestReady" + "_" + batchId).hashCode(), notification)
     }
+
+    fun dailyBriefing(context: Context, count: Int, firstTitle: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.FARMER_CALENDAR).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            "dailyBriefing".hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val text = "You have $count events today. Starting with: $firstTitle"
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_menu_agenda)
+            .setContentTitle("Daily Farm Briefing")
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify("daily_briefing".hashCode(), notification)
+    }
+
+    fun eventReminder(context: Context, eventId: String, title: String, timeString: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.FARMER_CALENDAR).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            eventId.hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("Event Reminder")
+            .setContentText("$title at $timeString")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("event_" + eventId).hashCode(), notification)
+    }
 }

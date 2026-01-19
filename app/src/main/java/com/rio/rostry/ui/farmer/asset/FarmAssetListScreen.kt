@@ -36,6 +36,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.foundation.combinedClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,29 +78,95 @@ fun FarmAssetListScreen(
             )
     }
 
+    var showBulkFeedDialog by remember { mutableStateOf(false) }
+    
+    if (showBulkFeedDialog) {
+         com.rio.rostry.ui.farmer.feed.QuickFeedLogDialog(
+            products = state.filteredAssets
+                .filter { state.selectedAssetIds.contains(it.assetId) }
+                .map { asset ->
+                    com.rio.rostry.data.database.entity.ProductEntity(
+                        productId = asset.assetId,
+                        sellerId = asset.farmerId,
+                        name = asset.name,
+                        category = asset.assetType,
+                        breed = asset.breed,
+                        gender = asset.gender,
+                        ageWeeks = asset.ageWeeks,
+                        price = 0.0,
+                        imageUrls = asset.imageUrls,
+                        stage = null, // Converting simplistic asset to complex product, stage can be null
+                        location = "",
+                        healthStatus = asset.healthStatus,
+                        // itemsAvailable removed as it does not exist
+                        createdAt = asset.createdAt
+                    )
+                },
+            suggestedAmount = null, // Could sum up suggested amounts if available
+            onDismiss = { showBulkFeedDialog = false },
+            onConfirm = { amount, notes ->
+                viewModel.submitBulkLog("FEED", amount, notes)
+                showBulkFeedDialog = false
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Farm Assets") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            if (state.isSelectionMode) {
+                // Selection Mode Top Bar
+                TopAppBar(
+                    title = { Text("${state.selectionCount} Selected") },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear Selection")
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { viewModel.selectAll() }) {
+                            Text("Select All")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            } else {
+                // Standard Top Bar
+                TopAppBar(
+                    title = { Text("Farm Assets") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        // Grid/List Toggle
+                        IconButton(onClick = { isGridView = !isGridView }) {
+                            Icon(
+                                if (isGridView) Icons.Default.ViewList else androidx.compose.material.icons.Icons.Default.GridView,
+                                contentDescription = if (isGridView) "List View" else "Grid View"
+                            )
+                        }
                     }
-                },
-                actions = {
-                    // Grid/List Toggle
-                    IconButton(onClick = { isGridView = !isGridView }) {
-                        Icon(
-                            if (isGridView) Icons.Default.ViewList else androidx.compose.material.icons.Icons.Default.GridView,
-                            contentDescription = if (isGridView) "List View" else "Grid View"
-                        )
-                    }
-                }
-            )
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddAsset) {
-                Icon(Icons.Default.Add, contentDescription = "Add Asset")
+            if (!state.isSelectionMode) {
+                FloatingActionButton(onClick = onAddAsset) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Asset")
+                }
+            }
+        },
+        bottomBar = {
+            if (state.isSelectionMode) {
+                BulkActionsBar(
+                    onBulkFeed = { showBulkFeedDialog = true },
+                    onBulkVaccinate = { /* TODO: Future scope */ },
+                    onBulkLog = { /* TODO: Future scope */ }
+                )
             }
         }
     ) { padding ->
@@ -168,28 +236,58 @@ fun FarmAssetListScreen(
                 }
             }
             
-            // Filter & Sort Row
+            // Primary Filter Tabs
+            val tabs = listOf("All", "Batches", "Birds")
+            
+            TabRow(
+                selectedTabIndex = when (state.filter) {
+                    "BATCH" -> 1
+                    "ANIMAL" -> 2
+                    else -> 0
+                },
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[when (state.filter) {
+                            "BATCH" -> 1
+                            "ANIMAL" -> 2
+                            else -> 0
+                        }]),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = index == when (state.filter) {
+                            "BATCH" -> 1
+                            "ANIMAL" -> 2
+                            else -> 0
+                        },
+                        onClick = {
+                            viewModel.updateFilter(
+                                when (index) {
+                                    1 -> "BATCH"
+                                    2 -> "ANIMAL"
+                                    else -> "ALL" 
+                                }
+                            )
+                        },
+                        text = { Text(title) }
+                    )
+                }
+            }
+                
+            
+            // Sort Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End
             ) {
-                FilterChip(
-                    selected = state.filter == "ANIMAL",
-                    onClick = { viewModel.updateFilter("ANIMAL") },
-                    label = { Text("Birds") },
-                    leadingIcon = { Icon(Icons.Default.Pets, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                )
-                FilterChip(
-                    selected = state.filter == "BATCH",
-                    onClick = { viewModel.updateFilter("BATCH") },
-                    label = { Text("Batches") }
-                )
-                
-                Spacer(Modifier.weight(1f))
-                
                 // Sort Dropdown
                 Box {
                     FilterChip(
@@ -292,7 +390,13 @@ fun FarmAssetListScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(displayAssets) { asset ->
-                            FarmAssetItem(asset = asset, onClick = { onAssetClick(asset.assetId) })
+                            FarmAssetItem(
+                                asset = asset,
+                                isSelected = state.selectedAssetIds.contains(asset.assetId),
+                                isSelectionMode = state.isSelectionMode,
+                                onSelect = { viewModel.toggleSelection(asset.assetId) },
+                                onClick = { onAssetClick(asset.assetId) }
+                            )
                         }
                     }
                 }
@@ -301,9 +405,13 @@ fun FarmAssetListScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun FarmAssetItem(
     asset: FarmAssetEntity,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
+    onSelect: () -> Unit = {},
     onClick: () -> Unit
 ) {
     val healthColor = when (asset.healthStatus.uppercase()) {
@@ -334,14 +442,27 @@ fun FarmAssetItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = { 
+                    if (isSelectionMode) onSelect() else onClick() 
+                },
+                onLongClick = {
+                    if (!isSelectionMode) onSelect()
+                }
+            ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
+            defaultElevation = if (isSelected) 8.dp else 4.dp,
             pressedElevation = 8.dp
         ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) 
+            else 
+                MaterialTheme.colorScheme.surface
         ),
+        border = if (isSelected) 
+            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) 
+        else null,
         shape = MaterialTheme.shapes.medium
     ) {
         Column {
@@ -349,6 +470,16 @@ fun FarmAssetItem(
                 modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
+                // Selection Checkbox
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onSelect() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+
+                // Enhanced Image with Gradient Overlay
                 // Enhanced Image with Gradient Overlay
                 Box(
                     modifier = Modifier
@@ -639,4 +770,41 @@ private enum class SortOption(val label: String) {
     WEIGHT("Weight"),
     RECENT("Recent"),
     HEALTH("Health")
+}
+
+@Composable
+fun BulkActionsBar(
+    onBulkFeed: () -> Unit,
+    onBulkVaccinate: () -> Unit,
+    onBulkLog: () -> Unit
+) {
+    BottomAppBar(
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBulkFeed) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Pets, contentDescription = null)
+                    Text("Feed", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            TextButton(onClick = onBulkVaccinate) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Warning, contentDescription = null) // Use syringe icon if available
+                    Text("Vaccinate", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            TextButton(onClick = onBulkLog) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Text("Log", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
 }
