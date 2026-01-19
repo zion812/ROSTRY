@@ -24,7 +24,8 @@ data class BreedingPairWithProducts(
 class BreedingManagementViewModel @Inject constructor(
     private val breedingRepository: BreedingRepository,
     private val productRepository: ProductRepository,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val compatibilityCalculator: com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator
 ) : ViewModel() {
 
     private val farmerId = flow { firebaseAuth.currentUser?.uid?.let { emit(it) } }
@@ -179,5 +180,11 @@ class BreedingManagementViewModel @Inject constructor(
         } else {
             emit(null)
         }
+    }
+
+    suspend fun checkCompatibility(maleId: String, femaleId: String): com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator.CompatibilityResult? {
+        val male = productRepository.findById(maleId) ?: return null
+        val female = productRepository.findById(femaleId) ?: return null
+        return compatibilityCalculator.calculateCompatibility(male, female)
     }
 }

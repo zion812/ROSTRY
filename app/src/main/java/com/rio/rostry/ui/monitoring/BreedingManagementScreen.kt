@@ -94,7 +94,8 @@ fun BreedingManagementScreen(
                     notes = notes
                 )
                 showAddDialog = false
-            }
+            },
+            onCheckCompatibility = { m, f -> viewModel.checkCompatibility(m, f) }
         )
     }
 }
@@ -197,7 +198,8 @@ private fun BreedingPairCard(
 private fun AddPairDialog(
     products: List<com.rio.rostry.data.database.entity.ProductEntity>,
     onDismiss: () -> Unit,
-    onAdd: (String, String, String?) -> Unit
+    onAdd: (String, String, String?) -> Unit,
+    onCheckCompatibility: suspend (String, String) -> com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator.CompatibilityResult?
 ) {
     var maleId by remember { mutableStateOf("") }
     var femaleId by remember { mutableStateOf("") }
@@ -205,6 +207,16 @@ private fun AddPairDialog(
     
     var showMaleSheet by remember { mutableStateOf(false) }
     var showFemaleSheet by remember { mutableStateOf(false) }
+
+    var compatibility by remember { mutableStateOf<com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator.CompatibilityResult?>(null) }
+    
+    LaunchedEffect(maleId, femaleId) {
+        if (maleId.isNotBlank() && femaleId.isNotBlank()) {
+            compatibility = onCheckCompatibility(maleId, femaleId)
+        } else {
+            compatibility = null
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -251,6 +263,28 @@ private fun AddPairDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Female ID: $femaleId (Change)")
+                        }
+                    }
+                }
+
+                if (compatibility != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (compatibility!!.score >= 50) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text(
+                                "Compatibility: ${compatibility!!.score}% (${compatibility!!.verdict})",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            if (compatibility!!.reasons.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                compatibility!!.reasons.forEach { reason ->
+                                    Text("• $reason", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                         }
                     }
                 }
