@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.ExperimentalFoundationApi // For stickyHeader
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +28,7 @@ import com.rio.rostry.data.database.entity.FarmActivityLogEntity
  * Accessible from Home Dashboard and Profile screen.
  * Now supports clicking activities to navigate to their detail screens.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FarmLogScreen(
     onBack: () -> Unit,
@@ -169,19 +170,25 @@ fun FarmLogScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(uiState.filteredLogs) { log ->
-                        ActivityLogCard(
-                            log = log,
-                            onClick = {
-                                // Navigate to activity detail (uses default if onActivityClick null)
-                                handleActivityClick(log)
-                                    // Fallback: navigate to bird if callback not provided
-                                    ?: log.productId?.let { onBirdClick?.invoke(it) }
-                            }
-                        )
+                    uiState.groupedLogs.forEach { (header, logs) ->
+                         stickyHeader {
+                             FarmLogHeader(
+                                 title = header,
+                                 summary = uiState.dailySummaries[header]
+                             )
+                         }
+                         
+                        items(logs) { log ->
+                            ActivityLogCard(
+                                log = log,
+                                onClick = {
+                                    handleActivityClick(log)
+                                        ?: log.productId?.let { onBirdClick?.invoke(it) }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -276,6 +283,57 @@ private fun ActivityLogCard(
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FarmLogHeader(
+    title: String,
+    summary: FarmLogViewModel.DailySummary?,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            if (summary != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (summary.feedKg > 0) {
+                        SummaryBadge(icon = Icons.Default.Restaurant, text = "${summary.feedKg}kg", color = Color(0xFF16A34A)) // Green
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    if (summary.expenseInr > 0) {
+                        SummaryBadge(icon = Icons.Default.CurrencyRupee, text = "₹${summary.expenseInr.toInt()}", color = Color(0xFFEA580C)) // Orange
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    if (summary.mortalityCount > 0) {
+                        SummaryBadge(icon = Icons.Default.Warning, text = "${summary.mortalityCount}", color = Color(0xFFDC2626)) // Red
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SummaryBadge(icon: ImageVector, text: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(12.dp))
+        Spacer(modifier = Modifier.width(2.dp))
+        Text(text, style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.Medium)
     }
 }
 

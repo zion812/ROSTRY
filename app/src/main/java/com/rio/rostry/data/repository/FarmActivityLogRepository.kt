@@ -18,6 +18,7 @@ import javax.inject.Singleton
  */
 interface FarmActivityLogRepository {
     fun observeForFarmer(farmerId: String): Flow<List<FarmActivityLogEntity>>
+    fun observeLatestForFarmer(farmerId: String): Flow<FarmActivityLogEntity?>
     fun observeForFarmerByType(farmerId: String, type: String): Flow<List<FarmActivityLogEntity>>
     fun observeForFarmerBetween(farmerId: String, start: Long, end: Long): Flow<List<FarmActivityLogEntity>>
     fun observeForProduct(productId: String): Flow<List<FarmActivityLogEntity>>
@@ -34,6 +35,7 @@ interface FarmActivityLogRepository {
     ): FarmActivityLogEntity
     suspend fun getTotalExpensesBetween(farmerId: String, start: Long, end: Long): Double
     suspend fun getById(activityId: String): FarmActivityLogEntity?
+    suspend fun deleteActivity(activityId: String)
 }
 
 @Singleton
@@ -44,6 +46,9 @@ class FarmActivityLogRepositoryImpl @Inject constructor(
 
     override fun observeForFarmer(farmerId: String): Flow<List<FarmActivityLogEntity>> =
         dao.observeForFarmer(farmerId)
+
+    override fun observeLatestForFarmer(farmerId: String): Flow<FarmActivityLogEntity?> =
+        dao.observeLatestForFarmer(farmerId)
 
     override fun observeForFarmerByType(farmerId: String, type: String): Flow<List<FarmActivityLogEntity>> =
         dao.observeForFarmerByType(farmerId, type)
@@ -96,6 +101,10 @@ class FarmActivityLogRepositoryImpl @Inject constructor(
 
     override suspend fun getById(activityId: String): FarmActivityLogEntity? =
         dao.getById(activityId)
+
+    override suspend fun deleteActivity(activityId: String) {
+        dao.delete(activityId)
+    }
     
     /**
      * SMART CHORE ENGINE: Auto-complete pending tasks when a matching log is created.

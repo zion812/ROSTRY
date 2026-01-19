@@ -55,4 +55,25 @@ object TimeUtils {
     fun isOlderThan(timestamp: Long, days: Long): Boolean {
         return (now() - timestamp) > (days * ONE_DAY_MS)
     }
+
+    fun getTimeAgo(time: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = now - time
+        return when {
+            diff < 60_000 -> "Just now"
+            diff < 3600_000 -> "${diff / 60_000}m ago"
+            diff < 86400_000 -> "${diff / 3600_000}h ago"
+            else -> "${diff / 86400_000}d ago"
+        }
+    }
+
+    fun getDueStatus(dueAt: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = dueAt - now
+        return when {
+            diff < 0 -> "Overdue by ${getTimeAgo(dueAt).replace(" ago", "")}"
+            diff < 3600_000 -> "In ${diff / 60_000}m"
+            else -> "In ${diff / 3600_000}h"
+        }
+    }
 }

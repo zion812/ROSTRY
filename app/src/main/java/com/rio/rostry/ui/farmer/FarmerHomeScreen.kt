@@ -80,6 +80,10 @@ fun FarmerHomeScreen(
     val checklistState by onboardingViewModel.uiState.collectAsState()
     var showCelebrationDialog by remember { mutableStateOf(false) }
     var showVerificationPendingDialog by remember { mutableStateOf(false) }
+    
+    // Stage Transition State
+    var showStageTransitionDialog by remember { mutableStateOf(false) }
+    var selectedTransitionTask by remember { mutableStateOf<com.rio.rostry.data.database.entity.TaskEntity?>(null) }
 
     // Check if user is new (< 7 days since registration) and checklist is incomplete
     val isNewUser = remember(checklistState.isChecklistRelevant) {
@@ -159,10 +163,93 @@ fun FarmerHomeScreen(
             // Predictive Feed Card - Breed-specific nutrition recommendations
             item {
                 val feedRecommendation by viewModel.feedRecommendation.collectAsState()
-                feedRecommendation?.let { recommendation ->
-                    PredictiveFeedCard(
-                        recommendation = recommendation,
+                val suggestedFeedKg by viewModel.suggestedFeedKg.collectAsState()
+                
+                // Track state for Feed Detail Sheet
+                var showFeedDetail by remember { mutableStateOf(false) }
+                // Track state for Quick Feed Log Dialog
+                var showFeedLogDialog by remember { mutableStateOf(false) }
+                
+                if (feedRecommendation != null) {
+                    com.rio.rostry.ui.farmer.feed.FeedRecommendationCard(
+                        recommendation = feedRecommendation,
+                        todayLogAmount = uiState.todayFeedLogAmount,
+                        onLogClick = { showFeedLogDialog = true },
+                        onDetailClick = { showFeedDetail = true },
                         modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                
+                if (showFeedDetail && feedRecommendation != null) {
+                    com.rio.rostry.ui.farmer.feed.FeedDetailSheet(
+                        recommendation = feedRecommendation!!,
+                        onDismiss = { showFeedDetail = false },
+                        onLogFeed = { 
+                            showFeedDetail = false
+                            showFeedLogDialog = true 
+                        }
+                    )
+                }
+                
+                if (showFeedLogDialog) {
+                    val allProducts by viewModel.allProducts.collectAsState()
+                    com.rio.rostry.ui.farmer.feed.QuickFeedLogDialog(
+                        suggestedAmount = suggestedFeedKg ?: feedRecommendation?.dailyFeedKg,
+                        products = allProducts,
+                        onDismiss = { showFeedLogDialog = false },
+                        onConfirm = { amount, notes ->
+                            viewModel.submitQuickLog(null, QuickLogType.FEED, amount, notes)
+                            showFeedLogDialog = false
+                            // Optional: Show success snackbar
+                            scope.launch { 
+                                snackbarHostState.showSnackbar("Feed logged successfully") 
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Stage Transition Dialog logic
+            if (showStageTransitionDialog && selectedTransitionTask != null) {
+                item {
+                    // Parse metadata to get old/new stage
+                    val metaJson = selectedTransitionTask!!.metadata
+                    var oldStage = "Previous Stage"
+                    var newStage = "Next Stage"
+                    var assetName = "Batch/Bird"
+                    
+                    try {
+                        if (!metaJson.isNullOrEmpty()) {
+                            val metaObj = com.google.gson.JsonParser.parseString(metaJson).asJsonObject
+                            if (metaObj.has("oldStage")) oldStage = metaObj.get("oldStage").asString
+                            if (metaObj.has("newStage")) newStage = metaObj.get("newStage").asString
+                        }
+                    } catch (e: Exception) {
+                        // Fallback to defaults
+                    }
+                    
+                    com.rio.rostry.ui.farmer.lifecycle.StageTransitionDialog(
+                        assetName = assetName,
+                        oldStage = oldStage,
+                        newStage = newStage,
+                        onDismiss = { 
+                            showStageTransitionDialog = false 
+                            selectedTransitionTask = null
+                        },
+                        onConfirm = { mortality, feedKg, notes ->
+                            viewModel.completeStageTransition(
+                                selectedTransitionTask!!.taskId,
+                                selectedTransitionTask!!.productId,
+                                mortality,
+                                feedKg,
+                                notes
+                            )
+                            showStageTransitionDialog = false
+                            selectedTransitionTask = null
+                            scope.launch { 
+                                snackbarHostState.showSnackbar("Stage transition recorded successfully") 
+                            }
+                        }
                     )
                 }
             }
@@ -283,19 +370,24 @@ fun FarmerHomeScreen(
             // Today's Tasks Card (Farmer-First Phase 1)
             if (uiState.todayTasks.isNotEmpty() || uiState.completedTasksCount > 0) {
                 item {
-                    TodayTasksCard(
+                TodayTasksCard(
                         tasks = uiState.todayTasks,
                         completedCount = uiState.completedTasksCount,
                         onTaskClick = { task ->
                             // Navigate based on task type
-                            val route = when (task.taskType) {
-                                "VACCINATION" -> Routes.Builders.monitoringVaccinationWithProductId(task.productId ?: "")
-                                "GROWTH_UPDATE" -> Routes.Builders.monitoringGrowthWithProductId(task.productId ?: "")
-                                "FEED_SCHEDULE" -> Routes.Builders.monitoringDailyLog()
-                                "HEALTH_CHECK" -> Routes.Builders.monitoringQuarantine("quarantine_12h")
-                                else -> Routes.Builders.monitoringTasks("due")
+                            if (task.taskType == "STAGE_TRANSITION") {
+                                selectedTransitionTask = task
+                                showStageTransitionDialog = true
+                            } else {
+                                val route = when (task.taskType) {
+                                    "VACCINATION" -> Routes.Builders.monitoringVaccinationWithProductId(task.productId ?: "")
+                                    "GROWTH_UPDATE" -> Routes.Builders.monitoringGrowthWithProductId(task.productId ?: "")
+                                    "FEED_SCHEDULE" -> Routes.Builders.monitoringDailyLog()
+                                    "HEALTH_CHECK" -> Routes.Builders.monitoringQuarantine("quarantine_12h")
+                                    else -> Routes.Builders.monitoringTasks("due")
+                                }
+                                onNavigateRoute(route)
                             }
-                            onNavigateRoute(route)
                         },
                         onTaskComplete = { taskId ->
                             viewModel.markTaskComplete(taskId)
@@ -665,42 +757,61 @@ fun FarmerHomeScreen(
                 )
             }
             
-            // Add My Farm (Farm Assets) Card - NEW entry point to asset management
-            val myFarmCard = FetcherCard(
-                title = "My Farm",
-                count = uiState.farmAssetCount, // Show asset count from ViewModel
-                badgeCount = 0,
-                icon = Icons.Filled.Pets, // Matches bottom nav icon
-                action = "Manage Assets",
-                onClick = { viewModel.navigateToModule(Routes.FarmerNav.FARM_ASSETS) },
-                isLocked = false
-            )
+            // Farm Log Fetcher 2.0 - Shows latest activity and today's count
+            item {
+                LiveFetcherCard(
+                    title = "Farm Log",
+                    count = uiState.todayLogCount,
+                    latestLog = uiState.latestFarmLog,
+                    icon = Icons.Filled.History,
+                    onClick = { viewModel.navigateToModule(Routes.MONITORING_FARM_LOG) }
+                )
+            }
             
-            // Farm Log Card - Entry point to comprehensive activity log
-            val farmLogCard = FetcherCard(
-                title = "Farm Log",
-                count = uiState.recentActivity.size, // Show count of recent activities
-                badgeCount = 0,
-                icon = Icons.Filled.History, // Represents activity history
-                action = "View All",
-                onClick = { viewModel.navigateToModule(Routes.MONITORING_FARM_LOG) },
-                isLocked = false
-            )
+            // Layout the remaining 3 main cards in a grid-like fashion (2 rows of 2 if needed, or row + single)
+            // But since we want "Live" feel, we can stack them or use a Row.
+            // Let's use a 2x2 grid for the main 4 live fetchers: My Farm, Calendar | Digital Farm, Farm Log
+            // Wait, Farm Log is already full width above.
+            // Let's put My Farm and Calendar side-by-side? No, Live cards are detailed.
+            // Let's stack them for now to ensure room for "Next Task" details.
             
-            // Digital Farm Card - Lite visualization for farmers
+            item {
+                 LiveMyFarmFetcherCard(
+                    title = "My Farm",
+                    assetCount = uiState.farmAssetCount,
+                    activeFlockCount = uiState.activeFlockCount,
+                    icon = Icons.Filled.Pets,
+                    onClick = { viewModel.navigateToModule(Routes.FarmerNav.FARM_ASSETS) }
+                )
+            }
+            
+            item {
+                LiveCalendarFetcherCard(
+                    title = "Calendar",
+                    count = uiState.todayTasks.size,
+                    nextTask = uiState.nextTask,
+                    icon = Icons.Filled.DateRange,
+                    onClick = { viewModel.navigateToModule(Routes.FarmerNav.CALENDAR) }
+                )
+            }
+            
+            // Digital Farm Card - Lite visualization (keep as standard fetcher for now or custom)
+            // We can treat it as a standard fetcher card in the list, OR give it special treatment.
+            // Let's add it to the list of standard fetchers.
+            
             val digitalFarmCard = FetcherCard(
                 title = "Digital Farm",
-                count = uiState.activeBirdCount, // Show total birds
+                count = uiState.activeBirdCount, 
                 badgeCount = 0,
-                icon = Icons.Filled.Landscape, // Visual representation of farm
+                icon = Icons.Filled.Landscape, 
                 action = "View Farm",
                 onClick = { viewModel.navigateToModule(Routes.FarmerNav.DIGITAL_FARM) },
                 isLocked = false
             )
             
-            val allFetcherCards = listOf(myFarmCard, digitalFarmCard, farmLogCard) + fetcherCards
+            val allFetcherCards = listOf(digitalFarmCard) + fetcherCards
 
-            // Convert grid to rows to avoid nested lazy layout with stable keys
+            // Convert grid to rows
             val fetcherRows = allFetcherCards.chunked(2)
             items(
                 items = fetcherRows,
@@ -721,6 +832,7 @@ fun FarmerHomeScreen(
                     }
                 }
             }
+
             
             // Daily Goals Section
             item {
@@ -745,7 +857,8 @@ fun FarmerHomeScreen(
             // Analytics Insights Section Removed
 
             }
-        }
+
+
     }
 
     if (uiState.isLoading) {
@@ -870,7 +983,9 @@ fun FarmerHomeScreen(
             }
         )
     }
-}
+        }
+    }
+
 
 /**
  * Premium-styled banner for recommending Enthusiast upgrade to verified farmers with 50+ birds.

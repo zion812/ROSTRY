@@ -18,6 +18,9 @@ interface FarmActivityLogDao {
     
     @Query("SELECT * FROM farm_activity_logs WHERE farmerId = :farmerId ORDER BY createdAt DESC")
     fun observeForFarmer(farmerId: String): Flow<List<FarmActivityLogEntity>>
+
+    @Query("SELECT * FROM farm_activity_logs WHERE farmerId = :farmerId ORDER BY createdAt DESC LIMIT 1")
+    fun observeLatestForFarmer(farmerId: String): Flow<FarmActivityLogEntity?>
     
     @Query("SELECT * FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = :type ORDER BY createdAt DESC")
     fun observeForFarmerByType(farmerId: String, type: String): Flow<List<FarmActivityLogEntity>>

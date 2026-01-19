@@ -22,6 +22,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND (snoozeUntil IS NULL OR snoozeUntil <= :now) AND dueAt BETWEEN :now AND :endOfDay ORDER BY dueAt ASC")
     fun observeDueWindowForFarmer(farmerId: String, now: Long, endOfDay: Long): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND (snoozeUntil IS NULL OR snoozeUntil <= :now) ORDER BY dueAt ASC LIMIT 1")
+    fun observeNextPendingTask(farmerId: String, now: Long): Flow<TaskEntity?>
+
     @Query("SELECT COUNT(*) FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND dueAt < :now")
     fun observeOverdueCountForFarmer(farmerId: String, now: Long): Flow<Int>
 

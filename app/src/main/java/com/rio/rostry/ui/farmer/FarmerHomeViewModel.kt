@@ -99,7 +99,16 @@ data class FarmerHomeUiState(
     // Weather Card (Open-Meteo API)
     val weatherTemperature: Double? = null,
     val isHeatStress: Boolean = false,
-    val weatherLoading: Boolean = true
+    val weatherLoading: Boolean = true,
+    val todayFeedLogAmount: Double = 0.0,
+
+    // Farm Log Fetcher 2.0
+    val latestFarmLog: com.rio.rostry.data.database.entity.FarmActivityLogEntity? = null,
+    val todayLogCount: Int = 0,
+    
+    // Expanded Fetchers (Sec 10)
+    val nextTask: com.rio.rostry.data.database.entity.TaskEntity? = null,
+    val activeFlockCount: Int = 0
 )
 
 data class DashboardWidget(
@@ -141,6 +150,13 @@ data class MonitoringStats(
     val mortalityLast7Days: Int = 0,
     val breedingPairsActive: Int = 0,
     val batchesDueForSplit: Int = 0
+)
+
+data class FetcherStats(
+    val todayFeed: Double,
+    val latestLog: com.rio.rostry.data.database.entity.FarmActivityLogEntity?,
+    val todayLogCount: Int,
+    val nextTask: com.rio.rostry.data.database.entity.TaskEntity?
 )
 
 /**
@@ -235,6 +251,8 @@ class FarmerHomeViewModel @Inject constructor(
     // Predictive Feed Recommendation
     private val _feedRecommendation = MutableStateFlow<com.rio.rostry.domain.model.FeedRecommendation?>(null)
     val feedRecommendation: StateFlow<com.rio.rostry.domain.model.FeedRecommendation?> = _feedRecommendation
+    
+    private val _todayFeedLogAmount = MutableStateFlow(0.0)
 
     companion object {
         /** Market price per kg (₹) for flock value estimation. Can be made configurable later. */
@@ -246,6 +264,7 @@ class FarmerHomeViewModel @Inject constructor(
         loadCachedDashboard() // Split-Brain: Load cached stats immediately
         loadAllProducts()
         loadSuggestedFeedValue()
+        loadTodayFeedLog()
         loadWeatherData() // Open-Meteo Weather
         loadFeedRecommendation() // Predictive Feed
     }
@@ -294,6 +313,30 @@ class FarmerHomeViewModel @Inject constructor(
         viewModelScope.launch {
             val weather = weatherRepository.refreshWeather()
             _weatherData.value = weather
+            _weatherData.value = weather
+        }
+    }
+
+    private fun loadTodayFeedLog() {
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { farmerId ->
+                try {
+                    val now = System.currentTimeMillis()
+                    val calendar = java.util.Calendar.getInstance()
+                    calendar.timeInMillis = now
+                    calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    calendar.set(java.util.Calendar.MINUTE, 0)
+                    calendar.set(java.util.Calendar.SECOND, 0)
+                    calendar.set(java.util.Calendar.MILLISECOND, 0)
+                    val startOfDay = calendar.timeInMillis
+                    val endOfDay = startOfDay + TimeUnit.DAYS.toMillis(1)
+                    
+                    val total = dailyLogDao.getTotalFeedBetween(farmerId, startOfDay, endOfDay)
+                    _todayFeedLogAmount.value = total
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to load today's feed log")
+                }
+            }
         }
     }
 
@@ -509,13 +552,32 @@ class FarmerHomeViewModel @Inject constructor(
             val weekStart = now - TimeUnit.DAYS.toMillis(7)
             val weekEnd = now + TimeUnit.DAYS.toMillis(7)
             val twelveHoursAgo = now - TimeUnit.HOURS.toMillis(12)
+
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = now
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val startOfDay = cal.timeInMillis
+            val endOfDayExact = startOfDay + TimeUnit.DAYS.toMillis(1)
             
-            // OPTIMIZED: Combine 3 smaller flows instead of 28 individual flows
+            // Combine fetcher-related flows first to avoid combine limit (max 5)
+            val fetcherStatsFlow = combine(
+                _todayFeedLogAmount,
+                farmActivityLogRepository.observeLatestForFarmer(id).orDefault(null),
+                farmActivityLogRepository.observeForFarmerBetween(id, startOfDay, endOfDayExact).map { it.size }.orDefault(0),
+                taskDao.observeNextPendingTask(id, now).orDefault(null)
+            ) { todayFeed, latestLog, todayLogCount, nextTask ->
+                FetcherStats(todayFeed, latestLog, todayLogCount, nextTask)
+            }
+
             combine(
                 createPrimaryStatsFlow(id, now, endOfDay, weekStart),
                 createMonitoringStatsFlow(id, now, weekStart, weekEnd, twelveHoursAgo),
-                createUserContextStatsFlow(id, weekStart)
-            ) { primary, monitoring, userContext ->
+                createUserContextStatsFlow(id, weekStart),
+                fetcherStatsFlow
+            ) { primary, monitoring, userContext, fetcherStats ->
                 val baseState = FarmerHomeUiState(
                     // Primary stats (critical)
                     vaccinationDueCount = primary.vaccinationDueCount,
@@ -528,6 +590,18 @@ class FarmerHomeViewModel @Inject constructor(
                     dailyLogsThisWeek = primary.dailyLogsThisWeek,
                     completedTasksCount = primary.todayTasks.count { it.completedAt != null },
                     productsReadyToListCount = primary.weeklySnapshot?.productsReadyToListCount ?: 0,
+                    
+                    todayFeedLogAmount = fetcherStats.todayFeed,
+                    
+                    // Farm Log Fetcher 2.0
+                    latestFarmLog = fetcherStats.latestLog,
+                    todayLogCount = fetcherStats.todayLogCount,
+                    
+                    // Expanded Fetchers
+                    nextTask = fetcherStats.nextTask,
+                    // Note: activeFlockCount is derived from primary/monitoring data if available, 
+                    // or we can add a specific flow if needed. For now, we'll likely use existing counts.
+                    activeFlockCount = monitoring.hatchingBatchesActive + monitoring.breedingPairsActive, // Simplified for now
                     
                     // Monitoring stats (secondary)
                     growthRecordsThisWeek = monitoring.growthRecordsThisWeek,
@@ -763,6 +837,61 @@ class FarmerHomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.e(e, "Failed to submit quick log")
                 _errorEvents.emit("Failed to save log: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Completes a stage transition task and logs associated data (mortality, feed).
+     */
+    fun completeStageTransition(
+        taskId: String,
+        productId: String?,
+        mortality: Int,
+        feedKg: Double,
+        notes: String
+    ) {
+        viewModelScope.launch {
+            val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            val now = System.currentTimeMillis()
+
+            // 1. Log Mortality if recorded
+            if (mortality > 0) {
+                farmActivityLogRepository.logActivity(
+                    farmerId = farmerId,
+                    productId = productId,
+                    activityType = "MORTALITY",
+                    quantity = mortality.toDouble(),
+                    category = "Mortality",
+                    description = "Stage Transition Mortality",
+                    notes = notes
+                )
+            }
+
+            // 2. Log Feed if recorded
+            if (feedKg > 0.0) {
+                farmActivityLogRepository.logActivity(
+                    farmerId = farmerId,
+                    productId = productId,
+                    activityType = "FEED",
+                    quantity = feedKg,
+                    category = "Feed",
+                    description = "Stage Transition Feed",
+                    notes = notes
+                )
+            }
+
+            // 3. Mark task as complete
+            try {
+                taskDao.markComplete(taskId, now, farmerId, now)
+                
+                // 4. Force refresh to update UI and remove task from list
+                refreshData()
+                
+                Timber.d("Stage transition completed for task=$taskId, product=$productId")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to complete stage transition task")
+                _errorEvents.emit("Failed to complete task: ${e.message}")
             }
         }
     }

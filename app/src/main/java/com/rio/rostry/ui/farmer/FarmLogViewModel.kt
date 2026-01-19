@@ -22,9 +22,17 @@ class FarmLogViewModel @Inject constructor(
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
+    data class DailySummary(
+        val feedKg: Double = 0.0,
+        val expenseInr: Double = 0.0,
+        val mortalityCount: Int = 0
+    )
+
     data class UiState(
         val logs: List<FarmActivityLogEntity> = emptyList(),
         val filteredLogs: List<FarmActivityLogEntity> = emptyList(),
+        val groupedLogs: Map<String, List<FarmActivityLogEntity>> = emptyMap(),
+        val dailySummaries: Map<String, DailySummary> = emptyMap(),
         val selectedType: String? = null, // null = all types
         val isLoading: Boolean = true,
         val totalExpenses: Double = 0.0
@@ -52,9 +60,33 @@ class FarmLogViewModel @Inject constructor(
                     .filter { it.activityType == "EXPENSE" }
                     .sumOf { it.amountInr ?: 0.0 }
                 
+                // Grouping Logic
+                val grouped = filtered.groupBy { log ->
+                    val date = java.time.Instant.ofEpochMilli(log.createdAt)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDate()
+                    val today = java.time.LocalDate.now()
+                    when (date) {
+                        today -> "Today"
+                        today.minusDays(1) -> "Yesterday"
+                        else -> java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy").format(date)
+                    }
+                }
+                
+                // Daily Summaries Logic
+                val summaries = grouped.mapValues { (_, groupLogs) ->
+                    DailySummary(
+                        feedKg = groupLogs.filter { it.activityType == "FEED" }.sumOf { it.quantity ?: 0.0 },
+                        expenseInr = groupLogs.filter { it.activityType == "EXPENSE" }.sumOf { it.amountInr ?: 0.0 },
+                        mortalityCount = groupLogs.filter { it.activityType == "MORTALITY" }.sumOf { (it.quantity ?: 0.0).toInt() }
+                    )
+                }
+                
                 UiState(
                     logs = logs,
                     filteredLogs = filtered,
+                    groupedLogs = grouped,
+                    dailySummaries = summaries,
                     selectedType = type,
                     isLoading = false,
                     totalExpenses = totalExpenses
