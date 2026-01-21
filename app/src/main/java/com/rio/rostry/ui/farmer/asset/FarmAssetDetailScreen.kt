@@ -347,12 +347,12 @@ fun FarmAssetDetailScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Showcase on Profile",
+                                        text = "Showcase & Public Lookup",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "Display publicly on your farm profile",
+                                        text = "Visible on profile & public ID search",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

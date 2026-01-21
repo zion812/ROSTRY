@@ -290,6 +290,10 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindFarmActivityLogRepository(impl: com.rio.rostry.data.repository.FarmActivityLogRepositoryImpl): com.rio.rostry.data.repository.FarmActivityLogRepository
 
+    // Public Bird Access Repository
+    @Binds
+    @Singleton
+    abstract fun bindPublicBirdRepository(impl: com.rio.rostry.data.repository.PublicBirdRepositoryImpl): com.rio.rostry.domain.repository.PublicBirdRepository
 }
 
 @Module

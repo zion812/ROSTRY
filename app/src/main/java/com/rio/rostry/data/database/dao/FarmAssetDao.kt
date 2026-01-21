@@ -37,6 +37,12 @@ interface FarmAssetDao {
     @Query("UPDATE farm_assets SET quantity = :quantity, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
     suspend fun updateQuantity(assetId: String, quantity: Double, updatedAt: Long)
 
+    @Query("UPDATE farm_assets SET status = :status, updatedAt = :timestamp WHERE assetId = :assetId")
+    suspend fun updateStatus(assetId: String, status: String, timestamp: Long)
+
+    @Query("SELECT * FROM farm_assets WHERE birdCode = :code LIMIT 1")
+    suspend fun findByBirdCode(code: String): FarmAssetEntity?
+
     @Query("UPDATE farm_assets SET healthStatus = :status, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
     suspend fun updateHealthStatus(assetId: String, status: String, updatedAt: Long)
     

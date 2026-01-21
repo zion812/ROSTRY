@@ -22,7 +22,12 @@ object Routes {
         const val WELCOME = "auth/welcome"
         const val PHONE = "auth/phone"
         const val OTP = "auth/otp/{verificationId}"
-        const val PHONE_VERIFY = "auth/phone_verify"
+        const val ENTHUSIAST_VERIFICATION = "enthusiast_verification"
+        const val PUBLIC_BIRD_LOOKUP = "public_bird_lookup"
+    }
+
+    object Args {
+        const val ORDER_ID = "orderId"
     }
 
     object Scan {
@@ -274,12 +279,14 @@ object Routes {
         const val CLAIM_TRANSFER = "enthusiast/claim_transfer"
         const val SHOWCASE_CARD = "enthusiast/showcase/{productId}"
         const val SHOW_LOG = "enthusiast/show_log/{productId}"
+        const val COMPETITION_DETAIL = "enthusiast/virtual_arena/{competitionId}"
         
         // Builder functions
         fun pedigree(productId: String) = "enthusiast/pedigree/$productId"
         fun transferCode(productId: String) = "enthusiast/transfer_code/$productId"
         fun showcaseCard(productId: String) = "enthusiast/showcase/$productId"
         fun showLog(productId: String) = "enthusiast/show_log/$productId"
+        fun competitionDetail(competitionId: String) = "enthusiast/virtual_arena/$competitionId"
     }
     
     // NEW: Enhanced Egg Log and Hatchability Routes
@@ -321,7 +328,8 @@ object Routes {
             Order.DETAILS,
             Sync.ISSUES,
             Upgrade.WIZARD,
-            Upgrade.POST_ONBOARDING
+            Upgrade.POST_ONBOARDING,
+            Routes.PUBLIC_BIRD_LOOKUP
         )
     )
 
@@ -403,7 +411,8 @@ object Routes {
             Common.VERIFY_ENTHUSIAST_KYC,
             // Farm asset pedigree and showcase card views
             EnthusiastNav.PEDIGREE,
-            EnthusiastNav.SHOWCASE_CARD
+            EnthusiastNav.SHOWCASE_CARD,
+            Routes.PUBLIC_BIRD_LOOKUP
         )
     )
 
@@ -502,7 +511,8 @@ object Routes {
             Monitoring.GROWTH_DETAIL,
             Monitoring.MORTALITY_DETAIL,
             Monitoring.FARM_ACTIVITY_DETAIL,
-            Monitoring.BIRD_HISTORY
+            Monitoring.BIRD_HISTORY,
+            Routes.PUBLIC_BIRD_LOOKUP
         )
     )
 
@@ -513,7 +523,7 @@ object Routes {
         accessibleRoutes = generalConfig.accessibleRoutes + 
                            farmerConfig.accessibleRoutes + 
                            enthusiastConfig.accessibleRoutes + 
-                           setOf(Admin.VERIFICATION)
+                           setOf(Admin.VERIFICATION, Routes.PUBLIC_BIRD_LOOKUP)
     )
 
     fun configFor(role: UserType): RoleNavigationConfig = when (role) {
@@ -526,7 +536,7 @@ object Routes {
     const val AUTH_WELCOME = Auth.WELCOME
     const val AUTH_PHONE = Auth.PHONE
     const val AUTH_OTP = Auth.OTP
-    const val AUTH_PHONE_VERIFY = Auth.PHONE_VERIFY
+
     const val HOME_GENERAL = GeneralNav.HOME
     const val HOME_FARMER = FarmerNav.HOME
     const val FARMER_CALENDAR = FarmerNav.CALENDAR
@@ -594,6 +604,7 @@ object Routes {
     const val UPGRADE_POST_ONBOARDING = Upgrade.POST_ONBOARDING
     const val STORAGE_QUOTA = Common.STORAGE_QUOTA
     const val ADMIN_VERIFICATION = Admin.VERIFICATION
+    const val PUBLIC_BIRD_LOOKUP = Auth.PUBLIC_BIRD_LOOKUP
 
     //Loveable aliases
     const val ACHIEVEMENTS = Loveable.ACHIEVEMENTS

@@ -127,6 +127,9 @@ interface ProductDao {
     @Query("SELECT COUNT(*) FROM products WHERE productId LIKE 'demo_prod_%'")
     suspend fun countDemoProducts(): Int
 
+    @Query("SELECT * FROM products WHERE birdCode = :code LIMIT 1")
+    suspend fun findByBirdCode(code: String): ProductEntity?
+
     @Query("SELECT * FROM products WHERE name LIKE :prefix || '%' OR breed LIKE :prefix || '%' ORDER BY name ASC LIMIT :limit")
     suspend fun autocomplete(prefix: String, limit: Int = 10): List<ProductEntity>
 
@@ -285,6 +288,37 @@ interface ProductDao {
      */
     @Query("UPDATE products SET editCount = editCount + 1, lastEditedBy = :editorId, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
     suspend fun incrementEditCount(productId: String, editorId: String, updatedAt: Long)
+
+    // =========================================================================
+    // Pedigree Optimization Queries
+    // =========================================================================
+
+    /**
+     * Get all direct offspring for a bird (where it is either the sire or dam).
+     */
+    @Query("SELECT * FROM products WHERE (parentMaleId = :parentId OR parentFemaleId = :parentId) AND isDeleted = 0")
+    suspend fun getOffspring(parentId: String): List<ProductEntity>
+
+    /**
+     * Get potential parents for selection.
+     * Filters by owner, excludes self, avoids batches, deleted items, and optionally filters by gender.
+     */
+    @Query("""
+        SELECT * FROM products 
+        WHERE sellerId = :ownerId 
+        AND productId != :excludeId 
+        AND isBatch = 0 
+        AND isDeleted = 0 
+        AND (:gender IS NULL OR gender = :gender)
+        ORDER BY name ASC
+    """)
+    suspend fun getPotentialParents(ownerId: String, excludeId: String, gender: String?): List<ProductEntity>
+
+    /**
+     * Batch fetch offspring for multiple parents.
+     */
+    @Query("SELECT * FROM products WHERE (parentMaleId IN (:parentIds) OR parentFemaleId IN (:parentIds)) AND isDeleted = 0")
+    suspend fun getOffspringBatch(parentIds: List<String>): List<ProductEntity>
 }
 
 data class StageCount(
