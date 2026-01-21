@@ -50,7 +50,8 @@ import com.rio.rostry.domain.model.CompetitionStatus
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VirtualArenaScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToStatus: (String) -> Unit
 ) {
     val vm: VirtualArenaViewModel = hiltViewModel()
     val competitions by vm.competitions.collectAsState()
@@ -96,7 +97,7 @@ fun VirtualArenaScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(competitions) { comp ->
-                        CompetitionCard(comp = comp, onClick = { /* TODO: Open Details */ })
+                        CompetitionCard(comp = comp, onClick = { onNavigateToStatus(comp.competitionId) })
                     }
                 }
             }
