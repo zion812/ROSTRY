@@ -595,10 +595,16 @@ private fun AuthFlow(
                 onSkip = { onAuthenticated() }
             )
         }
-    }
+
+
+        // Public Bird Lookup Screen
+        composable(Routes.PUBLIC_BIRD_LOOKUP) {
+            com.rio.rostry.ui.publicaccess.PublicBirdLookupScreen()
+        }
     }
 }
 
+}
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -915,11 +921,21 @@ private fun RoleNavGraph(
             )
         }
         composable(Routes.FarmerNav.DIGITAL_FARM) {
+            val context = LocalContext.current
             com.rio.rostry.ui.farmer.DigitalFarmScreen(
                 onBack = { navController.popBackStack() },
                 onManageBird = { id -> navController.navigate(Routes.Builders.dailyLog(id)) },
                 onViewLineage = { id -> navController.navigate(Routes.Builders.traceability(id)) },
-                onListForSale = { id -> navController.navigate(Routes.Builders.farmerCreateWithPrefill(id)) }
+                onListForSale = { id -> navController.navigate(Routes.Builders.farmerCreateWithPrefill(id)) },
+                onTimelapse = { navController.navigate(Routes.Monitoring.FARM_LOG) },
+                onShare = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, "My ROSTRY Digital Farm")
+                        putExtra(Intent.EXTRA_TEXT, "Check out my digital farm on ROSTRY! Tracking my flock usage and performance.")
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Farm"))
+                }
             )
         }
         composable(Routes.FarmerNav.MARKET) {
@@ -1474,11 +1490,7 @@ private fun RoleNavGraph(
             )
         }
 
-        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
-            com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+
 
         composable(Routes.EnthusiastNav.DASHBOARD) {
             EnthusiastDashboardTabs(
@@ -1543,6 +1555,9 @@ private fun RoleNavGraph(
                 },
                 onNavigateToLogEggs = { unitId ->
                     navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION)
+                },
+                onNavigateToAddBird = { 
+                     navController.navigate(Routes.Onboarding.FARM_BIRD)
                 }
             )
         }
@@ -1702,11 +1717,7 @@ private fun RoleNavGraph(
         }
         
         // Virtual Arena Screen
-        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
-            com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+
         
         // ============ Monitoring Routes ============
         
@@ -2053,6 +2064,26 @@ private fun RoleNavGraph(
                 onVerifyTransfer = { transferId -> navController.navigate("transfer/$transferId") },
                 onCreateTransfer = { navController.navigate(Routes.EnthusiastNav.TRANSFER_CODE) },
                 onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Virtual Arena High-Level Route
+        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
+             com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(
+                 onNavigateBack = { navController.popBackStack() },
+                 onNavigateToStatus = { id -> navController.navigate(Routes.EnthusiastNav.competitionDetail(id)) }
+             )
+        }
+
+        // Virtual Arena Details
+        composable(
+            route = Routes.EnthusiastNav.COMPETITION_DETAIL,
+            arguments = listOf(navArgument("competitionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val competitionId = backStackEntry.arguments?.getString("competitionId") ?: ""
+            com.rio.rostry.ui.enthusiast.arena.CompetitionDetailScreen(
+                competitionId = competitionId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -2667,7 +2698,11 @@ private fun RoleNavGraph(
         }
 
         if (BuildConfig.DEBUG) {
-            composable(Routes.GROUPS) { PlaceholderScreen(title = "Groups") }
+            composable(Routes.GROUPS) { 
+                com.rio.rostry.ui.enthusiast.community.GroupsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                ) 
+            }
         }
         composable(Routes.EVENTS) { com.rio.rostry.ui.events.EventsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
