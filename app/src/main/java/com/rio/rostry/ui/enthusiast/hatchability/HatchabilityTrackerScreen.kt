@@ -26,6 +26,7 @@ fun HatchabilityTrackerScreen(
     onPairClick: (String) -> Unit
 ) {
     val dashboard by viewModel.dashboard.collectAsState()
+    val pairs by viewModel.breedingPairStats.collectAsState()
     
     Scaffold(
         topBar = {
@@ -61,7 +62,7 @@ fun HatchabilityTrackerScreen(
                     SummaryCard(
                         modifier = Modifier.weight(1f),
                         title = "Trend",
-                        value = "+5%",
+                        value = "${if (viewModel.flockHealthTrend.collectAsState().value >= 0) "+" else ""}${viewModel.flockHealthTrend.collectAsState().value.toInt()}%",
                         icon = Icons.Filled.TrendingUp
                     )
                 }
@@ -69,30 +70,41 @@ fun HatchabilityTrackerScreen(
             
             item {
                 Text(
-                    "Active Breeding Pairs",
+                    "Active Breeding Pairs (${pairs.size})",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
             
-            // Placeholder for pairs - would be populated from ViewModel
-            items(listOf("pair1", "pair2", "pair3")) { pairId ->
-                Card(
-                    onClick = { onPairClick(pairId) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            if (pairs.isEmpty()) {
+                item {
+                    Text(
+                        "No active breeding pairs found.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(pairs) { pair ->
+                    Card(
+                        onClick = { onPairClick(pair.pairId) },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column {
-                            Text("Pair ${pairId.takeLast(4)}", style = MaterialTheme.typography.titleSmall)
-                            Text("12 eggs collected", style = MaterialTheme.typography.bodySmall)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(pair.pairName, style = MaterialTheme.typography.titleSmall)
+                                Text("${pair.eggsCollected} eggs collected", style = MaterialTheme.typography.bodySmall)
+                            }
+                            // Show hatch rate or "No Data"
+                            val rateText = if (pair.eggsCollected > 0) "${(pair.hatchRate * 100).toInt()}%" else "--"
+                            Text(rateText, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                         }
-                        Text("85%", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
