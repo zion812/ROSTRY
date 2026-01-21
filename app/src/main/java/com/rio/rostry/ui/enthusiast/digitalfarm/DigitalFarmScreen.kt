@@ -48,8 +48,10 @@ fun DigitalFarmScreen(
     onNavigateToProduct: (String) -> Unit,
     onNavigateToListProduct: (String) -> Unit,
     onNavigateToLogEggs: (String) -> Unit,
+    onNavigateToAddBird: () -> Unit,
     viewModel: DigitalFarmViewModel = hiltViewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val farmStats by viewModel.farmStats.collectAsState()
     val selectedBird by viewModel.selectedBird.collectAsState()
@@ -113,11 +115,21 @@ fun DigitalFarmScreen(
                 },
                 actions = {
                     // Time-lapse button
-                    IconButton(onClick = { /* TODO: Time-lapse mode */ }) {
+                    IconButton(onClick = { 
+                        android.widget.Toast.makeText(context, "Time-lapse feature coming soon!", android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
                         Icon(Icons.Default.History, contentDescription = "History")
                     }
                     // Share button
-                    IconButton(onClick = { /* TODO: Share screenshot */ }) {
+                    IconButton(onClick = { 
+                        val sendIntent = android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            putExtra(android.content.Intent.EXTRA_TEXT, "Check out my Digital Farm on ROSTRY! I have ${farmStats.totalBirds} birds and ${farmStats.birdsReadyForSale} ready for sale! 🐔🥚")
+                            type = "text/plain"
+                        }
+                        val shareIntent = android.content.Intent.createChooser(sendIntent, "Share Farm Stats")
+                        context.startActivity(shareIntent)
+                    }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
                     }
                 },
@@ -212,7 +224,7 @@ fun DigitalFarmScreen(
             // Quick Actions FAB
             if (!uiState.isEmpty && uiState.error == null && !uiState.isLoading) {
                 QuickActionsFab(
-                    onAddBird = { /* TODO: Navigate to add bird */ },
+                    onAddBird = onNavigateToAddBird,
                     onViewAll = { /* TODO: Show list view */ },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -235,39 +247,103 @@ private fun EnhancedFarmCanvas(
     onMarketStandTapped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Canvas(
-        modifier = modifier
-            .pointerInput(uiState) {
-                detectTapGestures { offset ->
-                    val result = FarmCanvasRenderer.hitTest(
-                        tapX = offset.x,
-                        tapY = offset.y,
-                        canvasWidth = size.width.toFloat(),
-                        canvasHeight = size.height.toFloat(),
-                        state = uiState,
-                        useLiteMode = config.groupingMode == GroupingMode.BY_BATCH
-                    )
-                    
-                    when (result) {
-                        is FarmCanvasRenderer.HitTestResult.BirdHit -> onBirdTapped(result.bird)
-                        is FarmCanvasRenderer.HitTestResult.NurseryHit -> onNurseryTapped(result.nursery)
-                        is FarmCanvasRenderer.HitTestResult.BreedingHutHit -> onBreedingHutTapped(result.unit)
-                        is FarmCanvasRenderer.HitTestResult.MarketStandHit -> onMarketStandTapped()
-                        is FarmCanvasRenderer.HitTestResult.ZoneHit -> { /* Lite mode only - not used for Enthusiast */ }
-                        is FarmCanvasRenderer.HitTestResult.Nothing -> { /* Empty tap */ }
+    val hearts = remember { mutableStateListOf<HeartParticle>() }
+    
+    // Heart animation loop
+    LaunchedEffect(Unit) {
+        while (true) {
+            withFrameNanos { time ->
+                val iterator = hearts.listIterator()
+                while (iterator.hasNext()) {
+                    val heart = iterator.next()
+                    if (System.currentTimeMillis() - heart.createdAt > 1000) {
+                        iterator.remove()
                     }
                 }
             }
-    ) {
-        with(FarmCanvasRenderer) {
-            renderFarm(
-                state = uiState,
-                animationTime = animationTime,
-                selectedBirdId = selectedBirdId,
-                config = config
-            )
         }
     }
+
+    Box(modifier = modifier) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(uiState) {
+                    detectTapGestures(
+                        onTap = { offset ->
+                            val result = FarmCanvasRenderer.hitTest(
+                                tapX = offset.x,
+                                tapY = offset.y,
+                                canvasWidth = size.width.toFloat(),
+                                canvasHeight = size.height.toFloat(),
+                                state = uiState,
+                                useLiteMode = config.groupingMode == GroupingMode.BY_BATCH
+                            )
+                            
+                            when (result) {
+                                is FarmCanvasRenderer.HitTestResult.BirdHit -> onBirdTapped(result.bird)
+                                is FarmCanvasRenderer.HitTestResult.NurseryHit -> onNurseryTapped(result.nursery)
+                                is FarmCanvasRenderer.HitTestResult.BreedingHutHit -> onBreedingHutTapped(result.unit)
+                                is FarmCanvasRenderer.HitTestResult.MarketStandHit -> onMarketStandTapped()
+                                is FarmCanvasRenderer.HitTestResult.ZoneHit -> { /* Lite mode only - not used for Enthusiast */ }
+                                is FarmCanvasRenderer.HitTestResult.Nothing -> { /* Empty tap */ }
+                            }
+                        },
+                        onDoubleTap = { offset ->
+                            // Add hearts at click position
+                            repeat(3) {
+                                hearts.add(
+                                    HeartParticle(
+                                        x = offset.x + (Math.random() * 60 - 30).toFloat(),
+                                        y = offset.y + (Math.random() * 60 - 30).toFloat(),
+                                        createdAt = System.currentTimeMillis()
+                                    )
+                                )
+                            }
+                            // Haptic or sound placeholder
+                            // view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        }
+                    )
+                }
+        ) {
+            with(FarmCanvasRenderer) {
+                renderFarm(
+                    state = uiState,
+                    animationTime = animationTime,
+                    selectedBirdId = selectedBirdId,
+                    config = config
+                )
+            }
+        }
+        
+        // Render overlay hearts
+        hearts.forEach { heart ->
+            HeartEffect(x = heart.x, y = heart.y, createdAt = heart.createdAt)
+        }
+    }
+}
+
+data class HeartParticle(val x: Float, val y: Float, val createdAt: Long)
+
+@Composable
+private fun HeartEffect(x: Float, y: Float, createdAt: Long) {
+    val duration = 1000
+    val elapsed = System.currentTimeMillis() - createdAt
+    val progress = (elapsed / duration.toFloat()).coerceIn(0f, 1f)
+    
+    if (progress >= 1f) return
+    
+    val alpha = 1f - progress
+    val offsetY = -100f * progress // Float up
+    val scale = 0.5f + (1.5f * progress) // Grow then fade
+    
+    Text(
+        "❤️",
+        fontSize = 24.sp,
+        modifier = Modifier
+            .offset(x = with(LocalDensity.current) { x.toDp() }, y = with(LocalDensity.current) { (y + offsetY).toDp() })
+            .graphicsLayer(alpha = alpha, scaleX = scale, scaleY = scale)
+    )
 }
 
 @Composable
@@ -670,6 +746,7 @@ private fun StatusBadge(status: BirdStatusIndicator) {
         BirdStatusIndicator.WEIGHT_WARNING -> Triple("⚠️", "Below Target Weight", Color(0xFFFFC107))
         BirdStatusIndicator.SICK -> Triple("🏥", "Needs Attention", Color(0xFFE53935))
         BirdStatusIndicator.NEW_ARRIVAL -> Triple("✨", "New Arrival", Color(0xFF4FC3F7))
+        BirdStatusIndicator.READY_FOR_SALE -> Triple("🏷️", "For Sale", Color(0xFF4CAF50))
         BirdStatusIndicator.NONE -> Triple("", "", Color.Transparent)
     }
     
