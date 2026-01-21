@@ -61,6 +61,16 @@ enum class RenderRate {
 }
 
 /**
+ * Visual style for the farm.
+ * REALISTIC: Isometric sprites/assets (Standard).
+ * HEATMAP: Simplified colored dots for health status (Operational).
+ */
+enum class RenderStyle {
+    REALISTIC,
+    HEATMAP
+}
+
+/**
  * Grouping mode for bird visualization.
  * BY_BATCH: Render one avatar per batch with quantity badge (Lite).
  * INDIVIDUAL: Render each bird separately (Premium).
@@ -91,7 +101,8 @@ data class DigitalFarmConfig(
     val enableDayNightCycle: Boolean = true,
     val enableFlocking: Boolean = true,
     val renderRate: RenderRate = RenderRate.DYNAMIC,
-    val groupingMode: GroupingMode = GroupingMode.INDIVIDUAL
+    val groupingMode: GroupingMode = GroupingMode.INDIVIDUAL,
+    val renderStyle: RenderStyle = RenderStyle.REALISTIC
 ) {
     companion object {
         /**

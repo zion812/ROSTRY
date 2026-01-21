@@ -23,6 +23,12 @@ interface BreedingRecordDao {
 
     @Query("SELECT COUNT(*) FROM breeding_records WHERE parentId = :parent AND partnerId = :partner")
     suspend fun totalBreedings(parent: String, partner: String): Int
+
+    @Query("SELECT * FROM breeding_records WHERE childId IN (:childIds)")
+    suspend fun recordsByChildren(childIds: List<String>): List<BreedingRecordEntity>
+
+    @Query("SELECT * FROM breeding_records WHERE parentId IN (:parentIds) OR partnerId IN (:parentIds)")
+    suspend fun recordsByParents(parentIds: List<String>): List<BreedingRecordEntity>
 }
 
 @Dao

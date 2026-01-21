@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.data.database.entity.DailyBirdLogEntity
 import com.rio.rostry.ui.enthusiast.breeding.BirdSelectionDialog
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -159,7 +161,27 @@ fun LogEntryCard(log: DailyBirdLogEntity, onDelete: () -> Unit) {
             if (!log.notes.isNullOrBlank()) {
                 Text(log.notes, style = MaterialTheme.typography.bodyMedium)
             }
+            
+            // Render attached images if any
+            if (!log.mediaUrlsJson.isNullOrBlank()) {
+                // Simple parsing for now - assuming single URL or comma separated for prototype
+                val url = log.mediaUrlsJson.trim().replace("\"", "").replace("[", "").replace("]", "")
+                if (url.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    coil.compose.AsyncImage(
+                        model = url,
+                        contentDescription = "Log attachment",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                }
+            }
+            
             if (log.performanceRating != null) {
+                Spacer(Modifier.height(4.dp))
                 Text("Rating: ${log.performanceRating}/10", style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -174,6 +196,7 @@ fun AddLogEntryDialog(
 ) {
     var activityType by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var imageUrl by remember { mutableStateOf("") }
     var rating by remember { mutableStateOf(5f) }
 
     AlertDialog(
@@ -191,6 +214,13 @@ fun AddLogEntryDialog(
                     onValueChange = { notes = it }, 
                     label = { Text("Notes") },
                     minLines = 3
+                )
+                // Placeholder for real image picker
+                OutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Image URL (Optional)") },
+                    placeholder = { Text("https://example.com/photo.jpg") }
                 )
                 Text("Performance Rating: ${rating.toInt()}/10")
                 Slider(
@@ -210,7 +240,8 @@ fun AddLogEntryDialog(
                             date = System.currentTimeMillis(),
                             activityType = activityType,
                             notes = notes,
-                            performanceRating = rating.toInt()
+                            performanceRating = rating.toInt(),
+                            mediaUrlsJson = if (imageUrl.isNotBlank()) "[\"$imageUrl\"]" else null
                         )
                     )
                 },

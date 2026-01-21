@@ -43,6 +43,7 @@ fun FarmLogScreen(
     }
     
     val uiState by viewModel.uiState.collectAsState()
+    var showQuickLogSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -57,6 +58,14 @@ fun FarmLogScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showQuickLogSheet = true },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Quick Check")
+            }
         }
     ) { padding ->
         Column(
@@ -319,13 +328,37 @@ fun FarmLogHeader(
                         SummaryBadge(icon = Icons.Default.CurrencyRupee, text = "₹${summary.expenseInr.toInt()}", color = Color(0xFFEA580C)) // Orange
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    if (summary.mortalityCount > 0) {
-                        SummaryBadge(icon = Icons.Default.Warning, text = "${summary.mortalityCount}", color = Color(0xFFDC2626)) // Red
-                    }
+                if (summary.mortalityCount > 0) {
+                    SummaryBadge(icon = Icons.Default.Warning, text = "${summary.mortalityCount}", color = Color(0xFFDC2626)) // Red
+                }
+            }
+        }
+        
+        // Cost Breakdown Row
+        if (summary != null && summary.costBreakdown.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                summary.costBreakdown.forEach { (type, amount) ->
+                    Text(
+                        text = "${type.lowercase().replaceFirstChar { it.uppercase() }}: ₹${amount.toInt()}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
                 }
             }
         }
     }
+    
+
+}
 }
 
 @Composable

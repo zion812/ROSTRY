@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 68,
-    "identityHash": "da2cefdff8c35ebc085ceb20c44ff17a",
+    "identityHash": "7ef73668b552263563713c82a560b8de",
     "entities": [
       {
         "tableName": "users",
@@ -10663,7 +10663,7 @@
       },
       {
         "tableName": "daily_bird_logs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `birdId` TEXT NOT NULL, `date` INTEGER NOT NULL, `activityType` TEXT NOT NULL, `weight` REAL, `feedIntakeGrams` REAL, `notes` TEXT, `performanceRating` INTEGER, `performanceScoreJson` TEXT, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`birdId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `birdId` TEXT NOT NULL, `date` INTEGER NOT NULL, `activityType` TEXT NOT NULL, `weight` REAL, `feedIntakeGrams` REAL, `notes` TEXT, `performanceRating` INTEGER, `performanceScoreJson` TEXT, `mediaUrlsJson` TEXT, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`birdId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -10712,6 +10712,11 @@
           {
             "fieldPath": "performanceScoreJson",
             "columnName": "performanceScoreJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mediaUrlsJson",
+            "columnName": "mediaUrlsJson",
             "affinity": "TEXT"
           },
           {
@@ -12286,7 +12291,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'da2cefdff8c35ebc085ceb20c44ff17a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7ef73668b552263563713c82a560b8de')"
     ]
   }
 }

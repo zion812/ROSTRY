@@ -56,7 +56,16 @@ interface TraceabilityRepository {
     fun observeComplianceAlertsCount(farmerId: String): Flow<Int>
     fun observeEligibleProductsCount(farmerId: String): Flow<Int>
     suspend fun getFamilyTree(familyTreeId: String): Resource<FamilyTreeEntity>
+    suspend fun getAncestryGraph(productId: String, maxDepth: Int = 3): Resource<GraphData>
+
+    suspend fun getDescendancyGraph(productId: String, maxDepth: Int = 3): Resource<GraphData>
+    suspend fun getSiblings(productId: String): Resource<List<String>>
 }
+
+data class GraphData(
+    val nodes: List<NodeMetadata>,
+    val edges: List<Pair<String, String>>
+)
 
 data class NodeMetadata(
     val productId: String,
@@ -477,12 +486,11 @@ class TraceabilityRepositoryImpl @Inject constructor(
         var depth = 0
         while (frontier.isNotEmpty() && depth < maxDepth) {
             val next = mutableListOf<String>()
-            for (node in frontier) {
-                val parents = breedingDao.recordsByChild(node)
-                parents.forEach { rec ->
-                    if (visited.add(rec.parentId)) next += rec.parentId
-                    if (visited.add(rec.partnerId)) next += rec.partnerId
-                }
+            // Batch fetch: all parents for current frontier
+            val parents = breedingDao.recordsByChildren(frontier)
+            parents.forEach { rec ->
+                if (visited.add(rec.parentId)) next += rec.parentId
+                if (visited.add(rec.partnerId)) next += rec.partnerId
             }
             if (next.isEmpty()) break
             depth += 1
@@ -500,11 +508,12 @@ class TraceabilityRepositoryImpl @Inject constructor(
         var depth = 0
         while (frontier.isNotEmpty() && depth < maxDepth) {
             val next = mutableListOf<String>()
-            for (node in frontier) {
-                val p = breedingDao.recordsByParent(node)
-                p.forEach { rec ->
-                    if (rec.parentId == node && visited.add(rec.childId)) next += rec.childId
-                    if (rec.partnerId == node && visited.add(rec.childId)) next += rec.childId
+            // Batch fetch: all children for current frontier parents
+            val childrenRecords = breedingDao.recordsByParents(frontier)
+            childrenRecords.forEach { rec ->
+                // Check if the record actually belongs to one of our frontier nodes as a parent
+                if ((frontier.contains(rec.parentId) || frontier.contains(rec.partnerId)) && visited.add(rec.childId)) {
+                    next += rec.childId
                 }
             }
             if (next.isEmpty()) break
@@ -514,4 +523,113 @@ class TraceabilityRepositoryImpl @Inject constructor(
         }
         return levels
     }
+
+    override suspend fun getAncestryGraph(productId: String, maxDepth: Int): Resource<GraphData> = withContext(Dispatchers.IO) {
+        try {
+            val edges = mutableListOf<Pair<String, String>>()
+            val visited = mutableSetOf(productId)
+            val nodes = mutableSetOf(productId)
+            var frontier = listOf(productId)
+            var depth = 0
+
+            while (frontier.isNotEmpty() && depth < maxDepth) {
+                val next = mutableListOf<String>()
+                // Batch fetch parents for all frontier nodes
+                val parents = breedingDao.recordsByChildren(frontier)
+                
+                parents.forEach { rec ->
+                    // Make sure we only process edges involving our current frontier
+                    if (frontier.contains(rec.childId)) {
+                        val childId = rec.childId
+                        
+                        // Parent 1
+                        if (!visited.contains(rec.parentId)) {
+                            visited.add(rec.parentId)
+                            nodes.add(rec.parentId)
+                            next.add(rec.parentId)
+                        }
+                        edges.add(rec.parentId to childId)
+
+                        // Parent 2
+                        if (!visited.contains(rec.partnerId)) {
+                            visited.add(rec.partnerId)
+                            nodes.add(rec.partnerId)
+                            next.add(rec.partnerId)
+                        }
+                        edges.add(rec.partnerId to childId)
+                    }
+                }
+                if (next.isEmpty()) break
+                depth++
+                frontier = next.distinct()
+            }
+            
+            val metadataMap = getNodeMetadataBatch(nodes.toList()).data ?: emptyMap()
+            Resource.Success(GraphData(metadataMap.values.toList(), edges))
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get ancestry graph")
+        }
+    }
+
+    override suspend fun getDescendancyGraph(productId: String, maxDepth: Int): Resource<GraphData> = withContext(Dispatchers.IO) {
+        try {
+            val edges = mutableListOf<Pair<String, String>>()
+            val visited = mutableSetOf(productId)
+            val nodes = mutableSetOf(productId)
+            var frontier = listOf(productId)
+            var depth = 0
+
+            while (frontier.isNotEmpty() && depth < maxDepth) {
+                val next = mutableListOf<String>()
+                // Batch fetch offspring for all frontier nodes using ProductDao
+                val offspring = productDao.getOffspringBatch(frontier)
+                
+                offspring.forEach { child ->
+                    if (!visited.contains(child.productId)) {
+                        visited.add(child.productId)
+                        nodes.add(child.productId)
+                        next.add(child.productId)
+                    }
+                    val parentId = if (frontier.contains(child.parentMaleId)) child.parentMaleId else child.parentFemaleId
+                    if (parentId != null) {
+                         edges.add(parentId to child.productId)
+                    }
+                }
+                if (next.isEmpty()) break
+                depth++
+                frontier = next.distinct()
+            }
+            
+            val metadataMap = getNodeMetadataBatch(nodes.toList()).data ?: emptyMap()
+            Resource.Success(GraphData(metadataMap.values.toList(), edges))
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get descendancy graph")
+        }
+    }
+
+    override suspend fun getSiblings(productId: String): Resource<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            // 1. Find parents of the product
+            val records = breedingDao.recordsByChild(productId)
+            val parentIds = records.flatMap { listOf(it.parentId, it.partnerId) }.distinct()
+            
+            if (parentIds.isEmpty()) {
+                return@withContext Resource.Success(emptyList())
+            }
+
+            // 2. Find all children of these parents (siblings + self)
+            val siblingRecords = breedingDao.recordsByParents(parentIds)
+            
+            // 3. Filter out self and collect unique sibling IDs
+            val siblingIds = siblingRecords
+                .map { it.childId }
+                .filter { it != productId }
+                .distinct()
+                
+            Resource.Success(siblingIds)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get siblings")
+        }
+    }
+
 }

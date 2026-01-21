@@ -66,7 +66,8 @@ enum class BirdStatusIndicator {
     WEIGHT_READY,     // Gold star badge
     WEIGHT_WARNING,   // Yellow warning (below target)
     SICK,             // Red cross
-    NEW_ARRIVAL       // Sparkle effect (just added)
+    NEW_ARRIVAL,      // Sparkle effect (just added)
+    READY_FOR_SALE    // Ready to be sold
 }
 
 /**

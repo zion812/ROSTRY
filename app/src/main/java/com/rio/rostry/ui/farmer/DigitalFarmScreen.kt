@@ -28,6 +28,7 @@ import com.rio.rostry.domain.model.DigitalFarmState
 import com.rio.rostry.domain.model.FarmStats
 import com.rio.rostry.domain.model.NurseryGroup
 import com.rio.rostry.domain.model.RenderRate
+import com.rio.rostry.domain.model.TimeOfDay
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VisualBird as DomainVisualBird
 import com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmViewModel
@@ -66,9 +67,24 @@ fun DigitalFarmScreen(
     val selectedBird by viewModel.selectedBird.collectAsState()
     val config by viewModel.config.collectAsState()
     
+    // Calculate time of day for dynamic lighting
+    val timeOfDay = remember { TimeOfDay.fromCurrentTime() }
+    
     // Zone-Based Tasks: Track selected zone for bottom sheet
     var selectedZone by remember { mutableStateOf<com.rio.rostry.domain.model.DigitalFarmZone?>(null) }
     var zoneBirds by remember { mutableStateOf<List<DomainVisualBird>>(emptyList()) }
+    
+    // Heatmap Toggle State
+    var isHeatmapMode by remember { mutableStateOf(false) }
+    
+    // Update config based on toggle
+    val currentConfig = remember(config, isHeatmapMode) {
+        if (isHeatmapMode) {
+            config.copy(renderStyle = com.rio.rostry.domain.model.RenderStyle.HEATMAP)
+        } else {
+            config
+        }
+    }
     
     // Collect tap results for zone handling
     LaunchedEffect(Unit) {
@@ -143,6 +159,17 @@ fun DigitalFarmScreen(
                     IconButton(onClick = onShare) {
                         Icon(Icons.Default.Share, contentDescription = "Share farm screenshot")
                     }
+                    
+                    // Heatmap Toggle
+                    IconButton(
+                        onClick = { isHeatmapMode = !isHeatmapMode }
+                    ) {
+                        Icon(
+                            if (isHeatmapMode) Icons.Default.Layers else Icons.Default.LayersClear,
+                            contentDescription = "Toggle Heatmap",
+                            tint = if (isHeatmapMode) Color(0xFFFFD700) else Color.White
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = skyGradientTop.copy(alpha = 0.95f),
@@ -178,8 +205,9 @@ fun DigitalFarmScreen(
                     FarmerFarmCanvas(
                         uiState = uiState,
                         animationTime = animationTime,
+                        timeOfDay = timeOfDay,
                         selectedBirdId = selectedBird?.productId,
-                        config = config,
+                        config = currentConfig,
                         onBirdTapped = { viewModel.onBirdTapped(it) },
                         onNurseryTapped = { viewModel.onNurseryTapped(it) },
                         onBreedingHutTapped = { viewModel.onBreedingHutTapped(it) },
@@ -249,6 +277,7 @@ fun DigitalFarmScreen(
 private fun FarmerFarmCanvas(
     uiState: DigitalFarmState,
     animationTime: Float,
+    timeOfDay: TimeOfDay,
     selectedBirdId: String?,
     config: com.rio.rostry.domain.model.DigitalFarmConfig,
     onBirdTapped: (DomainVisualBird) -> Unit,
@@ -290,6 +319,7 @@ private fun FarmerFarmCanvas(
                 state = uiState,
                 animationTime = animationTime,
                 selectedBirdId = selectedBirdId,
+                timeOfDay = timeOfDay,
                 config = config  // Pass config for Lite mode rendering
             )
         }
@@ -704,6 +734,7 @@ private fun StatusBadge(status: BirdStatusIndicator) {
         BirdStatusIndicator.WEIGHT_WARNING -> Triple("⚠️", "Below Target Weight", Color(0xFFFFC107))
         BirdStatusIndicator.SICK -> Triple("🏥", "Needs Attention", Color(0xFFE53935))
         BirdStatusIndicator.NEW_ARRIVAL -> Triple("✨", "New Arrival", Color(0xFF4FC3F7))
+        BirdStatusIndicator.READY_FOR_SALE -> Triple("🏷️", "For Sale", Color(0xFF4CAF50))
         BirdStatusIndicator.NONE -> Triple("", "", Color.Transparent)
     }
     

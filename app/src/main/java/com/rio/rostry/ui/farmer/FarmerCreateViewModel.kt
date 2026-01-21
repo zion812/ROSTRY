@@ -538,8 +538,38 @@ class FarmerCreateViewModel @Inject constructor(
     }
 
     fun autoDetectLocation() {
-        // Location detection logic would go here
-        // For now, placeholder
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(isSubmitting = true)
+            try {
+                // 1. Check if user has a verified farm location profile
+                val userId = firebaseAuth.currentUser?.uid
+                if (userId != null) {
+                    // We need to fetch the latest user data to be sure
+                    val user = userRepository.getCurrentUserSuspend()
+                    
+                    if (user != null && user.farmLocationLat != null && user.farmLocationLng != null) {
+                        // Priority: Use the verified/saved farm location
+                        updateDetails { it.copy(
+                            latitude = user.farmLocationLat, 
+                            longitude = user.farmLocationLng
+                        ) }
+                        _ui.value = _ui.value.copy(isSubmitting = false)
+                        return@launch
+                    }
+                }
+                
+                // 2. Fallback: If no saved location, we'd normally trigger device GPS here.
+                // Since this is a ViewModel, we can't request permissions directly.
+                // Ideally, we'd emit a side-effect to the UI to request location.
+                // For now, prompt the user if no saved location is found.
+                _ui.value = _ui.value.copy(
+                    isSubmitting = false,
+                    error = "No saved farm location found. Please verify your farm location in Profile or enter coordinates manually."
+                )
+            } catch (e: Exception) {
+                _ui.value = _ui.value.copy(isSubmitting = false, error = "Failed to detect location: ${e.message}")
+            }
+        }
     }
     
     fun clearError() {

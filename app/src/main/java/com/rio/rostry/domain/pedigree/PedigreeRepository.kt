@@ -165,21 +165,12 @@ class PedigreeRepositoryImpl @Inject constructor(
     ): Resource<List<ProductEntity>> {
         return withContext(Dispatchers.IO) {
             try {
-                // Get all birds owned by this user that are not batches
-                val allBirds = productDao.getActiveWithBirth().filter { bird ->
-                    bird.sellerId == ownerId &&
-                    bird.productId != excludeId &&
-                    bird.isBatch != true &&
-                    !bird.isDeleted
-                }
-                
-                // Filter by gender if specified
-                val filtered = if (gender != null) {
-                    allBirds.filter { it.gender?.lowercase() == gender.lowercase() }
-                } else {
-                    allBirds
-                }
-                
+                // Use optimized DAO query
+                val filtered = productDao.getPotentialParents(
+                    ownerId = ownerId,
+                    excludeId = excludeId,
+                    gender = gender
+                )
                 Resource.Success(filtered)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to get potential parents")
@@ -199,10 +190,8 @@ class PedigreeRepositoryImpl @Inject constructor(
     override suspend fun getOffspring(parentId: String): Resource<List<ProductEntity>> {
         return withContext(Dispatchers.IO) {
             try {
-                // Find all birds where parentMaleId or parentFemaleId matches
-                val offspring = productDao.getActiveWithBirth().filter { bird ->
-                    bird.parentMaleId == parentId || bird.parentFemaleId == parentId
-                }
+                // Use optimized DAO query instead of in-memory filtering
+                val offspring = productDao.getOffspring(parentId)
                 Resource.Success(offspring)
             } catch (e: Exception) {
                 Timber.e(e, "Failed to get offspring for $parentId")

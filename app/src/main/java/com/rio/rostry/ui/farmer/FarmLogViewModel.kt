@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmActivityLogEntity
 import com.rio.rostry.data.repository.FarmActivityLogRepository
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -19,13 +20,15 @@ import javax.inject.Inject
 @HiltViewModel
 class FarmLogViewModel @Inject constructor(
     private val repository: FarmActivityLogRepository,
+    private val productRepository: ProductRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
     data class DailySummary(
         val feedKg: Double = 0.0,
         val expenseInr: Double = 0.0,
-        val mortalityCount: Int = 0
+        val mortalityCount: Int = 0,
+        val costBreakdown: Map<String, Double> = emptyMap() // Breakdown by activity type (FEED, MEDICATION, etc.)
     )
 
     data class UiState(
@@ -35,7 +38,8 @@ class FarmLogViewModel @Inject constructor(
         val dailySummaries: Map<String, DailySummary> = emptyMap(),
         val selectedType: String? = null, // null = all types
         val isLoading: Boolean = true,
-        val totalExpenses: Double = 0.0
+        val totalExpenses: Double = 0.0,
+        val activeProducts: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -44,17 +48,19 @@ class FarmLogViewModel @Inject constructor(
     private val _selectedType = MutableStateFlow<String?>(null)
 
     init {
-        loadLogs()
+        loadData()
     }
 
-    private fun loadLogs() {
+    private fun loadData() {
         viewModelScope.launch {
             val userId = currentUserProvider.userIdOrNull() ?: return@launch
             
+            // Collect logs and products concurrently
             combine(
                 repository.observeForFarmer(userId),
+                productRepository.getProductsBySeller(userId),
                 _selectedType
-            ) { logs, type ->
+            ) { logs, productsResult, type ->
                 val filtered = if (type == null) logs else logs.filter { it.activityType == type }
                 val totalExpenses = logs
                     .filter { it.activityType == "EXPENSE" }
@@ -75,12 +81,20 @@ class FarmLogViewModel @Inject constructor(
                 
                 // Daily Summaries Logic
                 val summaries = grouped.mapValues { (_, groupLogs) ->
+                    val breakdown = groupLogs
+                        .filter { it.amountInr != null && it.amountInr > 0 }
+                        .groupBy { it.activityType }
+                        .mapValues { (_, logs) -> logs.sumOf { it.amountInr!! } }
+
                     DailySummary(
                         feedKg = groupLogs.filter { it.activityType == "FEED" }.sumOf { it.quantity ?: 0.0 },
-                        expenseInr = groupLogs.filter { it.activityType == "EXPENSE" }.sumOf { it.amountInr ?: 0.0 },
-                        mortalityCount = groupLogs.filter { it.activityType == "MORTALITY" }.sumOf { (it.quantity ?: 0.0).toInt() }
+                        expenseInr = groupLogs.filter { it.activityType == "EXPENSE" || it.amountInr != null }.sumOf { it.amountInr ?: 0.0 },
+                        mortalityCount = groupLogs.filter { it.activityType == "MORTALITY" }.sumOf { (it.quantity ?: 0.0).toInt() },
+                        costBreakdown = breakdown
                     )
                 }
+                
+                val products = productsResult.data ?: emptyList()
                 
                 UiState(
                     logs = logs,
@@ -89,7 +103,8 @@ class FarmLogViewModel @Inject constructor(
                     dailySummaries = summaries,
                     selectedType = type,
                     isLoading = false,
-                    totalExpenses = totalExpenses
+                    totalExpenses = totalExpenses,
+                    activeProducts = products
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -99,6 +114,34 @@ class FarmLogViewModel @Inject constructor(
 
     fun setFilter(type: String?) {
         _selectedType.value = type
+    }
+
+    fun submitQuickLog(
+        productIds: Set<String>,
+        type: QuickLogType,
+        value: Double,
+        notes: String?
+    ) {
+        viewModelScope.launch {
+            val userId = currentUserProvider.userIdOrNull() ?: return@launch
+            val now = System.currentTimeMillis()
+            
+            productIds.forEach { productId ->
+                val log = FarmActivityLogEntity(
+                    activityId = UUID.randomUUID().toString(),
+                    farmerId = userId,
+                    productId = productId,
+                    activityType = type.name, // Matches QuickLogType enum name
+                    description = notes ?: "Quick Log: ${type.label}",
+                    quantity = if (type == QuickLogType.MORTALITY || type == QuickLogType.FEED || type == QuickLogType.VACCINATION) value else null,
+                    amountInr = if (type == QuickLogType.EXPENSE || type == QuickLogType.MAINTENANCE) value else null,
+                    createdAt = now,
+                    updatedAt = now,
+                    dirty = true
+                )
+                repository.upsert(log)
+            }
+        }
     }
 
     fun getActivityTypes(): List<String> = listOf(

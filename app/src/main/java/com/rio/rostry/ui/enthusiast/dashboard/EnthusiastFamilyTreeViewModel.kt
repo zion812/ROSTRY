@@ -56,23 +56,80 @@ class EnthusiastFamilyTreeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val d = _depth.value
+            val currentEdges = mutableSetOf<Pair<String, String>>()
+            
             if (_showAnc.value) {
-                when (val res = traceRepo.ancestors(id, d)) {
-                    is Resource.Success -> _layersUp.value = res.data ?: emptyMap()
+                when (val res = traceRepo.getAncestryGraph(id, d)) {
+                    is Resource.Success -> {
+                        val graph = res.data
+                        if (graph != null) {
+                            // Convert graph to layers for the simple layer-view
+                            // Convert graph to layers and edges
+                            _layersUp.value = rebuildLayersUp(id, graph.edges)
+                            currentEdges.addAll(graph.edges)
+                        } else {
+                            _layersUp.value = emptyMap()
+                        }
+                    }
                     else -> _layersUp.value = emptyMap()
                 }
             } else _layersUp.value = emptyMap()
+            
             if (_showDesc.value) {
-                when (val res = traceRepo.descendants(id, d)) {
-                    is Resource.Success -> _layersDown.value = res.data ?: emptyMap()
+                when (val res = traceRepo.getDescendancyGraph(id, d)) {
+                    is Resource.Success -> {
+                        val graph = res.data
+                        if (graph != null) {
+                             val downLayers = rebuildLayersDown(id, graph.edges)
+                             _layersDown.value = downLayers
+                             currentEdges.addAll(graph.edges)
+                        } else {
+                            _layersDown.value = emptyMap()
+                        }
+                    }
                     else -> _layersDown.value = emptyMap()
                 }
             } else _layersDown.value = emptyMap()
-            // Build simple edges between adjacent layers (best-effort visualization)
-            val e = mutableListOf<Pair<String, String>>()
-            _layersUp.value.forEach { (_, nodes) -> nodes.forEach { e += (id to it) } }
-            _layersDown.value.forEach { (_, nodes) -> nodes.forEach { e += (id to it) } }
-            _edges.value = e
+            
+            _edges.value = currentEdges.toList()
         }
+    }
+    
+    private fun rebuildLayersUp(root: String, edges: List<Pair<String, String>>): Map<Int, List<String>> {
+        val parentMap = edges.groupBy { it.second }.mapValues { it.value.map { p -> p.first } }
+        val layers = mutableMapOf<Int, MutableList<String>>()
+        var curr = setOf(root)
+        var depth = 1 // ancestors start at layer 1 (0 is root)
+        while(curr.isNotEmpty() && depth <= 5) {
+            val next = mutableSetOf<String>()
+            curr.forEach { child ->
+                parentMap[child]?.let { parents -> next.addAll(parents) }
+            }
+            if (next.isNotEmpty()) {
+                layers[depth] = next.toMutableList()
+            }
+            curr = next
+            depth++
+        }
+        return layers
+    }
+
+    private fun rebuildLayersDown(root: String, edges: List<Pair<String, String>>): Map<Int, List<String>> {
+        val childMap = edges.groupBy { it.first }.mapValues { it.value.map { c -> c.second } }
+        val layers = mutableMapOf<Int, MutableList<String>>()
+        var curr = setOf(root)
+        var depth = 1
+        while(curr.isNotEmpty() && depth <= 5) {
+            val next = mutableSetOf<String>()
+            curr.forEach { parent ->
+                childMap[parent]?.let { children -> next.addAll(children) }
+            }
+            if (next.isNotEmpty()) {
+                layers[depth] = next.toMutableList()
+            }
+            curr = next
+            depth++
+        }
+        return layers
     }
 }

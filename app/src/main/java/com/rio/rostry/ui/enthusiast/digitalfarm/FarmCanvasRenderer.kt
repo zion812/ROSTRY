@@ -187,7 +187,7 @@ object FarmCanvasRenderer {
         drawGround(width, height)
 
         // Layer 4: Shadows (for 2.5D depth)
-        drawShadows(state, width, height)
+        drawShadows(state, width, height, timeOfDay)
 
         // Layer 5: Fences (back)
         drawFencesBack(width, height)
@@ -202,12 +202,25 @@ object FarmCanvasRenderer {
         drawBreedingHuts(state.breedingUnits, width, height, if (enableParticles) animationTime else 0f)
         drawMarketStand(width, height, state.marketReady.size)
 
-        // Layer 7: Birds - Lite mode uses batch avatars, Premium uses individual birds
-        if (groupingMode == GroupingMode.BY_BATCH) {
-            // Lite Mode: Render batch avatars
+        // Layer 7: Birds
+        // HEATMAP Mode overrides grouping to show individual health dots
+        if (config?.renderStyle == RenderStyle.HEATMAP) {
+            val allBirds = collectAllBirdsForRendering(state, width, height, if (enableFlocking) animationTime else 0f)
+            val sortedBirds = allBirds.sortedBy { it.renderY }
+            sortedBirds.forEach { renderBird ->
+                drawHeatmapDot(
+                    renderBird.x,
+                    renderBird.y,
+                    renderBird.bird.statusIndicator
+                )
+            }
+        } 
+        // LITE Mode: Batch Avatars
+        else if (groupingMode == GroupingMode.BY_BATCH) {
             drawBatchAvatars(state, width, height)
-        } else {
-            // Premium Mode: Render individual birds with flocking
+        } 
+        // PREMIUM Mode: Individual Birds
+        else {
             val effectiveAnimTime = if (enableFlocking) animationTime else 0f
             val allBirds = collectAllBirdsForRendering(state, width, height, effectiveAnimTime)
             val sortedBirds = allBirds.sortedBy { it.renderY }
@@ -551,6 +564,40 @@ object FarmCanvasRenderer {
         }
     }
 
+
+
+    /**
+     * Draw a simplified colored dot for Heatmap mode.
+     */
+    private fun DrawScope.drawHeatmapDot(
+        x: Float,
+        y: Float,
+        status: BirdStatusIndicator
+    ) {
+        val color = when (status) {
+            BirdStatusIndicator.SICK -> FarmColors.statusSick // Red
+            BirdStatusIndicator.VACCINE_DUE -> FarmColors.statusVaccineDue // Orange/Red
+            BirdStatusIndicator.WEIGHT_READY -> Color(0xFF29B6F6) // Light Blue
+            BirdStatusIndicator.READY_FOR_SALE -> FarmColors.goldStar // Gold
+            BirdStatusIndicator.NONE -> Color(0xFF4CAF50) // Green
+            else -> Color(0xFF4CAF50) // Default/Other types
+        }
+        
+        // Glow
+        drawCircle(
+            color = color.copy(alpha = 0.3f),
+            radius = 12f,
+            center = Offset(x, y)
+        )
+        
+        // Core
+        drawCircle(
+            color = color,
+            radius = 6f,
+            center = Offset(x, y)
+        )
+    }
+
     // ==================== SKY & ATMOSPHERE ====================
 
     private fun DrawScope.drawSky(width: Float, height: Float, timeOfDay: TimeOfDay) {
@@ -759,11 +806,12 @@ object FarmCanvasRenderer {
     private fun DrawScope.drawBackgroundTrees(width: Float, height: Float) {
         // Row of trees at horizon line
         val treeY = height * 0.28f
-        val treeCount = 6
+        val treeCount = 8 // Denser forest
 
         repeat(treeCount) { i ->
-            val treeX = width * (0.05f + i * 0.18f)
-            val treeScale = 0.6f + (i % 3) * 0.15f
+            val treeX = width * (0.02f + i * 0.14f)
+            val treeScale = 0.7f + (i % 3) * 0.2f
+            val variety = i % 2 // 0 = Pine, 1 = Oak
 
             // Tree trunk
             drawRect(
@@ -772,13 +820,43 @@ object FarmCanvasRenderer {
                 size = Size(8f * treeScale, 25f * treeScale)
             )
 
-            // Tree foliage (triangular)
-            treePath.reset()
-            treePath.moveTo(treeX, treeY - 35f * treeScale)
-            treePath.lineTo(treeX - 18f * treeScale, treeY + 5f)
-            treePath.lineTo(treeX + 18f * treeScale, treeY + 5f)
-            treePath.close()
-            drawPath(treePath, FarmColors.treeGreen)
+            if (variety == 0) {
+                // Pine tree (Triangular layers)
+                val pineColor = FarmColors.treeGreen
+                treePath.reset()
+                // Bottom tier
+                treePath.moveTo(treeX, treeY - 35f * treeScale)
+                treePath.lineTo(treeX - 20f * treeScale, treeY + 5f)
+                treePath.lineTo(treeX + 20f * treeScale, treeY + 5f)
+                treePath.close()
+                drawPath(treePath, pineColor)
+                
+                // Top tier
+                treePath.reset()
+                treePath.moveTo(treeX, treeY - 55f * treeScale)
+                treePath.lineTo(treeX - 15f * treeScale, treeY - 15f * treeScale)
+                treePath.lineTo(treeX + 15f * treeScale, treeY - 15f * treeScale)
+                treePath.close()
+                drawPath(treePath, pineColor.copy(alpha = 0.9f))
+            } else {
+                // Oak tree (Round/Cloudy)
+                val oakColor = Color(0xFF388E3C)
+                drawCircle(
+                    oakColor,
+                    radius = 20f * treeScale,
+                    center = Offset(treeX, treeY - 25f * treeScale)
+                )
+                drawCircle(
+                    oakColor.copy(alpha = 0.9f),
+                    radius = 15f * treeScale,
+                    center = Offset(treeX - 12f * treeScale, treeY - 15f * treeScale)
+                )
+                drawCircle(
+                    oakColor.copy(alpha = 0.9f),
+                    radius = 15f * treeScale,
+                    center = Offset(treeX + 12f * treeScale, treeY - 15f * treeScale)
+                )
+            }
         }
     }
 
@@ -797,12 +875,36 @@ object FarmCanvasRenderer {
             size = Size(width, height * 0.7f)
         )
 
-        // Dirt path in middle
-        drawOval(
-            color = FarmColors.dirtLight.copy(alpha = 0.5f),
-            topLeft = Offset(width * 0.3f, height * 0.5f),
-            size = Size(width * 0.4f, height * 0.3f)
+        // Horizon glow (atmospheric perspective)
+        val horizonGlow = Brush.verticalGradient(
+            colors = listOf(FarmColors.grassLight.copy(alpha = 0.6f), Color.Transparent),
+            startY = height * 0.3f,
+            endY = height * 0.45f
         )
+        drawRect(
+            brush = horizonGlow,
+            topLeft = Offset(0f, height * 0.3f),
+            size = Size(width, height * 0.15f)
+        )
+
+        // Dirt path in middle - with rough edges simulation
+        val pathPath = Path()
+        pathPath.moveTo(width * 0.45f, height * 0.3f) // Horizon vanish point
+        pathPath.cubicTo(
+            width * 0.40f, height * 0.45f,
+            width * 0.25f, height * 0.7f,
+            width * 0.35f, height // Bottom left
+        )
+        pathPath.lineTo(width * 0.75f, height) // Bottom right
+        pathPath.cubicTo(
+            width * 0.75f, height * 0.7f,
+            width * 0.60f, height * 0.45f,
+            width * 0.55f, height * 0.3f // Horizon vanish point
+        )
+        pathPath.close()
+        
+        drawPath(pathPath, FarmColors.dirtLight.copy(alpha = 0.6f))
+
 
         // Grass tufts (scattered)
         repeat(30) { i ->
@@ -827,24 +929,49 @@ object FarmCanvasRenderer {
 
     // ==================== SHADOWS ====================
 
-    private fun DrawScope.drawShadows(state: DigitalFarmState, width: Float, height: Float) {
+    private fun DrawScope.drawShadows(state: DigitalFarmState, width: Float, height: Float, timeOfDay: TimeOfDay) {
+        // Calculate shadow offset based on time of day (sun position)
+        val shadowOffset = when (timeOfDay) {
+            TimeOfDay.MORNING -> Offset(-30f, 10f) // Long shadows to West
+            TimeOfDay.AFTERNOON -> Offset(10f, 25f) // Sun high, short shadows
+            TimeOfDay.EVENING -> Offset(50f, 10f) // Long shadows to East
+            TimeOfDay.NIGHT -> Offset(0f, 5f) // Minimal moon shadows
+        }
+        
+        val shadowAlpha = if (timeOfDay == TimeOfDay.NIGHT) 0.2f else 0.4f
+        val shadowColor = FarmColors.shadow.copy(alpha = shadowAlpha)
+
         // Hut shadows
         state.breedingUnits.forEachIndexed { i, _ ->
             val hutX = width * (0.15f + i * 0.12f)
             val hutY = height * 0.22f
+            
+            // Project shadow
             drawOval(
-                FarmColors.shadow,
-                topLeft = Offset(hutX - 35f, hutY + 45f),
-                size = Size(70f, 15f)
+                color = shadowColor,
+                topLeft = Offset(hutX - 35f + shadowOffset.x, hutY + 45f + shadowOffset.y * 0.5f),
+                size = Size(70f + abs(shadowOffset.x * 0.5f), 15f + shadowOffset.y * 0.2f)
             )
         }
 
         // Market stand shadow
         drawOval(
-            FarmColors.shadow,
-            topLeft = Offset(width * 0.72f - 45f, height * 0.77f + 35f),
-            size = Size(90f, 20f)
+            color = shadowColor,
+            topLeft = Offset(width * 0.72f - 45f + shadowOffset.x, height * 0.77f + 35f + shadowOffset.y * 0.5f),
+            size = Size(90f + abs(shadowOffset.x * 0.5f), 20f + shadowOffset.y * 0.2f)
         )
+        
+        // Tree shadows
+        val treeY = height * 0.28f
+        val treeCount = 8
+        repeat(treeCount) { i ->
+            val treeX = width * (0.02f + i * 0.14f)
+            drawOval(
+                color = shadowColor,
+                topLeft = Offset(treeX - 15f + shadowOffset.x * 0.8f, treeY + 20f),
+                size = Size(30f + abs(shadowOffset.x * 0.3f), 10f)
+            )
+        }
     }
 
     // ==================== FENCES ====================
@@ -1644,6 +1771,11 @@ object FarmCanvasRenderer {
             }
             BirdStatusIndicator.WEIGHT_READY -> {
                 // Handled by gold star in drawBirdSprite
+            }
+            BirdStatusIndicator.READY_FOR_SALE -> {
+                // Sale Tag
+                drawCircle(Color(0xFF4CAF50), radius = 10f, center = Offset(x, y))
+                drawCircle(Color.White, radius = 3f, center = Offset(x, y)) // Tag hole
             }
             BirdStatusIndicator.WEIGHT_WARNING -> {
                 // Yellow warning triangle

@@ -214,7 +214,8 @@ fun FarmerCreateScreen(
                     state = wizardState.detailsInfo,
                     onUpdate = viewModel::updateDetails,
                     onAutoDetectLocation = viewModel::autoDetectLocation,
-                    isDetectingLocation = uiState.isSubmitting
+                    isDetectingLocation = uiState.isSubmitting,
+                    listForSale = wizardState.basicInfo.listForSale
                 )
                 FarmerCreateViewModel.WizardStep.MEDIA -> MediaStep(
                     state = wizardState.mediaInfo,
@@ -610,7 +611,8 @@ private fun DetailsStep(
     state: FarmerCreateViewModel.DetailsInfoState,
     onUpdate: ((FarmerCreateViewModel.DetailsInfoState) -> FarmerCreateViewModel.DetailsInfoState) -> Unit,
     onAutoDetectLocation: () -> Unit,
-    isDetectingLocation: Boolean
+    isDetectingLocation: Boolean,
+    listForSale: Boolean
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Details for ${ageGroup.name}", style = MaterialTheme.typography.titleLarge)
@@ -740,50 +742,56 @@ private fun DetailsStep(
             }
         }
 
-        // Delivery Options
-        Divider(modifier = Modifier.padding(top = 16.dp))
-        Text("Delivery Options", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
+        if (listForSale) {
+            // Delivery Options
+            Divider(modifier = Modifier.padding(top = 16.dp))
+            Text(
+                "Delivery Options",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 16.dp)
+            )
 
-        // Delivery options chips
-        val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            allDeliveryOptions.forEach { option ->
-                FilterChip(
-                    selected = state.deliveryOptions.contains(option),
-                    onClick = {
-                        val updatedOptions = if (state.deliveryOptions.contains(option)) {
-                            state.deliveryOptions - option
-                        } else {
-                            state.deliveryOptions + option
-                        }
-                        onUpdate { it.copy(deliveryOptions = updatedOptions) }
-                    },
-                    label = { Text(option.replace("_", " ")) }
-                )
+            // Delivery options chips
+            val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                allDeliveryOptions.forEach { option ->
+                    FilterChip(
+                        selected = state.deliveryOptions.contains(option),
+                        onClick = {
+                            val updatedOptions = if (state.deliveryOptions.contains(option)) {
+                                state.deliveryOptions - option
+                            } else {
+                                state.deliveryOptions + option
+                            }
+                            onUpdate { it.copy(deliveryOptions = updatedOptions) }
+                        },
+                        label = { Text(option.replace("_", " ")) }
+                    )
+                }
             }
+
+            // Delivery cost
+            OutlinedTextField(
+                value = state.deliveryCost?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
+                },
+                label = { Text("Delivery Cost (₹)") },
+                placeholder = { Text("0.00") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Lead time days
+            OutlinedTextField(
+                value = state.leadTimeDays?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
+                },
+                label = { Text("Lead Time (days)") },
+                placeholder = { Text("Number of days notice required") },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
-
-        // Delivery cost
-        OutlinedTextField(
-            value = state.deliveryCost?.toString() ?: "",
-            onValueChange = { value ->
-                onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
-            },
-            label = { Text("Delivery Cost (₹)") },
-            placeholder = { Text("0.00") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Lead time days
-        OutlinedTextField(
-            value = state.leadTimeDays?.toString() ?: "",
-            onValueChange = { value ->
-                onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
-            },
-            label = { Text("Lead Time (days)") },
-            placeholder = { Text("Number of days notice required") },
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 
