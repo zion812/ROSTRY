@@ -158,6 +158,9 @@ android {
     androidResources {
         localeFilters.addAll(listOf("en"))
     }
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 // ---- Coverage reporting (JaCoCo) ----
@@ -315,7 +318,7 @@ implementation(libs.firebase.appcheck.playintegrity)
     implementation("com.google.accompanist:accompanist-swiperefresh:0.34.0")
 
     // Google Play Services - Location
-    implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation(libs.play.services.location)
 
     // Firebase Performance Monitoring
     implementation("com.google.firebase:firebase-perf-ktx:21.0.1")
@@ -378,7 +381,7 @@ implementation(libs.firebase.appcheck.playintegrity)
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
     // ML Kit Barcode Scanning
-    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation(libs.barcode.scanning)
 
     // Vico Chart Library for Performance Charts
     implementation("com.patrykandpatrick.vico:compose:1.13.1")

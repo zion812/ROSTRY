@@ -42,7 +42,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class ShowcaseCardGenerator @Inject constructor(
-    private val pedigreeRepository: PedigreeRepository
+    private val pedigreeRepository: PedigreeRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) {
     companion object {
         private const val CARD_WIDTH = 1080
@@ -55,7 +56,6 @@ class ShowcaseCardGenerator @Inject constructor(
      * Generate a showcase card bitmap for a bird.
      */
     suspend fun generateCard(
-        context: Context,
         bird: ProductEntity,
         vaccinationCount: Int = 0
     ): Resource<ShowcaseCard> {
@@ -73,13 +73,13 @@ class ShowcaseCardGenerator @Inject constructor(
                 
                 // Draw card
                 drawBackground(canvas)
-                drawBirdPhoto(canvas, bird, context)
+                drawBirdPhoto(canvas, bird)
                 drawBirdInfo(canvas, bird)
                 drawBadges(canvas, completeness, vaccinationCount)
                 drawBranding(canvas)
                 
                 // Save to cache
-                val file = saveToCacheFile(context, bitmap, bird.productId)
+                val file = saveToCacheFile(bitmap, bird.productId)
                 
                 Resource.Success(ShowcaseCard(
                     bitmap = bitmap,
@@ -136,7 +136,7 @@ class ShowcaseCardGenerator @Inject constructor(
         )
     }
     
-    private suspend fun drawBirdPhoto(canvas: Canvas, bird: ProductEntity, context: Context) {
+    private suspend fun drawBirdPhoto(canvas: Canvas, bird: ProductEntity) {
         val centerX = CARD_WIDTH / 2f
         val photoY = 350f
         
@@ -159,7 +159,7 @@ class ShowcaseCardGenerator @Inject constructor(
         canvas.drawCircle(centerX, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2f + 10, ringPaint)
         
         // Load and draw bird photo
-        val photoBitmap = loadBirdPhoto(bird, context)
+        val photoBitmap = loadBirdPhoto(bird)
         if (photoBitmap != null) {
             val circularPhoto = getCircularBitmap(photoBitmap, PHOTO_SIZE)
             canvas.drawBitmap(
@@ -185,7 +185,7 @@ class ShowcaseCardGenerator @Inject constructor(
         }
     }
     
-    private suspend fun loadBirdPhoto(bird: ProductEntity, context: Context): Bitmap? {
+    private suspend fun loadBirdPhoto(bird: ProductEntity): Bitmap? {
         val imageUrl = bird.imageUrls.firstOrNull() ?: return null
         
         return try {
@@ -357,7 +357,7 @@ class ShowcaseCardGenerator @Inject constructor(
         canvas.drawText("Premium Poultry Management", centerX, brandY + 40, taglinePaint)
     }
     
-    private fun saveToCacheFile(context: Context, bitmap: Bitmap, productId: String): File {
+    private fun saveToCacheFile(bitmap: Bitmap, productId: String): File {
         val cacheDir = File(context.cacheDir, "showcase_cards")
         if (!cacheDir.exists()) cacheDir.mkdirs()
         

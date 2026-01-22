@@ -22,7 +22,7 @@ mockk = "1.14.5"
 hiltExt = "1.3.0"
 retrofit = "2.11.0"
 navigationCompose = "2.8.3"
-biometric = "1.2.0-alpha05"
+biometric = "1.4.0-alpha05"
 datastore = "1.1.1"
 sqlcipher = "4.5.4"
 sqliteKtx = "2.4.0"
@@ -87,6 +87,8 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
  google-maps-android = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "googleMaps" }
  google-places-new = { group = "com.google.android.libraries.places", name = "places", version.ref = "googlePlaces" }
  google-maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "googleMapsCompose" }
+ play-services-location = { group = "com.google.android.gms", name = "play-services-location", version = "21.3.0" }
+ barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version = "17.3.0" }
 
  # Firebase App Check
  firebase-appcheck = { group = "com.google.firebase", name = "firebase-appcheck" }

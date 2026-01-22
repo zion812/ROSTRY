@@ -72,7 +72,6 @@ class ShowcaseCardViewModel @Inject constructor(
                 
                 // Generate card
                 when (val result = showcaseCardGenerator.generateCard(
-                    context = android.app.Application(), // Will be passed from UI
                     bird = bird,
                     vaccinationCount = vaccinationCount
                 )) {
@@ -98,39 +97,7 @@ class ShowcaseCardViewModel @Inject constructor(
         }
     }
     
-    fun generateCardWithContext(context: Context) {
-        viewModelScope.launch {
-            _uiState.value = ShowcaseCardUiState.Loading
-            
-            try {
-                val bird = productDao.findById(productId)
-                if (bird == null) {
-                    _uiState.value = ShowcaseCardUiState.Error("Bird not found")
-                    return@launch
-                }
-                
-                val vaccinationCount = vaccinationRecordDao.getRecordsByProduct(productId).size
-                
-                when (val result = showcaseCardGenerator.generateCard(context, bird, vaccinationCount)) {
-                    is Resource.Success -> {
-                        currentCard = result.data
-                        _uiState.value = ShowcaseCardUiState.Success(
-                            cardBitmap = result.data!!.bitmap,
-                            birdName = bird.name,
-                            file = result.data.file
-                        )
-                    }
-                    is Resource.Error -> {
-                        _uiState.value = ShowcaseCardUiState.Error(result.message ?: "Failed to generate card")
-                    }
-                    is Resource.Loading -> {}
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to generate showcase card")
-                _uiState.value = ShowcaseCardUiState.Error(e.message ?: "An error occurred")
-            }
-        }
-    }
+
     
     fun regenerate() {
         generateCard()

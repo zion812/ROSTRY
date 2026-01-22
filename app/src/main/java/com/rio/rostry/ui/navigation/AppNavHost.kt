@@ -938,48 +938,7 @@ private fun RoleNavGraph(
                 }
             )
         }
-        composable(Routes.FarmerNav.MARKET) {
-            val vm: com.rio.rostry.ui.farmer.FarmerMarketViewModel = hiltViewModel()
-            val state by vm.ui.collectAsState()
-            
-            FarmerMarketScreen(
-                // NEW: Route to asset selection first, then create listing from selected asset
-                onCreateListing = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
-                onEditListing = { listingId -> 
-                    // For edit, navigate to the listing details (could be asset-based in future)
-                    navController.navigate(Routes.Builders.productDetails(listingId))
-                },
-                onBoostListing = { _ -> /* Could open promo screen */ Unit },
-                onPauseListing = { _ -> /* Pause listing action */ Unit },
-                onOpenOrder = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
-                onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
-                selectedTabIndex = state.selectedTabIndex,
-                onSelectTab = { vm.setTab(it) },
-                metricsRevenue = state.metricsRevenue,
-                metricsOrders = state.metricsOrders,
-                metricsViews = state.metricsViews,
-                isLoadingBrowse = state.isLoadingBrowse,
-                isLoadingMine = state.isLoadingMine,
-                browse = state.filteredBrowse,
-                mine = state.mine,
-                onRefresh = { vm.refresh() },
-                onApplyPriceBreed = { min, max, breed -> vm.applyPriceBreed(min, max, breed) },
-                onApplyDateFilter = { s, e -> vm.applyDateFilter(s, e) },
-                onClearDateFilter = { vm.clearDateFilter() },
-                startDate = state.startDate,
-                endDate = state.endDate,
-                onSelectCategoryMeat = { vm.selectCategory(com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Meat) },
-                onSelectCategoryAdoption = { vm.selectCategory(com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Adoption) },
-                onSelectTraceable = { vm.selectTrace(com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.Traceable) },
-                onSelectNonTraceable = { vm.selectTrace(com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable) },
-                categoryMeatSelected = state.categoryFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Meat,
-                categoryAdoptionSelected = state.categoryFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.CategoryFilter.Adoption,
-                traceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.Traceable,
-                nonTraceableSelected = state.traceFilter == com.rio.rostry.ui.farmer.FarmerMarketViewModel.TraceFilter.NonTraceable,
-                onScanQr = { navController.navigate(Routes.Builders.scanQr("product_details")) },
-                verificationStatus = state.verificationStatus
-            )
-        }
+
         // Farmer Create route with optional prefill arguments
         composable(
             route = Routes.FarmerNav.CREATE + "?prefillProductId={prefillProductId}&pairId={pairId}",
@@ -1070,17 +1029,7 @@ private fun RoleNavGraph(
         // ============ NEW: Farm Asset Management Routes (Phase 1 of Farm-Market Separation) ============
         
         // Farm Assets List - "My Farm" tab destination
-        composable(Routes.FarmerNav.FARM_ASSETS) {
-            FarmAssetListScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onAssetClick = { assetId -> 
-                    navController.navigate(Routes.Builders.assetDetails(assetId))
-                },
-                onAddAsset = { 
-                    navController.navigate(Routes.FarmerNav.CREATE_ASSET)
-                }
-            )
-        }
+
         
         // Farm Asset Detail - view/manage individual asset
         composable(
@@ -2003,6 +1952,9 @@ private fun RoleNavGraph(
         
         // Farmer Market Screen
         composable(Routes.FarmerNav.MARKET) {
+            val viewModel = hiltViewModel<com.rio.rostry.ui.farmer.FarmerMarketViewModel>()
+            val state by viewModel.ui.collectAsState()
+            
             com.rio.rostry.ui.farmer.FarmerMarketScreen(
                 onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
                 onEditListing = { id -> navController.navigate("farmer/edit/$id") },
@@ -2012,10 +1964,29 @@ private fun RoleNavGraph(
                 onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
                 onScanQr = { navController.navigate(Routes.Scan.QR) },
                 onOpenPromoteListings = { /* TODO */ },
-                onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) }
+                onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) },
+                // State wiring
+                selectedTabIndex = state.selectedTabIndex,
+                onSelectTab = { index -> viewModel.setTab(index) },
+                // Pass other state if needed, though they have defaults. Pushing state down is better:
+                browse = state.browse,
+                mine = state.mine,
+                isLoadingBrowse = state.isLoadingBrowse,
+                isLoadingMine = state.isLoadingMine,
+                verificationStatus = state.verificationStatus,
+                onRefresh = { viewModel.refresh() }
             )
         }
         
+        // Farm Assets Management
+        composable(Routes.FarmerNav.FARM_ASSETS) {
+             com.rio.rostry.ui.farmer.asset.FarmAssetListScreen(
+                onNavigateBack = { navController.navigate(Routes.FarmerNav.HOME) },
+                onAssetClick = { assetId -> navController.navigate(Routes.FarmerNav.ASSET_DETAILS.replace("{assetId}", assetId)) },
+                onAddAsset = { navController.navigate(Routes.Onboarding.FARM_BIRD) }
+            )
+        }
+
         // Farmer Create Screen
         composable(Routes.FarmerNav.CREATE) {
             com.rio.rostry.ui.farmer.FarmerCreateScreen(
