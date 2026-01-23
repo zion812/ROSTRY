@@ -2,41 +2,35 @@ package com.rio.rostry.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
-import com.rio.rostry.data.database.dao.VerificationRequestDao
-import com.rio.rostry.data.database.entity.VerificationRequestEntity
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
  * ViewModel for Admin Verification Dashboard.
  * 
  * Provides functionality to:
- * - Load pending verification requests from Firestore
- * - Approve or reject requests with reason
- * - Update user's verification status
+ * - Load pending verification requests from UserRepository (verifications collection)
+ * - Approve or reject requests
  */
 @HiltViewModel
 class AdminVerificationViewModel @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val verificationRequestDao: VerificationRequestDao,
     private val userRepository: UserRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
     companion object {
-        private const val COLLECTION_NAME = "verification_requests"
-        
         // Predefined rejection reasons
         val REJECTION_REASONS = listOf(
             "Blurry or unclear photo",
@@ -60,39 +54,61 @@ class AdminVerificationViewModel @Inject constructor(
     private val _selectedRequest = MutableStateFlow<VerificationRequest?>(null)
     val selectedRequest: StateFlow<VerificationRequest?> = _selectedRequest.asStateFlow()
 
+    private var streamJob: Job? = null
+
+
+
+    private val _historyRequests = MutableStateFlow<List<VerificationRequest>>(emptyList())
+    val historyRequests: StateFlow<List<VerificationRequest>> = _historyRequests.asStateFlow()
+
+    private var historyJob: Job? = null
+
     init {
         loadPendingRequests()
+        loadHistoryRequests()
     }
 
     fun loadPendingRequests() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val snapshot = firestore.collection(COLLECTION_NAME)
-                    .whereEqualTo("status", VerificationRequestEntity.STATUS_PENDING)
-                    .get()
-                    .await()
-
-                val requests = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        VerificationRequest(
-                            userId = doc.getString("userId") ?: return@mapNotNull null,
-                            requestId = doc.getString("requestId") ?: doc.id,
-                            govtIdUrl = doc.getString("govtIdUrl"),
-                            farmPhotoUrl = doc.getString("farmPhotoUrl"),
-                            submittedAt = doc.getLong("submittedAt") ?: 0L,
-                            userName = null // Will be fetched separately if needed
-                        )
-                    } catch (e: Exception) {
-                        null
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
+            userRepository.streamPendingVerifications().collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> if (_pendingRequests.value.isEmpty()) _isLoading.value = true
+                    is Resource.Success -> {
+                        _isLoading.value = false
+                        val submissions = resource.data ?: emptyList()
+                        _pendingRequests.value = submissions.map { it.toUiModel() }
+                    }
+                    is Resource.Error -> {
+                        _isLoading.value = false
+                        _toastEvent.emit("Error loading requests: ${resource.message}")
                     }
                 }
-                
-                _pendingRequests.value = requests
-            } catch (e: Exception) {
-                _toastEvent.emit("Failed to load requests: ${e.message}")
-            } finally {
-                _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadHistoryRequests() {
+        historyJob?.cancel()
+        historyJob = viewModelScope.launch {
+            // Fetch both VERIFIED and REJECTED
+            // Note: This naive approach fetches lists separately. For production, a combined query is better.
+            // Using existing repository method for now.
+            
+            // 1. Fetch Verified
+            userRepository.getVerificationsByRoleAndStatus(null, VerificationStatus.VERIFIED).collect { resVerified ->
+                if (resVerified is Resource.Success) {
+                     val verified = resVerified.data?.map { it.toUiModel() } ?: emptyList()
+                     
+                     // 2. Fetch Rejected (nested to keep it simple, or combine flows)
+                     userRepository.getVerificationsByRoleAndStatus(null, VerificationStatus.REJECTED).collect { resRejected ->
+                         if (resRejected is Resource.Success) {
+                             val rejected = resRejected.data?.map { it.toUiModel() } ?: emptyList()
+                             // Combine and Sort
+                             _historyRequests.value = (verified + rejected).sortedByDescending { it.submittedAt }
+                         }
+                     }
+                }
             }
         }
     }
@@ -105,100 +121,82 @@ class AdminVerificationViewModel @Inject constructor(
         _selectedRequest.value = null
     }
 
-    fun approveRequest(userId: String) {
+    fun approveRequest(userId: String, requestId: String) {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                _isLoading.value = true
-                
-                // Update Firestore
-                firestore.collection(COLLECTION_NAME)
-                    .document(userId)
-                    .update(
-                        mapOf(
-                            "status" to VerificationRequestEntity.STATUS_APPROVED,
-                            "reviewedAt" to System.currentTimeMillis()
-                        )
-                    )
-                    .await()
-                
-                // Update user entity (Firestore + Local)
-                userRepository.updateVerificationStatus(userId, VerificationStatus.VERIFIED)
-                
-                // Update local request entity if exists
-                val localRequest = verificationRequestDao.getLatestByUserId(userId)
-                if (localRequest != null) {
-                    verificationRequestDao.approve(localRequest.requestId)
+                val adminId = currentUserProvider.userIdOrNull() ?: "admin"
+                val result = userRepository.updateVerificationSubmissionStatus(
+                    submissionId = requestId,
+                    userId = userId,
+                    status = VerificationStatus.VERIFIED,
+                    reviewerId = adminId,
+                    rejectionReason = null
+                )
+
+                if (result is Resource.Success) {
+                    _toastEvent.emit("User verified successfully!")
+                    clearSelection()
+                    loadHistoryRequests() // Refresh history
+                } else {
+                    _toastEvent.emit("Failed to verify: ${result.message}")
                 }
-                
-                // Remove from list
-                _pendingRequests.value = _pendingRequests.value.filter { it.userId != userId }
-                _selectedRequest.value = null
-                
-                _toastEvent.emit("User verified successfully!")
-                
-                _toastEvent.emit("User verified successfully!")
-                
-                // TODO: In a real backend, this would trigger a Cloud Function to send "PROFILE_SYNC"
-                // For now, we rely on the client pulling data on next refresh or manual trigger
-                // We log this as if the action occurred.
-                timber.log.Timber.d("Admin approved user $userId -> Triggering apparent sync")
-                
             } catch (e: Exception) {
-                _toastEvent.emit("Failed to approve: ${e.message}")
+                Timber.e(e, "Error approving request")
+                _toastEvent.emit("Error: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    fun rejectRequest(userId: String, reason: String) {
+    fun rejectRequest(userId: String, requestId: String, reason: String) {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                _isLoading.value = true
-                
-                // Update Firestore
-                firestore.collection(COLLECTION_NAME)
-                    .document(userId)
-                    .update(
-                        mapOf(
-                            "status" to VerificationRequestEntity.STATUS_REJECTED,
-                            "rejectionReason" to reason,
-                            "reviewedAt" to System.currentTimeMillis()
-                        )
-                    )
-                    .await()
-                
-                // Update user entity (stays REJECTED but updated in both Firestore and Local)
-                userRepository.updateVerificationStatus(userId, VerificationStatus.REJECTED)
-                
-                // Update local request entity if exists
-                val localRequest = verificationRequestDao.getLatestByUserId(userId)
-                if (localRequest != null) {
-                    verificationRequestDao.reject(localRequest.requestId, reason)
+                val adminId = currentUserProvider.userIdOrNull() ?: "admin"
+                val result = userRepository.updateVerificationSubmissionStatus(
+                    submissionId = requestId,
+                    userId = userId,
+                    status = VerificationStatus.REJECTED,
+                    reviewerId = adminId,
+                    rejectionReason = reason
+                )
+
+                if (result is Resource.Success) {
+                    _toastEvent.emit("Request rejected: $reason")
+                    clearSelection()
+                    loadHistoryRequests() // Refresh history
+                } else {
+                    _toastEvent.emit("Failed to reject: ${result.message}")
                 }
-                
-                // Remove from list
-                _pendingRequests.value = _pendingRequests.value.filter { it.userId != userId }
-                _selectedRequest.value = null
-                
-                _toastEvent.emit("Request rejected: $reason")
-                
-                _toastEvent.emit("Request rejected: $reason")
-                
-                // TODO: Cloud Function should send reject notification
-                timber.log.Timber.d("Admin rejected user $userId -> Triggering apparent sync")
-                
             } catch (e: Exception) {
-                _toastEvent.emit("Failed to reject: ${e.message}")
+                Timber.e(e, "Error rejecting request")
+                _toastEvent.emit("Error: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+    
+    // Mapper extension for cleanliness
+    private fun com.rio.rostry.domain.model.VerificationSubmission.toUiModel(): VerificationRequest {
+        return VerificationRequest(
+            userId = this.userId,
+            requestId = this.submissionId,
+            govtIdUrl = this.documentUrls.firstOrNull(),
+            farmPhotoUrl = this.imageUrls.firstOrNull(),
+            submittedAt = this.submittedAt?.time ?: 0L,
+            userName = this.applicantName ?: "User: ${this.userId.take(8)}",
+            status = this.currentStatus, 
+            rejectionReason = this.rejectionReason ?: this.rejectionReason
+        )
     }
 }
 
 /**
- * Data class for verification request display.
+ * Data class for verification request display in Admin UI.
+ * Mapped from VerificationSubmission domain object.
  */
 data class VerificationRequest(
     val userId: String,
@@ -206,5 +204,7 @@ data class VerificationRequest(
     val govtIdUrl: String?,
     val farmPhotoUrl: String?,
     val submittedAt: Long,
-    val userName: String? = null
+    val userName: String?,
+    val status: VerificationStatus = VerificationStatus.PENDING,
+    val rejectionReason: String? = null
 )

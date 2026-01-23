@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.filled.Add
@@ -280,6 +281,16 @@ private fun PostCard(
                  }
                  IconButton(onClick = { /* Share */ }) {
                      Icon(Icons.Default.Share, contentDescription = "Share")
+                 }
+                 
+                 // Delete Button (Conditionally visible)
+                 val type = vm.userType.collectAsState().value
+                 val uid = vm.currentUserId
+                 if (uid != null && com.rio.rostry.domain.rbac.Rbac.canManageResource(type, uid, post.authorId)) {
+                     Spacer(Modifier.weight(1f))
+                     IconButton(onClick = { vm.deletePost(post) }) {
+                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                     }
                  }
              }
         }

@@ -99,19 +99,6 @@ class UserRepositoryImpl @Inject constructor(
                 val userEntity = snapshot.toObject(UserEntity::class.java)
                 if (userEntity != null) {
                     // Update local cache
-                    // We must use a separate coroutine scope or blocking call if Dao is suspend
-                    // But here we are in a callback. Ideally we launch in the flow's scope
-                    // However, callbackFlow scope is thread-safe for send, but for DB writes we need a scope.
-                    // We can use the 'launch' builder inside the callbackFlow.
-                    
-                    // Since we can't launch comfortably inside the listener callback without capturing the scope,
-                    // we'll use a try/catch block if needed, but actually the best pattern is:
-                    // Just emit the data, and let the collector handle side effects? 
-                    // No, Repository is responsible for caching.
-                    
-                    // We'll trust the main scope or use a runBlocking for the quick DB write? 
-                    // No, runBlocking in main thread is bad.
-                    // Let's use `launch` from the enclosing (producer) scope.
                     launch {
                         userDao.upsertUser(userEntity)
                     }
@@ -281,14 +268,14 @@ class UserRepositoryImpl @Inject constructor(
         }
     }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to update verification status")
 
-    override suspend fun updateVerificationSubmissionStatus(userId: String, status: VerificationStatus, reviewerId: String, rejectionReason: String?): Resource<Unit> = safeCall {
-        val verificationsRef = firestore.collection("verifications").document(userId)
+    override suspend fun updateVerificationSubmissionStatus(submissionId: String, userId: String, status: VerificationStatus, reviewerId: String, rejectionReason: String?): Resource<Unit> = safeCall {
+        val verificationsRef = firestore.collection("verifications").document(submissionId)
         val userRef = usersCollection.document(userId)
 
         firestore.runTransaction { transaction ->
             val verificationSnapshot = transaction.get(verificationsRef)
             if (!verificationSnapshot.exists()) {
-                throw IllegalStateException("Verification document not found for user $userId")
+                throw IllegalStateException("Verification document not found for submission $submissionId")
             }
 
             // 1. Update Verification Document
@@ -736,4 +723,83 @@ class UserRepositoryImpl @Inject constructor(
         
         downloadUrl
     }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to upload profile image")
+
+    override suspend fun deleteUser(userId: String): Resource<Unit> = safeCall {
+        // 1. Delete from Firestore
+        usersCollection.document(userId).delete().await()
+        
+        // 2. Delete from Local DB
+        userDao.deleteUserById(userId)
+        
+        Unit
+    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to delete user")
+
+    override suspend fun getSystemUsers(limit: Int): Resource<List<UserEntity>> = safeCall {
+        // Fetch users directly from Firestore for Admin visibility
+        // This ensures we see all users, not just those cached locally
+        val snapshot = usersCollection
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+            .await()
+            
+        val users = snapshot.toObjects(UserEntity::class.java)
+        
+        // Optionally update local cache with what we found
+        if (users.isNotEmpty()) {
+            userDao.upsertUsers(users)
+        }
+        
+        users
+    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to fetch system users")
+
+    override suspend fun suspendUser(userId: String, reason: String, durationMinutes: Long?): Resource<Unit> = safeCall {
+        val updates = mutableMapOf<String, Any>(
+            "isSuspended" to true,
+            "suspensionReason" to reason,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        if (durationMinutes != null) {
+            updates["suspensionEndsAt"] = System.currentTimeMillis() + (durationMinutes * 60 * 1000)
+        }
+        
+        usersCollection.document(userId).update(updates).await()
+        
+        // Update local cache
+        val localUser = userDao.getUserById(userId).firstOrNull()
+        if (localUser != null) {
+            val updatedUser = localUser.copy(
+                isSuspended = true,
+                suspensionReason = reason,
+                suspensionEndsAt = updates["suspensionEndsAt"] as? Long,
+                updatedAt = Date()
+            )
+            userDao.upsertUser(updatedUser)
+        }
+        Unit
+    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to suspend user")
+
+    override suspend fun unsuspendUser(userId: String): Resource<Unit> = safeCall {
+        val updates = mapOf<String, Any?>(
+            "isSuspended" to false,
+            "suspensionReason" to null,
+            "suspensionEndsAt" to null,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        
+        usersCollection.document(userId).update(updates).await()
+        
+        // Update local cache
+        val localUser = userDao.getUserById(userId).firstOrNull()
+        if (localUser != null) {
+            val updatedUser = localUser.copy(
+                isSuspended = false,
+                suspensionReason = null,
+                suspensionEndsAt = null,
+                updatedAt = Date()
+            )
+            userDao.upsertUser(updatedUser)
+        }
+        Unit
+    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to unsuspend user")
 }

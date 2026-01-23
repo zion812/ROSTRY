@@ -152,7 +152,7 @@ class ModerationViewModel @Inject constructor(
             if (res is Resource.Success) {
                 // Update submission status
                 val adminId = currentUserProvider.userIdOrNull() ?: "admin"
-                userRepository.updateVerificationSubmissionStatus(submission.userId, VerificationStatus.VERIFIED, adminId)
+                userRepository.updateVerificationSubmissionStatus(submission.submissionId, submission.userId, VerificationStatus.VERIFIED, adminId)
 
                 // 2. If it's a role upgrade, update the user role
                 if (submission.targetRole != null && submission.targetRole != submission.currentRole) {
@@ -182,7 +182,7 @@ class ModerationViewModel @Inject constructor(
             if (res is Resource.Success) {
                 // Update submission status
                 val adminId = currentUserProvider.userIdOrNull() ?: "admin"
-                userRepository.updateVerificationSubmissionStatus(submission.userId, VerificationStatus.REJECTED, adminId, reason)
+                userRepository.updateVerificationSubmissionStatus(submission.submissionId, submission.userId, VerificationStatus.REJECTED, adminId, reason)
 
                 // 2. Notify user
                 runCatching { 

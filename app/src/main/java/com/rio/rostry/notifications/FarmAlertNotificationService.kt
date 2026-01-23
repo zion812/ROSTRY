@@ -191,6 +191,19 @@ class FarmAlertNotificationService @Inject constructor(
         trackNotificationSent("mortality_spike", userId)
     }
 
+    suspend fun sendBiosecurityAlert(zone: String, severity: String) {
+        val userId = currentUserId() ?: return
+        // Ideally check preferences, but biosecurity is critical
+        
+        val title = "Biosecurity Alert: $severity"
+        val body = "You are near a new $severity zone ($zone). Please review movement restrictions."
+        val deeplink = "rostry://admin/biosecurity" // Or a user-facing map
+
+        saveNotificationToDb(userId, title, body, "BIOSECURITY_ALERT", deeplink)
+        postLocalNotification(title, body, deeplink)
+        trackNotificationSent("biosecurity_alert", userId)
+    }
+
     suspend fun sendHatchingReminder(batchId: String, hatchDate: Long, reminderType: String) {
         val userId = currentUserId() ?: return
         if (!isNotificationEnabled("hatching")) return

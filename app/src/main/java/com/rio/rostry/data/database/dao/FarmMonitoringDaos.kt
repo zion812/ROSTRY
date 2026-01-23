@@ -109,6 +109,9 @@ interface MortalityRecordDao {
     /** Get total mortality financial impact across all assets for a farmer */
     @Query("SELECT COALESCE(SUM(financialImpactInr), 0.0) FROM mortality_records WHERE farmerId = :farmerId")
     suspend fun getTotalMortalityImpactByFarmer(farmerId: String): Double
+
+    @Query("SELECT * FROM mortality_records WHERE occurredAt > :since ORDER BY occurredAt DESC")
+    suspend fun getRecentRecords(since: Long): List<MortalityRecordEntity>
 }
 
 @Dao

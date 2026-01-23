@@ -157,6 +157,19 @@ object Routes {
     // Admin routes (only accessible to admin users)
     object Admin {
         const val VERIFICATION = "admin/verification"
+        const val DASHBOARD = "admin/dashboard"
+        const val USER_MANAGEMENT = "admin/users"
+        const val BIOSECURITY = "admin/biosecurity"
+        const val MORTALITY_DASHBOARD = "admin/mortality"
+        const val DISPUTES = "admin/disputes"
+        const val PRODUCT_MODERATION = "admin/products"
+        const val ORDER_INTERVENTION = "admin/orders"
+        const val AUDIT_LOGS = "admin/audit"
+    }
+
+    object Marketplace {
+        const val CREATE_DISPUTE = "marketplace/dispute/create/{transferId}/{reportedUserId}"
+        fun createDispute(transferId: String, reportedUserId: String) = "marketplace/dispute/create/$transferId/$reportedUserId"
     }
 
     // Developer/Showcase routes (debug-only usage recommended)

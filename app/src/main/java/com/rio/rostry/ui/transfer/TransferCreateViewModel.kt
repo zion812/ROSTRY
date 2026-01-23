@@ -40,6 +40,8 @@ class TransferCreateViewModel @Inject constructor(
     private val quarantineDao: QuarantineRecordDao,
     private val connectivityManager: ConnectivityManager,
     private val syncManager: SyncManager,
+    private val biosecurityRepository: com.rio.rostry.data.repository.BiosecurityRepository
+
 ) : ViewModel() {
 
     enum class TransferType { SALE, GIFT, BREEDING_LOAN, OWNERSHIP_TRANSFER }
@@ -189,7 +191,29 @@ class TransferCreateViewModel @Inject constructor(
                 validating = false,
                 error = if (!eligible) error else null,
                 productStatus = status,
-                ownershipVerified = selected?.sellerId?.let { it == currentUserId }
+                ownershipVerified = selected?.sellerId?.let { ownerId ->
+                    // Use centralized RBAC check to allow Admins to manage transfers for others
+                    // We need to fetch the full user profile to check the role
+                    // Note: In a real app we might want to cache the current user role in the ViewModel
+                    // but since verify is a one-time action, fetching here is acceptable.
+                    // For now, assume currentUserId check is the baseline, and we optimistically allow if we can't fetch role quickly?
+                    // No, better to be safe. We are in a coroutine.
+                    // But we don't have easy access to UserType here without a call.
+                    // Let's assume we can rely on standard ownership for immediate UI feedback, 
+                    // AND checking admin status if it fails?
+                    
+                    // Actually, let's fetch the user. We are in viewModelScope.
+                    // Using currentUserProvider gives ID. UserRepository has getCurrentUserSuspend.
+                   
+                   // Blocking fetch for role check
+                   // Ideally retrieve this once in init or use a Flow, but for this specific action:
+                   val currentUser = userRepository.getCurrentUserSuspend()
+                   com.rio.rostry.domain.rbac.Rbac.canManageResource(
+                       currentUser?.role,
+                       currentUser?.userId,
+                       ownerId
+                   )
+                } ?: false
             )
         }
     }
@@ -324,6 +348,17 @@ class TransferCreateViewModel @Inject constructor(
                     val eligibility = transferWorkflowRepository.validateTransferEligibility(s.productId, fromUserId, s.toUserId)
                     if (eligibility is Resource.Error) {
                         _state.value = _state.value.copy(loading = false, error = eligibility.message)
+                        return@launch
+                    }
+                }
+
+                // Biosecurity Check
+                val currentUser = userRepository.getCurrentUserSuspend()
+                if (currentUser?.farmLocationLat != null && currentUser.farmLocationLng != null) {
+                    val status = biosecurityRepository.checkLocation(currentUser.farmLocationLat, currentUser.farmLocationLng)
+                    if (status is com.rio.rostry.data.repository.BiosecurityStatus.Blocked) {
+                        val zoneNames = status.zones.joinToString { it.reason }
+                        _state.value = s.copy(loading = false, error = "Transfer Blocked: You are in a Red Zone ($zoneNames)")
                         return@launch
                     }
                 }

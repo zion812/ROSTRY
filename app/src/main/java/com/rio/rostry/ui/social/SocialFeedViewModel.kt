@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 @HiltViewModel
 class SocialFeedViewModel @Inject constructor(
@@ -28,6 +29,9 @@ class SocialFeedViewModel @Inject constructor(
 
     val isAuthenticated: Boolean
         get() = currentUserProvider.isAuthenticated()
+
+    val currentUserId: String?
+        get() = currentUserProvider.userIdOrNull()
 
     val userType: StateFlow<UserType?> = userRepository.getCurrentUser()
         .map { it.data?.role }
@@ -44,4 +48,14 @@ class SocialFeedViewModel @Inject constructor(
     fun getReplies(postId: String): Flow<List<PostEntity>> = socialRepository.getReplies(postId)
 
     val activeStories: Flow<List<com.rio.rostry.data.database.entity.StoryEntity>> = socialRepository.streamActiveStories()
+
+    fun deletePost(post: PostEntity) {
+        viewModelScope.launch {
+            val currentUserId = currentUserProvider.userIdOrNull() ?: return@launch
+            // Centralized RBAC check: Admins can delete ANY post
+            if (com.rio.rostry.domain.rbac.Rbac.canManageResource(userType.value, currentUserId, post.authorId)) {
+               socialRepository.deletePost(post.postId)
+            }
+        }
+    }
 }

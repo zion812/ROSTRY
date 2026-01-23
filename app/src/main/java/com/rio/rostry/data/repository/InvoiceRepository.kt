@@ -10,6 +10,7 @@ import javax.inject.Singleton
 interface InvoiceRepository {
     suspend fun generateInvoice(orderId: String, items: List<InvoiceLineEntity>, gstPercent: Double = 5.0): Resource<InvoiceEntity>
     suspend fun getInvoiceByOrder(orderId: String): Resource<Pair<InvoiceEntity, List<InvoiceLineEntity>>>
+    suspend fun getAllInvoicesAdmin(): Resource<List<InvoiceEntity>>
 }
 
 @Singleton
@@ -46,5 +47,11 @@ class InvoiceRepositoryImpl @Inject constructor(
         Resource.Success(invoice to lines)
     } catch (e: Exception) {
         Resource.Error(e.message ?: "Failed to fetch invoice")
+    }
+
+    override suspend fun getAllInvoicesAdmin(): Resource<List<InvoiceEntity>> = try {
+        Resource.Success(invoiceDao.getAllInvoices())
+    } catch (e: Exception) {
+        Resource.Error(e.message ?: "Failed to fetch invoices")
     }
 }

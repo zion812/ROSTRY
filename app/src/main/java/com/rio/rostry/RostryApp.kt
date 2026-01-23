@@ -80,6 +80,12 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
                 .build()
         }
         
+    @Inject
+    lateinit var fetcherRegistry: com.rio.rostry.data.fetcher.FetcherRegistry
+
+    @Inject
+    lateinit var fetcherHealthCheck: com.rio.rostry.data.health.FetcherHealthCheck
+
     override fun newImageLoader(): ImageLoader {
         val entryPoint = EntryPointAccessors.fromApplication(this, com.rio.rostry.di.AppEntryPoints::class.java)
         return entryPoint.imageLoader()
@@ -87,6 +93,10 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize Fetcher System
+        initializeFetchers()
+
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
             // Enable StrictMode to surface bad practices in debug builds, but avoid noisy Google Play Services violations
@@ -363,4 +373,31 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
     }
     
 
+
+    
+    private fun initializeFetchers() {
+        // Register default farmer fetchers
+        with(fetcherRegistry) {
+            register(com.rio.rostry.data.fetcher.fetcher<Any>(com.rio.rostry.data.fetcher.FetcherRegistry.ID_DAILY_LOG) {
+                name("Daily Log")
+                refreshEvery(com.rio.rostry.data.fetcher.FetcherDurations.MINUTES_5)
+                priority(com.rio.rostry.data.fetcher.FetcherPriority.HIGH)
+            })
+            register(com.rio.rostry.data.fetcher.fetcher<Any>(com.rio.rostry.data.fetcher.FetcherRegistry.ID_TASKS) {
+                name("Tasks") 
+                refreshEvery(com.rio.rostry.data.fetcher.FetcherDurations.MINUTES_5)
+            })
+            register(com.rio.rostry.data.fetcher.fetcher<Any>(com.rio.rostry.data.fetcher.FetcherRegistry.ID_VACCINATION) {
+                name("Vaccinations")
+            })
+             register(com.rio.rostry.data.fetcher.fetcher<Any>(com.rio.rostry.data.fetcher.FetcherRegistry.ID_USER_PROFILE) {
+                name("User Profile")
+                cacheFor(com.rio.rostry.data.fetcher.FetcherDurations.HOURS_1)
+            })
+        }
+        
+        // Start health monitoring
+        fetcherHealthCheck.startHealthChecks()
+        Timber.d("Fetcher system initialized and health checks started")
+    }
 }

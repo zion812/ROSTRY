@@ -101,6 +101,17 @@ class SocialProfileViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    // Whether the current user can edit this profile (Owner OR Admin)
+    val canEditProfile: StateFlow<Boolean> = combine(_userId, userRepository.getCurrentUser()) { targetId, userResource ->
+        val currentUserId = currentUserProvider.userIdOrNull() ?: return@combine false
+        val currentUserType = userResource.data?.role
+        
+        // If targetId is null, we are viewing our own profile -> ownerId is currentUserId
+        val resourceOwnerId = targetId ?: currentUserId
+        
+        com.rio.rostry.domain.rbac.Rbac.canManageResource(currentUserType, currentUserId, resourceOwnerId)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val isFollowLoading: StateFlow<Boolean> = _isFollowLoading.asStateFlow()
     val followError: StateFlow<String?> = _followError.asStateFlow()
 

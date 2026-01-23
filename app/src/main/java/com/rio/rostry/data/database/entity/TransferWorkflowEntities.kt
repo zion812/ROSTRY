@@ -37,28 +37,7 @@ data class TransferVerificationEntity(
     val updatedAt: Long = System.currentTimeMillis(),
 )
 
-@Entity(
-    tableName = "transfer_disputes",
-    foreignKeys = [
-        ForeignKey(
-            entity = TransferEntity::class,
-            parentColumns = ["transferId"],
-            childColumns = ["transferId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("transferId"), Index("status")]
-)
-data class DisputeEntity(
-    @PrimaryKey val disputeId: String,
-    val transferId: String,
-    val raisedByUserId: String,
-    val reason: String,
-    val status: String, // OPEN, UNDER_REVIEW, RESOLVED, REJECTED
-    val resolutionNotes: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis(),
-)
+
 
 /**
  * Entity for logging audit events in the transfer workflow, including validation failures.

@@ -12,7 +12,8 @@ import javax.inject.Singleton
 @Singleton
 class ProductRepositoryImpl @Inject constructor(
     private val productDao: ProductDao,
-    private val productValidator: ProductValidator
+    private val productValidator: ProductValidator,
+    private val auditRepository: com.rio.rostry.data.repository.AuditRepository
 ) : ProductRepository {
 
     override fun validateProductReferences(product: ProductEntity): Boolean {

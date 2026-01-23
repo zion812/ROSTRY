@@ -58,12 +58,12 @@ interface DisputeDao {
     @Upsert
     suspend fun upsert(entity: DisputeEntity)
 
-    @Query("SELECT * FROM transfer_disputes WHERE transferId = :transferId")
+    @Query("SELECT * FROM disputes WHERE transferId = :transferId")
     suspend fun getByTransferId(transferId: String): List<DisputeEntity>
 
-    @Query("SELECT * FROM transfer_disputes WHERE disputeId = :disputeId")
+    @Query("SELECT * FROM disputes WHERE disputeId = :disputeId")
     suspend fun getById(disputeId: String): DisputeEntity?
 
-    @Query("SELECT * FROM transfer_disputes WHERE transferId = :transferId")
+    @Query("SELECT * FROM disputes WHERE transferId = :transferId")
     fun observeByTransferId(transferId: String): Flow<List<DisputeEntity>>
 }

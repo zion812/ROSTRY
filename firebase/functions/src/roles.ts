@@ -37,6 +37,7 @@ export const setUserRoleClaim = onDocumentWritten("users/{userId}", async (event
         await auth.setCustomUserClaims(userId, {
             role: newRole,
             verified: newVerified,
+            admin: newRole === "ADMIN",
         });
         console.log(`Set custom claims for ${userId}: role=${newRole}, verified=${newVerified}`);
 

@@ -294,6 +294,22 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPublicBirdRepository(impl: com.rio.rostry.data.repository.PublicBirdRepositoryImpl): com.rio.rostry.domain.repository.PublicBirdRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBiosecurityRepository(impl: com.rio.rostry.data.repository.BiosecurityRepositoryImpl): com.rio.rostry.data.repository.BiosecurityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAdminMortalityRepository(impl: com.rio.rostry.data.repository.admin.AdminMortalityRepositoryImpl): com.rio.rostry.data.repository.admin.AdminMortalityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDisputeRepository(impl: com.rio.rostry.data.repository.DisputeRepositoryImpl): com.rio.rostry.data.repository.DisputeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuditRepository(impl: com.rio.rostry.data.repository.AuditRepositoryImpl): com.rio.rostry.data.repository.AuditRepository
 }
 
 @Module

@@ -46,6 +46,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TransferVerificationEntity::class,
         DisputeEntity::class,
         AuditLogEntity::class,
+        AdminAuditLogEntity::class,
         PostEntity::class,
         CommentEntity::class,
         LikeEntity::class,
@@ -136,7 +137,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Calendar System
         FarmEventEntity::class
     ],
-    version = 68, // 68: Lifecycle SubStage
+    version = 69, // 69: Audit Logs
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -172,7 +173,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun lifecycleEventDao(): LifecycleEventDao
     abstract fun transferVerificationDao(): TransferVerificationDao
     abstract fun disputeDao(): DisputeDao
-    abstract fun auditLogDao(): AuditLogDao
+    abstract fun auditLogDao(): AuditLogDao // Transfer Audit Log
+    abstract fun adminAuditDao(): AdminAuditDao // Admin System Audit Log
     
     // Farm Management & Marketplace DAOs
     abstract fun farmAssetDao(): FarmAssetDao
@@ -605,6 +607,15 @@ abstract class AppDatabase : RoomDatabase() {
         @TypeConverter
         @JvmStatic
         fun toUpgradeType(name: String?): com.rio.rostry.domain.model.UpgradeType? = name?.let { runCatching { com.rio.rostry.domain.model.UpgradeType.valueOf(it) }.getOrNull() }
+
+        // DisputeStatus enum converters
+        @TypeConverter
+        @JvmStatic
+        fun fromDisputeStatus(status: com.rio.rostry.data.database.entity.DisputeStatus?): String? = status?.name
+
+        @TypeConverter
+        @JvmStatic
+        fun toDisputeStatus(name: String?): com.rio.rostry.data.database.entity.DisputeStatus? = name?.let { runCatching { com.rio.rostry.data.database.entity.DisputeStatus.valueOf(it) }.getOrNull() }
     }
 
     companion object {
@@ -629,6 +640,8 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_58_59: Migration = Converters.MIGRATION_58_59
         // 66 -> 67
         // val MIGRATION_66_67 defined in companion object directly
+        
+
 
         // FarmAsset sale lifecycle columns (62 → 63)
         val MIGRATION_62_63 = object : Migration(62, 63) {
@@ -760,6 +773,28 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_67_68 = object : Migration(67, 68) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `lifecycleSubStage` TEXT")
+            }
+        }
+
+        // Create admin_audit_logs table (68 -> 69)
+        val MIGRATION_68_69 = object : Migration(68, 69) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `admin_audit_logs` (
+                        `logId` TEXT NOT NULL PRIMARY KEY,
+                        `adminId` TEXT NOT NULL,
+                        `adminName` TEXT,
+                        `actionType` TEXT NOT NULL,
+                        `targetId` TEXT,
+                        `targetType` TEXT,
+                        `details` TEXT,
+                        `timestamp` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_admin_audit_logs_adminId` ON `admin_audit_logs` (`adminId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_admin_audit_logs_actionType` ON `admin_audit_logs` (`actionType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_admin_audit_logs_timestamp` ON `admin_audit_logs` (`timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_admin_audit_logs_targetId` ON `admin_audit_logs` (`targetId`)")
             }
         }
 

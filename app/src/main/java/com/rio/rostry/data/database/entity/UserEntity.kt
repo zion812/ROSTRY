@@ -53,7 +53,11 @@ data class UserEntity(
     // Common audit
     val createdAt: Date? = null,
     val updatedAt: Date? = null,
-    val customClaimsUpdatedAt: Date? = null
+    val customClaimsUpdatedAt: Date? = null,
+    // Suspension Logic
+    val isSuspended: Boolean = false,
+    val suspensionReason: String? = null,
+    val suspensionEndsAt: Long? = null
 ) {
     @get:Exclude
     val role: UserType

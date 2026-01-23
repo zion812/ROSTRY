@@ -208,7 +208,7 @@ class TraceabilityRepositoryImpl @Inject constructor(
                 val ver = transferVerificationDao.getByTransferId(transfer.transferId)
                 val hasApproved = ver.any { it.status == "APPROVED" }
                 val disputes = disputeDao.getByTransferId(transfer.transferId)
-                val hasOpenDispute = disputes.any { it.status == "OPEN" || it.status == "UNDER_REVIEW" }
+                val hasOpenDispute = disputes.any { it.status == com.rio.rostry.data.database.entity.DisputeStatus.OPEN || it.status == com.rio.rostry.data.database.entity.DisputeStatus.UNDER_REVIEW }
                 !hasApproved || hasOpenDispute
             }
             if (transfersWithIssues.isNotEmpty()) {

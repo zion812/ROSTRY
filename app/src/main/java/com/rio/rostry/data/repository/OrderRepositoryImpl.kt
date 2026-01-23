@@ -22,6 +22,7 @@ class AdvancedOrderService @Inject constructor(
     private val orderDao: OrderDao,
     private val paymentRepository: PaymentRepository,
     private val paymentGateway: PaymentGateway,
+    private val auditRepository: AuditRepository
 ) : OrderRepository {
 
     // ===== Existing interface fulfillment =====
@@ -245,6 +246,48 @@ class AdvancedOrderService @Inject constructor(
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Verification failed")
+        }
+    }
+
+    override suspend fun adminCancelOrder(orderId: String, reason: String): Resource<Unit> {
+        val current = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+        
+        // Admin override: Can cancel even if "processing" or "out for delivery" etc, but probably not if already Refunded/Cancelled
+        if (current.status == "CANCELLED" || current.status == "REFUNDED") {
+             return Resource.Error("Order is already fully cancelled/refunded")
+        }
+
+        val now = System.currentTimeMillis()
+        val updated = current.copy(
+            status = "CANCELLED", // Or specific ADMIN_CANCELLED status if enum allows
+            cancellationReason = "Admin Override: $reason",
+            cancellationTime = now,
+            updatedAt = now, 
+            lastModifiedAt = now, 
+            dirty = true
+        )
+        orderDao.insertOrUpdate(updated)
+        
+         // Log Audit
+        auditRepository.logAction(
+            adminId = "current_admin",
+            actionType = "ORDER_CANCEL",
+            targetId = orderId,
+            targetType = "ORDER",
+            details = "Reason: $reason"
+        )
+
+        return Resource.Success(Unit)
+    }
+
+    override suspend fun getAllOrdersAdmin(): Resource<List<OrderEntity>> {
+        // Return latest 100 orders for admin dashboard
+        // Ideally use pagination
+        return try {
+            val orders = orderDao.getAllOrdersSnapshot(100) 
+            Resource.Success(orders)
+        } catch (e: Exception) {
+            Resource.Error("Failed to fetch admin orders: ${e.message}")
         }
     }
 }

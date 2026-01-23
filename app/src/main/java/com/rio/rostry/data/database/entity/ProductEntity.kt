@@ -153,7 +153,11 @@ data class ProductEntity(
     val autoLockAfterDays: Int = 30,            // Time-based lock fallback
     val lineageHistoryJson: String? = null,     // Audit trail for lineage corrections
     val editCount: Int = 0,                     // Number of edits to core fields
-    val lastEditedBy: String? = null            // User who made last edit
+    val lastEditedBy: String? = null,            // User who made last edit
+
+    // Moderation
+    val adminFlagged: Boolean = false,
+    val moderationNote: String? = null
 ) {
     /**
      * Returns true if this product is a public market listing (requires verification to create).

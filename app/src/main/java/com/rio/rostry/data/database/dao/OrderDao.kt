@@ -100,4 +100,7 @@ interface OrderDao {
 
     @Query("SELECT DISTINCT o.* FROM orders o INNER JOIN order_items oi ON o.orderId = oi.orderId WHERE oi.productId = :productId")
     suspend fun getOrdersForProduct(productId: String): List<OrderEntity>
+
+    @Query("SELECT * FROM orders ORDER BY orderDate DESC LIMIT :limit")
+    suspend fun getAllOrdersSnapshot(limit: Int): List<OrderEntity>
 }

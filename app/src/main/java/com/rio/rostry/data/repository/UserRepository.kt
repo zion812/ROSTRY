@@ -26,7 +26,7 @@ interface UserRepository {
 
     suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit>
 
-    suspend fun updateVerificationSubmissionStatus(userId: String, status: VerificationStatus, reviewerId: String, rejectionReason: String? = null): Resource<Unit>
+    suspend fun updateVerificationSubmissionStatus(submissionId: String, userId: String, status: VerificationStatus, reviewerId: String, rejectionReason: String? = null): Resource<Unit>
 
     // KYC & Verification workflows
     suspend fun uploadVerificationEvidence(userId: String, evidenceUrls: List<String>): Resource<Unit>
@@ -71,4 +71,11 @@ interface UserRepository {
     
     // Profile Image Upload
     suspend fun uploadProfileImage(userId: String, imageUri: android.net.Uri): Resource<String>
+
+    // Admin Features
+    suspend fun deleteUser(userId: String): Resource<Unit>
+    suspend fun getSystemUsers(limit: Int = 50): Resource<List<UserEntity>>
+    
+    suspend fun suspendUser(userId: String, reason: String, durationMinutes: Long? = null): Resource<Unit>
+    suspend fun unsuspendUser(userId: String): Resource<Unit>
 }
