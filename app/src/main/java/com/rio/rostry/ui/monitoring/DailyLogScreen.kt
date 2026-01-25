@@ -93,6 +93,13 @@ fun DailyLogScreen(
         selectedProductId?.let { vm.loadForProduct(it) } 
     }
     
+    // Observe completion event
+    LaunchedEffect(Unit) {
+        vm.completionEvent.collect {
+            onNavigateBack()
+        }
+    }
+    
     val state by vm.uiState.collectAsState()
     val isSaving by vm.saving.collectAsState()
     val context = LocalContext.current
@@ -169,7 +176,7 @@ fun DailyLogScreen(
                 floatingActionButton = {
             if (selectedProductId != null && state.products.isNotEmpty()) {
                 FloatingActionButton(
-                    onClick = { vm.save() },
+                    onClick = { vm.saveAndExit() },
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(Icons.Default.Done, "Save Entry")

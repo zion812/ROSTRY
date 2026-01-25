@@ -216,7 +216,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val dashboardCacheDao: DashboardCacheDao, // Split-Brain: Instant dashboard loading
     private val farmActivityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository, // Quick Log persistence
     private val weatherRepository: com.rio.rostry.data.repository.WeatherRepository, // Open-Meteo Weather API
-    private val feedRecommendationEngine: com.rio.rostry.domain.usecase.FeedRecommendationEngine // Predictive Feed
+    private val feedRecommendationEngine: com.rio.rostry.domain.usecase.FeedRecommendationEngine, // Predictive Feed
+    private val inventoryItemDao: com.rio.rostry.data.database.dao.InventoryItemDao
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -248,6 +249,9 @@ class FarmerHomeViewModel @Inject constructor(
     private val _weatherData = MutableStateFlow<com.rio.rostry.data.repository.WeatherData?>(null)
     val weatherData: StateFlow<com.rio.rostry.data.repository.WeatherData?> = _weatherData
     
+    // Inventory total for prediction
+    private val _totalFeedInventoryKg = MutableStateFlow<Double?>(null)
+    
     // Predictive Feed Recommendation
     private val _feedRecommendation = MutableStateFlow<com.rio.rostry.domain.model.FeedRecommendation?>(null)
     val feedRecommendation: StateFlow<com.rio.rostry.domain.model.FeedRecommendation?> = _feedRecommendation
@@ -265,8 +269,38 @@ class FarmerHomeViewModel @Inject constructor(
         loadAllProducts()
         loadSuggestedFeedValue()
         loadTodayFeedLog()
+        loadTodayFeedLog()
         loadWeatherData() // Open-Meteo Weather
+        loadInventoryData()
         loadFeedRecommendation() // Predictive Feed
+    }
+    
+    private fun loadInventoryData() {
+        viewModelScope.launch {
+            firebaseAuth.currentUser?.uid?.let { id ->
+                inventoryItemDao.getInventoryByFarmer(id).collect { items ->
+                    // Sum up all items categorized as 'FEED' or with 'feed' in name/category
+                    // Assuming Category is String or Enum. Using string match for safety for now.
+                    val feedItems = items.filter { 
+                        it.category.toString().contains("FEED", ignoreCase = true) || 
+                        it.name.contains("feed", ignoreCase = true) 
+                    }
+                    val totalKg = feedItems.sumOf { it.quantityAvailable }
+                    _totalFeedInventoryKg.value = totalKg
+                    
+                    // Trigger recalculation when inventory changes
+                    recalculateFeedWithInventory(totalKg)
+                }
+            }
+        }
+    }
+    
+    private fun recalculateFeedWithInventory(inventoryKg: Double) {
+        val products = _allProducts.value
+        if (products.isNotEmpty()) {
+            val recommendation = feedRecommendationEngine.calculateRecommendation(products, inventoryKg)
+            _feedRecommendation.value = recommendation
+        }
     }
     
     /** Calculate predictive feed recommendation based on flock */
@@ -278,14 +312,16 @@ class FarmerHomeViewModel @Inject constructor(
                     // Wait for products to load, then recalculate
                     _allProducts.collect { newProducts ->
                         if (newProducts.isNotEmpty()) {
-                            val recommendation = feedRecommendationEngine.calculateRecommendation(newProducts)
+                            val inventory = _totalFeedInventoryKg.value
+                            val recommendation = feedRecommendationEngine.calculateRecommendation(newProducts, inventory)
                             _feedRecommendation.value = recommendation
                             Timber.d("Feed recommendation: ${recommendation?.feedType?.displayName} - ${recommendation?.dailyFeedKg} kg/day")
                             return@collect
                         }
                     }
                 } else {
-                    val recommendation = feedRecommendationEngine.calculateRecommendation(products)
+                    val inventory = _totalFeedInventoryKg.value
+                    val recommendation = feedRecommendationEngine.calculateRecommendation(products, inventory)
                     _feedRecommendation.value = recommendation
                 }
             } catch (e: Exception) {

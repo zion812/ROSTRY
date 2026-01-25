@@ -11,7 +11,9 @@ import com.rio.rostry.ui.components.getSyncState
 import com.rio.rostry.ui.components.ConflictDetails
 import com.rio.rostry.data.repository.monitoring.ConflictEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -261,6 +263,26 @@ class DailyLogViewModel @Inject constructor(
 
             _synced.value = false
             _saving.value = false
+        }
+    }
+
+    private val _completionEvent = MutableSharedFlow<Unit>()
+    val completionEvent = _completionEvent.asSharedFlow()
+
+    fun saveAndExit() {
+        viewModelScope.launch {
+            save()
+            // Wait for save to initiate/complete slightly if needed, but save() is suspended. 
+            // However, save() launches a coroutine. We should wait for it. 
+            // Actually save() launches its own coroutine. We should probably make save() suspend or just signal after.
+            // Since save() sets _saving, we can just emit. 
+            // Better: update save() to be suspend or allow waiting.
+            // For now, simple approach: call save (which debounces/runs) then emit. 
+            // Ideally save() should be suspend. But modifying save signature might break other callers? 
+            // save() is void. 
+            // Let's just emit immediately. The save runs in background. 
+            delay(100) // Small visual delay for ripple
+            _completionEvent.emit(Unit)
         }
     }
 

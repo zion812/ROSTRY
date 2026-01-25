@@ -48,7 +48,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import com.rio.rostry.ui.farmer.TrendFetcherCard
+import com.rio.rostry.data.database.entity.GrowthRecordEntity
+import com.rio.rostry.data.database.entity.MortalityRecordEntity
 
 @HiltViewModel
 class FarmMonitoringViewModel @Inject constructor(
@@ -94,7 +98,11 @@ class FarmMonitoringViewModel @Inject constructor(
                 // 7: Quarantine active
                 quarantineRecordDao.observeActiveForFarmer(uid),
                 // 8: Mortality last 7 days
-                mortalityRecordDao.observeCountForFarmerBetween(uid, weekAgo, now)
+                mortalityRecordDao.observeCountForFarmerBetween(uid, weekAgo, now),
+                // 9: Growth Records for Trend
+                flow { emit(growthRecordDao.getRecordsForFarmerBetween(uid, weekAgo, now)) },
+                // 10: Mortality Records for Trend
+                flow { emit(mortalityRecordDao.getRecordsForFarmerBetween(uid, weekAgo, now)) }
             )
         ) { values ->
             val growthTracked = values[0] as Int
@@ -106,6 +114,14 @@ class FarmMonitoringViewModel @Inject constructor(
             val vaccinationOverdue = values[6] as Int
             val quarantineActive = values[7] as Int
             val mortalityLast7d = values[8] as Int
+            
+            // Calculate trends
+            val growthRecords = values[9] as List<GrowthRecordEntity>
+            val mortalityRecords = values[10] as List<MortalityRecordEntity>
+            
+            val growthTrend = calculateDailyTrend(growthRecords) { it.createdAt }
+            val mortalityTrend = calculateDailyTrend(mortalityRecords) { it.occurredAt }
+
             val pendingAlerts = mutableListOf<String>()
             if (vaccinationOverdue > 0) pendingAlerts.add("$vaccinationOverdue vaccinations overdue")
             if (quarantineActive > 0) pendingAlerts.add("$quarantineActive birds in quarantine need attention")
@@ -122,9 +138,33 @@ class FarmMonitoringViewModel @Inject constructor(
                 quarantineActive = quarantineActive,
                 mortalityLast7d = mortalityLast7d,
                 pendingAlerts = pendingAlerts,
-                weeklyCadence = emptyList() // Not implemented
+                weeklyCadence = emptyList(), // Not implemented
+                growthHistory = growthTrend,
+                mortalityHistory = mortalityTrend
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MonitoringSummary())
+    }
+    
+    private fun <T> calculateDailyTrend(items: List<T>, timeSelector: (T) -> Long): List<Float> {
+        val trend = MutableList(7) { 0f }
+        val zoneId = ZoneId.systemDefault()
+        val today = LocalDate.now(zoneId)
+        
+        // Map last 7 days to indices 0..6
+        items.forEach { item ->
+            val date = java.time.Instant.ofEpochMilli(timeSelector(item)).atZone(zoneId).toLocalDate()
+            val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(date, today).toInt()
+            if (daysAgo in 0..6) {
+                // index 6 is today, 0 is 6 days ago? Or vice versa?
+                // Visual sparklines usually go left-to-right (past -> future).
+                // So index 0 = 6 days ago, index 6 = today.
+                val index = 6 - daysAgo
+                if (index in 0..6) {
+                    trend[index] += 1f
+                }
+            }
+        }
+        return trend
     }
 }
 
@@ -142,6 +182,8 @@ data class MonitoringSummary(
     val mortalityLast7d: Int = 0,
     val pendingAlerts: List<String> = emptyList(),
     val weeklyCadence: List<String> = emptyList(),
+    val growthHistory: List<Float> = emptyList(),
+    val mortalityHistory: List<Float> = emptyList()
 )
 
 @Composable
@@ -296,13 +338,16 @@ private fun QuickActionsGrid(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            QuickActionCard(
+            TrendFetcherCard(
+                title = "Growth",
+                count = "${summary.growthTracked} tracked",
+                trendData = summary.growthHistory,
                 icon = Icons.Filled.TrendingUp,
-                label = "Record Growth",
-                count = summary.growthTracked,
+                color = MaterialTheme.colorScheme.primary,
                 onClick = onOpenGrowth,
                 modifier = Modifier.weight(1f)
             )
+            // Use QuickActionCard for Vaccination as it doesn't have a trend yet (mostly future scheduled)
             QuickActionCard(
                 icon = Icons.Filled.Vaccines,
                 label = "Log Vaccination",
@@ -316,13 +361,14 @@ private fun QuickActionsGrid(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            QuickActionCard(
+            TrendFetcherCard(
+                title = "Mortality",
+                count = "${summary.mortalityLast7d} deaths",
+                trendData = summary.mortalityHistory,
                 icon = Icons.Filled.Report,
-                label = "Report Mortality",
-                count = summary.mortalityLast7d,
+                color = MaterialTheme.colorScheme.error,
                 onClick = onOpenMortality,
-                modifier = Modifier.weight(1f),
-                urgent = summary.mortalityLast7d > 0
+                modifier = Modifier.weight(1f)
             )
             QuickActionCard(
                 icon = Icons.Filled.MedicalServices,

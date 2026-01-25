@@ -98,7 +98,9 @@ data class FeedRecommendation(
     val birdCount: Int,
     val stage: LifecycleStage,
     val notes: String,
-    val isLowInventoryAlert: Boolean = false
+    val isLowInventoryAlert: Boolean = false,
+    val daysRemaining: Int? = null,
+    val inventoryKg: Double? = null
 )
 
 /**

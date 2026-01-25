@@ -1983,7 +1983,8 @@ private fun RoleNavGraph(
              com.rio.rostry.ui.farmer.asset.FarmAssetListScreen(
                 onNavigateBack = { navController.navigate(Routes.FarmerNav.HOME) },
                 onAssetClick = { assetId -> navController.navigate(Routes.FarmerNav.ASSET_DETAILS.replace("{assetId}", assetId)) },
-                onAddAsset = { navController.navigate(Routes.Onboarding.FARM_BIRD) }
+                onAddAsset = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
+                onAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
             )
         }
 
@@ -2345,7 +2346,11 @@ private fun RoleNavGraph(
             }
             val role = backStackEntry.arguments?.getString("role")
             com.rio.rostry.ui.onboarding.OnboardFarmBatchScreen(
-                onNavigateRoute = { navController.navigate(it) },
+                onNavigateRoute = { route -> 
+                    navController.navigate(route) {
+                        popUpTo(Routes.Onboarding.FARM_BATCH) { inclusive = true }
+                    }
+                },
                 onBack = { navController.popBackStack() },
                 role = role
             )

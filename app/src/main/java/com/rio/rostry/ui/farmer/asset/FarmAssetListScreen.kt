@@ -45,15 +45,17 @@ fun FarmAssetListScreen(
     viewModel: FarmAssetListViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onAssetClick: (String) -> Unit,
-    onAddAsset: () -> Unit
+    onAddAsset: () -> Unit,
+    onAddBatch: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     
-    // Local UI state for search, sort, and view mode
+    // Local UI state
     var searchQuery by remember { mutableStateOf("") }
     var sortBy by remember { mutableStateOf(SortOption.NAME) }
     var isGridView by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showAddOptions by remember { mutableStateOf(false) }
     
     // Filtered and sorted assets
     val displayAssets = remember(state.filteredAssets, searchQuery, sortBy) {
@@ -111,6 +113,101 @@ fun FarmAssetListScreen(
         )
     }
 
+    if (showAddOptions) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddOptions = false },
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Add to Farm",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Option 1: Single Bird
+                    Card(
+                        onClick = { 
+                            showAddOptions = false
+                            onAddAsset() 
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(8.dp)
+                            .height(120.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Pets, 
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Single Bird",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Option 2: Batch
+                    Card(
+                        onClick = { 
+                            showAddOptions = false
+                            onAddBatch() 
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(8.dp)
+                            .height(120.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Groups, 
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Batch/Flock",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             if (state.isSelectionMode) {
@@ -155,7 +252,7 @@ fun FarmAssetListScreen(
         },
         floatingActionButton = {
             if (!state.isSelectionMode) {
-                FloatingActionButton(onClick = onAddAsset) {
+                FloatingActionButton(onClick = { showAddOptions = true }) {
                     Icon(Icons.Default.Add, contentDescription = "Add Asset")
                 }
             }
@@ -377,8 +474,8 @@ fun FarmAssetListScreen(
                                     Text("Clear Filter")
                                 }
                             } else {
-                                Button(onClick = onAddAsset, modifier = Modifier.padding(top = 16.dp)) {
-                                    Text("Add First Bird")
+                                Button(onClick = { showAddOptions = true }, modifier = Modifier.padding(top = 16.dp)) {
+                                    Text("Add First Asset")
                                 }
                             }
                         }

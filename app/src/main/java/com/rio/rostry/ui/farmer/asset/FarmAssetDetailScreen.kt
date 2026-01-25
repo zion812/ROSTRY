@@ -307,6 +307,24 @@ fun FarmAssetDetailScreen(
                         viewModel = viewModel
                     )
                     
+                    // Quick Actions Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Record Activity Button
+                        Button(
+                            onClick = { 
+                                onNavigateRoute(com.rio.rostry.ui.navigation.Routes.Builders.dailyLog(assetId))
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Log Activity")
+                        }
+                    }
+
                     // View Full History Button - Always visible
                     OutlinedButton(
                         onClick = { 

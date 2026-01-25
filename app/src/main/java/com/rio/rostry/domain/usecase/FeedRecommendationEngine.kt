@@ -81,7 +81,9 @@ class FeedRecommendationEngine @Inject constructor() {
             birdCount = totalBirdCount,
             stage = stage,
             notes = notes,
-            isLowInventoryAlert = isLowInventory
+            isLowInventoryAlert = isLowInventory,
+            daysRemaining = if (availableInventoryKg != null && dailyFeedKg > 0) (availableInventoryKg / dailyFeedKg).toInt() else null,
+            inventoryKg = availableInventoryKg
         )
     }
     
@@ -111,7 +113,9 @@ class FeedRecommendationEngine @Inject constructor() {
             birdCount = birdCount,
             stage = stage,
             notes = buildNotes(stage, category, standard.additionalNotes),
-            isLowInventoryAlert = isLowInventory
+            isLowInventoryAlert = isLowInventory,
+            daysRemaining = if (availableInventoryKg != null && dailyFeedKg > 0) (availableInventoryKg / dailyFeedKg).toInt() else null,
+            inventoryKg = availableInventoryKg
         )
     }
     

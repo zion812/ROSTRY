@@ -94,6 +94,26 @@ class DigitalFarmViewModel @Inject constructor(
     /**
      * Refresh time of day (call periodically or on resume)
      */
+    // Timelapse State
+    private val _isTimelapseMode = MutableStateFlow(false)
+    val isTimelapseMode: StateFlow<Boolean> = _isTimelapseMode.asStateFlow()
+
+    private val _timelapseDate = MutableStateFlow<Long?>(null)
+    val timelapseDate: StateFlow<Long?> = _timelapseDate.asStateFlow()
+
+    fun setTimelapseMode(enabled: Boolean) {
+        _isTimelapseMode.value = enabled
+        if (!enabled) {
+            _timelapseDate.value = null
+            loadFarmData() // Reset to live data
+        }
+    }
+
+    fun updateTimelapseDate(timestamp: Long) {
+        _timelapseDate.value = timestamp
+        loadFarmData(snapshotTime = timestamp)
+    }
+
     fun refreshTimeOfDay() {
         _timeOfDay.value = TimeOfDay.fromCurrentTime()
     }
@@ -102,7 +122,11 @@ class DigitalFarmViewModel @Inject constructor(
         loadFarmData()
     }
 
-    fun loadFarmData() {
+    init {
+        loadFarmData()
+    }
+
+    fun loadFarmData(snapshotTime: Long? = null) {
         viewModelScope.launch {
             try {
                 val userId = currentUserProvider.userIdOrNull()
@@ -119,7 +143,7 @@ class DigitalFarmViewModel @Inject constructor(
                         when (resource) {
                             is com.rio.rostry.utils.Resource.Success -> {
                                 val products = resource.data ?: emptyList()
-                                val farmState = groupProductsByLifecycle(products)
+                                val farmState = groupProductsByLifecycle(products, snapshotTime ?: System.currentTimeMillis())
                                 _uiState.value = farmState
                                 _farmStats.value = calculateStats(products, farmState)
                             }
@@ -142,15 +166,18 @@ class DigitalFarmViewModel @Inject constructor(
      * Core grouping logic - THE SCALABILITY SECRET
      * Instead of rendering 500 individual birds, we group them into zones.
      */
-    private fun groupProductsByLifecycle(products: List<ProductEntity>): DigitalFarmState {
-        val now = System.currentTimeMillis()
-        
+    private fun groupProductsByLifecycle(products: List<ProductEntity>, queryTime: Long): DigitalFarmState {
         // Convert all products to VisualBirds with zone assignment
         val allBirds = products
             .filter { !it.isDeleted && it.category.lowercase() in listOf("poultry", "bird", "chicken", "fowl") }
+            // Timelapse Filter: Only show birds that existed at queryTime
+            .filter { it.createdAt <= queryTime }
+            // Timelapse Filter: Hide birds that were sold/deleted before queryTime (approximation)
+            // Note: We don't have deletion time in simple ProductEntity, so we assume current list
+            // is valid history. Ideally we'd check `soldAt` if it existed.
             .map { entity -> 
-                val zone = determineZone(entity)
-                entity.toVisualBird(zone) 
+                val zone = determineZone(entity, queryTime)
+                entity.toVisualBird(zone, queryTime) 
             }
 
         // Group 1: Nurseries (chicks with mothers)
@@ -223,8 +250,11 @@ class DigitalFarmViewModel @Inject constructor(
     /**
      * Determines which zone a bird belongs to based on lifecycle stage
      */
-    private fun determineZone(entity: ProductEntity): DigitalFarmZone {
-        val ageWeeks = entity.ageWeeks ?: calculateAgeWeeks(entity.birthDate)
+    /**
+     * Determines which zone a bird belongs to based on lifecycle stage
+     */
+    private fun determineZone(entity: ProductEntity, queryTime: Long): DigitalFarmZone {
+        val ageWeeks = calculateAgeWeeksAtTime(entity.birthDate, queryTime)
         
         return when {
             // Market listed
@@ -271,11 +301,15 @@ class DigitalFarmViewModel @Inject constructor(
         return Offset(cos(angle) * radius, sin(angle) * radius)
     }
 
-    private fun calculateAgeWeeks(birthDate: Long?): Int {
+    private fun calculateAgeWeeksAtTime(birthDate: Long?, queryTime: Long): Int {
         if (birthDate == null) return 0
-        val now = System.currentTimeMillis()
-        val diff = now - birthDate
-        return (diff / (7 * 24 * 60 * 60 * 1000L)).toInt()
+        if (birthDate > queryTime) return 0 // Created in future relative to query
+        val diff = queryTime - birthDate
+        return (diff / (7 * 24 * 60 * 60 * 1000L)).toInt().coerceAtLeast(0)
+    }
+
+    private fun calculateAgeWeeks(birthDate: Long?): Int {
+        return calculateAgeWeeksAtTime(birthDate, System.currentTimeMillis())
     }
 
     private suspend fun calculateStats(products: List<ProductEntity>, farmState: DigitalFarmState): FarmStats {
@@ -370,8 +404,8 @@ class DigitalFarmViewModel @Inject constructor(
     }
 
     // Extension to convert ProductEntity to VisualBird
-    private fun ProductEntity.toVisualBird(zone: DigitalFarmZone): VisualBird {
-        val ageWeeks = this.ageWeeks ?: calculateAgeWeeks(this.birthDate)
+    private fun ProductEntity.toVisualBird(zone: DigitalFarmZone, queryTime: Long): VisualBird {
+        val ageWeeks = calculateAgeWeeksAtTime(this.birthDate, queryTime)
         
         val statusIndicator = when {
             this.readyForSale || 
@@ -388,7 +422,7 @@ class DigitalFarmViewModel @Inject constructor(
             breed = this.breed,
             gender = this.gender,
             ageWeeks = ageWeeks,
-            weightGrams = this.weightGrams,
+            weightGrams = this.weightGrams, // In a real timeline, we'd interpolate weight. For now, use current.
             color = this.color,
             zone = zone,
             statusIndicator = statusIndicator,

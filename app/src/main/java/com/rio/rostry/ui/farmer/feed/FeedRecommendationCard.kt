@@ -78,12 +78,41 @@ fun FeedRecommendationCard(
                     )
                 }
                 
-                if (recommendation?.isLowInventoryAlert == true) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Low Inventory",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                if (recommendation?.isLowInventoryAlert == true || recommendation?.daysRemaining != null) {
+                    val daysLeft = recommendation?.daysRemaining
+                    val (color, text) = when {
+                        daysLeft == null -> Pair(MaterialTheme.colorScheme.error, "Low Stock")
+                        daysLeft <= 3 -> Pair(MaterialTheme.colorScheme.error, "$daysLeft days left")
+                        daysLeft <= 7 -> Pair(Color(0xFFFFB300), "$daysLeft days left") // Amber
+                        else -> Pair(MaterialTheme.colorScheme.primary, "$daysLeft days supply")
+                    }
+                    
+                    Surface(
+                        color = color.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(start = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            if (recommendation?.isLowInventoryAlert == true) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = color,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = color,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
             
@@ -145,6 +174,8 @@ fun FeedRecommendationCard(
                         } else 0f
                     },
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                    color = if (todayLogAmount >= (recommendation?.dailyFeedKg ?: 0.0)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
                 Text(
                     text = "Logged today: %.1f kg".format(todayLogAmount),

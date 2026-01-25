@@ -29,6 +29,9 @@ interface GrowthRecordDao {
     @Query("SELECT COUNT(*) FROM growth_records WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end")
     suspend fun countForFarmerBetween(farmerId: String, start: Long, end: Long): Int
 
+    @Query("SELECT * FROM growth_records WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end ORDER BY createdAt ASC")
+    suspend fun getRecordsForFarmerBetween(farmerId: String, start: Long, end: Long): List<GrowthRecordEntity>
+
     @Query("SELECT COUNT(*) FROM growth_records WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end")
     fun observeCountForFarmerBetween(farmerId: String, start: Long, end: Long): Flow<Int>
     
@@ -72,6 +75,9 @@ interface MortalityRecordDao {
 
     @Query("SELECT COUNT(*) FROM mortality_records WHERE farmerId = :farmerId AND occurredAt BETWEEN :start AND :end")
     suspend fun countForFarmerBetween(farmerId: String, start: Long, end: Long): Int
+
+    @Query("SELECT * FROM mortality_records WHERE farmerId = :farmerId AND occurredAt BETWEEN :start AND :end ORDER BY occurredAt ASC")
+    suspend fun getRecordsForFarmerBetween(farmerId: String, start: Long, end: Long): List<MortalityRecordEntity>
 
     @Query("SELECT COUNT(*) FROM mortality_records WHERE farmerId = :farmerId AND occurredAt BETWEEN :start AND :end")
     fun observeCountForFarmerBetween(farmerId: String, start: Long, end: Long): Flow<Int>

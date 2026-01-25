@@ -66,6 +66,8 @@ fun DigitalFarmScreen(
     val farmStats by viewModel.farmStats.collectAsState()
     val selectedBird by viewModel.selectedBird.collectAsState()
     val config by viewModel.config.collectAsState()
+    val isTimelapseMode by viewModel.isTimelapseMode.collectAsState()
+    val timelapseDate by viewModel.timelapseDate.collectAsState()
     
     // Calculate time of day for dynamic lighting
     val timeOfDay = remember { TimeOfDay.fromCurrentTime() }
@@ -152,8 +154,12 @@ fun DigitalFarmScreen(
                 },
                 actions = {
                     // Time-lapse button
-                    IconButton(onClick = onTimelapse) {
-                        Icon(Icons.Default.History, contentDescription = "Time-lapse view")
+                    IconButton(onClick = { viewModel.setTimelapseMode(!isTimelapseMode) }) {
+                        Icon(
+                             if (isTimelapseMode) Icons.Default.HistoryToggleOff else Icons.Default.History,
+                             contentDescription = "Time-lapse view",
+                             tint = if (isTimelapseMode) Color(0xFFFFD700) else Color.White
+                        )
                     }
                     // Share button
                     IconButton(onClick = onShare) {
@@ -261,12 +267,25 @@ fun DigitalFarmScreen(
                 }
             }
             
-            // Zone-Based Tasks Bottom Sheet
             if (selectedZone != null) {
                 ZoneTasksBottomSheet(
                     zone = selectedZone!!,
                     birdCount = zoneBirds.size,
                     onDismiss = { selectedZone = null }
+                )
+            }
+            
+            // Timelapse Overlay
+            AnimatedVisibility(
+                visible = isTimelapseMode,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                TimelapseControls(
+                    currentDate = timelapseDate ?: System.currentTimeMillis(),
+                    onDateChange = { viewModel.updateTimelapseDate(it) },
+                    onClose = { viewModel.setTimelapseMode(false) }
                 )
             }
         }
@@ -798,49 +817,85 @@ private fun FarmFallbackListView(
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Zone summary cards
-        val zones = listOf(
-            Triple("🐣 Nursery", uiState.nurseries.sumOf { 1 + it.chicks.size }, Color(0xFFFFEB3B)),
-            Triple("🌿 Free Range", uiState.freeRange.size, Color(0xFF4CAF50)),
-            Triple("🍽️ Grow Out", uiState.growOut.size, Color(0xFF2196F3)),
-            Triple("⭐ Ready", uiState.readyDisplay.size, Color(0xFFFFD700)),
-            Triple("🏪 Market", uiState.marketReady.size, Color(0xFFFF5722))
-        ).filter { it.second > 0 }
-        
-        zones.forEach { (name, count, color) ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+    }
+}
+
+@Composable
+fun TimelapseControls(
+    currentDate: Long,
+    onDateChange: (Long) -> Unit,
+    onClose: () -> Unit
+) {
+    val now = remember { System.currentTimeMillis() }
+    val thirtyDaysAgo = remember { now - 30L * 24 * 60 * 60 * 1000 }
+    
+    // Format date string
+    val dateString = remember(currentDate) {
+        val date = java.time.Instant.ofEpochMilli(currentDate)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy")
+        date.format(formatter)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .shadow(16.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF263238)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(name, fontWeight = FontWeight.Medium)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = color.copy(alpha = 0.2f)
-                    ) {
-                        Text(
-                            "$count birds",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            color = color,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFFFFD700))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Farm Time Machine", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                 }
             }
+            
+            Text(
+                text = dateString,
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color(0xFFFFD700),
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            Slider(
+                value = currentDate.toFloat(),
+                onValueChange = { onDateChange(it.toLong()) },
+                valueRange = thirtyDaysAgo.toFloat()..now.toFloat(),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFFFFD700),
+                    activeTrackColor = Color(0xFFFFD700),
+                    inactiveTrackColor = Color.Gray
+                )
+            )
+            
+            Text(
+                text = "Drag to travel back in time (last 30 days)",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
         }
     }
 }
+        
+
+
 
 /**
  * Zone-Based Tasks Bottom Sheet
