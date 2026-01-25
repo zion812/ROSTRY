@@ -354,10 +354,10 @@ fun TransferVerificationScreen(
                                 Text("${d.reason} — ${d.status}")
                                 val canModerate = role?.name in setOf("ADMIN", "MODERATOR")
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    if (d.status == "OPEN" && canModerate) {
+                                    if (d.status == com.rio.rostry.data.database.entity.DisputeStatus.OPEN && canModerate) {
                                         OutlinedButton(onClick = { vm.resolveDispute(d.disputeId, "Resolved by admin", true) }) { Text("Resolve") }
                                         OutlinedButton(onClick = { vm.resolveDispute(d.disputeId, "Rejected", false) }) { Text("Reject") }
-                                    } else if (d.status == "OPEN" && !canModerate) {
+                                    } else if (d.status == com.rio.rostry.data.database.entity.DisputeStatus.OPEN && !canModerate) {
                                         Text("Platform review required", color = Color.Gray)
                                     }
                                 }

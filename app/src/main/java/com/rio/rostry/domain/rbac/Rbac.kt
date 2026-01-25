@@ -100,4 +100,18 @@ object Rbac {
         Permission.VIEW_AUDIT_LOGS, Permission.ADMIN_VERIFICATION -> UserType.ADMIN
         else -> null
     }
+
+    /**
+     * Checks if the current user can manage a resource owned by another user.
+     * Admins can manage everything ("Superuser" power). Owners can manage their own resources.
+     */
+    fun canManageResource(currentUserType: UserType?, currentUserId: String?, resourceOwnerId: String?): Boolean {
+        // 1. Admin Override (Superuser)
+        if (currentUserType == UserType.ADMIN) return true
+        
+        // 2. Ownership Check
+        if (currentUserId != null && resourceOwnerId != null && currentUserId == resourceOwnerId) return true
+        
+        return false
+    }
 }

@@ -67,6 +67,10 @@ import java.util.Locale
  * Displays pending verification requests and allows admin to approve/reject.
  * Only accessible to admin users (email check is done at navigation level).
  */
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import com.rio.rostry.domain.model.VerificationStatus
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminVerificationScreen(
@@ -74,6 +78,7 @@ fun AdminVerificationScreen(
     onNavigateBack: () -> Unit
 ) {
     val pendingRequests by viewModel.pendingRequests.collectAsState()
+    val historyRequests by viewModel.historyRequests.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedRequest by viewModel.selectedRequest.collectAsState()
     
@@ -83,6 +88,10 @@ fun AdminVerificationScreen(
     var showRejectDialog by remember { mutableStateOf(false) }
     var selectedReason by remember { mutableStateOf("") }
     var rejectUserId by remember { mutableStateOf("") }
+    var rejectRequestId by remember { mutableStateOf("") }
+    
+    var selectedTab by remember { mutableStateOf(0) } // 0: Pending, 1: History
+    val tabTitles = listOf("Pending", "History")
 
     LaunchedEffect(Unit) {
         viewModel.toastEvent.collect { message ->
@@ -100,7 +109,10 @@ fun AdminVerificationScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.loadPendingRequests() }) {
+                    IconButton(onClick = { 
+                        viewModel.loadPendingRequests() 
+                        viewModel.loadHistoryRequests()
+                    }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
@@ -108,76 +120,93 @@ fun AdminVerificationScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (isLoading && pendingRequests.isEmpty()) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (pendingRequests.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = Color(0xFF4CAF50)
+            TabRow(selectedTabIndex = selectedTab) {
+                tabTitles.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) }
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "All Caught Up!",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "No pending verification requests",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(pendingRequests, key = { it.userId }) { request ->
-                        VerificationRequestCard(
-                            request = request,
-                            isExpanded = selectedRequest?.userId == request.userId,
-                            onClick = {
-                                if (selectedRequest?.userId == request.userId) {
-                                    viewModel.clearSelection()
-                                } else {
-                                    viewModel.selectRequest(request)
-                                }
-                            },
-                            onApprove = { viewModel.approveRequest(request.userId) },
-                            onReject = {
-                                rejectUserId = request.userId
-                                showRejectDialog = true
-                            }
-                        )
-                    }
                 }
             }
-            
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(16.dp)
-                )
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                val currentList = if (selectedTab == 0) pendingRequests else historyRequests
+                
+                if (isLoading && currentList.isEmpty()) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else if (currentList.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (selectedTab == 0) Icons.Default.Check else Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = if (selectedTab == 0) "All Caught Up!" else "No History Yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (selectedTab == 0) "No pending verification requests" else "Processed request history will appear here.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(currentList, key = { it.userId + it.requestId }) { request ->
+                            VerificationRequestCard(
+                                request = request,
+                                isExpanded = selectedRequest?.userId == request.userId,
+                                isHistory = selectedTab == 1,
+                                onClick = {
+                                    if (selectedRequest?.userId == request.userId) {
+                                        viewModel.clearSelection()
+                                    } else {
+                                        viewModel.selectRequest(request)
+                                    }
+                                },
+                                onApprove = { viewModel.approveRequest(request.userId, request.requestId) },
+                                onReject = {
+                                    rejectUserId = request.userId
+                                    rejectRequestId = request.requestId
+                                    showRejectDialog = true
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(16.dp)
+                    )
+                }
             }
         }
     }
+
 
     // Reject Dialog
     if (showRejectDialog) {
@@ -211,7 +240,7 @@ fun AdminVerificationScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.rejectRequest(rejectUserId, selectedReason)
+                        viewModel.rejectRequest(rejectUserId, rejectRequestId, selectedReason)
                         showRejectDialog = false
                         selectedReason = ""
                     },
@@ -236,6 +265,7 @@ fun AdminVerificationScreen(
 private fun VerificationRequestCard(
     request: VerificationRequest,
     isExpanded: Boolean,
+    isHistory: Boolean,
     onClick: () -> Unit,
     onApprove: () -> Unit,
     onReject: () -> Unit
@@ -261,7 +291,11 @@ private fun VerificationRequestCard(
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = when (request.status) {
+                             VerificationStatus.VERIFIED -> Color(0xFF4CAF50)
+                             VerificationStatus.REJECTED -> MaterialTheme.colorScheme.error
+                             else -> MaterialTheme.colorScheme.primary
+                        }
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
@@ -275,6 +309,17 @@ private fun VerificationRequestCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (isHistory) {
+                            Text(
+                                text = "Status: ${request.status.name}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = when (request.status) {
+                                    VerificationStatus.VERIFIED -> Color(0xFF4CAF50)
+                                    VerificationStatus.REJECTED -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -356,35 +401,46 @@ private fun VerificationRequestCard(
                         }
                     }
                 }
+                
+                if (request.status == VerificationStatus.REJECTED && !request.rejectionReason.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Reason: ${request.rejectionReason}",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onReject,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
+                // Action Buttons only if NOT history (pending)
+                if (!isHistory) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Reject")
-                    }
-                    Button(
-                        onClick = onApprove,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        )
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Approve")
+                        OutlinedButton(
+                            onClick = onReject,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Reject")
+                        }
+                        Button(
+                            onClick = onApprove,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Approve")
+                        }
                     }
                 }
             }

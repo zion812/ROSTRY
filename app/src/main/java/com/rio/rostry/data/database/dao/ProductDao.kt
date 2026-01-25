@@ -83,6 +83,9 @@ interface ProductDao {
     @Query("SELECT * FROM products ORDER BY name ASC")
     fun getAllProducts(): Flow<List<ProductEntity>>
 
+    @Query("SELECT * FROM products ORDER BY createdAt DESC")
+    suspend fun getAllProductsSnapshot(): List<ProductEntity>
+
     @Query("SELECT * FROM products WHERE sellerId = :sellerId ORDER BY createdAt DESC")
     fun getProductsBySeller(sellerId: String): Flow<List<ProductEntity>>
 

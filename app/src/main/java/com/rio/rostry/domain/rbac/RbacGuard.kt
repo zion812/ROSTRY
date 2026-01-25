@@ -34,6 +34,7 @@ class RbacGuard @Inject constructor(
 
     suspend fun canAsync(permission: Permission): Boolean {
         val user = currentUserOrNull() ?: return false
+        if (user.isSuspended) return false // Deny all access if suspended
         return Rbac.canAccess(user.role, user.verificationStatus, permission)
     }
 

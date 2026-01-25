@@ -55,6 +55,7 @@ interface SocialRepository {
     fun countLikes(postId: String): Flow<Int>
     suspend fun like(postId: String, userId: String)
     suspend fun unlike(postId: String, userId: String)
+    suspend fun deletePost(postId: String)
     
     // Engagement metrics
     suspend fun getEngagementMetrics(postId: String): EngagementMetrics
@@ -92,6 +93,7 @@ class SocialRepositoryImpl @Inject constructor(
     private val followsDao: FollowsDao,
     private val storage: FirebaseStorage,
     private val rateLimitDao: RateLimitDao,
+    private val moderationService: com.rio.rostry.domain.social.ModerationService,
     @ApplicationContext private val appContext: Context,
 ) : SocialRepository {
     private suspend fun checkRateLimit(action: String, userId: String, windowMs: Long) {
@@ -130,6 +132,9 @@ class SocialRepositoryImpl @Inject constructor(
         parentPostId: String?
     ): String {
         checkRateLimit("post", authorId, 5_000)
+        moderationService.validateContent(text)
+        hashtags?.forEach { moderationService.validateContent(it) }
+        
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         postsDao.upsert(
@@ -169,6 +174,8 @@ class SocialRepositoryImpl @Inject constructor(
 
     override suspend fun addComment(postId: String, authorId: String, text: String) {
         checkRateLimit("comment", authorId, 2_000)
+        moderationService.validateContent(text)
+        
         commentsDao.upsert(
             CommentEntity(
                 commentId = UUID.randomUUID().toString(),
@@ -340,6 +347,10 @@ class SocialRepositoryImpl @Inject constructor(
 
     override fun isFollowing(followerId: String, followedId: String): Flow<Boolean> {
         return followsDao.isFollowing(followerId, followedId)
+    }
+
+    override suspend fun deletePost(postId: String) {
+        postsDao.delete(postId)
     }
 }
 

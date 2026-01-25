@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 68,
-    "identityHash": "7ef73668b552263563713c82a560b8de",
+    "identityHash": "a2effe93d222d5328984352220d6c48a",
     "entities": [
       {
         "tableName": "users",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `phoneNumber` TEXT, `email` TEXT, `fullName` TEXT, `address` TEXT, `bio` TEXT, `profilePictureUrl` TEXT, `userType` TEXT NOT NULL, `verificationStatus` TEXT NOT NULL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `farmLocationLat` REAL, `farmLocationLng` REAL, `locationVerified` INTEGER, `kycLevel` INTEGER, `chickenCount` INTEGER, `farmerType` TEXT, `raisingSince` INTEGER, `favoriteBreed` TEXT, `kycVerifiedAt` INTEGER, `kycRejectionReason` TEXT, `verificationRejectionReason` TEXT, `latestVerificationId` TEXT, `latestVerificationRef` TEXT, `verificationSubmittedAt` INTEGER, `showcaseCount` INTEGER NOT NULL, `maxShowcaseSlots` INTEGER NOT NULL, `createdAt` INTEGER, `updatedAt` INTEGER, `customClaimsUpdatedAt` INTEGER, PRIMARY KEY(`userId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `phoneNumber` TEXT, `email` TEXT, `fullName` TEXT, `address` TEXT, `bio` TEXT, `profilePictureUrl` TEXT, `userType` TEXT NOT NULL, `verificationStatus` TEXT NOT NULL, `farmAddressLine1` TEXT, `farmAddressLine2` TEXT, `farmCity` TEXT, `farmState` TEXT, `farmPostalCode` TEXT, `farmCountry` TEXT, `farmLocationLat` REAL, `farmLocationLng` REAL, `locationVerified` INTEGER, `kycLevel` INTEGER, `chickenCount` INTEGER, `farmerType` TEXT, `raisingSince` INTEGER, `favoriteBreed` TEXT, `kycVerifiedAt` INTEGER, `kycRejectionReason` TEXT, `verificationRejectionReason` TEXT, `latestVerificationId` TEXT, `latestVerificationRef` TEXT, `verificationSubmittedAt` INTEGER, `showcaseCount` INTEGER NOT NULL, `maxShowcaseSlots` INTEGER NOT NULL, `createdAt` INTEGER, `updatedAt` INTEGER, `customClaimsUpdatedAt` INTEGER, `isSuspended` INTEGER NOT NULL, `suspensionReason` TEXT, `suspensionEndsAt` INTEGER, PRIMARY KEY(`userId`))",
         "fields": [
           {
             "fieldPath": "userId",
@@ -182,6 +182,22 @@
             "fieldPath": "customClaimsUpdatedAt",
             "columnName": "customClaimsUpdatedAt",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isSuspended",
+            "columnName": "isSuspended",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suspensionReason",
+            "columnName": "suspensionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "suspensionEndsAt",
+            "columnName": "suspensionEndsAt",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -193,7 +209,7 @@
       },
       {
         "tableName": "products",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `price` REAL NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT NOT NULL, `location` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `imageUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `condition` TEXT, `harvestDate` INTEGER, `expiryDate` INTEGER, `birthDate` INTEGER, `vaccinationRecordsJson` TEXT, `weightGrams` REAL, `heightCm` REAL, `gender` TEXT, `color` TEXT, `breed` TEXT, `healthStatus` TEXT, `birdCode` TEXT, `colorTag` TEXT, `familyTreeId` TEXT, `sourceAssetId` TEXT, `parentIdsJson` TEXT, `breedingStatus` TEXT, `transferHistoryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `stage` TEXT, `lifecycleStatus` TEXT, `parentMaleId` TEXT, `parentFemaleId` TEXT, `ageWeeks` INTEGER, `lastStageTransitionAt` INTEGER, `breederEligibleAt` INTEGER, `isBatch` INTEGER, `batchId` TEXT, `splitAt` INTEGER, `splitIntoIds` TEXT, `documentUrls` TEXT NOT NULL, `qrCodeUrl` TEXT, `customStatus` TEXT, `debug` INTEGER NOT NULL, `deliveryOptions` TEXT NOT NULL, `deliveryCost` REAL, `leadTimeDays` INTEGER, `motherId` TEXT, `isBreedingUnit` INTEGER NOT NULL, `eggsCollectedToday` INTEGER NOT NULL, `lastEggLogDate` INTEGER, `readyForSale` INTEGER NOT NULL, `targetWeight` REAL, `isShowcased` INTEGER NOT NULL, `externalVideoUrl` TEXT, `recordsLockedAt` INTEGER, `autoLockAfterDays` INTEGER NOT NULL, `lineageHistoryJson` TEXT, `editCount` INTEGER NOT NULL, `lastEditedBy` TEXT, PRIMARY KEY(`productId`), FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `price` REAL NOT NULL, `quantity` REAL NOT NULL, `unit` TEXT NOT NULL, `location` TEXT NOT NULL, `latitude` REAL, `longitude` REAL, `imageUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `condition` TEXT, `harvestDate` INTEGER, `expiryDate` INTEGER, `birthDate` INTEGER, `vaccinationRecordsJson` TEXT, `weightGrams` REAL, `heightCm` REAL, `gender` TEXT, `color` TEXT, `breed` TEXT, `healthStatus` TEXT, `birdCode` TEXT, `colorTag` TEXT, `familyTreeId` TEXT, `sourceAssetId` TEXT, `parentIdsJson` TEXT, `breedingStatus` TEXT, `transferHistoryJson` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `lastModifiedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `deletedAt` INTEGER, `dirty` INTEGER NOT NULL, `stage` TEXT, `lifecycleStatus` TEXT, `parentMaleId` TEXT, `parentFemaleId` TEXT, `ageWeeks` INTEGER, `lastStageTransitionAt` INTEGER, `breederEligibleAt` INTEGER, `isBatch` INTEGER, `batchId` TEXT, `splitAt` INTEGER, `splitIntoIds` TEXT, `documentUrls` TEXT NOT NULL, `qrCodeUrl` TEXT, `customStatus` TEXT, `debug` INTEGER NOT NULL, `deliveryOptions` TEXT NOT NULL, `deliveryCost` REAL, `leadTimeDays` INTEGER, `motherId` TEXT, `isBreedingUnit` INTEGER NOT NULL, `eggsCollectedToday` INTEGER NOT NULL, `lastEggLogDate` INTEGER, `readyForSale` INTEGER NOT NULL, `targetWeight` REAL, `isShowcased` INTEGER NOT NULL, `externalVideoUrl` TEXT, `recordsLockedAt` INTEGER, `autoLockAfterDays` INTEGER NOT NULL, `lineageHistoryJson` TEXT, `editCount` INTEGER NOT NULL, `lastEditedBy` TEXT, `adminFlagged` INTEGER NOT NULL, `moderationNote` TEXT, PRIMARY KEY(`productId`), FOREIGN KEY(`sellerId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "productId",
@@ -558,6 +574,17 @@
           {
             "fieldPath": "lastEditedBy",
             "columnName": "lastEditedBy",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "adminFlagged",
+            "columnName": "adminFlagged",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moderationNote",
+            "columnName": "moderationNote",
             "affinity": "TEXT"
           }
         ],
@@ -3690,8 +3717,8 @@
         ]
       },
       {
-        "tableName": "transfer_disputes",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`disputeId` TEXT NOT NULL, `transferId` TEXT NOT NULL, `raisedByUserId` TEXT NOT NULL, `reason` TEXT NOT NULL, `status` TEXT NOT NULL, `resolutionNotes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`disputeId`), FOREIGN KEY(`transferId`) REFERENCES `transfers`(`transferId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "disputes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`disputeId` TEXT NOT NULL, `transferId` TEXT NOT NULL, `reporterId` TEXT NOT NULL, `reportedUserId` TEXT NOT NULL, `reason` TEXT NOT NULL, `description` TEXT NOT NULL, `evidenceUrls` TEXT NOT NULL, `status` TEXT NOT NULL, `resolution` TEXT, `resolvedByAdminId` TEXT, `createdAt` INTEGER NOT NULL, `resolvedAt` INTEGER, PRIMARY KEY(`disputeId`))",
         "fields": [
           {
             "fieldPath": "disputeId",
@@ -3706,8 +3733,14 @@
             "notNull": true
           },
           {
-            "fieldPath": "raisedByUserId",
-            "columnName": "raisedByUserId",
+            "fieldPath": "reporterId",
+            "columnName": "reporterId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reportedUserId",
+            "columnName": "reportedUserId",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -3718,14 +3751,31 @@
             "notNull": true
           },
           {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "evidenceUrls",
+            "columnName": "evidenceUrls",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
             "fieldPath": "status",
             "columnName": "status",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "resolutionNotes",
-            "columnName": "resolutionNotes",
+            "fieldPath": "resolution",
+            "columnName": "resolution",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "resolvedByAdminId",
+            "columnName": "resolvedByAdminId",
             "affinity": "TEXT"
           },
           {
@@ -3735,10 +3785,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "updatedAt",
-            "columnName": "updatedAt",
-            "affinity": "INTEGER",
-            "notNull": true
+            "fieldPath": "resolvedAt",
+            "columnName": "resolvedAt",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -3746,40 +3795,7 @@
           "columnNames": [
             "disputeId"
           ]
-        },
-        "indices": [
-          {
-            "name": "index_transfer_disputes_transferId",
-            "unique": false,
-            "columnNames": [
-              "transferId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_transfer_disputes_transferId` ON `${TABLE_NAME}` (`transferId`)"
-          },
-          {
-            "name": "index_transfer_disputes_status",
-            "unique": false,
-            "columnNames": [
-              "status"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_transfer_disputes_status` ON `${TABLE_NAME}` (`status`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "transfers",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "transferId"
-            ],
-            "referencedColumns": [
-              "transferId"
-            ]
-          }
-        ]
+        }
       },
       {
         "tableName": "audit_logs",
@@ -12291,7 +12307,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7ef73668b552263563713c82a560b8de')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a2effe93d222d5328984352220d6c48a')"
     ]
   }
 }

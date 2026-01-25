@@ -41,6 +41,9 @@ interface PostsDao {
     // Count posts by author for profile stats
     @Query("SELECT COUNT(*) FROM posts WHERE authorId = :authorId")
     fun countByAuthor(authorId: String): Flow<Int>
+
+    @Query("DELETE FROM posts WHERE postId = :postId")
+    suspend fun delete(postId: String)
 }
 
 

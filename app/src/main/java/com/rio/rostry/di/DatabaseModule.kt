@@ -412,6 +412,10 @@ object DatabaseModule {
     @Singleton
     fun provideAuditLogDao(appDatabase: AppDatabase): AuditLogDao = appDatabase.auditLogDao()
 
+    @Provides
+    @Singleton
+    fun provideAdminAuditDao(appDatabase: AppDatabase): com.rio.rostry.data.database.dao.AdminAuditDao = appDatabase.adminAuditDao()
+
     // Farm monitoring DAOs
     @Provides
     @Singleton

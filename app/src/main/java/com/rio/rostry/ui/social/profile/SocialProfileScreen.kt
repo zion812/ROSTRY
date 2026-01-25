@@ -49,6 +49,9 @@ fun SocialProfileScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) }
 
+    val isOwnProfile by vm.isOwnProfile.collectAsState()
+    val canEditProfile by vm.canEditProfile.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,7 +62,7 @@ fun SocialProfileScreen(
                     }
                 },
                 actions = {
-                    if (userId == null) { // Current user
+                    if (userId == null || canEditProfile) { // Current user OR Admin
                         IconButton(onClick = onSettingsClick) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
                         }
@@ -76,8 +79,9 @@ fun SocialProfileScreen(
                     postsCount = postsCount,
                     followersCount = followers,
                     followingCount = following,
-                    isCurrentUser = userId == null,
-                    onEditProfile = { /* TODO */ },
+                    isCurrentUser = isOwnProfile,
+                    canEdit = canEditProfile,
+                    onEditProfile = { /* TODO: Navigate to Edit Profile */ },
                     onFollow = { vm.follow() },
                     onMessage = { onMessage(u.userId) }
                 )
@@ -129,6 +133,7 @@ fun ProfileHeader(
     followersCount: Int,
     followingCount: Int,
     isCurrentUser: Boolean,
+    canEdit: Boolean, // New parameter
     onEditProfile: () -> Unit,
     onFollow: () -> Unit,
     onMessage: () -> Unit = {}
@@ -165,7 +170,6 @@ fun ProfileHeader(
         Spacer(Modifier.height(12.dp))
 
         // Bio
-        // Bio
         Text(user.fullName ?: "User", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (!user.bio.isNullOrBlank()) {
             Text(user.bio!!, style = MaterialTheme.typography.bodyMedium)
@@ -174,15 +178,37 @@ fun ProfileHeader(
         Spacer(Modifier.height(16.dp))
 
         // Actions
-        if (isCurrentUser) {
+        // "Edit Profile" if allow (Own or Admin)
+        if (canEdit) {
             Button(
                 onClick = onEditProfile,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
             ) {
-                Text("Edit Profile")
+                Text(if (isCurrentUser) "Edit Profile" else "Edit Profile (Admin)")
+            }
+            
+            // If admin but not me, also show message/follow options below?
+            if (!isCurrentUser) {
+                 Spacer(Modifier.height(8.dp))
+                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onFollow,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Follow")
+                    }
+                    Button(
+                        onClick = onMessage,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ) {
+                        Text("Message")
+                    }
+                }
             }
         } else {
+            // Not editable (Visitor view)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = onFollow,

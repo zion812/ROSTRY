@@ -630,11 +630,10 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
             val d = DisputeEntity(
                 disputeId = id,
                 transferId = transferId,
-                raisedByUserId = raisedByUserId,
+                reporterId = raisedByUserId,
                 reason = reason,
-                status = "OPEN",
-                createdAt = now(),
-                updatedAt = now()
+                status = com.rio.rostry.data.database.entity.DisputeStatus.OPEN,
+                createdAt = now()
             )
             disputeDao.upsert(d)
             auditLogDao.insert(
@@ -651,9 +650,9 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
         try {
             val existing = disputeDao.getById(disputeId) ?: return@withContext Resource.Error("Dispute not found")
             val updated = existing.copy(
-                status = if (resolved) "RESOLVED" else "REJECTED",
-                resolutionNotes = resolutionNotes,
-                updatedAt = now()
+                status = if (resolved) com.rio.rostry.data.database.entity.DisputeStatus.RESOLVED_DISMISSED else com.rio.rostry.data.database.entity.DisputeStatus.RESOLVED_WARNING_ISSUED, // Default mapping, logic may need adjustment
+                resolution = resolutionNotes,
+                resolvedAt = now()
             )
             disputeDao.upsert(updated)
             auditLogDao.insert(

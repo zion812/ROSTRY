@@ -22,5 +22,9 @@ interface OrderRepository {
     // COD Verification
     suspend fun generateDeliveryOtp(orderId: String): Resource<String>
     suspend fun confirmDeliveryWithOtp(orderId: String, otpInput: String): Resource<Unit>
+
+    // Admin
+    suspend fun adminCancelOrder(orderId: String, reason: String): Resource<Unit>
+    suspend fun getAllOrdersAdmin(): Resource<List<OrderEntity>>
 }
 

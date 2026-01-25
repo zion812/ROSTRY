@@ -2068,7 +2068,7 @@ private fun RoleNavGraph(
                 onVerifyEnthusiastKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
                 onNavigateToAnalytics = { navController.navigate(Routes.ANALYTICS_FARMER) },
                 onNavigateToStorageQuota = { navController.navigate(Routes.STORAGE_QUOTA) },
-                onNavigateToAdminDashboard = { navController.navigate(Routes.ADMIN_VERIFICATION) },
+                onNavigateToAdminDashboard = { navController.navigate(Routes.Admin.DASHBOARD) },
                 onUpgradeClick = { type -> navController.navigate(Routes.Builders.upgradeWizard(type)) },
                 isAdmin = state.isAdmin
             )
@@ -2178,7 +2178,7 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.settings.SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenAddressSelection = { navController.navigate(Routes.ADDRESS_SELECTION) },
-                onNavigateToAdminVerification = { navController.navigate(Routes.ADMIN_VERIFICATION) },
+                onNavigateToAdminVerification = { navController.navigate(Routes.Admin.DASHBOARD) },
                 onNavigateToBackupRestore = { navController.navigate(Routes.Settings.BACKUP_RESTORE) },
                 lastSelectedAddressJson = lastSelected,
                 isAdmin = state.isAdmin,
@@ -2280,6 +2280,58 @@ private fun RoleNavGraph(
 
         composable(Routes.ADMIN_VERIFICATION) {
             com.rio.rostry.ui.admin.AdminVerificationScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.DASHBOARD) {
+            com.rio.rostry.ui.admin.AdminDashboardScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToVerification = { navController.navigate(Routes.ADMIN_VERIFICATION) },
+                onNavigateToUserManagement = { navController.navigate(Routes.Admin.USER_MANAGEMENT) },
+                onNavigateToBiosecurity = { navController.navigate(Routes.Admin.BIOSECURITY) },
+                onNavigateToMortality = { navController.navigate(Routes.Admin.MORTALITY_DASHBOARD) },
+                onNavigateToDisputes = { navController.navigate(Routes.Admin.DISPUTES) },
+                pendingVerificationsCount = state.pendingVerificationCount
+            )
+        }
+
+        composable(Routes.Admin.USER_MANAGEMENT) {
+            com.rio.rostry.ui.admin.UserManagementScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.BIOSECURITY) {
+            com.rio.rostry.ui.admin.biosecurity.BiosecurityManagementScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.MORTALITY_DASHBOARD) {
+            com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.DISPUTES) {
+            com.rio.rostry.ui.admin.dispute.AdminDisputeScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Routes.Marketplace.CREATE_DISPUTE,
+            arguments = listOf(
+                navArgument("transferId") { type = NavType.StringType },
+                navArgument("reportedUserId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+            val reportedUserId = backStackEntry.arguments?.getString("reportedUserId") ?: ""
+            com.rio.rostry.ui.marketplace.dispute.CreateDisputeScreen(
+                transferId = transferId,
+                reportedUserId = reportedUserId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

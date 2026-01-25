@@ -27,4 +27,7 @@ interface InvoiceDao {
 
     @Query("SELECT * FROM invoice_lines WHERE invoiceId = :invoiceId")
     suspend fun linesForInvoice(invoiceId: String): List<InvoiceLineEntity>
+
+    @Query("SELECT * FROM invoices ORDER BY createdAt DESC")
+    suspend fun getAllInvoices(): List<InvoiceEntity>
 }
