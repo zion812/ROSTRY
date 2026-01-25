@@ -142,6 +142,24 @@ fun RoleUpgradeScreen(
                             Text("Testimonials: Upgrading has helped many users access advanced features!")
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Rest assured: All your existing farm data, birds, and logs will be preserved.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
                 }
                 RoleUpgradeViewModel.WizardStep.PREREQUISITES -> {
                     Text("Prerequisites Check", style = MaterialTheme.typography.headlineSmall)
