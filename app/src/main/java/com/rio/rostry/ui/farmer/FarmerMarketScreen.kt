@@ -165,7 +165,8 @@ fun FarmerMarketScreen(
                     text = { Text("New Listing") }
                 )
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0.dp)
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))) {
             when (selectedTabIndex) {

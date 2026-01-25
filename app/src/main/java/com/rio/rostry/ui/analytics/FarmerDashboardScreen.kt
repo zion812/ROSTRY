@@ -114,7 +114,8 @@ fun FarmerDashboardScreen(
                     }
                 }
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(0.dp)
     ) { padding ->
         LazyColumn(
             modifier = Modifier

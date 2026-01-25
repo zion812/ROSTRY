@@ -265,7 +265,8 @@ fun FarmAssetListScreen(
                     onBulkLog = { /* TODO: Future scope */ }
                 )
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0.dp)
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             // Search Bar

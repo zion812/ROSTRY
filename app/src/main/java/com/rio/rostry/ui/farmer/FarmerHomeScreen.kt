@@ -106,7 +106,8 @@ fun FarmerHomeScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         // FABs removed in favor of Quick Actions Row for cleaner UI
-        floatingActionButton = {}
+        floatingActionButton = {},
+        contentWindowInsets = WindowInsets(0.dp)
     ) { padding ->
         SwipeRefresh(state = refreshingState, onRefresh = { viewModel.refreshData() }) {
             LazyColumn(
