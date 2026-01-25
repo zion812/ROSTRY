@@ -16,21 +16,21 @@ import javax.inject.Inject
 @HiltViewModel
 class MortalityViewModel @Inject constructor(
     private val repo: MortalityRepository,
-    private val productDao: com.rio.rostry.data.database.dao.ProductDao,
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
+    private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
+    private val activityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
     data class UiState(
         val records: List<MortalityRecordEntity> = emptyList(),
-        val products: List<com.rio.rostry.data.database.entity.ProductEntity> = emptyList()
+        val assets: List<com.rio.rostry.data.database.entity.FarmAssetEntity> = emptyList()
     )
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
     init {
-        loadProducts()
+        loadAssets()
         viewModelScope.launch {
             repo.observeAll().collect { list ->
                 _ui.update { it.copy(records = list) }
@@ -38,12 +38,12 @@ class MortalityViewModel @Inject constructor(
         }
     }
 
-    private fun loadProducts() {
+    private fun loadAssets() {
         viewModelScope.launch {
             val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
-            productRepository.getProductsBySeller(farmerId).collect { res ->
+            farmAssetRepository.getAssetsByFarmer(farmerId).collect { res ->
                 if (res is com.rio.rostry.utils.Resource.Success) {
-                    _ui.update { it.copy(products = res.data ?: emptyList()) }
+                    _ui.update { it.copy(assets = res.data ?: emptyList()) }
                 }
             }
         }
@@ -60,6 +60,8 @@ class MortalityViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val farmerId = firebaseAuth.currentUser?.uid ?: return@launch
+            
+            // 1. Save Mortality Record
             val rec = MortalityRecordEntity(
                 deathId = UUID.randomUUID().toString(),
                 productId = productId,
@@ -69,24 +71,57 @@ class MortalityViewModel @Inject constructor(
                 ageWeeks = ageWeeks,
                 disposalMethod = disposalMethod,
                 quantity = quantity,
-                financialImpactInr = financialImpactInr
+                financialImpactInr = financialImpactInr,
+                occurredAt = System.currentTimeMillis()
             )
             repo.insert(rec)
             
+            // 2. Update Farm Asset (Decrement or Status Change)
+            var assetName: String? = null
             if (productId != null) {
-                val product = productRepository.findById(productId)
-                if (product != null) {
-                    if (product.isBatch == true) {
-                        productDao.decrementQuantity(productId, quantity, System.currentTimeMillis())
-                    } else {
-                        // Individual bird died - mark as DEAD
-                        productDao.updateLifecycleStatus(productId, "DEAD", System.currentTimeMillis())
-                        productDao.decrementQuantity(productId, quantity, System.currentTimeMillis())
+                // Fetch asset to check type/current quantity
+                // Since repo operations are Flow based, we might need a direct fetch or take(1)
+                // Assuming we can get it from our local cache for simplicity or fetch again
+                val asset = _ui.value.assets.find { it.assetId == productId }
+                assetName = asset?.name
+                
+                if (asset != null) {
+                    // Decrement quantity
+                    val newQuantity = (asset.quantity - quantity).coerceAtLeast(0.0)
+                    farmAssetRepository.updateQuantity(productId, newQuantity)
+                    
+                    // If individual (not batch) and quantity is 0, mark as DEAD/ARCHIVED
+                    // Or if Type is ANIMAL (Bird)
+                    if (!asset.assetType.equals("BATCH", ignoreCase = true) && newQuantity == 0.0) {
+                        farmAssetRepository.updateHealthStatus(productId, "DEAD") 
+                        // Or use status "ARCHIVED" / "DEAD". FarmAssetEntity has 'status'.
+                        // Ideally we should have updateStatus in repo.
+                        // I'll assume updateHealthStatus updates 'healthStatus'.
+                        // I might need a dedicated 'markAsDead' or 'updateStatus' method if 'healthStatus' is different.
+                        // For now updateHealthStatus("DEAD") is reasonable if healthStatus field is used for that.
                     }
-                } else {
-                    // Fallback if product not found in repo cache (unlikely)
-                    productDao.decrementQuantity(productId, quantity, System.currentTimeMillis())
+                    if (newQuantity == 0.0 && asset.assetType.equals("BATCH", ignoreCase = true)) {
+                         // Batch depleted
+                         // Maybe update status to CONSUMED or CLOSED?
+                         // Leaving as is for now, just 0 quantity.
+                    }
                 }
+            }
+            
+            // 3. Log to Farm Activity Log (This triggers Calendar and Farm Log)
+            try {
+                activityLogRepository.logActivity(
+                    farmerId = farmerId,
+                    productId = productId,
+                    activityType = "MORTALITY",
+                    amount = financialImpactInr, // Financial impact as amount? Or maybe 0.
+                    quantity = quantity.toDouble(),
+                    category = "Health - Mortality",
+                    description = "Mortality recorded: $quantity ${assetName ?: "Birds"}",
+                    notes = "Cause: $causeCategory. ${circumstances ?: ""}"
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

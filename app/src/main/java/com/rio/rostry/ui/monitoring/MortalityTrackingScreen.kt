@@ -33,10 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.ui.monitoring.vm.MortalityViewModel
-import com.rio.rostry.ui.components.BirdSelectionSheet
-import com.rio.rostry.ui.components.BirdSelectionItem
+import com.rio.rostry.ui.components.AssetSelectionItem
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import kotlinx.coroutines.launch
 
 @Composable
 fun MortalityTrackingScreen(
@@ -57,6 +59,7 @@ fun MortalityTrackingScreen(
     var filterCause by remember { mutableStateOf("All") }
     val snackbarHostState = remember { SnackbarHostState() }
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -84,10 +87,10 @@ fun MortalityTrackingScreen(
                                 Text("Select Bird / Batch (Optional)")
                             }
                         } else {
-                            val selectedProduct = uiState.products.find { it.productId == selectedProductId.value }
+                            val selectedProduct = uiState.assets.find { it.assetId == selectedProductId.value }
                             if (selectedProduct != null) {
-                                BirdSelectionItem(
-                                    product = selectedProduct,
+                                AssetSelectionItem(
+                                    asset = selectedProduct,
                                     onClick = { showSheet.value = true }
                                 )
                             } else {
@@ -107,12 +110,23 @@ fun MortalityTrackingScreen(
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
+                        Text("Cause Category", style = MaterialTheme.typography.labelMedium)
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("Illness", "Predator", "Accident", "Natural", "Unknown").forEach { cause ->
+                                FilterChip(
+                                    selected = causeCategory.value.equals(cause, ignoreCase = true),
+                                    onClick = { causeCategory.value = cause },
+                                    label = { Text(cause) }
+                                )
+                            }
+                        }
                         OutlinedTextField(
                             value = causeCategory.value,
                             onValueChange = { causeCategory.value = it },
-                            label = { Text("Cause Category (e.g., ILLNESS, PREDATOR, ACCIDENT)") },
+                            label = { Text("Cause Category (or type custom)") },
                             modifier = Modifier.fillMaxWidth()
                         )
+
                         OutlinedTextField(
                             value = circumstances.value,
                             onValueChange = { circumstances.value = it },
@@ -180,6 +194,10 @@ fun MortalityTrackingScreen(
                                         circumstances.value = ""
                                         ageWeeks.value = ""
                                         financialImpact.value = ""
+                                        
+                                        scope.launch { snackbarHostState.showSnackbar("Mortality recorded") }
+                                    } else {
+                                        scope.launch { snackbarHostState.showSnackbar("Please select or enter a Cause Category") }
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -277,11 +295,11 @@ fun MortalityTrackingScreen(
     }
 
     if (showSheet.value) {
-        BirdSelectionSheet(
-            products = uiState.products,
+        com.rio.rostry.ui.components.AssetSelectionSheet(
+            assets = uiState.assets,
             onDismiss = { showSheet.value = false },
-            onSelect = { product ->
-                selectedProductId.value = product.productId
+            onSelect = { asset ->
+                selectedProductId.value = asset.assetId
                 showSheet.value = false
             }
         )
