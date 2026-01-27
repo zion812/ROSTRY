@@ -40,7 +40,8 @@ object ZoneManager {
         WATER_STATION,
         BREEDING_PEN,
         EGG_COLLECTION,
-        FREE_RANGE
+        FREE_RANGE,
+        QUARANTINE
     }
     
     /**
@@ -52,7 +53,8 @@ object ZoneManager {
         ZoneType.WATER_STATION to Color(0xFF4682B4),// Steel blue
         ZoneType.BREEDING_PEN to Color(0xFFFF69B4), // Hot pink
         ZoneType.EGG_COLLECTION to Color(0xFFFFF5EE),// Seashell
-        ZoneType.FREE_RANGE to Color(0xFF90EE90)    // Light green
+        ZoneType.FREE_RANGE to Color(0xFF90EE90),    // Light green
+        ZoneType.QUARANTINE to Color(0xFFEF5350)     // Red
     )
     
     /**
@@ -253,6 +255,8 @@ object ZoneManager {
             DigitalFarmZone.GROW_OUT -> ZoneType.FEEDING_AREA
             DigitalFarmZone.READY_DISPLAY -> ZoneType.FREE_RANGE
             DigitalFarmZone.MARKET_STAND -> ZoneType.FREE_RANGE
+            DigitalFarmZone.QUARANTINE -> ZoneType.QUARANTINE
+            DigitalFarmZone.MAIN_COOP -> ZoneType.COOP
         }
     }
 }

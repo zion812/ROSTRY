@@ -30,7 +30,10 @@ object BreedingZoneRenderer {
         DigitalFarmZone.FREE_RANGE to Color(0xFF98FB98), // Pale green
         DigitalFarmZone.GROW_OUT to Color(0xFFADD8E6), // Light blue
         DigitalFarmZone.READY_DISPLAY to Color(0xFFDDA0DD), // Plum
-        DigitalFarmZone.MARKET_STAND to Color(0xFFFFD700) // Gold
+        DigitalFarmZone.READY_DISPLAY to Color(0xFFDDA0DD), // Plum
+        DigitalFarmZone.MARKET_STAND to Color(0xFFFFD700), // Gold
+        DigitalFarmZone.QUARANTINE to Color(0xFFEF5350), // Red
+        DigitalFarmZone.MAIN_COOP to Color(0xFF8D6E63) // Brown
     )
     
     /**
@@ -304,6 +307,8 @@ object BreedingZoneRenderer {
             DigitalFarmZone.GROW_OUT -> Quadruple(0f, 10f, 19f, 14f)
             DigitalFarmZone.READY_DISPLAY -> Quadruple(3f, 8f, 7f, 12f)
             DigitalFarmZone.MARKET_STAND -> Quadruple(5f, 15f, 15f, 19f)
+            DigitalFarmZone.QUARANTINE -> Quadruple(16f, 15f, 19f, 19f)
+            DigitalFarmZone.MAIN_COOP -> Quadruple(8f, 2f, 12f, 6f)
         }
     }
     

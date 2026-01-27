@@ -170,6 +170,8 @@ class FlockingEngine(
             DigitalFarmZone.GROW_OUT -> (0f to 19f) to (10f to 14f)
             DigitalFarmZone.READY_DISPLAY -> (3f to 7f) to (8f to 12f)
             DigitalFarmZone.MARKET_STAND -> (5f to 15f) to (15f to 19f)
+            DigitalFarmZone.QUARANTINE -> (16f to 19f) to (15f to 19f)
+            DigitalFarmZone.MAIN_COOP -> (8f to 12f) to (2f to 6f)
         }
     }
     

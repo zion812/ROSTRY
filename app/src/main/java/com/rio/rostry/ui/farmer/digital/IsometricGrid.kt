@@ -87,6 +87,8 @@ object IsometricGrid {
             DigitalFarmZone.GROW_OUT -> Offset(10f, 12f)
             DigitalFarmZone.READY_DISPLAY -> Offset(5f, 10f)
             DigitalFarmZone.MARKET_STAND -> Offset(10f, 17f)
+            DigitalFarmZone.QUARANTINE -> Offset(17.5f, 17f)
+            DigitalFarmZone.MAIN_COOP -> Offset(10f, 4f)
         }
     }
 
@@ -101,6 +103,8 @@ object IsometricGrid {
             DigitalFarmZone.GROW_OUT -> (1f..18f) to (10f..13f)
             DigitalFarmZone.READY_DISPLAY -> (3f..7f) to (8f..12f)
             DigitalFarmZone.MARKET_STAND -> (5f..15f) to (16f..18f)
+            DigitalFarmZone.QUARANTINE -> (16f..19f) to (15f..19f)
+            DigitalFarmZone.MAIN_COOP -> (8f..12f) to (2f..6f)
         }
         val x = xRange.start + (xRange.endInclusive - xRange.start) * Math.random().toFloat()
         val y = yRange.start + (yRange.endInclusive - yRange.start) * Math.random().toFloat()

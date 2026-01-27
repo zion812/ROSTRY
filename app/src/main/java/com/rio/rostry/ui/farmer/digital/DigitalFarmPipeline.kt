@@ -44,7 +44,8 @@ fun DigitalFarmPipeline(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .clickable { onNavigate(com.rio.rostry.ui.navigation.Routes.FarmerNav.DIGITAL_FARM) }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -149,8 +150,8 @@ fun PipelineStageCard(
 ) {
     Card(
         modifier = Modifier
-            .width(140.dp)
-            .height(160.dp)
+            .width(110.dp)
+            .height(130.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -168,7 +169,7 @@ fun PipelineStageCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(12.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // Top: Icon and Badge
@@ -214,7 +215,7 @@ fun PipelineStageCard(
                 Column {
                     Text(
                         text = count.toString(),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
