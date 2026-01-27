@@ -283,7 +283,7 @@ fun FarmerHomeScreen(
                         icon = Icons.Filled.Storefront,
                         label = "Market",
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        onClick = { viewModel.navigateToModule(Routes.Builders.productsWithFilter("ready_to_list")) }
+                        onClick = { viewModel.navigateToModule(Routes.FarmerNav.MARKET) }
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))

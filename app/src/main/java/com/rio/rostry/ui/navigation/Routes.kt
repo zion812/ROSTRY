@@ -325,7 +325,7 @@ object Routes {
 
     private val generalConfig = RoleNavigationConfig(
         role = UserType.GENERAL,
-        startDestination = GeneralNav.HOME,
+        startDestination = Onboarding.USER_SETUP,
         bottomNav = emptyList(),
         accessibleRoutes = setOf(
             GeneralNav.HOME,
@@ -342,7 +342,8 @@ object Routes {
             Sync.ISSUES,
             Upgrade.WIZARD,
             Upgrade.POST_ONBOARDING,
-            Routes.PUBLIC_BIRD_LOOKUP
+            Routes.PUBLIC_BIRD_LOOKUP,
+            Onboarding.USER_SETUP // Enforce setup flow
         )
     )
 

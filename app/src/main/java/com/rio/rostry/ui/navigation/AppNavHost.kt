@@ -214,38 +214,31 @@ fun AppNavHost(
             val isGuestMode = state.authMode == SessionManager.AuthMode.GUEST
             RoleNavScaffold(navConfig, sessionVm, state, syncViewModel = syncViewModel, isGuestMode = isGuestMode)
         }
-        state.isAuthenticated -> {
-            if (state.error != null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Text(
-                            text = "Error loading profile",
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = state.error ?: "Unknown error",
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        Button(onClick = { sessionVm.signOut() }) {
-                            Text("Sign Out")
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = { sessionVm.refresh() }) {
-                            Text("Retry")
-                        }
+        state.isAuthenticated && state.error != null -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Text(
+                        text = "Error loading profile",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = state.error ?: "Unknown error",
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Button(onClick = { sessionVm.signOut() }) {
+                        Text("Sign Out")
                     }
-                }
-            } else {
-                LaunchedEffect("await-config") { sessionVm.refresh() }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { sessionVm.refresh() }) {
+                        Text("Retry")
+                    }
                 }
             }
         }
@@ -571,7 +564,8 @@ private fun AuthFlow(
         // User setup/onboarding
         composable("onboard/user_setup") {
             com.rio.rostry.ui.onboarding.UserSetupScreen(
-                onRoleSelected = onAuthenticated
+                onRoleSelected = onAuthenticated,
+                onSkip = onAuthenticated
             )
         }
         
@@ -696,36 +690,48 @@ private fun RoleNavScaffold(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text("ROSTRY") },
-                    actions = {
-                        // Show "Sign In" button in guest mode
-                        if (isGuestMode) {
-                            Button(
-                                onClick = { 
-                                    pendingGuestAction = null
-                                    sessionVm.signOut() 
-                                },
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Text("Sign In")
+                // Only show global TopAppBar on main home screens
+                val isHomeScreen = currentRoute in setOf(
+                    Routes.FarmerNav.HOME,
+                    Routes.EnthusiastNav.HOME,
+                    Routes.GeneralNav.HOME,
+                    Routes.Social.FEED,
+                    Routes.EnthusiastNav.EXPLORE,
+                    Routes.EnthusiastNav.DASHBOARD
+                )
+
+                if (isHomeScreen) {
+                    TopAppBar(
+                        title = { Text("ROSTRY") },
+                        actions = {
+                            // Show "Sign In" button in guest mode
+                            if (isGuestMode) {
+                                Button(
+                                    onClick = { 
+                                        pendingGuestAction = null
+                                        sessionVm.signOut() 
+                                    },
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Text("Sign In")
+                                }
+                            }
+                            SyncStatusIndicator(
+                                syncState = syncState,
+                                onClick = { syncViewModel.viewSyncDetails() }
+                            )
+                            AccountMenuAction(
+                                navController = navController,
+                                onSignOut = { sessionVm.signOut() },
+                                isGuestMode = isGuestMode,
+                                pendingCount = state.pendingVerificationCount
+                            )
+                            if (!isGuestMode) {
+                                NotificationsAction(navController = navController)
                             }
                         }
-                        SyncStatusIndicator(
-                            syncState = syncState,
-                            onClick = { syncViewModel.viewSyncDetails() }
-                        )
-                        AccountMenuAction(
-                            navController = navController,
-                            onSignOut = { sessionVm.signOut() },
-                            isGuestMode = isGuestMode,
-                            pendingCount = state.pendingVerificationCount
-                        )
-                        if (!isGuestMode) {
-                            NotificationsAction(navController = navController)
-                        }
-                    }
-                )
+                    )
+                }
             },
             floatingActionButton = {
                 val isFarmer = navConfig.role == UserType.FARMER
@@ -899,12 +905,24 @@ private fun RoleNavGraph(
         // General navigation destinations
         composable(Routes.HOME_GENERAL) {
             com.rio.rostry.ui.general.GeneralUserScreen(
-
                 onOpenProductDetails = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
                 onOpenTraceability = { productId -> navController.navigate(Routes.Builders.traceability(productId)) },
                 onOpenSocialFeed = { navController.navigate(Routes.SOCIAL_FEED) },
                 onOpenMessages = { threadId -> navController.navigate(Routes.Builders.messagesThread(threadId)) },
                 onScanQr = { navController.navigate(Routes.Builders.scanQr("product_details")) }
+            )
+        }
+        
+        composable(Routes.Onboarding.USER_SETUP) {
+            com.rio.rostry.ui.onboarding.UserSetupScreen(
+                onRoleSelected = {
+                    // Role update triggers SessionViewModel refresh automatically
+                    // We don't need to manually navigate as the navConfig will change
+                    // and RoleNavScaffold will recompose with new config
+                },
+                onSkip = {
+                    navController.navigate(Routes.HOME_GENERAL)
+                }
             )
         }
         composable(Routes.SYNC_ISSUES) {
@@ -924,9 +942,10 @@ private fun RoleNavGraph(
             val context = LocalContext.current
             com.rio.rostry.ui.farmer.DigitalFarmScreen(
                 onBack = { navController.popBackStack() },
-                onManageBird = { id -> navController.navigate(Routes.Builders.dailyLog(id)) },
-                onViewLineage = { id -> navController.navigate(Routes.Builders.traceability(id)) },
-                onListForSale = { id -> navController.navigate(Routes.Builders.farmerCreateWithPrefill(id)) },
+                onManageBird = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onViewLineage = { productId -> navController.navigate(Routes.Builders.familyTree(productId)) },
+                onListForSale = { productId -> navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId)) },
+                onAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
                 onTimelapse = { navController.navigate(Routes.Monitoring.FARM_LOG) },
                 onShare = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -1987,6 +2006,8 @@ private fun RoleNavGraph(
                 onAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
             )
         }
+
+
 
         // Farmer Create Screen
         composable(Routes.FarmerNav.CREATE) {

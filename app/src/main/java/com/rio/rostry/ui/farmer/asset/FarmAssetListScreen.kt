@@ -275,7 +275,7 @@ fun FarmAssetListScreen(
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 placeholder = { Text("Search birds by name or breed...") },
                 leadingIcon = { Icon(androidx.compose.material.icons.Icons.Default.Search, null) },
                 trailingIcon = {
@@ -379,20 +379,39 @@ fun FarmAssetListScreen(
             }
                 
             
-            // Sort Row
+            // Sort and Count Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Results count
+                Text(
+                    "${displayAssets.size} asset${if (displayAssets.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 // Sort Dropdown
                 Box {
                     FilterChip(
                         selected = false,
                         onClick = { showSortMenu = true },
                         label = { Text(sortBy.label) },
-                        leadingIcon = { Icon(Icons.Default.FilterList, null, Modifier.size(16.dp)) }
+                        leadingIcon = { Icon(Icons.Default.FilterList, null, Modifier.size(16.dp)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = false,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant
+                        ),
+                         shape = MaterialTheme.shapes.small
                     )
                     DropdownMenu(
                         expanded = showSortMenu,
@@ -415,14 +434,6 @@ fun FarmAssetListScreen(
                     }
                 }
             }
-
-            // Results count
-            Text(
-                "${displayAssets.size} asset${if (displayAssets.size != 1) "s" else ""}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
             
             val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = state.isRefreshing)
             
