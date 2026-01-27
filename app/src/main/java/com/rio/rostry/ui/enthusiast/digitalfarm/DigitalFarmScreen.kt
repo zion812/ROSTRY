@@ -159,6 +159,7 @@ fun DigitalFarmScreen(
                 }
                 uiState.isEmpty -> {
                     EmptyFarmState(
+                        onAddBird = onNavigateToAddBird,
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
@@ -517,7 +518,7 @@ private fun StatItem(
 }
 
 @Composable
-private fun EmptyFarmState(modifier: Modifier = Modifier) {
+private fun EmptyFarmState(onAddBird: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .padding(32.dp)
@@ -547,7 +548,7 @@ private fun EmptyFarmState(modifier: Modifier = Modifier) {
                 color = Color.Gray
             )
             Button(
-                onClick = { /* Navigate to add product */ },
+                onClick = onAddBird,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
                 ),

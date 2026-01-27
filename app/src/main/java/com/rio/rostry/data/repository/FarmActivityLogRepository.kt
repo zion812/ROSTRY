@@ -36,6 +36,7 @@ interface FarmActivityLogRepository {
     suspend fun getTotalExpensesBetween(farmerId: String, start: Long, end: Long): Double
     suspend fun getById(activityId: String): FarmActivityLogEntity?
     suspend fun deleteActivity(activityId: String)
+    suspend fun getTotalFeedQuantityForAsset(assetId: String): Double
 }
 
 @Singleton
@@ -104,6 +105,10 @@ class FarmActivityLogRepositoryImpl @Inject constructor(
 
     override suspend fun deleteActivity(activityId: String) {
         dao.delete(activityId)
+    }
+
+    override suspend fun getTotalFeedQuantityForAsset(assetId: String): Double {
+        return dao.getTotalFeedQuantityForAsset(assetId)
     }
     
     /**

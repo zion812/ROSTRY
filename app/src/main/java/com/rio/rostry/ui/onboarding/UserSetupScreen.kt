@@ -59,7 +59,7 @@ class UserSetupViewModel @Inject constructor(
 }
 
 @Composable
-fun UserSetupScreen(onRoleSelected: () -> Unit, vm: UserSetupViewModel = hiltViewModel()) {
+fun UserSetupScreen(onRoleSelected: () -> Unit, onSkip: () -> Unit, vm: UserSetupViewModel = hiltViewModel()) {
     var selectedRole by remember { mutableStateOf<UserType?>(null) }
 
     Column(
@@ -78,7 +78,8 @@ fun UserSetupScreen(onRoleSelected: () -> Unit, vm: UserSetupViewModel = hiltVie
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { selectedRole = UserType.FARMER },
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            colors = if (selectedRole == UserType.FARMER) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer) else CardDefaults.cardColors()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Farmer", style = MaterialTheme.typography.titleMedium)
@@ -97,7 +98,8 @@ fun UserSetupScreen(onRoleSelected: () -> Unit, vm: UserSetupViewModel = hiltVie
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { selectedRole = UserType.ENTHUSIAST },
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            colors = if (selectedRole == UserType.ENTHUSIAST) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer) else CardDefaults.cardColors()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Enthusiast", style = MaterialTheme.typography.titleMedium)
@@ -117,10 +119,19 @@ fun UserSetupScreen(onRoleSelected: () -> Unit, vm: UserSetupViewModel = hiltVie
             modifier = Modifier.fillMaxWidth()
         ) {
             if (vm.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                CircularProgressIndicator(modifier = Modifier.height(20.dp), color = MaterialTheme.colorScheme.onPrimary)
             } else {
-                Text("Continue")
+                Text(if (selectedRole != null) "Continue as ${selectedRole?.name}" else "Continue")
             }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        androidx.compose.material3.TextButton(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("I'm just browsing (Buyer)")
         }
 
         vm.error?.let {

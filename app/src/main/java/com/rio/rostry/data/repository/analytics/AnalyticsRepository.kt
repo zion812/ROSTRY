@@ -249,56 +249,73 @@ class AnalyticsRepositoryImpl @Inject constructor(
         val endOfDay = now + 24 * 60 * 60 * 1000L // Approximate end of day
         val startOfDay = now - (now % (24 * 60 * 60 * 1000L)) // Start of today
 
-        // 1. Tasks Goal Flow
+        // 1. Context-Aware Task Goal
+        // Only trigger if tasks are actually DUE today. Don't show "0/5" arbitrarily.
         val tasksGoalFlow = combine(
-            taskDao.observeDueWindowForFarmer(userId, now, endOfDay).map { it.size },
+            taskDao.observeDueWindowForFarmer(userId, startOfDay, endOfDay).map { it.size },
             taskDao.observeCompletedCountForFarmerBetween(userId, startOfDay, endOfDay)
         ) { dueCount, doneCount ->
-            val target = dueCount + doneCount
-            // If no tasks at all, maybe default to a small target or hide? 
-            // For now, if target is 0, we show 0/0 (100%) or hide. Let's show 0/5 as a fallback if 0 to encourage activity?
-            // User wants "data driven". If 0 tasks, goal is met?
-            val finalTarget = if (target == 0) 5 else target
-            DailyGoal(
-                goalId = "tasks_today",
-                type = "TASKS",
-                title = "Complete Daily Tasks",
-                description = "Finish scheduled farm tasks for today",
-                targetCount = finalTarget,
-                currentCount = doneCount,
-                progress = if (finalTarget > 0) (doneCount.toFloat() / finalTarget).coerceAtMost(1f) else 1f,
-                priority = "HIGH",
-                deepLink = "farmer/tasks",
-                iconName = "task_icon"
-            )
+            val total = dueCount + doneCount
+            if (total > 0) {
+                DailyGoal(
+                    goalId = "tasks_today",
+                    type = "TASKS",
+                    title = "Complete Scheduled Tasks",
+                    description = "You have $dueCount tasks remaining for today",
+                    targetCount = total,
+                    currentCount = doneCount,
+                    progress = (doneCount.toFloat() / total).coerceAtMost(1f),
+                    priority = if (dueCount > 0) "HIGH" else "LOW",
+                    deepLink = "farmer/calendar", // Direct to Calendar for better task view
+                    iconName = "task_icon"
+                )
+            } else {
+                null
+            }
         }
 
-        // 2. Logs Goal Flow
-        val logsGoalFlow = combine(
-            dailyLogDao.observeCountForFarmerBetween(userId, startOfDay, endOfDay),
-            productDao.observeActiveCountByOwnerId(userId),
-            hatchingBatchDao.observeActiveForFarmer(userId, now)
-        ) { logsCount, activeProducts, activeBatches ->
-            // Goal: Log once for every ~5 birds or 1 per batch?
-            // Simple heuristic: 1 log per active batch + 1 log per 10 individual birds?
-            // Or just: Target = 1 if any birds exist?
-            // Let's say Target = (Active Batches) + (Active Birds / 10). Min 1.
-            val derivedTarget = activeBatches + (activeProducts / 10).coerceAtLeast(1)
-            DailyGoal(
-                goalId = "logs_today",
-                type = "DAILY_LOGS",
-                title = "Record Daily Logs",
-                description = "Log daily updates for your birds/batches",
-                targetCount = derivedTarget,
-                currentCount = logsCount,
-                progress = if (derivedTarget > 0) (logsCount.toFloat() / derivedTarget).coerceAtMost(1f) else 1f,
-                priority = "MEDIUM",
-                deepLink = "farmer/logs",
-                iconName = "log_icon"
-            )
+        // 2. Smart Feeding Goal (Time-Based)
+        // Morning Feed: 6 AM - 11 AM
+        // Evening Feed: 4 PM - 8 PM
+        val hourOfDay = java.time.LocalTime.now().hour
+        val isMorning = hourOfDay in 6..11
+        val isEvening = hourOfDay in 16..20
+
+        val feedingGoalFlow = dailyLogDao.observeCountForFarmerBetween(userId, startOfDay, endOfDay).map { logsCount ->
+            // Heuristic: If logsCount is low (0), and it's feeding time, prompt specifically for Feed.
+            if (logsCount == 0 && (isMorning || isEvening)) {
+                 DailyGoal(
+                    goalId = "log_feed_${if(isMorning) "morning" else "evening"}",
+                    type = "DAILY_LOGS",
+                    title = if (isMorning) "Log Morning Feed" else "Log Evening Feed",
+                    description = "Keep track of feed consumption for better FCR",
+                    targetCount = 1,
+                    currentCount = 0,
+                    progress = 0f,
+                    priority = "HIGH",
+                    deepLink = "monitoring/daily_log", // Opens Quick Log
+                    iconName = "feed_icon"
+                )
+            } else if (logsCount == 0) {
+                // General reminder if not specific feeding time
+                DailyGoal(
+                    goalId = "daily_checkup",
+                    type = "DAILY_LOGS",
+                    title = "Daily Farm Checkup",
+                    description = "Record mortality and feed checks",
+                    targetCount = 1,
+                    currentCount = 0,
+                    progress = 0f,
+                    priority = "MEDIUM",
+                    deepLink = "monitoring/daily_log",
+                    iconName = "log_icon"
+                )
+            } else {
+                null // Goal completed
+            }
         }
 
-        // 3. Vaccinations Goal Flow
+        // 3. Vaccinations Goal Flow (Critical)
         val vaccGoalFlow = combine(
             vaccinationRecordDao.observeDueForFarmer(userId, startOfDay, endOfDay),
             vaccinationRecordDao.observeAdministeredCountForFarmerBetween(userId, startOfDay, endOfDay)
@@ -308,22 +325,30 @@ class AnalyticsRepositoryImpl @Inject constructor(
                 DailyGoal(
                     goalId = "vaccinations_today",
                     type = "VACCINATIONS",
-                    title = "Administer Vaccinations",
-                    description = "Complete due vaccinations for your flock",
+                    title = "Vaccination Alert",
+                    description = "$dueCount doses due today. Don't skip!",
                     targetCount = total,
                     currentCount = doneCount,
                     progress = (doneCount.toFloat() / total).coerceAtMost(1f),
-                    priority = "HIGH",
-                    deepLink = "farmer/vaccinations",
+                    priority = "CRITICAL", // Prioritize critical health alerts
+                    deepLink = "monitoring/vaccination?filter=today",
                     iconName = "vaccination_icon"
                 )
             } else {
-                null // No vaccinations due today
+                null
             }
         }
 
-        return combine(tasksGoalFlow, logsGoalFlow, vaccGoalFlow) { taskGoal, logGoal, vaccGoal ->
-            listOfNotNull(taskGoal, logGoal, vaccGoal)
+        return combine(tasksGoalFlow, feedingGoalFlow, vaccGoalFlow) { taskGoal, feedGoal, vaccGoal ->
+            // Prioritize: Critical -> High -> Medium
+            listOfNotNull(vaccGoal, feedGoal, taskGoal).sortedBy { 
+                when(it.priority) {
+                    "CRITICAL" -> 0
+                    "HIGH" -> 1
+                    "MEDIUM" -> 2
+                    else -> 3
+                }
+            }
         }
     }
 

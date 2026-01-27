@@ -203,6 +203,16 @@ fun FarmLogScreen(
             }
         }
     }
+
+    if (showQuickLogSheet) {
+        QuickLogBottomSheet(
+            products = uiState.activeProducts,
+            onDismiss = { showQuickLogSheet = false },
+            onLogSubmit = { productIds, type, value, notes ->
+                viewModel.submitQuickLog(productIds, type, value, notes)
+            }
+        )
+    }
 }
 
 @Composable

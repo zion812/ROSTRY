@@ -30,6 +30,8 @@ fun FarmAssetDetailScreen(
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     
+    var showTaggingDialog by remember { mutableStateOf(false) }
+    
     // Show messages
     LaunchedEffect(state.successMessage, state.error) {
         state.successMessage?.let {
@@ -40,6 +42,39 @@ fun FarmAssetDetailScreen(
             snackbarHostState.showSnackbar(it)
             viewModel.clearMessages()
         }
+    }
+    
+    if (showTaggingDialog) {
+        val currentGroups = state.tagGroups.map { 
+            TagGroupInput(
+                id = it.id,
+                count = it.count.toString(),
+                gender = it.gender,
+                tagColor = it.color,
+                prefix = it.prefix,
+                startNumber = it.rangeStart.toString()
+            ) 
+        }
+        
+        BatchTaggingDialog(
+            totalQuantity = state.asset?.quantity?.toInt() ?: 0,
+            existingGroups = currentGroups,
+            onDismiss = { showTaggingDialog = false },
+            onConfirm = { inputs ->
+                val groups = inputs.map { input ->
+                    TagGroup(
+                        id = input.id,
+                        count = input.count.toIntOrNull() ?: 0,
+                        gender = input.gender,
+                        color = input.tagColor,
+                        prefix = input.prefix,
+                        rangeStart = input.startNumber.toIntOrNull() ?: 1
+                    )
+                }
+                viewModel.saveTagGroups(groups)
+                showTaggingDialog = false
+            }
+        )
     }
 
     Scaffold(
@@ -135,15 +170,30 @@ fun FarmAssetDetailScreen(
                                     Spacer(Modifier.height(8.dp))
                                 }
                                 
-                                // Quick Action for Auction
-                                IconButton(
-                                    onClick = onCreateAuction,
-                                    colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                ) {
-                                    Icon(Icons.Default.Gavel, contentDescription = "Auction")
+                                // Quick Actions
+                                Row {
+                                    if (asset.assetType == "BATCH" || asset.assetType == "FLOCK") {
+                                        IconButton(
+                                            onClick = { showTaggingDialog = true },
+                                            colors = IconButtonDefaults.filledIconButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                        ) {
+                                            Icon(Icons.Default.Label, contentDescription = "Tag Batch")
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    
+                                    IconButton(
+                                        onClick = onCreateAuction,
+                                        colors = IconButtonDefaults.filledIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.Gavel, contentDescription = "Auction")
+                                    }
                                 }
                             }
 
@@ -159,6 +209,39 @@ fun FarmAssetDetailScreen(
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 InfoItem(label = "Breed", value = asset.breed ?: "Unknown")
                                 InfoItem(label = "Gender", value = asset.gender ?: "Unknown")
+                            }
+                            
+                            // Batch Structure Breakdown
+                            if (state.tagGroups.isNotEmpty()) {
+                                Spacer(Modifier.height(16.dp))
+                                Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                                Spacer(Modifier.height(16.dp))
+                                
+                                Text(
+                                    text = "Batch Structure (Phase 2)",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                
+                                state.tagGroups.forEach { group ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Label, 
+                                            contentDescription = null, 
+                                            modifier = Modifier.size(16.dp),
+                                            tint = getColor(group.color)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = group.label,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -234,6 +317,90 @@ fun FarmAssetDetailScreen(
                                         enabled = !state.isUpdating
                                     )
                                 }
+                            }
+                        }
+                    }
+
+                    // Performance Scorecard (For Batches)
+                    if ((asset.assetType == "BATCH" || asset.assetType == "FLOCK") && state.performance != null) {
+                        val perf = state.performance!!
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = when (perf.grade) {
+                                    "A" -> Color(0xFFE8F5E9) // Light Green
+                                    "B" -> Color(0xFFFFF3E0) // Light Orange
+                                    else -> Color(0xFFFFEBEE) // Light Red
+                                }
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Performance Grade",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    
+                                    Surface(
+                                        shape = androidx.compose.foundation.shape.CircleShape,
+                                        color = when (perf.grade) {
+                                            "A" -> Color(0xFF4CAF50)
+                                            "B" -> Color(0xFFFF9800)
+                                            else -> Color(0xFFE91E63)
+                                        },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = perf.grade,
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(Modifier.height(16.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    MetricBox(
+                                        label = "FCR",
+                                        value = perf.fcr.format(2),
+                                        unit = ""
+                                    )
+                                    MetricBox(
+                                        label = "Mortality",
+                                        value = perf.mortalityRate.format(1),
+                                        unit = "%"
+                                    )
+                                    MetricBox(
+                                        label = "Feed Used",
+                                        value = perf.totalFeedConsumed.format(0),
+                                        unit = "kg"
+                                    )
+                                }
+                                
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = when(perf.grade) {
+                                        "A" -> "Excellent performance! Keep it up."
+                                        "B" -> "Good. Watch feed efficiency."
+                                        else -> "Needs attention. Mortality or Feed use is high."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
                             }
                         }
                     }
@@ -639,3 +806,15 @@ data class RecentActivityEvent(
     val notes: String? = null,
     val quantity: Double? = null
 )
+
+private fun getColor(name: String): Color {
+    return when(name.lowercase()) {
+        "red" -> Color(0xFFE57373)
+        "blue" -> Color(0xFF64B5F6)
+        "green" -> Color(0xFF81C784)
+        "yellow" -> Color(0xFFFFF176)
+        "black" -> Color.Black
+        "white" -> Color.LightGray
+        else -> Color.Gray
+    }
+}

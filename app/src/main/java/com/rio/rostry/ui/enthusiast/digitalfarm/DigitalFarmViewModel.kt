@@ -68,9 +68,14 @@ class DigitalFarmViewModel @Inject constructor(
     }
 
     // Zone bounds for positioning (normalized 0-1 coordinates)
-    private val nurseryZoneBounds = Pair(Offset(0.05f, 0.05f), Offset(0.45f, 0.35f))
-    private val breedingZoneBounds = Pair(Offset(0.55f, 0.05f), Offset(0.95f, 0.35f))
-    private val freeRangeZoneBounds = Pair(Offset(0.1f, 0.4f), Offset(0.9f, 0.65f))
+    // Zone bounds for positioning (normalized 0-1 coordinates)
+    private val nurseryZoneBounds = Pair(Offset(0.05f, 0.05f), Offset(0.30f, 0.30f))
+    private val mainCoopZoneBounds = Pair(Offset(0.35f, 0.05f), Offset(0.65f, 0.30f))
+    private val breedingZoneBounds = Pair(Offset(0.70f, 0.05f), Offset(0.95f, 0.30f))
+    
+    private val freeRangeZoneBounds = Pair(Offset(0.05f, 0.35f), Offset(0.75f, 0.65f))
+    private val quarantineZoneBounds = Pair(Offset(0.80f, 0.35f), Offset(0.95f, 0.60f))
+    
     private val growOutZoneBounds = Pair(Offset(0.05f, 0.7f), Offset(0.45f, 0.9f))
     private val marketZoneBounds = Pair(Offset(0.55f, 0.7f), Offset(0.95f, 0.9f))
     
@@ -236,6 +241,14 @@ class DigitalFarmViewModel @Inject constructor(
         val growOut = allBirds.filter { it.zone == DigitalFarmZone.GROW_OUT }
             .map { it.copy(position = randomPositionInZone(growOutZoneBounds, it.productId.hashCode())) }
 
+        // Group 7: Quarantine
+        val quarantine = allBirds.filter { it.zone == DigitalFarmZone.QUARANTINE }
+            .map { it.copy(position = randomPositionInZone(quarantineZoneBounds, it.productId.hashCode())) }
+
+        // Group 8: Main Coop (General Housing)
+        val mainCoop = allBirds.filter { it.zone == DigitalFarmZone.MAIN_COOP }
+            .map { it.copy(position = randomPositionInZone(mainCoopZoneBounds, it.productId.hashCode())) }
+
         return DigitalFarmState(
             nurseries = nurseries,
             breedingUnits = breedingUnits,
@@ -243,6 +256,8 @@ class DigitalFarmViewModel @Inject constructor(
             growOut = growOut,
             readyDisplay = readyBirds,
             marketReady = marketBirds,
+            quarantine = quarantine,
+            mainCoop = mainCoop,
             isLoading = false
         )
     }
@@ -264,6 +279,9 @@ class DigitalFarmViewModel @Inject constructor(
             entity.readyForSale || 
             (entity.weightGrams != null && entity.targetWeight != null && 
              entity.weightGrams >= entity.targetWeight) -> DigitalFarmZone.READY_DISPLAY
+             
+            // Quarantine (Sick or isolated)
+            entity.healthStatus?.lowercase() in listOf("sick", "quarantined", "isolated", "injured") -> DigitalFarmZone.QUARANTINE
             
             // Breeding unit
             entity.isBreedingUnit -> DigitalFarmZone.BREEDING_UNIT
@@ -277,7 +295,10 @@ class DigitalFarmViewModel @Inject constructor(
             // Grow out (3-6 months = 12-24 weeks)
             ageWeeks in 13..24 -> DigitalFarmZone.GROW_OUT
             
-            // Default to free range for adults
+            // Main Coop (General Population / Adults)
+            ageWeeks > 24 -> DigitalFarmZone.MAIN_COOP
+            
+            // Default to free range for others
             else -> DigitalFarmZone.FREE_RANGE
         }
     }
@@ -383,6 +404,8 @@ class DigitalFarmViewModel @Inject constructor(
                 DigitalFarmZone.GROW_OUT -> _uiState.value.growOut
                 DigitalFarmZone.READY_DISPLAY -> _uiState.value.readyDisplay
                 DigitalFarmZone.MARKET_STAND -> _uiState.value.marketReady
+                DigitalFarmZone.QUARANTINE -> _uiState.value.quarantine
+                DigitalFarmZone.MAIN_COOP -> _uiState.value.mainCoop
                 DigitalFarmZone.NURSERY -> _uiState.value.nurseries.flatMap { it.chicks + it.mother }
                 DigitalFarmZone.BREEDING_UNIT -> _uiState.value.breedingUnits.flatMap { 
                     listOfNotNull(it.rooster) + it.hens 

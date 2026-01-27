@@ -19,7 +19,9 @@ enum class DigitalFarmZone {
     GROW_OUT,       // Medium birds in fenced area (3-6 months)
     BREEDING_UNIT,  // Hut with rooster + hens + eggs
     READY_DISPLAY,  // Champion rooster with gold star
-    MARKET_STAND    // Birds listed for sale
+    MARKET_STAND,   // Birds listed for sale
+    QUARANTINE,     // Sick or isolated birds (Hospital Area)
+    MAIN_COOP       // General housing for others
 }
 
 /**
@@ -151,6 +153,8 @@ data class DigitalFarmState(
     val growOut: List<VisualBird> = emptyList(),
     val readyDisplay: List<VisualBird> = emptyList(),
     val marketReady: List<VisualBird> = emptyList(),
+    val quarantine: List<VisualBird> = emptyList(),
+    val mainCoop: List<VisualBird> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 ) {
@@ -160,7 +164,9 @@ data class DigitalFarmState(
                 freeRange.size +
                 growOut.size +
                 readyDisplay.size +
-                marketReady.size
+                marketReady.size +
+                quarantine.size +
+                mainCoop.size
     
     val isEmpty: Boolean
         get() = totalBirds == 0

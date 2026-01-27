@@ -435,7 +435,7 @@ fun QuickLogBottomSheet(
 
             // Submit button
             val selectionCountText = when {
-                selectedProductIds.isEmpty() -> ""
+                selectedProductIds.isEmpty() -> if (selectedLogType?.isGeneral == true) " for Farm" else " (Select birds)"
                 selectedProductIds.size == 1 -> " for 1 bird"
                 else -> " for ${selectedProductIds.size} birds"
             }
@@ -456,7 +456,7 @@ fun QuickLogBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = selectedLogType != null && inputValue.isNotBlank() && selectedProductIds.isNotEmpty(),
+                enabled = selectedLogType != null && inputValue.isNotBlank() && (selectedProductIds.isNotEmpty() || selectedLogType?.isGeneral == true),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
@@ -468,14 +468,14 @@ fun QuickLogBottomSheet(
     }
 }
 
-enum class QuickLogType(val label: String, val inputLabel: String, val unit: String) {
+enum class QuickLogType(val label: String, val inputLabel: String, val unit: String, val isGeneral: Boolean = false) {
     MORTALITY("Deaths", "Number of birds", "birds"),
     FEED("Feed", "Amount of feed", "kg"),
-    EXPENSE("Expense", "Amount spent", "₹"),
+    EXPENSE("Expense", "Amount spent", "₹", isGeneral = true),
     WEIGHT("Weight", "Average weight", "g"),
     VACCINATION("Vaccination", "Dose/Units given", "doses"),
     DEWORMING("Deworming", "Dose/Units given", "doses"),
     MEDICATION("Medication", "Amount given", "ml/mg"),
-    SANITATION("Sanitation", "Hours spent", "hrs"),
-    MAINTENANCE("Maintenance", "Cost spent", "₹")
+    SANITATION("Sanitation", "Hours spent", "hrs", isGeneral = true),
+    MAINTENANCE("Maintenance", "Cost spent", "₹", isGeneral = true)
 }

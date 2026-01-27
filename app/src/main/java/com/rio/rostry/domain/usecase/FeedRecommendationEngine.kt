@@ -58,9 +58,49 @@ class FeedRecommendationEngine @Inject constructor() {
         
         val primaryCategory = breedCounts.maxByOrNull { it.value }?.key 
             ?: BreedCategory.DUAL_PURPOSE
+            
+        // Gender Analysis for Rooster logic
+        var maleCount = 0
+        var femaleCount = 0
+        birdsAtStage.forEach { product ->
+            val qty = product.quantity?.toInt() ?: 1
+            when (product.gender?.lowercase()) {
+                "male" -> maleCount += qty
+                "female" -> femaleCount += qty
+                else -> {
+                    // Start guessing gender based on name if not set
+                    if (product.name.contains("rooster", true) || product.name.contains("cock", true) || product.name.contains("male", true)) {
+                        maleCount += qty
+                    } else {
+                        // Default to female/unknown bucket if we can't be sure
+                        femaleCount += qty 
+                    }
+                }
+            }
+        }
+        val isRoosterFlock = maleCount > femaleCount
         
         // Get nutrition standard for this stage and category
-        val standard = BreedNutritionStandards.getStandard(stage, primaryCategory)
+        var standard = BreedNutritionStandards.getStandard(stage, primaryCategory)
+        
+        // --- LOGIC FIX: Gender Awareness ---
+        // If this is a "Layer" stage flock but predominantly Male (Roosters), 
+        // they should NOT eat Layer feed (too much calcium).
+        var feedOverride: FeedType? = null
+        val extraNotes = mutableListOf<String>()
+        
+        if (stage == LifecycleStage.LAYER && isRoosterFlock) {
+            feedOverride = if (primaryCategory == BreedCategory.GAMEFOWL) {
+                FeedType.CONDITIONING
+            } else {
+                FeedType.MAINTENANCE
+            }
+            extraNotes.add("🐓 Rooster Alert: Recommending ${feedOverride.displayName} Feed instead of Layer Feed to avoid excess calcium.")
+        }
+        
+        // Apply override if needed
+        val finalFeedType = feedOverride ?: standard.recommendedFeedType
+        // -----------------------------------
         
         // Calculate daily and weekly feed needs
         val dailyFeedGrams = standard.dailyFeedGramsPerBird * totalBirdCount
@@ -71,13 +111,13 @@ class FeedRecommendationEngine @Inject constructor() {
         val isLowInventory = availableInventoryKg?.let { it < weeklyFeedKg } ?: false
         
         // Build notes with Aseel-specific advice if applicable
-        val notes = buildNotes(stage, primaryCategory, standard.additionalNotes)
+        val notes = buildNotes(stage, primaryCategory, standard.additionalNotes, extraNotes)
         
         return FeedRecommendation(
-            feedType = standard.recommendedFeedType,
+            feedType = finalFeedType,
             dailyFeedKg = dailyFeedKg,
             weeklyFeedKg = weeklyFeedKg,
-            proteinTarget = "${standard.recommendedFeedType.proteinPercentMin.toInt()}-${standard.recommendedFeedType.proteinPercentMax.toInt()}%",
+            proteinTarget = "${finalFeedType.proteinPercentMin.toInt()}-${finalFeedType.proteinPercentMax.toInt()}%",
             birdCount = totalBirdCount,
             stage = stage,
             notes = notes,
@@ -122,9 +162,13 @@ class FeedRecommendationEngine @Inject constructor() {
     private fun buildNotes(
         stage: LifecycleStage,
         category: BreedCategory,
-        standardNotes: String?
+        standardNotes: String?,
+        extraNotes: List<String> = emptyList()
     ): String {
         val notes = mutableListOf<String>()
+        
+        // Add dynamic extra notes (e.g., Rooster overrides)
+        notes.addAll(extraNotes)
         
         // Aseel-specific advice (primary breed for the user)
         if (category == BreedCategory.GAMEFOWL) {

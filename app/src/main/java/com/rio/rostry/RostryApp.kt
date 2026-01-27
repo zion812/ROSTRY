@@ -313,6 +313,16 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         
         // One-time migration: Legacy ProductEntity → New Farm Asset Architecture
         scheduleLegacyMigration(workManager)
+
+        // Batch Graduation Worker (Daily)
+        val graduationRequest = PeriodicWorkRequestBuilder<com.rio.rostry.workers.BatchGraduationWorker>(24, TimeUnit.HOURS)
+            .setConstraints(generalConstraints)
+            .build()
+        workManager.enqueueUniquePeriodicWork(
+            com.rio.rostry.workers.BatchGraduationWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            graduationRequest
+        )
     }
     
     private fun scheduleLegacyMigration(workManager: WorkManager) {

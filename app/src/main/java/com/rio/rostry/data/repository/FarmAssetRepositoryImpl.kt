@@ -181,4 +181,38 @@ class FarmAssetRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Failed to mark as sold")
         }
     }
+
+    override suspend fun graduateBatch(batchId: String, newAssets: List<FarmAssetEntity>): Resource<Unit> {
+        return try {
+            // Ideally should be a Room Transaction
+            // 1. Mark batch as CONVERTED
+            val batch = dao.findById(batchId) ?: return Resource.Error("Batch not found")
+            val updatedBatch = batch.copy(
+                status = "CONVERTED",
+                description = batch.description + "\n\n[System] Graduated on ${java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date())}",
+                updatedAt = System.currentTimeMillis(),
+                dirty = true
+            )
+            dao.updateAsset(updatedBatch)
+            
+            // 2. Insert all new assets
+            newAssets.forEach { asset ->
+                dao.insertAsset(asset.copy(dirty = true))
+            }
+            
+            // 3. Sync Attempt (Best effort)
+            // We can do this in background or rely on sync worker, but let's try pushing the batch update at least
+            try {
+                firestore.collection("farm_assets").document(batchId)
+                    .set(updatedBatch.copy(dirty = false), SetOptions.merge())
+            } catch (e: Exception) {
+                Timber.w("Failed to sync graduated batch status immediately")
+            }
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to graduate batch $batchId")
+            Resource.Error(e.message ?: "Graduation failed")
+        }
+    }
 }

@@ -126,12 +126,13 @@ class FarmLogViewModel @Inject constructor(
             val userId = currentUserProvider.userIdOrNull() ?: return@launch
             val now = System.currentTimeMillis()
             
-            productIds.forEach { productId ->
+            if (productIds.isEmpty()) {
+                // General Farm Log
                 val log = FarmActivityLogEntity(
                     activityId = UUID.randomUUID().toString(),
                     farmerId = userId,
-                    productId = productId,
-                    activityType = type.name, // Matches QuickLogType enum name
+                    productId = null,
+                    activityType = type.name,
                     description = notes ?: "Quick Log: ${type.label}",
                     quantity = if (type == QuickLogType.MORTALITY || type == QuickLogType.FEED || type == QuickLogType.VACCINATION) value else null,
                     amountInr = if (type == QuickLogType.EXPENSE || type == QuickLogType.MAINTENANCE) value else null,
@@ -140,6 +141,23 @@ class FarmLogViewModel @Inject constructor(
                     dirty = true
                 )
                 repository.upsert(log)
+            } else {
+                // Product-specific logs
+                productIds.forEach { productId ->
+                    val log = FarmActivityLogEntity(
+                        activityId = UUID.randomUUID().toString(),
+                        farmerId = userId,
+                        productId = productId,
+                        activityType = type.name, // Matches QuickLogType enum name
+                        description = notes ?: "Quick Log: ${type.label}",
+                        quantity = if (type == QuickLogType.MORTALITY || type == QuickLogType.FEED || type == QuickLogType.VACCINATION) value else null,
+                        amountInr = if (type == QuickLogType.EXPENSE || type == QuickLogType.MAINTENANCE) value else null,
+                        createdAt = now,
+                        updatedAt = now,
+                        dirty = true
+                    )
+                    repository.upsert(log)
+                }
             }
         }
     }

@@ -25,6 +25,9 @@ interface FarmAssetDao {
     @Query("SELECT * FROM farm_assets WHERE assetId = :assetId")
     suspend fun findById(assetId: String): FarmAssetEntity?
 
+    @Query("SELECT * FROM farm_assets WHERE status = 'ACTIVE' AND isDeleted = 0")
+    suspend fun getActiveAssetsOneShot(): List<FarmAssetEntity>
+
     @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND isDeleted = 0 ORDER BY createdAt DESC")
     fun getAssetsByFarmer(farmerId: String): Flow<List<FarmAssetEntity>>
 

@@ -95,8 +95,28 @@ class FarmAssetDetailViewModel @Inject constructor(
                 .collect { result ->
                     when (result) {
                         is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
-                        is Resource.Success -> _uiState.update { 
-                            it.copy(isLoading = false, asset = result.data, error = null) 
+                        is Resource.Success -> {
+                            // Parse Tag Groups
+                            val tags = try {
+                                val gson = com.google.gson.Gson()
+                                val type = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
+                                val meta: Map<String, Any> = gson.fromJson(result.data?.metadataJson ?: "{}", type)
+                                val groupsJson = gson.toJson(meta["tagGroups"])
+                                if (meta.containsKey("tagGroups")) {
+                                    val groupType = object : com.google.gson.reflect.TypeToken<List<TagGroup>>() {}.type
+                                    gson.fromJson<List<TagGroup>>(groupsJson, groupType)
+                                } else {
+                                    emptyList()
+                                }
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                            
+                            _uiState.update { 
+                                it.copy(isLoading = false, asset = result.data, tagGroups = tags, error = null) 
+                            }
+                            // Load Performance Metrics
+                            result.data?.let { loadPerformance(it) }
                         }
                         is Resource.Error -> _uiState.update { 
                             it.copy(isLoading = false, error = result.message) 
@@ -157,6 +177,81 @@ class FarmAssetDetailViewModel @Inject constructor(
         }
     }
 
+    private fun loadPerformance(asset: FarmAssetEntity) {
+        viewModelScope.launch {
+            try {
+                // Mortality Rate
+                val initial = asset.initialQuantity
+                val current = asset.quantity
+                val mortalityRate = if (initial > 0) ((initial - current) / initial) * 100 else 0.0
+                
+                // FCR Calculation
+                // Total Feed (kg) / Total Weight Gain (kg)
+                // Gain = (Avg Weight g / 1000) * Current Qty
+                // Note: This assumes initial weight is negligible for FCR calc or included in efficiency
+                val totalFeedKg = activityLogDao.getTotalFeedQuantityForAsset(asset.assetId)
+                val totalWeightKg = (asset.weightGrams ?: 0.0) / 1000.0 * current
+                
+                val fcr = if (totalWeightKg > 0) totalFeedKg / totalWeightKg else 0.0
+                
+                // Grading
+                val grade = when {
+                    fcr > 0 && fcr <= 1.6 && mortalityRate <= 3.0 -> "A"
+                    fcr <= 2.0 && mortalityRate <= 5.0 -> "B"
+                    fcr == 0.0 -> "-" // Not enough data
+                    else -> "C"
+                }
+
+                val performance = BatchPerformance(
+                    fcr = fcr,
+                    mortalityRate = mortalityRate,
+                    grade = grade,
+                    totalFeedConsumed = totalFeedKg
+                )
+                
+                _uiState.update { it.copy(performance = performance) }
+            } catch (e: Exception) {
+                // Silent fail
+            }
+        }
+    }
+
+    fun saveTagGroups(groups: List<TagGroup>) {
+        val current = _uiState.value.asset ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdating = true) }
+            try {
+                // Parse existing metadata or create new
+                val gson = com.google.gson.Gson()
+                val type = object : com.google.gson.reflect.TypeToken<MutableMap<String, Any>>() {}.type
+                val metadata: MutableMap<String, Any> = try {
+                    gson.fromJson(current.metadataJson, type) ?: mutableMapOf()
+                } catch (e: Exception) {
+                    mutableMapOf()
+                }
+                
+                // Update tagGroups key
+                metadata["tagGroups"] = groups
+                
+                val updatedJson = gson.toJson(metadata)
+                val updatedAsset = current.copy(metadataJson = updatedJson, dirty = true)
+                
+                when (val result = repository.updateAsset(updatedAsset)) {
+                    is Resource.Success -> {
+                        _uiState.update { it.copy(isUpdating = false, successMessage = "Tag groups saved") }
+                        loadAsset()
+                    }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isUpdating = false, error = result.message) }
+                    }
+                    else -> Unit
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isUpdating = false, error = "Failed to save tags: ${e.message}") }
+            }
+        }
+    }
+
     fun canCreateListing(): Boolean {
         val asset = _uiState.value.asset ?: return false
         // Cannot list quarantined or archived assets
@@ -172,7 +267,28 @@ data class FarmAssetDetailUiState(
     val isLoading: Boolean = true,
     val isUpdating: Boolean = false,
     val asset: FarmAssetEntity? = null,
+    val tagGroups: List<TagGroup> = emptyList(),
+    val performance: BatchPerformance? = null,
     val error: String? = null,
     val successMessage: String? = null
 )
+
+data class BatchPerformance(
+    val fcr: Double,
+    val mortalityRate: Double,
+    val grade: String,
+    val totalFeedConsumed: Double
+)
+
+data class TagGroup(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val count: Int,
+    val gender: String,
+    val color: String,
+    val prefix: String,
+    val rangeStart: Int
+) {
+    val rangeEnd: Int get() = rangeStart + count - 1
+    val label: String get() = "$count $gender ($color Tag $prefix$rangeStart-$rangeEnd)"
+}
 

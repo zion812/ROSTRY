@@ -72,6 +72,10 @@ interface FarmActivityLogDao {
     /** Get general expenses for a specific asset */
     @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType = 'EXPENSE'")
     suspend fun getTotalOtherExpensesForAsset(assetId: String): Double
+
+    /** Get total feed quantity (kg) for a specific asset */
+    @Query("SELECT COALESCE(SUM(quantity), 0.0) FROM farm_activity_logs WHERE productId = :assetId AND activityType = 'FEED'")
+    suspend fun getTotalFeedQuantityForAsset(assetId: String): Double
     
     // ========================================
     // Farm-Level Aggregate Queries (Profitability Dashboard)

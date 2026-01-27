@@ -199,6 +199,11 @@ object FarmCanvasRenderer {
         }
 
         // Layer 6: Structures
+        // Draw Main Coop in background center
+        drawMainCoop(width, height)
+        // Draw Quarantine Zone on right
+        drawQuarantineZone(width, height)
+        
         drawBreedingHuts(state.breedingUnits, width, height, if (enableParticles) animationTime else 0f)
         drawMarketStand(width, height, state.marketReady.size)
 
@@ -263,10 +268,15 @@ object FarmCanvasRenderer {
         activeZone: DigitalFarmZone? = null
     ) {
         val zones = listOf(
-            ZoneTarget(DigitalFarmZone.FREE_RANGE, 0.1f, 0.5f, 0.4f, 0.35f, Color(0xFF4CAF50)),
-            ZoneTarget(DigitalFarmZone.GROW_OUT, 0.55f, 0.5f, 0.35f, 0.35f, Color(0xFF2196F3)),
-            ZoneTarget(DigitalFarmZone.READY_DISPLAY, 0.4f, 0.3f, 0.2f, 0.15f, Color(0xFFFFD700)),
-            ZoneTarget(DigitalFarmZone.MARKET_STAND, 0.7f, 0.7f, 0.2f, 0.2f, Color(0xFFFF5722))
+            ZoneTarget(DigitalFarmZone.FREE_RANGE, 0.05f, 0.35f, 0.70f, 0.30f, Color(0xFF4CAF50)),
+            ZoneTarget(DigitalFarmZone.GROW_OUT, 0.05f, 0.7f, 0.40f, 0.2f, Color(0xFF2196F3)),
+            ZoneTarget(DigitalFarmZone.READY_DISPLAY, 0.55f, 0.7f, 0.40f, 0.2f, Color(0xFFFFD700)), // Overlaps market but physically distinct in logic
+            // Breeding Huts (0.70, 0.05)
+            ZoneTarget(DigitalFarmZone.BREEDING_UNIT, 0.70f, 0.05f, 0.25f, 0.25f, FarmColors.hutYellow),
+            
+            // New Zones
+            ZoneTarget(DigitalFarmZone.MAIN_COOP, 0.35f, 0.05f, 0.30f, 0.25f, FarmColors.roofRed),
+            ZoneTarget(DigitalFarmZone.QUARANTINE, 0.80f, 0.35f, 0.15f, 0.25f, FarmColors.statusSick)
         )
         
         val pulseAlpha = (0.3f + sin(animationTime * 4f) * 0.15f).coerceIn(0.1f, 0.5f)
@@ -2407,5 +2417,84 @@ object FarmCanvasRenderer {
         drawCircle(Color.White, 5f, Offset(x - 10f, y))
         drawCircle(Color.White, 6f, Offset(x - 3f, y - 2f))
         drawCircle(Color.White, 5f, Offset(x + 4f, y))
+    }
+    
+    // ==================== NEW ZONES ====================
+    
+    private fun DrawScope.drawMainCoop(width: Float, height: Float) {
+        // Bounds: 0.35 to 0.65 (x), 0.05 to 0.30 (y)
+        val left = width * 0.35f
+        val top = height * 0.10f // Slightly lower than very top
+        val w = width * 0.30f
+        val h = height * 0.20f
+        
+        // Barn Body
+        drawRect(
+            color = FarmColors.hutOrange,
+            topLeft = Offset(left, top + h * 0.3f),
+            size = Size(w, h * 0.7f)
+        )
+        
+        // Roof (Triangle)
+        val roofPath = Path().apply {
+            moveTo(left - w * 0.05f, top + h * 0.3f)
+            lineTo(left + w * 0.5f, top)
+            lineTo(left + w * 1.05f, top + h * 0.3f)
+            close()
+        }
+        drawPath(roofPath, FarmColors.roofRed)
+        
+        // Large Door
+        drawRect(
+             color = FarmColors.doorBrown,
+             topLeft = Offset(left + w * 0.35f, top + h * 0.5f),
+             size = Size(w * 0.3f, h * 0.5f)
+        )
+        
+        // Loft Window
+        drawCircle(
+            color = Color.White.copy(alpha=0.7f),
+            radius = w * 0.08f,
+            center = Offset(left + w * 0.5f, top + h * 0.2f)
+        )
+    }
+
+    private fun DrawScope.drawQuarantineZone(width: Float, height: Float) {
+        // Bounds: 0.80 to 0.95 (x), 0.35 to 0.60 (y)
+        val left = width * 0.82f // Slightly inset
+        val top = height * 0.35f
+        val w = width * 0.12f
+        val h = height * 0.25f
+        
+        // Dashed Warning Fence (using simple lines for now for performance)
+        drawRect(
+            color = FarmColors.statusSick.copy(alpha = 0.2f),
+            topLeft = Offset(left, top),
+            size = Size(w, h),
+            style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)))
+        )
+        
+        // Hospital Tent/Icon in corner (just a signpost)
+        val signX = left + w 
+        val signY = top
+        
+        // Pole
+        drawLine(
+            FarmColors.fencePost,
+            Offset(signX, signY),
+            Offset(signX, signY + 30f),
+            strokeWidth = 4f
+        )
+        
+        // Sign Board
+        drawRect(
+            color = Color.White,
+            topLeft = Offset(signX - 15f, signY - 15f),
+            size = Size(30f, 20f)
+        )
+        
+        // Red Cross
+        drawLine(Color.Red, Offset(signX, signY - 12f), Offset(signX, signY + 2f), strokeWidth = 3f)
+        drawLine(Color.Red, Offset(signX - 7f, signY - 5f), Offset(signX + 7f, signY - 5f), strokeWidth = 3f)
     }
 }

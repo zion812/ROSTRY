@@ -30,4 +30,7 @@ interface FarmAssetRepository {
     suspend fun markAsListed(assetId: String, listingId: String, listedAt: Long): Resource<Unit>
     suspend fun markAsDeListed(assetId: String): Resource<Unit>
     suspend fun markAsSold(assetId: String, buyerId: String, price: Double): Resource<Unit>
+
+    // Batch Lifecycle (Phase 3)
+    suspend fun graduateBatch(batchId: String, newAssets: List<FarmAssetEntity>): Resource<Unit>
 }

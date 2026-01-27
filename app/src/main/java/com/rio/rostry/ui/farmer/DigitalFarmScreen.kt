@@ -54,6 +54,7 @@ fun DigitalFarmScreen(
     onManageBird: (String) -> Unit,
     onViewLineage: (String) -> Unit,
     onListForSale: (String) -> Unit,
+    onAddBird: () -> Unit, // Add callback
     onTimelapse: () -> Unit = {},
     onShare: () -> Unit = {}
 ) {
@@ -203,6 +204,7 @@ fun DigitalFarmScreen(
                 }
                 uiState.isEmpty -> {
                     EmptyFarmState(
+                        onAddBird = onAddBird,
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
@@ -502,7 +504,10 @@ private fun StatItem(
 }
 
 @Composable
-private fun EmptyFarmState(modifier: Modifier = Modifier) {
+private fun EmptyFarmState(
+    onAddBird: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier
             .padding(32.dp)
@@ -532,7 +537,7 @@ private fun EmptyFarmState(modifier: Modifier = Modifier) {
                 color = Color.Gray
             )
             Button(
-                onClick = { /* Navigate to add product */ },
+                onClick = onAddBird,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
                 ),
@@ -919,6 +924,8 @@ private fun ZoneTasksBottomSheet(
         com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> Color(0xFFBA68C8) // Purple
         com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> Color(0xFFFFD54F) // Gold
         com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> Color(0xFFFF8A65) // Orange
+        com.rio.rostry.domain.model.DigitalFarmZone.QUARANTINE -> Color(0xFFEF5350) // Red
+        com.rio.rostry.domain.model.DigitalFarmZone.MAIN_COOP -> Color(0xFF8D6E63) // Brown
     }
     
     ModalBottomSheet(
@@ -999,6 +1006,8 @@ private fun getZoneName(zone: com.rio.rostry.domain.model.DigitalFarmZone): Stri
     com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> "Breeding Unit"
     com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> "Ready Display"
     com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> "Market Stand"
+    com.rio.rostry.domain.model.DigitalFarmZone.QUARANTINE -> "Quarantine Zone"
+    com.rio.rostry.domain.model.DigitalFarmZone.MAIN_COOP -> "Main Coop"
 }
 
 @Composable
@@ -1009,6 +1018,8 @@ private fun getZoneIcon(zone: com.rio.rostry.domain.model.DigitalFarmZone): andr
     com.rio.rostry.domain.model.DigitalFarmZone.BREEDING_UNIT -> Icons.Default.Favorite
     com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> Icons.Default.Star
     com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> Icons.Default.Storefront
+    com.rio.rostry.domain.model.DigitalFarmZone.QUARANTINE -> Icons.Default.Warning // Using Warning as generic medical/alert
+    com.rio.rostry.domain.model.DigitalFarmZone.MAIN_COOP -> Icons.Default.Home
 }
 
 private fun getTasksForZone(zone: com.rio.rostry.domain.model.DigitalFarmZone): List<Pair<String, String>> = when (zone) {
@@ -1034,8 +1045,18 @@ private fun getTasksForZone(zone: com.rio.rostry.domain.model.DigitalFarmZone): 
     )
     com.rio.rostry.domain.model.DigitalFarmZone.READY_DISPLAY -> listOf(
         "Final Weight Check" to "Confirm market-ready weight",
-        "Update Listing Photos" to "Take fresh photos for marketplace",
-        "Process Orders" to "Check for any pending enquiries"
+        "Create Listing" to "List ready birds for sale",
+        "Check Orders" to "Review new orders"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.QUARANTINE -> listOf(
+        "Isolate Sick Birds" to "Keep separate from healthy flock",
+        "Administer Medication" to "Follow vet instructions",
+        "Disinfect Area" to "Clean area daily"
+    )
+    com.rio.rostry.domain.model.DigitalFarmZone.MAIN_COOP -> listOf(
+        "Collect Eggs" to "Gather eggs from nesting boxes",
+        "Clean Bedding" to "Replace soiled litter",
+        "Check Ventilation" to "Ensure good airflow"
     )
     com.rio.rostry.domain.model.DigitalFarmZone.MARKET_STAND -> listOf(
         "Update Prices" to "Adjust prices based on market rates",
