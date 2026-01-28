@@ -165,6 +165,7 @@ object Routes {
         const val PRODUCT_MODERATION = "admin/products"
         const val ORDER_INTERVENTION = "admin/orders"
         const val AUDIT_LOGS = "admin/audit"
+        const val UPGRADE_REQUESTS = "admin/upgrade_requests"
     }
 
     object Marketplace {
@@ -537,7 +538,7 @@ object Routes {
         accessibleRoutes = generalConfig.accessibleRoutes + 
                            farmerConfig.accessibleRoutes + 
                            enthusiastConfig.accessibleRoutes + 
-                           setOf(Admin.VERIFICATION, Routes.PUBLIC_BIRD_LOOKUP)
+                           setOf(Admin.VERIFICATION, Routes.PUBLIC_BIRD_LOOKUP, Admin.UPGRADE_REQUESTS)
     )
 
     fun configFor(role: UserType): RoleNavigationConfig = when (role) {

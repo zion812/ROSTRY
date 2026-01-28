@@ -93,4 +93,25 @@ data class FarmAssetEntity(
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
     val dirty: Boolean = false // For sync
-)
+) {
+    val isEligibleForGraduation: Boolean
+        get() = (assetType == "BATCH" || assetType == "FLOCK") &&
+                (ageWeeks ?: 0) >= 30 && // 30 weeks ~ 7 months
+                status == "ACTIVE"
+
+    val hasGraduationTags: Boolean
+        get() = metadataJson.contains("\"tagGroups\"") && !metadataJson.contains("\"tagGroups\":[]")
+
+    class StringListConverter {
+        @androidx.room.TypeConverter
+        fun fromStringList(value: List<String>?): String? {
+            return value?.let { com.google.gson.Gson().toJson(it) }
+        }
+
+        @androidx.room.TypeConverter
+        fun toStringList(value: String?): List<String>? {
+            val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+            return value?.let { com.google.gson.Gson().fromJson(it, listType) }
+        }
+    }
+}

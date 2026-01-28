@@ -1532,36 +1532,7 @@ private fun RoleNavGraph(
 
         // ============ Missing Enthusiast Routes (Deep Audit Fix) ============
         
-        // Pedigree Screen - View lineage/ancestry of a bird
-        composable(
-            route = Routes.EnthusiastNav.PEDIGREE,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            if (productId.isBlank()) {
-                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
-            } else {
-                com.rio.rostry.ui.enthusiast.pedigree.PedigreeScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onBirdClick = { id -> navController.navigate(Routes.Builders.productDetails(id)) }
-                )
-            }
-        }
-        
-        // Showcase Card Preview Screen
-        composable(
-            route = Routes.EnthusiastNav.SHOWCASE_CARD,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            if (productId.isBlank()) {
-                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
-            } else {
-                com.rio.rostry.ui.enthusiast.showcase.ShowcaseCardPreviewScreen(
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-        }
+        // Pedigree and Showcase routes are already registered above (lines 1484-1504)
         
         // Transfer Code Screen
         composable(
@@ -2325,6 +2296,7 @@ private fun RoleNavGraph(
                 onNavigateToBiosecurity = { navController.navigate(Routes.Admin.BIOSECURITY) },
                 onNavigateToMortality = { navController.navigate(Routes.Admin.MORTALITY_DASHBOARD) },
                 onNavigateToDisputes = { navController.navigate(Routes.Admin.DISPUTES) },
+                onNavigateTo = { navController.navigate(it) },
                 pendingVerificationsCount = state.pendingVerificationCount
             )
         }
@@ -3036,6 +3008,38 @@ private fun RoleNavGraph(
         // Sync issues screen
         composable(Routes.SYNC_ISSUES) {
             SyncIssuesScreen(navController = navController)
+        }
+
+        composable(Routes.Admin.DASHBOARD) {
+            val pendingCount = state.pendingVerificationCount
+            com.rio.rostry.ui.admin.AdminDashboardScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToVerification = { navController.navigate(Routes.Admin.VERIFICATION) },
+                onNavigateToUserManagement = { navController.navigate(Routes.Admin.USER_MANAGEMENT) },
+                onNavigateToBiosecurity = { navController.navigate(Routes.Admin.BIOSECURITY) },
+                onNavigateToMortality = { navController.navigate(Routes.Admin.MORTALITY_DASHBOARD) },
+                onNavigateToDisputes = { navController.navigate(Routes.Admin.DISPUTES) },
+                onNavigateTo = { navController.navigate(it) },
+                pendingVerificationsCount = pendingCount
+            )
+        }
+
+        composable(Routes.Admin.UPGRADE_REQUESTS) {
+            com.rio.rostry.ui.admin.AdminUpgradeRequestsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                currentUserProvider = sessionVm.currentUserProvider
+            )
+        }
+
+        // Missing Admin Routes
+        composable(Routes.Admin.PRODUCT_MODERATION) {
+             PlaceholderScreen(title = "Product Moderation")
+        }
+        composable(Routes.Admin.ORDER_INTERVENTION) {
+             PlaceholderScreen(title = "Order Intervention")
+        }
+        composable(Routes.Admin.AUDIT_LOGS) {
+             PlaceholderScreen(title = "Audit Logs")
         }
     }
 }

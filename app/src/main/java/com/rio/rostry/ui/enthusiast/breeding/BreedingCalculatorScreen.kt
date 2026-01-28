@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,7 @@ fun BreedingCalculatorScreen(
     val vm: BreedingCalculatorViewModel = hiltViewModel()
     val selectionState by vm.selectionState.collectAsState()
     val prediction by vm.prediction.collectAsState()
+    val compatibility by vm.compatibility.collectAsState()
     
     val sire = selectionState.first
     val dam = selectionState.second
@@ -114,15 +116,13 @@ fun BreedingCalculatorScreen(
             Spacer(Modifier.height(16.dp))
 
             // Prediction Results
-            if (prediction != null) {
+            if (prediction != null && compatibility != null) {
                 val p = prediction!!
+                val c = compatibility!!
                 Text("Prediction Results", style = MaterialTheme.typography.titleLarge)
                 
                 // Compatibility Score Card
-                CompatibilityScoreCard(
-                    sire = sire,
-                    dam = dam
-                )
+                CompatibilityScoreCard(result = c)
                 
                 Spacer(Modifier.height(8.dp))
                 
@@ -131,12 +131,21 @@ fun BreedingCalculatorScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ResultRow("Weight", "${"%.2f".format(p.weightRange.min / 1000)} - ${"%.2f".format(p.weightRange.max / 1000)} kg")
-                        ResultRow("Height", "${"%.1f".format(p.heightRange.min)} - ${"%.1f".format(p.heightRange.max)} cm")
+                        ResultRow("Est. Weight", "${"%.2f".format(p.weightRange.min / 1000)} - ${"%.2f".format(p.weightRange.max / 1000)} kg")
+                        ResultRow("Est. Height", "${"%.1f".format(p.heightRange.min)} - ${"%.1f".format(p.heightRange.max)} cm")
                         
                         Divider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
                         
-                        Text("Color Probability:", fontWeight = FontWeight.Bold)
+                        Text("Predicted Characteristics:", fontWeight = FontWeight.Bold)
+                        // Traits from Genetic Engine
+                        if (p.likelyTraits.isNotEmpty()) {
+                             p.likelyTraits.forEach { 
+                                 Text("• $it", style = MaterialTheme.typography.bodyMedium)
+                             }
+                             Spacer(Modifier.height(8.dp))
+                        }
+                        
+                        Text("Color Probability (Punnett):", fontWeight = FontWeight.Bold)
                         p.colorProbabilities.forEach { prob ->
                              Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(prob.item)
@@ -265,34 +274,19 @@ fun BirdSelectionDialog(
 }
 
 /**
- * Compatibility Score Card - Calculates and displays breed compatibility.
+ * Compatibility Score Card - Displays real calculated score from domain logic.
  */
 @Composable
 private fun CompatibilityScoreCard(
-    sire: ProductEntity?,
-    dam: ProductEntity?
+    result: BreedingCompatibilityCalculator.CompatibilityResult
 ) {
-    if (sire == null || dam == null) return
-    
-    // Calculate compatibility score based on various factors
-    val breedMatch = if (sire.breed?.equals(dam.breed, ignoreCase = true) == true) 30 else 15
-    val ageCompatibility = calculateAgeCompatibility(sire.ageWeeks, dam.ageWeeks)
-    val healthBonus = if (sire.healthStatus == "HEALTHY" && dam.healthStatus == "HEALTHY") 20 else 10
-    
-    val totalScore = minOf(100, breedMatch + ageCompatibility + healthBonus + 30) // Base 30 for having both parents
+    val totalScore = result.score
     
     val scoreColor = when {
-        totalScore >= 80 -> Color(0xFF4CAF50) // Green - Excellent
-        totalScore >= 60 -> Color(0xFFFFB300) // Amber - Good
-        totalScore >= 40 -> Color(0xFFFF9800) // Orange - Fair
-        else -> Color(0xFFD32F2F) // Red - Poor
-    }
-    
-    val recommendation = when {
-        totalScore >= 80 -> "Excellent Match! 🌟"
-        totalScore >= 60 -> "Good Pairing 👍"
-        totalScore >= 40 -> "Fair Compatibility"
-        else -> "Consider Other Options"
+        totalScore >= 80 -> Color(0xFF4CAF50) // Green 
+        totalScore >= 60 -> Color(0xFFFFB300) // Amber 
+        totalScore >= 40 -> Color(0xFFFF9800) // Orange 
+        else -> Color(0xFFD32F2F) // Red 
     }
     
     Card(
@@ -303,11 +297,20 @@ private fun CompatibilityScoreCard(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "Compatibility Score",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Compatibility Score",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (result.coiPercent > 10.0) {
+                   Spacer(Modifier.width(8.dp))
+                   // Warning Badge
+                    Box(Modifier.background(Color.Red, RoundedCornerShape(4.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
+                        Text("INBREEDING RISK", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
             
             Spacer(Modifier.height(12.dp))
             
@@ -334,42 +337,32 @@ private fun CompatibilityScoreCard(
             }
             
             Text(
-                recommendation,
+                result.verdict,
                 style = MaterialTheme.typography.titleSmall,
                 color = scoreColor,
                 fontWeight = FontWeight.SemiBold
             )
+            if (result.coiPercent > 0) {
+                 Text(
+                    "COI: ${"%.2f".format(result.coiPercent)}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if(result.coiPercent > 6.25) Color.Red else Color.Gray
+                )
+            }
             
             Spacer(Modifier.height(8.dp))
             
-            // Score breakdown
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ScoreFactor("Breed", if (breedMatch >= 30) "✓ Same" else "Mixed")
-                ScoreFactor("Age", if (ageCompatibility >= 20) "✓ Ideal" else "Okay")
-                ScoreFactor("Health", if (healthBonus >= 20) "✓ Both" else "Check")
+            // Reasons
+            result.reasons.forEach { reason ->
+                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
+                     val isBad = reason.contains("WARNING") || reason.contains("CRITICAL")
+                     Text(
+                         text = if (isBad) "⚠️ $reason" else "✓ $reason",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = if (isBad) Color.Red else Color.DarkGray // Ideally OnSurface
+                     )
+                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ScoreFactor(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-    }
-}
-
-private fun calculateAgeCompatibility(sireAge: Int?, damAge: Int?): Int {
-    if (sireAge == null || damAge == null) return 15
-    val ageDiff = kotlin.math.abs(sireAge - damAge)
-    return when {
-        ageDiff <= 8 -> 25  // Within 2 months difference
-        ageDiff <= 16 -> 20 // Within 4 months
-        ageDiff <= 26 -> 15 // Within 6 months
-        else -> 10
     }
 }

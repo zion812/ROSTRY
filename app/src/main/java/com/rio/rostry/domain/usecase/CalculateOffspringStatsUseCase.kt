@@ -1,14 +1,17 @@
 package com.rio.rostry.domain.usecase
 
 import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.domain.breeding.GeneticEngine
 import com.rio.rostry.domain.model.BreedingPrediction
 import com.rio.rostry.domain.model.Probability
 import com.rio.rostry.domain.model.Range
 import javax.inject.Inject
 
-class CalculateOffspringStatsUseCase @Inject constructor() {
+class CalculateOffspringStatsUseCase @Inject constructor(
+    private val geneticEngine: GeneticEngine
+) {
 
-    operator fun invoke(sire: ProductEntity, dam: ProductEntity): BreedingPrediction {
+    suspend operator fun invoke(sire: ProductEntity, dam: ProductEntity): BreedingPrediction {
         // Weight Calculation: Average +/- 10%
         val sireWeight = sire.weightGrams ?: 3000.0 // Default 3kg if missing
         val damWeight = dam.weightGrams ?: 2500.0   // Default 2.5kg if missing
@@ -23,21 +26,29 @@ class CalculateOffspringStatsUseCase @Inject constructor() {
         val minHeight = avgHeight * 0.95
         val maxHeight = avgHeight * 1.05
 
-        // Color Probability
-        val sireColor = sire.colorTag ?: sire.color ?: "Unknown"
-        val damColor = dam.colorTag ?: dam.color ?: "Unknown"
+        // Color Probability using Genetic Engine Punnett Square
+        val sireColorGeno = geneticEngine.inferGenotype(GeneticEngine.TraitType.PLUMAGE_COLOR, sire.color ?: sire.colorTag)
+        val damColorGeno = geneticEngine.inferGenotype(GeneticEngine.TraitType.PLUMAGE_COLOR, dam.color ?: dam.colorTag)
         
-        val colorProbs = if (sireColor.equals(damColor, ignoreCase = true) && sireColor != "Unknown") {
-            listOf(
-                Probability(sireColor, 80),
-                Probability("Other/Mixed", 20)
-            )
+        val colorPrediction = geneticEngine.simulateCross(sireColorGeno, damColorGeno)
+        
+        // Map GeneticEngine results to Probability model
+        val colorProbs = if (colorPrediction.probabilities.isNotEmpty()) {
+            colorPrediction.probabilities.map { 
+                Probability(
+                    item = it.phenotypeDescription,
+                    percentage = it.percentage
+                )
+            }
         } else {
-            listOf(
-                Probability(sireColor, 40),
-                Probability(damColor, 40),
-                Probability("Mixed", 20)
-            )
+             // Fallback for Unknown genetics
+             val sireColor = sire.colorTag ?: sire.color ?: "Unknown"
+             val damColor = dam.colorTag ?: dam.color ?: "Unknown"
+             if (sireColor.equals(damColor, ignoreCase = true) && sireColor != "Unknown") {
+                listOf(Probability(sireColor, 80), Probability("Other", 20))
+             } else {
+                listOf(Probability(sireColor, 40), Probability(damColor, 40), Probability("Mixed", 20))
+             }
         }
 
         return BreedingPrediction(
@@ -50,13 +61,21 @@ class CalculateOffspringStatsUseCase @Inject constructor() {
 
     private fun combineTraits(sire: ProductEntity, dam: ProductEntity): List<String> {
         val traits = mutableSetOf<String>()
-        // Simple logic: if both have "show quality" or similar tags in description/breed
-        // For now, just placeholder logic based on simple properties
         if (sire.breed == dam.breed) {
             traits.add("Pure Breed")
         } else {
             traits.add("Cross Breed")
         }
+        
+        // Add Comb prediction if data exists
+        // simplified usage
+        val sireComb = geneticEngine.inferGenotype(GeneticEngine.TraitType.COMB, "Rose") // Mock reading form attributes
+        val damComb = geneticEngine.inferGenotype(GeneticEngine.TraitType.COMB, "Single")
+        val combPred = geneticEngine.simulateCross(sireComb, damComb)
+        if(combPred.probabilities.isNotEmpty()) {
+             traits.add("Comb: " + combPred.probabilities.first().phenotypeDescription)
+        }
+        
         return traits.toList()
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator
 import com.rio.rostry.domain.model.BreedingPrediction
 import com.rio.rostry.domain.usecase.CalculateOffspringStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class BreedingCalculatorViewModel @Inject constructor(
     private val productRepository: ProductRepository,
-    private val calculateOffspringStats: CalculateOffspringStatsUseCase
+    private val calculateOffspringStats: CalculateOffspringStatsUseCase,
+    private val compatibilityCalculator: BreedingCompatibilityCalculator
 ) : ViewModel() {
 
     // Selecting Sire and Dam from locally available birds
@@ -34,6 +36,9 @@ class BreedingCalculatorViewModel @Inject constructor(
 
     private val _prediction = MutableStateFlow<BreedingPrediction?>(null)
     val prediction = _prediction.asStateFlow()
+
+    private val _compatibility = MutableStateFlow<BreedingCompatibilityCalculator.CompatibilityResult?>(null)
+    val compatibility = _compatibility.asStateFlow()
     
     // Combining selection and birds to get ProductEntity objects
     val selectionState = combine(selectedSireId, selectedDamId, myBirds) { sireId, damId, birdsResource ->
@@ -58,14 +63,20 @@ class BreedingCalculatorViewModel @Inject constructor(
     }
 
     private fun calculateIfReady() {
-        val currentState = selectionState.value
-        val sire = currentState.first
-        val dam = currentState.second
+        // Need to collect current state from flows eagerly or wait? 
+        // selectionState is derived, so we can launch and collect logic
+        viewModelScope.launch {
+            // Give time for derived state to update? 
+            // Better to re-fetch from ID or just rely on state collection
+            val currentState = selectionState.value
+            val sire = currentState.first ?: return@launch
+            val dam = currentState.second ?: return@launch
+            
+            // Double check IDs match (state consistency)
+            if (sire.productId != _selectedSireId.value || dam.productId != _selectedDamId.value) return@launch
 
-        if (sire != null && dam != null) {
             _prediction.value = calculateOffspringStats(sire, dam)
-        } else {
-            _prediction.value = null
+            _compatibility.value = compatibilityCalculator.calculateCompatibility(sire, dam)
         }
     }
 }
