@@ -115,7 +115,10 @@ fun ShowRecordsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(uiState.records) { record ->
-                        ShowRecordCard(record = record)
+                        ShowRecordCard(
+                            record = record,
+                            onDelete = { recordId -> viewModel.deleteRecord(recordId) }
+                        )
                     }
                 }
             }
@@ -179,8 +182,12 @@ private fun StatColumn(value: String, label: String, icon: String) {
 }
 
 @Composable
-private fun ShowRecordCard(record: ShowRecordEntity) {
+private fun ShowRecordCard(
+    record: ShowRecordEntity,
+    onDelete: (String) -> Unit
+) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     
     val resultColor = when (record.result) {
         ShowRecordEntity.RESULT_WIN, ShowRecordEntity.RESULT_1ST -> Color(0xFFFFD700) // Gold
@@ -203,57 +210,93 @@ private fun ShowRecordCard(record: ShowRecordEntity) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Result Badge
-            Surface(
-                shape = CircleShape,
-                color = resultColor.copy(alpha = 0.2f),
-                modifier = Modifier.size(48.dp)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(resultEmoji, style = MaterialTheme.typography.titleLarge)
+                // Result Badge
+                Surface(
+                    shape = CircleShape,
+                    color = resultColor.copy(alpha = 0.2f),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(resultEmoji, style = MaterialTheme.typography.titleLarge)
+                    }
                 }
-            }
-            
-            Spacer(Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    record.eventName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    "${record.recordType} • ${dateFormat.format(Date(record.eventDate))}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (record.placement != null) {
+                
+                Spacer(Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Placed #${record.placement}" + (record.totalParticipants?.let { " of $it" } ?: ""),
+                        record.eventName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "${record.recordType} • ${dateFormat.format(Date(record.eventDate))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (record.placement != null) {
+                        Text(
+                            "Placed #${record.placement}" + (record.totalParticipants?.let { " of $it" } ?: ""),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = resultColor
+                        )
+                    }
+                }
+                
+                // Result label
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = resultColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        record.result,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelMedium,
-                        color = resultColor
+                        color = resultColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                // Delete Button
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete Record",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-            
-            // Result label
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = resultColor.copy(alpha = 0.15f)
-            ) {
-                Text(
-                    record.result,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = resultColor,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
+    }
+    
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Record") },
+            text = { Text("Are you sure you want to delete this show record? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(record.recordId)
+                        showDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

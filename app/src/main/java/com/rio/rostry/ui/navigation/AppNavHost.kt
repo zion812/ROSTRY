@@ -2061,6 +2061,18 @@ private fun RoleNavGraph(
             )
         }
 
+        // Show Records Screen
+        composable(
+            route = Routes.EnthusiastNav.SHOW_LOG,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         // Virtual Arena High-Level Route
         composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
              com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(

@@ -1,5 +1,6 @@
 package com.rio.rostry.ui.farmer.asset
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -52,7 +53,7 @@ fun FarmAssetDetailScreen(
                 gender = it.gender,
                 tagColor = it.color,
                 prefix = it.prefix,
-                startNumber = it.rangeStart.toString()
+                startNumber = it.startNumber.toString()
             ) 
         }
         
@@ -68,7 +69,7 @@ fun FarmAssetDetailScreen(
                         gender = input.gender,
                         color = input.tagColor,
                         prefix = input.prefix,
-                        rangeStart = input.startNumber.toIntOrNull() ?: 1
+                        startNumber = input.startNumber.toIntOrNull() ?: 1
                     )
                 }
                 viewModel.saveTagGroups(groups)
@@ -147,6 +148,48 @@ fun FarmAssetDetailScreen(
                     ) {
                         AssetStatusChip(status = asset.status)
                         AssetTypeChip(type = asset.assetType)
+                    }
+
+                    // Graduation Status Banner
+                    if (asset.isEligibleForGraduation) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (asset.hasGraduationTags) Color(0xFFE8F5E9) else Color(0xFFFFF8E1)
+                            ),
+                            border = BorderStroke(1.dp, if (asset.hasGraduationTags) Color(0xFF4CAF50) else Color(0xFFFFC107))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (asset.hasGraduationTags) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = if (asset.hasGraduationTags) Color(0xFF4CAF50) else Color(0xFFFFA000),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        text = if (asset.hasGraduationTags) "Ready for Graduation" else "Graduation Pending: Missing Tags",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (asset.hasGraduationTags) 
+                                            "This batch will be automatically graduated soon." 
+                                        else 
+                                            "This batch is ready to graduate. Please add tag rules to proceed.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Main Info Card
@@ -515,6 +558,18 @@ fun FarmAssetDetailScreen(
                         Icon(Icons.Default.AccountTree, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("View Family Tree")
+                    }
+
+                    // View Show Records Button
+                    OutlinedButton(
+                        onClick = { 
+                            onNavigateRoute(com.rio.rostry.ui.navigation.Routes.EnthusiastNav.showLog(assetId))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.EmojiEvents, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("View Show Records")
                     }
 
                     // Showcase Toggle & Share

@@ -2,8 +2,8 @@ package com.rio.rostry.ui.enthusiast.showrecords
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.data.database.entity.ShowRecordEntity
+import com.rio.rostry.data.repository.ShowRecordRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ShowRecordsViewModel @Inject constructor(
-    private val showRecordDao: ShowRecordDao,
+    private val showRecordRepository: ShowRecordRepository,
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
@@ -35,7 +35,7 @@ class ShowRecordsViewModel @Inject constructor(
         currentProductId = productId
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            showRecordDao.observeByProduct(productId).collect { records ->
+            showRecordRepository.getRecordsForProduct(productId).collect { records ->
                 _uiState.update { it.copy(records = records, isLoading = false) }
             }
         }
@@ -66,14 +66,14 @@ class ShowRecordsViewModel @Inject constructor(
                 dirty = true
             )
             
-            showRecordDao.upsert(record)
+            showRecordRepository.addRecord(record)
             _uiState.update { it.copy(message = "Record added successfully") }
         }
     }
     
     fun deleteRecord(recordId: String) {
         viewModelScope.launch {
-            showRecordDao.softDelete(recordId)
+            showRecordRepository.deleteRecord(recordId)
             _uiState.update { it.copy(message = "Record deleted") }
         }
     }
