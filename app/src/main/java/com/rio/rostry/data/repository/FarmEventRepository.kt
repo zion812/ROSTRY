@@ -18,6 +18,9 @@ class FarmEventRepository @Inject constructor(
     private val farmEventDao: FarmEventDao,
     private val taskDao: TaskDao,
     private val vaccinationRecordDao: VaccinationRecordDao,
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
+    private val vaccinationRecommendationEngine: com.rio.rostry.domain.monitoring.VaccinationRecommendationEngine,
+    private val dewormingRecommendationEngine: com.rio.rostry.domain.monitoring.DewormingRecommendationEngine
 ) {
 
     fun getCalendarEvents(farmerId: String): Flow<List<CalendarEvent>> {
@@ -39,16 +42,17 @@ class FarmEventRepository @Inject constructor(
         // if IDs collide or if we try to save them back. 
         // Better to return a sealed class or a unified UI model.
         
-        // The plan mentions "created FarmEventEntity... Fields: eventId...".
-        // It also says "Repository: Aggregate events...".
         // I will define a unified model `CalendarEvent` here for now.
         
         return combine(
+        
             farmEventsFlow,
             taskDao.observeByFarmer(farmerId),
-            vaccinationRecordDao.observeByFarmer(farmerId)
-        ) { farmEvents, tasks, vaccinations -> 
-            val events = farmEvents.map { it.toCalendarEvent() }
+            vaccinationRecordDao.observeByFarmer(farmerId),
+            farmAssetDao.getAllAssets(farmerId)
+        ) { farmEvents: List<FarmEventEntity>, tasks: List<com.rio.rostry.data.database.entity.TaskEntity>, vaccinations: List<com.rio.rostry.data.database.entity.VaccinationRecordEntity>, assets: List<com.rio.rostry.data.database.entity.FarmAssetEntity> -> 
+            // Explicitly map each list to avoid type inference issues
+            val events: List<CalendarEvent> = farmEvents.map { it.toCalendarEvent() }
             
             val taskEvents = tasks.map { task ->
                 CalendarEvent(
@@ -74,7 +78,16 @@ class FarmEventRepository @Inject constructor(
                 )
             }
             
-            (events + taskEvents + vaccinationEvents).sortedBy { it.date }
+            val recommendations: List<CalendarEvent> = vaccinationRecommendationEngine.generateRecommendations(assets, vaccinations)
+            
+            // Filter Completed Deworming Events for History Check
+            val completedDeworming = farmEvents.filter { 
+                it.eventType == FarmEventType.DEWORMING && it.status == EventStatus.COMPLETED 
+            }
+            val dewormingRecommendations: List<CalendarEvent> = dewormingRecommendationEngine.generateRecommendations(assets, completedDeworming)
+            
+            val allEvents = events + taskEvents + vaccinationEvents + recommendations + dewormingRecommendations
+            allEvents.sortedBy { it.date }
         }
     }
 
@@ -126,9 +139,10 @@ data class CalendarEvent(
     val type: FarmEventType,
     val status: EventStatus,
     val source: EventSource,
-    val originalEntity: FarmEventEntity? = null
+    val originalEntity: FarmEventEntity? = null,
+    val metadata: Map<String, String>? = null
 )
 
 enum class EventSource {
-    FARM_EVENT, TASK, VACCINATION_RECORD
+    FARM_EVENT, TASK, VACCINATION_RECORD, RECOMMENDATION
 }

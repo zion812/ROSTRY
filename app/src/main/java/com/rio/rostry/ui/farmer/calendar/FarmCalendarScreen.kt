@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.data.database.entity.FarmEventType
 import com.rio.rostry.data.repository.CalendarEvent
+import com.rio.rostry.data.repository.EventSource
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -351,6 +352,15 @@ fun EventItem(
                         .format(DateTimeFormatter.ofPattern("HH:mm")),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            if (event.source == EventSource.RECOMMENDATION) {
+                 Text(
+                    text = "Recommended",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(end = 8.dp)
                 )
             }
             
