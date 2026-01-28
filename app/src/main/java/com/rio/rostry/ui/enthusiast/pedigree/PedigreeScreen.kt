@@ -648,29 +648,14 @@ private fun exportPedigreePdf(
     birdName: String,
     tree: PedigreeTree
 ) {
-    try {
-        val pedigreeText = buildPedigreeText(birdName, tree)
-        val fileName = "Pedigree_${birdName.replace(" ", "_")}_${System.currentTimeMillis()}.txt"
-        
-        // Save to Downloads using MediaStore for Android 10+
-        val contentValues = android.content.ContentValues().apply {
-            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
-        }
-        
-        val uri = context.contentResolver.insert(
-            android.provider.MediaStore.Files.getContentUri("external"),
-            contentValues
-        )
-        
-        uri?.let {
-            context.contentResolver.openOutputStream(it)?.use { output ->
-                output.write(pedigreeText.toByteArray())
-            }
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
+    val generator = PedigreePdfGenerator(context)
+    val fileName = generator.generateAndSavePdf(birdName, tree)
+    
+    if (fileName != null) {
+        // Success handled by caller showing snackbar "PDF saved to Downloads"
+    } else {
+        // Handle error if needed
+        android.widget.Toast.makeText(context, "Failed to generate PDF", android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 
