@@ -38,6 +38,7 @@ class ShowcaseCardViewModel @Inject constructor(
     private val showcaseCardGenerator: ShowcaseCardGenerator,
     private val productDao: ProductDao,
     private val vaccinationRecordDao: VaccinationRecordDao,
+    private val showRecordRepository: com.rio.rostry.data.repository.ShowRecordRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -45,6 +46,9 @@ class ShowcaseCardViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow<ShowcaseCardUiState>(ShowcaseCardUiState.Loading)
     val uiState: StateFlow<ShowcaseCardUiState> = _uiState.asStateFlow()
+    
+    private val _config = MutableStateFlow(com.rio.rostry.domain.showcase.ShowcaseConfig())
+    val config: StateFlow<com.rio.rostry.domain.showcase.ShowcaseConfig> = _config.asStateFlow()
     
     private var currentCard: ShowcaseCard? = null
     
@@ -54,6 +58,11 @@ class ShowcaseCardViewModel @Inject constructor(
         } else {
             _uiState.value = ShowcaseCardUiState.Error("No bird selected")
         }
+    }
+    
+    fun updateConfig(newConfig: com.rio.rostry.domain.showcase.ShowcaseConfig) {
+        _config.value = newConfig
+        generateCard()
     }
     
     private fun generateCard() {
@@ -70,9 +79,15 @@ class ShowcaseCardViewModel @Inject constructor(
                 // Get vaccination count
                 val vaccinationCount = vaccinationRecordDao.getRecordsByProduct(productId).size
                 
+                // Get show stats
+                val statsResource = showRecordRepository.getStats(productId)
+                val stats = if (statsResource is Resource.Success) statsResource.data ?: emptyList() else emptyList()
+                
                 // Generate card
                 when (val result = showcaseCardGenerator.generateCard(
                     bird = bird,
+                    config = _config.value,
+                    stats = stats,
                     vaccinationCount = vaccinationCount
                 )) {
                     is Resource.Success -> {
@@ -96,8 +111,6 @@ class ShowcaseCardViewModel @Inject constructor(
             }
         }
     }
-    
-
     
     fun regenerate() {
         generateCard()

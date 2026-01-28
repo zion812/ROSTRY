@@ -55,8 +55,13 @@ class ShowcaseCardGenerator @Inject constructor(
     /**
      * Generate a showcase card bitmap for a bird.
      */
+    /**
+     * Generate a showcase card bitmap for a bird.
+     */
     suspend fun generateCard(
         bird: ProductEntity,
+        config: ShowcaseConfig,
+        stats: List<com.rio.rostry.data.database.dao.ShowRecordStats>,
         vaccinationCount: Int = 0
     ): Resource<ShowcaseCard> {
         return withContext(Dispatchers.IO) {
@@ -71,12 +76,24 @@ class ShowcaseCardGenerator @Inject constructor(
                 val bitmap = Bitmap.createBitmap(CARD_WIDTH, CARD_HEIGHT, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bitmap)
                 
-                // Draw card
-                drawBackground(canvas)
-                drawBirdPhoto(canvas, bird)
-                drawBirdInfo(canvas, bird)
-                drawBadges(canvas, completeness, vaccinationCount)
-                drawBranding(canvas)
+                // Draw card with theme
+                drawBackground(canvas, config.theme)
+                drawBirdPhoto(canvas, bird, config.theme)
+                drawBirdInfo(canvas, bird, config, config.theme)
+                
+                // Draw dynamic sections based on config
+                var currentY = 1100f
+                
+                if (config.showPedigreeBadge || config.showVaccinationBadge) {
+                    drawBadges(canvas, completeness, vaccinationCount, config, currentY)
+                    currentY += 160f
+                }
+                
+                if (config.showWins || config.showAge || config.showWeight) {
+                     drawStats(canvas, bird, stats, config, currentY)
+                }
+
+                drawBranding(canvas, config.theme)
                 
                 // Save to cache
                 val file = saveToCacheFile(bitmap, bird.productId)
@@ -94,31 +111,35 @@ class ShowcaseCardGenerator @Inject constructor(
         }
     }
     
-    private fun drawBackground(canvas: Canvas) {
-        val paint = Paint().apply {
-            shader = LinearGradient(
-                0f, 0f, 0f, CARD_HEIGHT.toFloat(),
-                intArrayOf(
-                    Color.parseColor("#1a1a2e"),
-                    Color.parseColor("#16213e"),
-                    Color.parseColor("#0f3460")
-                ),
-                null,
-                Shader.TileMode.CLAMP
-            )
+    private fun drawBackground(canvas: Canvas, theme: ShowcaseTheme) {
+        val paint = Paint()
+        
+        // Background Gradient
+        val colors = when(theme) {
+            ShowcaseTheme.DARK_PREMIUM -> intArrayOf(0xFF1a1a2e.toInt(), 0xFF16213e.toInt(), 0xFF0f3460.toInt())
+            ShowcaseTheme.LIGHT_ELEGANCE -> intArrayOf(0xFFFFFFFF.toInt(), 0xFFF5F5F5.toInt(), 0xFFE0E0E0.toInt())
+            ShowcaseTheme.GOLD_LUXURY -> intArrayOf(0xFF2C2C2C.toInt(), 0xFF1C1C1C.toInt(), 0xFF000000.toInt())
+            ShowcaseTheme.NATURE_FRESH -> intArrayOf(0xFFE8F5E9.toInt(), 0xFFC8E6C9.toInt(), 0xFFA5D6A7.toInt())
         }
+        
+        paint.shader = LinearGradient(
+            0f, 0f, 0f, CARD_HEIGHT.toFloat(),
+            colors,
+            null,
+            Shader.TileMode.CLAMP
+        )
         
         val rect = RectF(0f, 0f, CARD_WIDTH.toFloat(), CARD_HEIGHT.toFloat())
         canvas.drawRoundRect(rect, CORNER_RADIUS, CORNER_RADIUS, paint)
         
-        // Add subtle decorative elements
-        drawDecorativeElements(canvas)
+        // Add decorative elements
+        drawDecorativeElements(canvas, theme)
     }
     
-    private fun drawDecorativeElements(canvas: Canvas) {
+    private fun drawDecorativeElements(canvas: Canvas, theme: ShowcaseTheme) {
         val paint = Paint().apply {
-            color = Color.parseColor("#FFD700")
-            alpha = 20
+            color = theme.accentColor
+            alpha = 30
             style = Paint.Style.STROKE
             strokeWidth = 3f
         }
@@ -136,7 +157,7 @@ class ShowcaseCardGenerator @Inject constructor(
         )
     }
     
-    private suspend fun drawBirdPhoto(canvas: Canvas, bird: ProductEntity) {
+    private suspend fun drawBirdPhoto(canvas: Canvas, bird: ProductEntity, theme: ShowcaseTheme) {
         val centerX = CARD_WIDTH / 2f
         val photoY = 350f
         
@@ -145,18 +166,17 @@ class ShowcaseCardGenerator @Inject constructor(
             shader = LinearGradient(
                 centerX - PHOTO_SIZE / 2, photoY,
                 centerX + PHOTO_SIZE / 2, photoY + PHOTO_SIZE,
-                intArrayOf(
-                    Color.parseColor("#FFD700"),
-                    Color.parseColor("#FFA500")
-                ),
+                intArrayOf(theme.accentColor, theme.accentColor), 
                 null,
                 Shader.TileMode.CLAMP
             )
             style = Paint.Style.STROKE
-            strokeWidth = 8f
-            setShadowLayer(20f, 0f, 0f, Color.parseColor("#FFD700"))
+            strokeWidth = 10f
+            if (theme == ShowcaseTheme.DARK_PREMIUM || theme == ShowcaseTheme.GOLD_LUXURY) {
+                setShadowLayer(25f, 0f, 0f, theme.accentColor)
+            }
         }
-        canvas.drawCircle(centerX, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2f + 10, ringPaint)
+        canvas.drawCircle(centerX, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2f + 15, ringPaint)
         
         // Load and draw bird photo
         val photoBitmap = loadBirdPhoto(bird)
@@ -171,13 +191,14 @@ class ShowcaseCardGenerator @Inject constructor(
         } else {
             // Draw placeholder
             val placeholderPaint = Paint().apply {
-                color = Color.parseColor("#2a2a4a")
+                color = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) 
+                    Color.LTGRAY else Color.parseColor("#2a2a4a")
             }
             canvas.drawCircle(centerX, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2f, placeholderPaint)
             
             // Draw bird icon placeholder
             val textPaint = Paint().apply {
-                color = Color.WHITE
+                color = theme.primaryColor
                 textSize = 120f
                 textAlign = Paint.Align.CENTER
             }
@@ -219,13 +240,16 @@ class ShowcaseCardGenerator @Inject constructor(
         return output
     }
     
-    private fun drawBirdInfo(canvas: Canvas, bird: ProductEntity) {
+    private fun drawBirdInfo(canvas: Canvas, bird: ProductEntity, config: ShowcaseConfig, theme: ShowcaseTheme) {
         val centerX = CARD_WIDTH / 2f
         val nameY = 850f
         
+        val textColor = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.BLACK else Color.WHITE
+        val subTextColor = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.DKGRAY else Color.LTGRAY
+
         // Bird name
         val namePaint = Paint().apply {
-            color = Color.WHITE
+            color = textColor
             textSize = 72f
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -236,7 +260,7 @@ class ShowcaseCardGenerator @Inject constructor(
         // Breed
         bird.breed?.let { breed ->
             val breedPaint = Paint().apply {
-                color = Color.parseColor("#B0B0B0")
+                color = subTextColor
                 textSize = 42f
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
@@ -247,7 +271,7 @@ class ShowcaseCardGenerator @Inject constructor(
         // Color/variety if available
         bird.color?.let { color ->
             val colorPaint = Paint().apply {
-                this.color = Color.parseColor("#808080")
+                this.color = subTextColor
                 textSize = 36f
                 textAlign = Paint.Align.CENTER
                 isAntiAlias = true
@@ -256,53 +280,115 @@ class ShowcaseCardGenerator @Inject constructor(
         }
     }
     
-    private fun drawBadges(canvas: Canvas, completeness: PedigreeCompleteness, vaccinationCount: Int) {
+    private fun drawBadges(canvas: Canvas, completeness: PedigreeCompleteness, vaccinationCount: Int, config: ShowcaseConfig, y: Float) {
         val centerX = CARD_WIDTH / 2f
-        val badgeY = 1100f
         val badgeSpacing = 320f
         
-        // Pedigree badge
-        drawBadge(
-            canvas,
-            centerX - badgeSpacing / 2,
-            badgeY,
-            "🌳",
-            completeness.label,
-            Color.parseColor(
+        if (config.showPedigreeBadge && config.showVaccinationBadge) {
+             drawBadge(canvas, centerX - badgeSpacing / 2, y, "🌳", completeness.label, Color.parseColor(
                 when (completeness) {
                     PedigreeCompleteness.THREE_GEN -> "#FFD700"
                     PedigreeCompleteness.TWO_GEN -> "#4CAF50"
                     PedigreeCompleteness.ONE_GEN -> "#FF9800"
                     PedigreeCompleteness.NONE -> "#9E9E9E"
                 }
+            ), config.theme)
+            
+            val vaccineStatus = when {
+                vaccinationCount >= 3 -> "Fully Vaxxed"
+                vaccinationCount > 0 -> "$vaccinationCount Vaccines"
+                else -> "Not Vaxxed"
+            }
+            drawBadge(canvas, centerX + badgeSpacing / 2, y, "💉", vaccineStatus, 
+               if (vaccinationCount >= 3) Color.parseColor("#4CAF50") else Color.parseColor("#FF9800"), 
+               config.theme
             )
-        )
-        
-        // Vaccination badge
-        val vaccineStatus = when {
-            vaccinationCount >= 3 -> "Fully Vaccinated"
-            vaccinationCount > 0 -> "$vaccinationCount Vaccines"
-            else -> "Not Vaccinated"
+        } else if (config.showPedigreeBadge) {
+             drawBadge(canvas, centerX, y, "🌳", completeness.label, Color.parseColor(
+                when (completeness) {
+                    PedigreeCompleteness.THREE_GEN -> "#FFD700"
+                    PedigreeCompleteness.TWO_GEN -> "#4CAF50"
+                    PedigreeCompleteness.ONE_GEN -> "#FF9800"
+                    PedigreeCompleteness.NONE -> "#9E9E9E"
+                }
+            ), config.theme)
+        } else if (config.showVaccinationBadge) {
+             val vaccineStatus = when {
+                vaccinationCount >= 3 -> "Fully Vaxxed"
+                vaccinationCount > 0 -> "$vaccinationCount Vaccines"
+                else -> "Not Vaxxed"
+            }
+            drawBadge(canvas, centerX, y, "💉", vaccineStatus, 
+               if (vaccinationCount >= 3) Color.parseColor("#4CAF50") else Color.parseColor("#FF9800"),
+               config.theme
+            )
         }
-        drawBadge(
-            canvas,
-            centerX + badgeSpacing / 2,
-            badgeY,
-            "💉",
-            vaccineStatus,
-            if (vaccinationCount >= 3) Color.parseColor("#4CAF50") else Color.parseColor("#FF9800")
-        )
     }
     
-    private fun drawBadge(canvas: Canvas, x: Float, y: Float, icon: String, text: String, accentColor: Int) {
+    private fun drawStats(
+        canvas: Canvas, 
+        bird: ProductEntity, 
+        stats: List<com.rio.rostry.data.database.dao.ShowRecordStats>, 
+        config: ShowcaseConfig, 
+        startY: Float
+    ) {
+        val centerX = CARD_WIDTH / 2f
+        var currentY = startY + 40f
+        
+        val textColor = if (config.theme == ShowcaseTheme.LIGHT_ELEGANCE || config.theme == ShowcaseTheme.NATURE_FRESH) Color.BLACK else Color.WHITE
+        
+        val paint = Paint().apply {
+            color = textColor
+            textSize = 34f
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+
+        if (config.showWins) {
+            val totalWins = stats.sumOf { it.wins }
+            val totalPodiums = stats.sumOf { it.podiums }
+            if (totalWins > 0 || totalPodiums > 0) {
+                 canvas.drawText("🏆  $totalWins Wins • $totalPodiums Podiums", centerX, currentY, paint)
+                 currentY += 50f
+            }
+        }
+        
+        if (config.showAge) {
+             val age = getAgeString(bird.birthDate)
+             if (age.isNotEmpty()) {
+                 canvas.drawText("📅  Age: $age", centerX, currentY, paint)
+                 currentY += 50f
+             }
+        }
+        
+        if (config.showWeight) {
+             // Assuming we might have weight in future, for now placeholder if configured
+             // Or maybe we use price? Let's skip for now unless requested.
+        }
+    }
+    
+    private fun getAgeString(birthDate: Long?): String {
+        if (birthDate == null) return ""
+        val diff = System.currentTimeMillis() - birthDate
+        val days = diff / (1000 * 60 * 60 * 24)
+        return when {
+            days > 365 -> "${days / 365} Years"
+            days > 30 -> "${days / 30} Months"
+            else -> "$days Days"
+        }
+    }
+
+
+    private fun drawBadge(canvas: Canvas, x: Float, y: Float, icon: String, text: String, accentColor: Int, theme: ShowcaseTheme) {
         val badgeWidth = 280f
         val badgeHeight = 120f
         
-        // Badge background
         val bgPaint = Paint().apply {
-            color = Color.parseColor("#1e1e3f")
+            color = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) 
+                Color.parseColor("#F0F0F0") else Color.parseColor("#1e1e3f")
             isAntiAlias = true
         }
+        
         val rect = RectF(x - badgeWidth / 2, y, x + badgeWidth / 2, y + badgeHeight)
         canvas.drawRoundRect(rect, 20f, 20f, bgPaint)
         
@@ -325,7 +411,7 @@ class ShowcaseCardGenerator @Inject constructor(
         
         // Text
         val textPaint = Paint().apply {
-            color = Color.WHITE
+            color = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.BLACK else Color.WHITE
             textSize = 28f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
@@ -333,13 +419,13 @@ class ShowcaseCardGenerator @Inject constructor(
         canvas.drawText(text, x, y + 90, textPaint)
     }
     
-    private fun drawBranding(canvas: Canvas) {
+    private fun drawBranding(canvas: Canvas, theme: ShowcaseTheme) {
         val centerX = CARD_WIDTH / 2f
         val brandY = CARD_HEIGHT - 150f
         
         // ROSTRY logo text
         val logoPaint = Paint().apply {
-            color = Color.parseColor("#FFD700")
+            color = theme.accentColor
             textSize = 64f
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -349,7 +435,7 @@ class ShowcaseCardGenerator @Inject constructor(
         
         // Tagline
         val taglinePaint = Paint().apply {
-            color = Color.parseColor("#808080")
+            color = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.DKGRAY else Color.LTGRAY
             textSize = 28f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true

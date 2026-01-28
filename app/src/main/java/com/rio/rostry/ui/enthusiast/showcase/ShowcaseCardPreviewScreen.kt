@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -133,6 +135,61 @@ fun ShowcaseCardPreviewScreen(
                     
                     Spacer(Modifier.height(24.dp))
                     
+                    // Customization Controls
+                    val config by viewModel.config.collectAsState()
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2a2a4a))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Theme", color = Color.White, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            
+                            // Theme Selector (Horizontal Scroll)
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                com.rio.rostry.domain.showcase.ShowcaseTheme.entries.forEach { theme ->
+                                    FilterChip(
+                                        selected = config.theme == theme,
+                                        onClick = { viewModel.updateConfig(config.copy(theme = theme)) },
+                                        label = { Text(theme.label) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = Color(0xFFFFD700),
+                                            selectedLabelColor = Color.Black,
+                                            containerColor = Color(0xFF16213e),
+                                            labelColor = Color.White
+                                        )
+                                    )
+                                }
+                            }
+                            
+                            Spacer(Modifier.height(16.dp))
+                            
+                            // Toggles
+                            Text("Show Details", color = Color.White, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(), 
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    ConfigToggle("Wins/Stats", config.showWins) { viewModel.updateConfig(config.copy(showWins = it)) }
+                                    ConfigToggle("Age", config.showAge) { viewModel.updateConfig(config.copy(showAge = it)) }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    ConfigToggle("Pedigree Badge", config.showPedigreeBadge) { viewModel.updateConfig(config.copy(showPedigreeBadge = it)) }
+                                    ConfigToggle("Vaccine Badge", config.showVaccinationBadge) { viewModel.updateConfig(config.copy(showVaccinationBadge = it)) }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(24.dp))
+                    
                     // Share buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -206,6 +263,28 @@ fun ShowcaseCardPreviewScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConfigToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color(0xFFFFD700),
+                checkedTrackColor = Color(0xFF3E2723),
+                uncheckedThumbColor = Color.LightGray,
+                uncheckedTrackColor = Color.DarkGray
+            ),
+            modifier = Modifier.scale(0.8f)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = Color.White, fontSize = 14.sp)
     }
 }
 
