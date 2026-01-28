@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.rio.rostry.ui.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,7 +25,9 @@ fun AdminDashboardScreen(
     onNavigateToUserManagement: () -> Unit,
     onNavigateToBiosecurity: () -> Unit,
     onNavigateToMortality: () -> Unit,
+
     onNavigateToDisputes: () -> Unit,
+    onNavigateTo: (String) -> Unit, // Added generic navigator
     pendingVerificationsCount: Int
 ) {
     Scaffold(
@@ -69,6 +72,13 @@ fun AdminDashboardScreen(
                     onClick = onNavigateToUserManagement
                 ),
                 AdminMenuItem(
+                    title = "Role Requests",
+                    subtitle = "Approve upgrades",
+                    icon = Icons.Default.Upgrade, // Using Upgrade assuming it exists, or Star
+                    color = Color(0xFFE91E63), // Pink
+                    onClick = { onNavigateTo(Routes.Admin.UPGRADE_REQUESTS) } 
+                ),
+                AdminMenuItem(
                     title = "Biosecurity",
                     subtitle = "Manage Red Zones",
                     icon = Icons.Default.Warning,
@@ -89,19 +99,26 @@ fun AdminDashboardScreen(
                     color = Color(0xFF795548), // Brown
                     onClick = onNavigateToDisputes
                 ),
-                 AdminMenuItem(
-                    title = "Analytics",
-                    subtitle = "System reports",
-                    icon = Icons.Default.Analytics,
-                    color = Color(0xFFFFC107), // Amber
-                    onClick = { /* TODO: Implement Analytics */ }
+                AdminMenuItem(
+                    title = "Product Moderation",
+                    subtitle = "Review & Takedown",
+                    icon = Icons.Default.ProductionQuantityLimits, // Or Inventory
+                    color = Color(0xFFFF5722), // Deep Orange
+                    onClick = { onNavigateTo(Routes.Admin.PRODUCT_MODERATION) }
                 ),
-                 AdminMenuItem(
-                    title = "System Settings",
-                    subtitle = "Configuration",
-                    icon = Icons.Default.Settings,
-                    color = Color(0xFF9E9E9E), // Grey
-                    onClick = { /* TODO: Implement Settings */ }
+                AdminMenuItem(
+                    title = "Order Intervention",
+                    subtitle = "Support & Override",
+                    icon = Icons.Default.SupportAgent, // Or Support
+                    color = Color(0xFF009688), // Teal
+                    onClick = { onNavigateTo(Routes.Admin.ORDER_INTERVENTION) }
+                ),
+                AdminMenuItem(
+                    title = "Audit Logs",
+                    subtitle = "System Activity",
+                    icon = Icons.Default.History,
+                    color = Color(0xFF607D8B), // Blue Grey
+                    onClick = { onNavigateTo(Routes.Admin.AUDIT_LOGS) }
                 )
             )
 

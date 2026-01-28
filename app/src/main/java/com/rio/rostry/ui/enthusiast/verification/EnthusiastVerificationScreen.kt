@@ -274,6 +274,7 @@ fun EnthusiastStatusBanner(status: VerificationStatus, reason: String?) {
     val (color, text) = when(status) {
         VerificationStatus.UNVERIFIED -> MaterialTheme.colorScheme.surfaceVariant to "Not Verified - Submit to upgrade"
         VerificationStatus.PENDING -> MaterialTheme.colorScheme.primaryContainer to "Verification Pending"
+        VerificationStatus.PENDING_UPGRADE -> MaterialTheme.colorScheme.tertiaryContainer to "Upgrade in Progress"
         VerificationStatus.VERIFIED -> MaterialTheme.colorScheme.tertiaryContainer to "Verified Enthusiast ✓"
         VerificationStatus.REJECTED -> MaterialTheme.colorScheme.errorContainer to "Verification Rejected"
     }

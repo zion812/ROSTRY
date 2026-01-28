@@ -684,4 +684,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideShowRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.ShowRecordDao = db.showRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideRoleUpgradeRequestDao(db: AppDatabase): com.rio.rostry.data.database.dao.RoleUpgradeRequestDao = db.roleUpgradeRequestDao()
 }

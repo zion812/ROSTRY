@@ -95,6 +95,10 @@ fun ProfileScreen(
                     Text("Verification Pending", color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary)
                     Text("We're reviewing your documents. This usually takes 24-48 hours.")
                 }
+                VerificationStatus.PENDING_UPGRADE -> {
+                    Text("Upgrade Pending", color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary)
+                    Text("Your role upgrade request is pending admin approval.")
+                }
                 VerificationStatus.VERIFIED -> {
                     Text("Verified", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
                     if (user.role == UserType.FARMER) {
@@ -127,22 +131,32 @@ fun ProfileScreen(
             }
 
             // Role upgrades - Navigate to wizard instead of direct upgrade (Comment 6)
-            when (user.role) {
-                UserType.GENERAL -> {
-                    Button(onClick = { onUpgradeClick(UserType.FARMER) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Upgrade to Farmer")
+            if (user.verificationStatus != VerificationStatus.PENDING_UPGRADE) {
+                when (user.role) {
+                    UserType.GENERAL -> {
+                        Button(onClick = { onUpgradeClick(UserType.FARMER) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Upgrade to Farmer")
+                        }
+                    }
+                    UserType.FARMER -> {
+                        Button(onClick = { onUpgradeClick(UserType.ENTHUSIAST) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Upgrade to Enthusiast")
+                        }
+                    }
+                    UserType.ENTHUSIAST -> {
+                        Text("Max role reached")
+                    }
+                    UserType.ADMIN -> {
+                        Text("Admin Account")
                     }
                 }
-                UserType.FARMER -> {
-                    Button(onClick = { onUpgradeClick(UserType.ENTHUSIAST) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Upgrade to Enthusiast")
-                    }
-                }
-                UserType.ENTHUSIAST -> {
-                    Text("Max role reached")
-                }
-                UserType.ADMIN -> {
-                    Text("Admin Account")
+            } else {
+                OutlinedButton(
+                    onClick = { /* TODO: View request details */ }, 
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false
+                ) {
+                    Text("Upgrade in Progress...")
                 }
             }
 

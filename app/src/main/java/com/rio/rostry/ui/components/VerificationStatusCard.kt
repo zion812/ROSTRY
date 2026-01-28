@@ -56,8 +56,48 @@ fun VerificationStatusCard(
     when (verificationStatus) {
         VerificationStatus.VERIFIED -> VerifiedCard(modifier)
         VerificationStatus.PENDING -> PendingCard(submittedAt, modifier)
+        VerificationStatus.PENDING_UPGRADE -> PendingUpgradeCard(modifier)
         VerificationStatus.REJECTED -> RejectedCard(rejectionReason, onRetryVerification, modifier)
         VerificationStatus.UNVERIFIED -> UnverifiedCard(onStartVerification, modifier)
+    }
+}
+
+@Composable
+private fun PendingUpgradeCard(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.HourglassEmpty,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "Role Upgrade Pending",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                Text(
+                    text = "Your request to upgrade to Enthusiast is under review.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

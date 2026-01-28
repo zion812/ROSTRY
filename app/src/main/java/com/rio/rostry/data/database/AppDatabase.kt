@@ -135,9 +135,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Enthusiast Verification
         EnthusiastVerificationEntity::class,
         // Calendar System
-        FarmEventEntity::class
+        FarmEventEntity::class,
+        // Role Upgrade Requests (Phase 4)
+        com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity::class
     ],
-    version = 69, // 69: Audit Logs
+    version = 70, // 69 -> 70
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -175,6 +177,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun disputeDao(): DisputeDao
     abstract fun auditLogDao(): AuditLogDao // Transfer Audit Log
     abstract fun adminAuditDao(): AdminAuditDao // Admin System Audit Log
+    abstract fun roleUpgradeRequestDao(): com.rio.rostry.data.database.dao.RoleUpgradeRequestDao // Phase 4
     
     // Farm Management & Marketplace DAOs
     abstract fun farmAssetDao(): FarmAssetDao
@@ -282,6 +285,13 @@ abstract class AppDatabase : RoomDatabase() {
         fun fromStringList(value: List<String>?): String? {
             return value?.let { Gson().toJson(it) }
         }
+        
+        @TypeConverter
+        @JvmStatic
+        fun toStringList(value: String?): List<String>? {
+            val listType = object : TypeToken<List<String>>() {}.type
+            return value?.let { Gson().fromJson(it, listType) }
+        }
 
         @TypeConverter
         @JvmStatic
@@ -309,6 +319,27 @@ abstract class AppDatabase : RoomDatabase() {
                 }.takeIf { it.isNotEmpty() }
             }
         }
+        
+        // Date Converters
+        @TypeConverter
+        @JvmStatic
+        fun fromTimestamp(value: Long?): java.util.Date? = value?.let { java.util.Date(it) }
+
+        @TypeConverter
+        @JvmStatic
+        fun dateToTimestamp(date: java.util.Date?): Long? = date?.time
+        
+        // Map Converters
+        @TypeConverter
+        @JvmStatic
+        fun fromStringMap(value: Map<String, String>?): String? = value?.let { Gson().toJson(it) }
+
+        @TypeConverter
+        @JvmStatic
+        fun toStringMap(value: String?): Map<String, String>? {
+            val mapType = object : TypeToken<Map<String, String>>() {}.type
+            return value?.let { Gson().fromJson(it, mapType) }
+        }
 
         // Create upload_tasks table for media outbox (26 -> 27)
         val MIGRATION_26_27 = object : Migration(26, 27) {
@@ -323,7 +354,7 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_upload_tasks_status_createdAt` ON `upload_tasks` (`status`, `createdAt`)")
             }
         }
-
+        
         // Add dedicated sync cursors to sync_state (28 -> 29)
         val MIGRATION_28_29 = object : Migration(28, 29) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -564,13 +595,6 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `transfers` ADD COLUMN `transferType` TEXT NOT NULL DEFAULT 'STANDARD'")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_transfers_transferCode` ON `transfers` (`transferCode`)")
             }
-        }
-
-        @TypeConverter
-        @JvmStatic
-        fun toStringList(value: String?): List<String>? {
-            val listType = object : TypeToken<List<String>>() {}.type
-            return value?.let { Gson().fromJson(it, listType) }
         }
 
         // Enums

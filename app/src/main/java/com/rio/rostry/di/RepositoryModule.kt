@@ -285,6 +285,10 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindPedigreeRepository(impl: PedigreeRepositoryImpl): PedigreeRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindShowRecordRepository(impl: com.rio.rostry.data.repository.ShowRecordRepositoryImpl): com.rio.rostry.data.repository.ShowRecordRepository
+
     // Farm Activity Log Repository (expenses, sanitation, etc.)
     @Binds
     @Singleton
@@ -310,6 +314,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAuditRepository(impl: com.rio.rostry.data.repository.AuditRepositoryImpl): com.rio.rostry.data.repository.AuditRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRoleUpgradeRequestRepository(impl: com.rio.rostry.data.repository.RoleUpgradeRequestRepositoryImpl): com.rio.rostry.data.repository.RoleUpgradeRequestRepository
 }
 
 @Module

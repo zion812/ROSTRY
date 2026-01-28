@@ -79,4 +79,17 @@ data class FarmProfileEntity(
 ) {
     // No-arg constructor for Firestore
     constructor() : this(farmerId = "")
+
+    class StringListConverter {
+        @androidx.room.TypeConverter
+        fun fromStringList(value: List<String>?): String? {
+            return value?.let { com.google.gson.Gson().toJson(it) }
+        }
+
+        @androidx.room.TypeConverter
+        fun toStringList(value: String?): List<String>? {
+            val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+            return value?.let { com.google.gson.Gson().fromJson(it, listType) }
+        }
+    }
 }

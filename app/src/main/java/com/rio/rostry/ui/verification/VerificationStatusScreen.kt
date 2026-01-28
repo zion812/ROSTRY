@@ -101,6 +101,13 @@ fun VerificationStatusScreen(
                             color = MaterialTheme.colorScheme.primary,
                             isCompleted = true
                         )
+                        VerificationStatus.PENDING_UPGRADE -> TimelineItem(
+                            title = "Upgrade Pending",
+                            subtitle = "Request under review",
+                            icon = Icons.Default.Schedule,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            isCompleted = false
+                        )
                         VerificationStatus.REJECTED -> TimelineItem(
                             title = "Rejected",
                             subtitle = user.kycVerifiedAt?.let { dateFormat.format(Date(it)) } ?: "",
@@ -145,6 +152,21 @@ fun VerificationStatusScreen(
                                 Button(onClick = { showDocumentDialog = true }) {
                                     Text("View Documents")
                                 }
+                            }
+                        }
+                    }
+                    VerificationStatus.PENDING_UPGRADE -> {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Upgrade Pending", style = MaterialTheme.typography.headlineSmall)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Your role upgrade request is being reviewed.")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.tertiary)
                             }
                         }
                     }

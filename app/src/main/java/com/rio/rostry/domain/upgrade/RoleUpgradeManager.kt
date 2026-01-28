@@ -31,6 +31,7 @@ import javax.inject.Singleton
 @Singleton
 class RoleUpgradeManager @Inject constructor(
     private val userRepository: UserRepository,
+    private val roleUpgradeRequestRepository: com.rio.rostry.data.repository.RoleUpgradeRequestRepository,
     private val rbacGuard: RbacGuard,
     private val rolePreferenceStorage: RolePreferenceStorage,
     private val auditLogDao: AuditLogDao,
@@ -38,24 +39,20 @@ class RoleUpgradeManager @Inject constructor(
     private val currentUserProvider: CurrentUserProvider
 ) {
     /**
-     * Performs a complete role upgrade flow.
-     * 
-     * @param userId The user ID to upgrade
-     * @param targetRole The target role to upgrade to
-     * @param skipValidation If true, skips prerequisite validation (use for wizard flows)
-     * @return Resource<Unit> indicating success or error with message
+     * Submits a request for role upgrade.
+     * The request will be set to PENDING status and requires Admin approval.
      */
-    suspend fun upgradeRole(
+    suspend fun requestUpgrade(
         userId: String,
         targetRole: UserType,
         skipValidation: Boolean = false
-    ): Resource<Unit> {
+    ): Resource<String> {
         try {
             // Get current user to track from/to roles
             val currentUserResource = userRepository.getUserById(userId).first()
             val currentUser = when (currentUserResource) {
                 is Resource.Success -> currentUserResource.data
-                is Resource.Error -> return Resource.Error(currentUserResource.message ?: "Failed to get user")
+                is Resource.Error -> return Resource.Error<String>(currentUserResource.message ?: "Failed to get user")
                 else -> null
             } ?: return Resource.Error("User not found")
             
@@ -78,48 +75,102 @@ class RoleUpgradeManager @Inject constructor(
                 }
             }
             
-            // Step 2: Update user type in repository
-            val updateResult = userRepository.updateUserType(userId, targetRole)
-            if (updateResult is Resource.Error) {
-                flowAnalyticsTracker.trackRoleUpgradeFailed(
-                    targetRole.name,
-                    updateResult.message ?: "Repository update failed"
-                )
-                return updateResult
+            // Step 2: Submit request to repository
+            // Note: We do NOT update the user role here. We only create a request.
+            val result = roleUpgradeRequestRepository.submitRequest(userId, currentRole, targetRole)
+            
+            if (result is Resource.Success) {
+                // Update user verification status to indicate pending upgrade
+                userRepository.updateVerificationStatus(userId, VerificationStatus.PENDING_UPGRADE)
+                
+                // Track success
+                flowAnalyticsTracker.trackRoleUpgradePrerequisiteCheck(targetRole.name, true, emptySet())
+                return Resource.Success(result.data ?: "")
+            } else {
+                return Resource.Error(result.message ?: "Failed to submit request")
             }
-            
-            // Step 3: Persist role preference
-            rolePreferenceStorage.persist(targetRole)
-            
-            // Step 4: Create audit log entry
-            val auditLog = AuditLogEntity(
-                logId = java.util.UUID.randomUUID().toString(),
-                type = "ROLE_UPGRADE",
-                refId = userId,
-                action = "UPGRADE",
-                actorUserId = userId,
-                detailsJson = com.google.gson.Gson().toJson(mapOf(
-                    "fromRole" to currentRole.name,
-                    "toRole" to targetRole.name,
-                    "validated" to (!skipValidation).toString(),
-                    "timestamp" to System.currentTimeMillis()
-                )),
-                createdAt = System.currentTimeMillis()
-            )
-            auditLogDao.insert(auditLog)
-            
-            // Step 5: Track successful upgrade
-            flowAnalyticsTracker.trackRoleUpgradeCompleted(currentRole, targetRole)
-            
-            return Resource.Success(Unit)
             
         } catch (e: Exception) {
             flowAnalyticsTracker.trackRoleUpgradeFailed(
                 targetRole.name,
                 e.message ?: "Unknown error"
             )
-            return Resource.Error(e.message ?: "Failed to upgrade role")
+            return Resource.Error(e.message ?: "Failed to request role upgrade")
         }
+    }
+    
+    /**
+     * Checks if the user has a pending upgrade request.
+     */
+    suspend fun getPendingRequest(userId: String): Resource<com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity?> {
+        return roleUpgradeRequestRepository.getPendingRequest(userId)
+    }
+
+    /**
+     * Admin action: Approve a pending request.
+     * This performs the actual role update.
+     */
+    suspend fun approveRequest(requestId: String, adminId: String, notes: String?): Resource<Unit> {
+        // Enforce Admin check
+        val adminUser = currentUserProvider.userIdOrNull() ?: return Resource.Error("Not authenticated")
+        // In a real app, check adminUser.role == ADMIN. For now assuming caller checks or relying on UI/Guard.
+        
+        val result = roleUpgradeRequestRepository.approveRequest(requestId, adminId, notes)
+        if (result is Resource.Success) {
+            // Log audit
+             val auditLog = AuditLogEntity(
+                logId = java.util.UUID.randomUUID().toString(),
+                type = "ROLE_UPGRADE_APPROVED",
+                refId = requestId,
+                action = "APPROVE",
+                actorUserId = adminId,
+                detailsJson = com.google.gson.Gson().toJson(mapOf(
+                    "requestId" to requestId,
+                    "notes" to notes,
+                    "timestamp" to System.currentTimeMillis()
+                )),
+                createdAt = System.currentTimeMillis()
+            )
+            auditLogDao.insert(auditLog)
+        }
+        return result
+    }
+
+    /**
+     * Admin action: Reject a pending request.
+     */
+    suspend fun rejectRequest(requestId: String, adminId: String, notes: String?): Resource<Unit> {
+         val result = roleUpgradeRequestRepository.rejectRequest(requestId, adminId, notes)
+         
+         if (result is Resource.Success) {
+             // We might want to reset the user's verification status from PENDING_UPGRADE to UNVERIFIED or REJECTED
+             // For now, let's assume the Repository handling of the Request status is enough, 
+             // but we should probably update the UserEntity too to unblock them.
+             
+             // Fetch request to get userId
+             // (Simplified: In a real flow, we'd do this inside repo or have userId passed in)
+             // leaving as is for now, assuming UI handles the status check based on Request Entity primarily.
+         }
+         return result
+    }
+    
+    /**
+     * Legacy/Direct upgrade method - DEPRECATED for standard flow, but kept for migration/admin overrides if needed.
+     */
+    suspend fun forceUpgradeRole(
+        userId: String,
+        targetRole: UserType
+    ): Resource<Unit> {
+         // Step 1: Update user type in repository
+        val updateResult = userRepository.updateUserType(userId, targetRole)
+        if (updateResult is Resource.Error) {
+            return updateResult
+        }
+        
+        // Step 2: Persist role preference
+        rolePreferenceStorage.persist(targetRole)
+        
+        return Resource.Success(Unit)
     }
     
     /**

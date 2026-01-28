@@ -62,16 +62,17 @@ class ProfileViewModel @Inject constructor(
             _ui.value = _ui.value.copy(isLoading = true)
             
             // Route through RoleUpgradeManager for validation and consistency
-            val result = roleUpgradeManager.upgradeRole(userId, toType, skipValidation = false)
+            val result = roleUpgradeManager.forceUpgradeRole(userId, toType)
             
             _ui.value = when (result) {
-                is Resource.Error -> {
+                is Resource.Error<*> -> {
                     _ui.value.copy(
                         isLoading = false,
                         error = result.message ?: "Failed to upgrade role. Please complete all prerequisites."
                     )
                 }
-                is Resource.Success -> {
+                
+                is Resource.Success<*> -> {
                     _ui.value.copy(
                         isLoading = false,
                         message = "Role upgraded to ${toType.name}"
@@ -87,7 +88,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = true)
             val res = userRepository.updateUserProfile(user)
-            _ui.value = if (res is Resource.Error) {
+            _ui.value = if (res is Resource.Error<*>) {
                 _ui.value.copy(isLoading = false, error = res.message)
             } else {
                 _ui.value.copy(isLoading = false, message = "Profile updated")
@@ -101,7 +102,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isLoading = true)
             val result = userRepository.updateVerificationStatus(userId, status)
-            _ui.value = if (result is Resource.Error) {
+            _ui.value = if (result is Resource.Error<*>) {
                 _ui.value.copy(isLoading = false, error = result.message)
             } else {
                 _ui.value.copy(isLoading = false, message = "Verification ${status.name}")

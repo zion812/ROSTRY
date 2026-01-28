@@ -134,6 +134,19 @@ data class RoleMigrationEntity(
         completedAt = if (newStatus == STATUS_COMPLETED) System.currentTimeMillis() else completedAt,
         updatedAt = System.currentTimeMillis()
     )
+
+    class MapConverter {
+        @androidx.room.TypeConverter
+        fun fromStringMap(value: Map<String, String>?): String? {
+            return value?.let { com.google.gson.Gson().toJson(it) }
+        }
+
+        @androidx.room.TypeConverter
+        fun toStringMap(value: String?): Map<String, String>? {
+            val mapType = object : com.google.gson.reflect.TypeToken<Map<String, String>>() {}.type
+            return value?.let { com.google.gson.Gson().fromJson(it, mapType) }
+        }
+    }
 }
 
 /**

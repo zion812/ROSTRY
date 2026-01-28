@@ -22,13 +22,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import com.rio.rostry.data.database.entity.RoleMigrationEntity
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
 @HiltViewModel
 class RoleUpgradeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val rbacGuard: RbacGuard,
-    private val flowAnalyticsTracker: FlowAnalyticsTracker
+    private val flowAnalyticsTracker: FlowAnalyticsTracker,
+    private val roleUpgradeManager: com.rio.rostry.domain.upgrade.RoleUpgradeManager,
+    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
 ) : ViewModel() {
 
     enum class WizardStep {
@@ -42,6 +45,7 @@ class RoleUpgradeViewModel @Inject constructor(
         data class NavigateToProfileEdit(val field: String) : UiEvent()
         data class NavigateToVerification(val upgradeType: UpgradeType) : UiEvent()
         data class ShowUpgradeSuggestion(val role: UserType, val missingPrerequisites: List<String>) : UiEvent()
+        data class ShowSnackbar(val message: String) : UiEvent()
     }
 
     data class UiState(
@@ -56,7 +60,8 @@ class RoleUpgradeViewModel @Inject constructor(
         val canProceed: Boolean = false,
         val isUpgrading: Boolean = false,
         val eligibleUpgrades: List<UserType> = emptyList(),
-        val migrationStatus: Resource<RoleMigrationEntity?> = Resource.Loading()
+        val migrationStatus: Resource<RoleMigrationEntity?> = Resource.Loading<RoleMigrationEntity?>(),
+        val isUpgradePending: Boolean = false // Added
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -229,11 +234,35 @@ class RoleUpgradeViewModel @Inject constructor(
     fun performUpgrade() {
         val currentState = _uiState.value
         val upgradeType = currentState.upgradeType ?: return
+        val targetRole = currentState.targetRole ?: return
+        val userId = currentState.user?.userId ?: return
 
         viewModelScope.launch {
-            // Navigate to verification flow for all upgrade types including FARMER_TO_ENTHUSIAST
-            // The verification screen will handle the actual upgrade after admin approval
-            _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            
+            // Use new request flow
+            val result = roleUpgradeManager.requestUpgrade(
+                userId = userId,
+                targetRole = targetRole
+            )
+            
+            when (result) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(
+                        isLoading = false,
+                        isUpgradePending = true,
+                        // We can't really "finish" the wizard in the same way, maybe show confirmation step?
+                        // For now, emit event to show pending status
+                    ) }
+                    // Navigate to a "pending" screen or show snackbar and go home
+                    _uiEvent.emit(UiEvent.ShowSnackbar("Request submitted successfully. Pending Admin approval."))
+                    _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType)) // Reuse verification screen to show status?
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                }
+                else -> {}
+            }
         }
     }
 
