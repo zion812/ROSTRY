@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.google.gms.google.services) apply false
     alias(libs.plugins.google.firebase.crashlytics) apply false
     alias(libs.plugins.hilt) apply false
-    id("com.google.devtools.ksp") version "2.0.21-1.0.28" apply false
+    id("com.google.devtools.ksp") version "2.3.2" apply false
     // Dokka for API documentation generation
     id("org.jetbrains.dokka") version "1.9.20"
 }
