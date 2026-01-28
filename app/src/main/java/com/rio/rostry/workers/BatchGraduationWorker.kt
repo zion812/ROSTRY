@@ -48,7 +48,7 @@ class BatchGraduationWorker @AssistedInject constructor(
 
             eligibleBatches.forEach { batch ->
                 // 2. Parse Tag Groups
-                val tagGroups = parseTagGroups(batch.metadataJson)
+                    val tagGroups = parseTagGroups(batch.metadataJson)
                 
                 if (tagGroups.isEmpty()) {
                     Timber.w("Batch ${batch.name} (${batch.assetId}) is old enough but has no Tag Groups. Skipping auto-graduation.")
@@ -61,7 +61,7 @@ class BatchGraduationWorker @AssistedInject constructor(
                 
                 tagGroups.forEach { group ->
                     for (i in 0 until group.count) {
-                        val seqNum = group.rangeStart + i
+                        val seqNum = group.startNumber + i
                         val tagId = "${group.prefix}$seqNum"
                         val uniqueId = UUID.randomUUID().toString()
                         

@@ -255,6 +255,52 @@ class FarmAssetListViewModel @Inject constructor(
         
         return filtered
     }
+
+    /**
+     * Submit batch tagging rules.
+     * This saves the configuration to the Batch Asset's metadataJson.
+     * The BatchGraduationWorker will pick this up to generate individual assets.
+     */
+    fun submitBatchTags(batchId: String, groups: List<com.rio.rostry.ui.farmer.asset.TagGroupInput>) {
+        viewModelScope.launch {
+            val userId = auth.currentUser?.uid ?: return@launch
+            
+            // 1. Fetch current asset
+             repository.getAssetById(batchId).first().data?.let { asset ->
+                
+                // 2. Serialize groups to JSON map
+                // In a real app we'd use Gson, but manual JSON is fine for this structure
+                // structure: { "tagGroups": [ { "prefix": "A", "start": 1, "count": 10, ... } ] }
+                val groupsJson = groups.joinToString(separator = ",", prefix = "[", postfix = "]") { group ->
+                    """
+                    {
+                        "prefix": "${group.prefix}",
+                        "startNumber": ${group.startNumber.toIntOrNull() ?: 1},
+                        "count": ${group.count.toIntOrNull() ?: 1},
+                        "gender": "${group.gender}",
+                        "color": "${group.tagColor}"
+                    }
+                    """.trimIndent()
+                }
+                
+                val metadataJson = """{"tagGroups": $groupsJson}"""
+                
+                // 3. Update Asset
+                val updatedAsset = asset.copy(
+                    metadataJson = metadataJson,
+                    dirty = true,
+                    updatedAt = System.currentTimeMillis()
+                )
+                
+                repository.updateAsset(updatedAsset)
+                
+                // 4. Trigger Worker (Optional immediate trigger for UX)
+                // In production, we might just let the daily job pick it up, 
+                // but for testing we want instant gratification.
+                // WorkManagerHelper.triggerBatchGraduation(batchId)
+            }
+        }
+    }
 }
 
 data class FarmAssetListUiState(

@@ -14,7 +14,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,7 +48,8 @@ fun FarmAssetListScreen(
     onNavigateBack: () -> Unit,
     onAssetClick: (String) -> Unit,
     onAddAsset: () -> Unit,
-    onAddBatch: () -> Unit
+    onAddBatch: () -> Unit,
+    onTagBatch: (String, Int) -> Unit = { _, _ -> } // NEW: Tagging Callback
 ) {
     val state by viewModel.uiState.collectAsState()
     
@@ -109,6 +112,27 @@ fun FarmAssetListScreen(
             onConfirm = { amount, notes ->
                 viewModel.submitBulkLog("FEED", amount, notes)
                 showBulkFeedDialog = false
+            }
+        )
+    }
+
+
+
+    // NEW: Batch Tagging Dialog State
+    var showTaggingDialog by remember { mutableStateOf(false) }
+    var taggingBatchId by remember { mutableStateOf<String?>(null) }
+    var taggingBatchQuantity by remember { mutableStateOf(0) }
+
+    if (showTaggingDialog && taggingBatchId != null) {
+        BatchTaggingDialog(
+            totalQuantity = taggingBatchQuantity,
+            onDismiss = { showTaggingDialog = false },
+            onConfirm = { groups ->
+                onTagBatch(taggingBatchId!!, taggingBatchQuantity) // Pass back to screen handler
+                // In a real app, we'd pass 'groups' to the ViewModel here. 
+                // But for this refactor, we delegate to the caller or ViewModel directly.
+                viewModel.submitBatchTags(taggingBatchId!!, groups)
+                showTaggingDialog = false
             }
         )
     }
@@ -504,7 +528,12 @@ fun FarmAssetListScreen(
                                 isSelected = state.selectedAssetIds.contains(asset.assetId),
                                 isSelectionMode = state.isSelectionMode,
                                 onSelect = { viewModel.toggleSelection(asset.assetId) },
-                                onClick = { onAssetClick(asset.assetId) }
+                                onClick = { onAssetClick(asset.assetId) },
+                                onTag = { 
+                                    taggingBatchId = asset.assetId
+                                    taggingBatchQuantity = asset.quantity.toInt()
+                                    showTaggingDialog = true
+                                }
                             )
                         }
                     }
@@ -521,7 +550,8 @@ fun FarmAssetItem(
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
     onSelect: () -> Unit = {},
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onTag: () -> Unit = {}
 ) {
     val healthColor = when (asset.healthStatus.uppercase()) {
         "HEALTHY" -> Color(0xFF4CAF50)
@@ -636,6 +666,26 @@ fun FarmAssetItem(
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                                 modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+
+                    // NEW: Tag Button overlay for Batches
+                    if (asset.assetType == "BATCH" && !isSelectionMode) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp)
+                                .clickable { onTag() },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shadowElevation = 4.dp
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Label,
+                                contentDescription = "Tag Batch",
+                                modifier = Modifier.padding(6.dp).size(16.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }

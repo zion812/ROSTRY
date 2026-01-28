@@ -280,15 +280,5 @@ data class BatchPerformance(
     val totalFeedConsumed: Double
 )
 
-data class TagGroup(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    val count: Int,
-    val gender: String,
-    val color: String,
-    val prefix: String,
-    val rangeStart: Int
-) {
-    val rangeEnd: Int get() = rangeStart + count - 1
-    val label: String get() = "$count $gender ($color Tag $prefix$rangeStart-$rangeEnd)"
-}
+
 
