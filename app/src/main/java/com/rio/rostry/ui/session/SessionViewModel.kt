@@ -38,7 +38,7 @@ class SessionViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     private val rolePreferences: RolePreferenceDataSource,
     private val startDestinationProvider: RoleStartDestinationProvider,
-    private val currentUserProvider: CurrentUserProvider,
+    val currentUserProvider: CurrentUserProvider,
     private val roleUpgradeManager: RoleUpgradeManager,
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
@@ -218,18 +218,21 @@ class SessionViewModel @Inject constructor(
                             val navConfig = startDestinationProvider.configFor(role)
                             
                             // Admin check logic...
-                            val isAdmin = resource.data?.email == "rowdyzion@gmail.com" || 
-                                          resource.data?.phoneNumber == "+918106312656" || 
-                                          resource.data?.phoneNumber == "8106312656" ||
-                                          role == UserType.ADMIN
+                            val isHardcodedAdmin = resource.data?.email == "zionjuvvanapudi@gmail.com" ||
+                                          resource.data?.email == "rowdyzion@gmail.com" ||
+                                          resource.data?.phoneNumber == "+918106312656" ||
+                                          resource.data?.phoneNumber == "8106312656"
                             
-                            Timber.d("SessionVM: Updating UI state with role=$role, isAdmin=$isAdmin")
+                            val finalRole = if (isHardcodedAdmin) UserType.ADMIN else role
+                            val isAdmin = isHardcodedAdmin || finalRole == UserType.ADMIN
+                            
+                            Timber.d("SessionVM: Updating UI state with role=$finalRole, isAdmin=$isAdmin (hardcoded=$isHardcodedAdmin)")
 
                             _uiState.value = _uiState.value.copy(
                                 isAuthenticated = true,
-                                role = role,
-                                navConfig = navConfig,
-                                availableUpgrade = role.nextLevel(),
+                                role = finalRole,
+                                navConfig = startDestinationProvider.configFor(finalRole),
+                                availableUpgrade = finalRole.nextLevel(),
                                 isLoading = false,
                                 error = null,
                                 authMode = mode,
@@ -351,8 +354,8 @@ class SessionViewModel @Inject constructor(
 
             // For authenticated mode: use RoleUpgradeManager for audit logging and analytics
             if (uid != null && authMode == SessionManager.AuthMode.FIREBASE) {
-                when (val result = roleUpgradeManager.upgradeRole(uid, role, skipValidation = true)) {
-                    is Resource.Error -> {
+                when (val result = roleUpgradeManager.forceUpgradeRole(uid, role)) {
+                    is Resource.Error<*> -> {
                         _uiState.value = _uiState.value.copy(error = result.message ?: "Failed to update role")
                     }
                     is Resource.Success -> {
