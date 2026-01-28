@@ -33,4 +33,6 @@ interface FarmEventDao {
     
     @Query("SELECT * FROM farm_events WHERE farmerId = :farmerId AND status = 'PENDING' AND scheduledAt BETWEEN :startTime AND :endTime")
     suspend fun getPendingEventsInRange(farmerId: String, startTime: Long, endTime: Long): List<FarmEventEntity>
+    @Query("SELECT * FROM farm_events WHERE farmerId = :farmerId AND status = 'COMPLETED'")
+    suspend fun getCompletedEventsByFarmer(farmerId: String): List<FarmEventEntity>
 }

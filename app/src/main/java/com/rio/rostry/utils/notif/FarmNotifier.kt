@@ -526,4 +526,29 @@ object FarmNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(("event_" + eventId).hashCode(), notification)
     }
+    fun recommendationAlert(context: Context, eventId: String, title: String, description: String) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.FARMER_CALENDAR).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            eventId.hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info) // Fallback to standard icon 
+            .setContentTitle("Recommendation: $title")
+            .setContentText(description) // Short description
+            .setStyle(NotificationCompat.BigTextStyle().bigText(description))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setGroup("FARM_ALERTS")
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(("rec_" + eventId).hashCode(), notification)
+    }
 }

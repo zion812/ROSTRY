@@ -202,6 +202,8 @@ interface VaccinationRecordDao {
     /** Get total vaccination costs across all assets for a farmer */
     @Query("SELECT COALESCE(SUM(costInr), 0.0) FROM vaccination_records WHERE farmerId = :farmerId")
     suspend fun getTotalVaccinationCostsByFarmer(farmerId: String): Double
+    @Query("SELECT * FROM vaccination_records WHERE farmerId = :farmerId")
+    suspend fun getAllByFarmer(farmerId: String): List<VaccinationRecordEntity>
 }
 
 @Dao

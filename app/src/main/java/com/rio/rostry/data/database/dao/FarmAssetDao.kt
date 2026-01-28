@@ -30,6 +30,10 @@ interface FarmAssetDao {
 
     @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND isDeleted = 0 ORDER BY createdAt DESC")
     fun getAssetsByFarmer(farmerId: String): Flow<List<FarmAssetEntity>>
+    
+    // Alias for getAssetsByFarmer to be explicit about usage
+    @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND isDeleted = 0")
+    fun getAllAssets(farmerId: String): Flow<List<FarmAssetEntity>>
 
     @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND assetType = :type AND isDeleted = 0")
     fun getAssetsByType(farmerId: String, type: String): Flow<List<FarmAssetEntity>>
