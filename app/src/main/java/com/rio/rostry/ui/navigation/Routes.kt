@@ -380,6 +380,7 @@ object Routes {
             Transfers.COMPLIANCE_DETAILS,
             "compliance",
             Analytics.FARMER,
+            Analytics.REPORTS,  // Correctly verify Reports screen access
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,

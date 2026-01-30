@@ -251,15 +251,44 @@ class FarmFinancialsRepository @Inject constructor(
      * Get overall farm cost analysis aggregated across all assets for a farmer.
      * This is used by the Farmer Dashboard for profitability metrics.
      */
-    fun getOverallFarmCostAnalysis(farmerId: String): Flow<Resource<OverallFarmCostAnalysis>> = flow {
+    /**
+     * Get overall farm cost analysis aggregated across all assets for a farmer.
+     * This is used by the Farmer Dashboard for profitability metrics.
+     * @param range Optional date range (start, end)
+     */
+    fun getOverallFarmCostAnalysis(farmerId: String, range: Pair<Long, Long>? = null): Flow<Resource<OverallFarmCostAnalysis>> = flow {
         emit(Resource.Loading())
         try {
             // Get aggregate costs across all farmer's assets
-            val feedCost = farmActivityLogDao.getTotalFeedExpensesByFarmer(farmerId)
-            val medicationCost = farmActivityLogDao.getTotalMedicationExpensesByFarmer(farmerId)
-            val vaccinationCost = vaccinationRecordDao.getTotalVaccinationCostsByFarmer(farmerId)
-            val mortalityCost = mortalityRecordDao.getTotalMortalityImpactByFarmer(farmerId)
-            val otherCost = farmActivityLogDao.getTotalOtherExpensesByFarmer(farmerId)
+            val feedCost = if (range != null) {
+                farmActivityLogDao.getTotalFeedExpensesByFarmerBetween(farmerId, range.first, range.second)
+            } else {
+                farmActivityLogDao.getTotalFeedExpensesByFarmer(farmerId)
+            }
+            
+            val medicationCost = if (range != null) {
+                farmActivityLogDao.getTotalMedicationExpensesByFarmerBetween(farmerId, range.first, range.second)
+            } else {
+                farmActivityLogDao.getTotalMedicationExpensesByFarmer(farmerId)
+            }
+            
+            val vaccinationCost = if (range != null) {
+                vaccinationRecordDao.getTotalVaccinationCostsByFarmerBetween(farmerId, range.first, range.second)
+            } else {
+                vaccinationRecordDao.getTotalVaccinationCostsByFarmer(farmerId)
+            }
+            
+            val mortalityCost = if (range != null) {
+                mortalityRecordDao.getTotalMortalityImpactByFarmerBetween(farmerId, range.first, range.second)
+            } else {
+                mortalityRecordDao.getTotalMortalityImpactByFarmer(farmerId)
+            }
+            
+            val otherCost = if (range != null) {
+                farmActivityLogDao.getTotalOtherExpensesByFarmerBetween(farmerId, range.first, range.second)
+            } else {
+                farmActivityLogDao.getTotalOtherExpensesByFarmer(farmerId)
+            }
             
             // Count active assets
             val assetCount = farmAssetDao.countActiveByFarmer(farmerId)

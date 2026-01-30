@@ -79,26 +79,45 @@ private fun MigrationStatusContent(
         strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
     )
     
-    Text(
-        text = "${entity.progressPercentage.toInt()}%",
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold
-    )
+    Spacer(modifier = Modifier.height(8.dp))
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "${entity.progressPercentage.toInt()}%",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "${entity.migratedItems} / ${entity.totalItems}",
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
 
     Text(
         text = when (entity.status) {
             RoleMigrationEntity.STATUS_PENDING -> "Preparing migration..."
-            RoleMigrationEntity.STATUS_IN_PROGRESS -> "Moving your farm data to the cloud..."
+            RoleMigrationEntity.STATUS_IN_PROGRESS -> {
+                if (!entity.currentEntity.isNullOrBlank()) "Processing: ${entity.currentEntity}"
+                else "Moving your farm data to the cloud..."
+            }
             RoleMigrationEntity.STATUS_COMPLETED -> "Migration successful!"
             RoleMigrationEntity.STATUS_FAILED -> "Migration failed."
             RoleMigrationEntity.STATUS_ROLLED_BACK -> "Changes rolled back."
             else -> "Processing..."
         },
-        style = MaterialTheme.typography.bodyMedium
+        style = MaterialTheme.typography.bodyMedium,
+        maxLines = 1,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
     )
+
+    Spacer(modifier = Modifier.height(16.dp))
 
     if (entity.status == RoleMigrationEntity.STATUS_COMPLETED) {
         Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onComplete,
             modifier = Modifier.fillMaxWidth()
@@ -107,8 +126,10 @@ private fun MigrationStatusContent(
         }
     } else if (entity.status == RoleMigrationEntity.STATUS_FAILED || entity.status == RoleMigrationEntity.STATUS_ROLLED_BACK) {
         Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         entity.errorMessage?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(8.dp))
         }
         Button(
             onClick = onDismiss,

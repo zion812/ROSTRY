@@ -31,6 +31,7 @@ class RoleUpgradeViewModel @Inject constructor(
     private val rbacGuard: RbacGuard,
     private val flowAnalyticsTracker: FlowAnalyticsTracker,
     private val roleUpgradeManager: com.rio.rostry.domain.upgrade.RoleUpgradeManager,
+    private val roleMigrationRepository: com.rio.rostry.data.repository.RoleMigrationRepository,
     private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
 ) : ViewModel() {
 
@@ -61,6 +62,7 @@ class RoleUpgradeViewModel @Inject constructor(
         val isUpgrading: Boolean = false,
         val eligibleUpgrades: List<UserType> = emptyList(),
         val migrationStatus: Resource<RoleMigrationEntity?> = Resource.Loading<RoleMigrationEntity?>(),
+        val migrationProgress: com.rio.rostry.data.database.entity.MigrationProgress? = null,
         val isUpgradePending: Boolean = false // Added
     )
 
@@ -103,8 +105,25 @@ class RoleUpgradeViewModel @Inject constructor(
     private fun observeMigration() {
         viewModelScope.launch {
             val user = userRepository.getCurrentUserSuspend() ?: return@launch
-            userRepository.getRoleMigrationStatus(user.userId).collect { status ->
-                _uiState.value = _uiState.value.copy(migrationStatus = status)
+            
+            // Observe latest migration for this user
+            roleMigrationRepository.observeLatestMigration(user.userId).collect { migration ->
+                val statusResource: Resource<com.rio.rostry.data.database.entity.RoleMigrationEntity?> = 
+                    if (migration != null) Resource.Success(migration) else Resource.Loading()
+                
+                // Update migration status
+                _uiState.update { currentState ->
+                    val isActive = migration?.isActive == true
+                    currentState.copy(
+                        migrationStatus = statusResource,
+                        migrationProgress = migration?.let { com.rio.rostry.data.database.entity.MigrationProgress.from(it) },
+                        isUpgradePending = isActive || migration?.status == com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_COMPLETED,
+                        isUpgrading = isActive || migration?.status == com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_COMPLETED // Keep dialog open for success state
+                    )
+                }
+                
+                // Navigate or show success if completed?
+                // For now, let the UI react to the state change.
             }
         }
     }
@@ -240,7 +259,26 @@ class RoleUpgradeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             
-            // Use new request flow
+            // New Migration Flow for Farmer -> Enthusiast
+            if (currentState.currentRole == UserType.FARMER && targetRole == UserType.ENTHUSIAST) {
+                 val result = roleUpgradeManager.startMigration(userId)
+                 when (result) {
+                    is Resource.Success -> {
+                        _uiState.update { it.copy(
+                            isLoading = false,
+                            isUpgradePending = true
+                        ) }
+                        // The UI will now react to migrationStatus observation
+                    }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isLoading = false, error = result.message) }
+                    }
+                    else -> {}
+                 }
+                 return@launch
+            }
+
+            // Legacy/Request Flow for other upgrades
             val result = roleUpgradeManager.requestUpgrade(
                 userId = userId,
                 targetRole = targetRole
@@ -251,12 +289,9 @@ class RoleUpgradeViewModel @Inject constructor(
                     _uiState.update { it.copy(
                         isLoading = false,
                         isUpgradePending = true,
-                        // We can't really "finish" the wizard in the same way, maybe show confirmation step?
-                        // For now, emit event to show pending status
                     ) }
-                    // Navigate to a "pending" screen or show snackbar and go home
                     _uiEvent.emit(UiEvent.ShowSnackbar("Request submitted successfully. Pending Admin approval."))
-                    _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType)) // Reuse verification screen to show status?
+                    _uiEvent.emit(UiEvent.NavigateToVerification(upgradeType))
                 }
                 is Resource.Error -> {
                     _uiState.update { it.copy(isLoading = false, error = result.message) }

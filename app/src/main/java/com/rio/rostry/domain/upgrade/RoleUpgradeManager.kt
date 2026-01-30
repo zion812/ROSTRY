@@ -36,8 +36,143 @@ class RoleUpgradeManager @Inject constructor(
     private val rolePreferenceStorage: RolePreferenceStorage,
     private val auditLogDao: AuditLogDao,
     private val flowAnalyticsTracker: FlowAnalyticsTracker,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val roleMigrationRepository: com.rio.rostry.data.repository.RoleMigrationRepository,
+    private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
+    private val productRepository: com.rio.rostry.data.repository.ProductRepository
 ) {
+    private val dispatcher = kotlinx.coroutines.Dispatchers.IO
+
+    /**
+     * Starts the migration process from FARMER to ENTHUSIAST.
+     * This replaces the simple `requestUpgrade` for this specific path.
+     */
+    suspend fun startMigration(
+        userId: String
+    ): Resource<String> = kotlinx.coroutines.withContext(dispatcher) {
+        try {
+            val user = userRepository.getUserById(userId).first().data ?: return@withContext Resource.Error("User not found")
+            
+            // 1. Check if migration already exists
+            if (roleMigrationRepository.hasActiveMigration(userId)) {
+                val existing = roleMigrationRepository.getLatestMigration(userId)
+                return@withContext Resource.Success(existing?.migrationId ?: "")
+            }
+            
+            // 2. Count items to migrate
+            val assets = farmAssetRepository.getAssetsByFarmer(userId).first().data ?: emptyList()
+            val totalItems = assets.size
+            
+            // 3. Create Migration Entity
+            val createResult = roleMigrationRepository.createMigration(
+                userId = userId,
+                fromRole = user.role.name,
+                toRole = UserType.ENTHUSIAST.name,
+                totalItems = totalItems
+            )
+            
+            val migrationId = when(createResult) {
+                is Resource.Success -> createResult.data!!
+                is Resource.Error -> return@withContext Resource.Error(createResult.message ?: "Failed to create migration")
+                else -> return@withContext Resource.Error("Unknown error")
+            }
+            
+            // 4. Start Background Processing (Simulated here for simplicity, ideally a Worker)
+            // In a real app, this should be offloaded to WorkManager to survive process death.
+            // For now, we launch in a coroutine scope, but aware it might die.
+            // Since we persist state in DB, we can resume later (Phase 2 feature).
+            processMigration(migrationId, userId, assets)
+            
+            Resource.Success(migrationId)
+            
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to start migration")
+        }
+    }
+
+    private suspend fun processMigration(
+        migrationId: String,
+        userId: String,
+        assets: List<com.rio.rostry.data.database.entity.FarmAssetEntity>
+    ) {
+        try {
+            roleMigrationRepository.updateStatus(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS)
+            
+            var migratedCount = 0
+            
+            // Phase 1: Snapshot (Placeholder)
+            roleMigrationRepository.updateProgress(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS, 0, com.rio.rostry.data.database.entity.RoleMigrationEntity.PHASE_SNAPSHOT, null)
+            // saveSnapshot(userId, assets) // TODO: Implement snapshot logic
+            
+            // Phase 2: Convert Assets
+            roleMigrationRepository.updateProgress(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS, 0, com.rio.rostry.data.database.entity.RoleMigrationEntity.PHASE_CLOUD_COPY, null)
+            
+            for (asset in assets) {
+                if (asset.quantity == 1.0) {
+                    // Convert to Product (Individual Bird)
+                    convertAssetToProduct(userId, asset)
+                    // Mark asset as migrated/archived
+                    val updatedAsset = asset.copy(
+                        status = "ARCHIVED",
+                        metadataJson = asset.metadataJson.trimEnd('}') + ", \"migrationNote\": \"Migrated to Enthusiast Product\"}",
+                        updatedAt = System.currentTimeMillis(),
+                        dirty = true
+                    )
+                    farmAssetRepository.updateAsset(updatedAsset)
+                } else {
+                    // Archive Batch
+                    val updatedAsset = asset.copy(
+                        status = "ARCHIVED",
+                        metadataJson = asset.metadataJson.trimEnd('}') + ", \"migrationNote\": \"Archived during Enthusiast Upgrade\"}",
+                        updatedAt = System.currentTimeMillis(),
+                        dirty = true
+                    )
+                    farmAssetRepository.updateAsset(updatedAsset)
+                }
+                
+                migratedCount++
+                roleMigrationRepository.updateProgress(
+                    migrationId, 
+                    com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS, 
+                    migratedCount, 
+                    com.rio.rostry.data.database.entity.RoleMigrationEntity.PHASE_CLOUD_COPY, 
+                    asset.name
+                )
+            }
+            
+            // Phase 3: Update User Role
+            roleMigrationRepository.updateProgress(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS, migratedCount, com.rio.rostry.data.database.entity.RoleMigrationEntity.PHASE_ROLE_UPDATE, null)
+            userRepository.updateUserType(userId, UserType.ENTHUSIAST)
+            rolePreferenceStorage.persist(UserType.ENTHUSIAST)
+            
+            // Finish
+            roleMigrationRepository.updateStatus(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_COMPLETED)
+            
+            flowAnalyticsTracker.trackRoleUpgradeCompleted(UserType.ENTHUSIAST.name)
+
+        } catch (e: Exception) {
+            roleMigrationRepository.updateStatus(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_FAILED, e.message)
+            flowAnalyticsTracker.trackRoleUpgradeFailed(UserType.ENTHUSIAST.name, e.message ?: "Migration failed")
+        }
+    }
+    
+    private suspend fun convertAssetToProduct(userId: String, asset: com.rio.rostry.data.database.entity.FarmAssetEntity) {
+        val product = com.rio.rostry.data.database.entity.ProductEntity(
+            productId = java.util.UUID.randomUUID().toString(),
+            sellerId = userId,
+            name = asset.name,
+            category = asset.assetType, // Assuming mapping exists or is same
+            description = "Imported from ${asset.name}",
+            price = 0.0, // Not for sale by default
+            imageUrls = asset.imageUrls,
+            status = "private", // Default status
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+            // Map other fields as needed
+        )
+        productRepository.addProduct(product)
+    }
+
     /**
      * Submits a request for role upgrade.
      * The request will be set to PENDING status and requires Admin approval.
@@ -47,6 +182,13 @@ class RoleUpgradeManager @Inject constructor(
         targetRole: UserType,
         skipValidation: Boolean = false
     ): Resource<String> {
+        // If targeting Enthusiast, direct to new flow? 
+        // For now, keep as request if checking for 'Application' vs 'Direct Upgrade'.
+        // Assuming we want to use the Migration flow for Farmer -> Enthusiast immediately.
+        if (targetRole == UserType.ENTHUSIAST) {
+             return startMigration(userId)
+        }
+
         try {
             // Get current user to track from/to roles
             val currentUserResource = userRepository.getUserById(userId).first()

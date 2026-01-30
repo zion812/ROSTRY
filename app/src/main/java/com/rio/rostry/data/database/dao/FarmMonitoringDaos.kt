@@ -23,6 +23,9 @@ interface GrowthRecordDao {
     @Query("SELECT * FROM growth_records WHERE productId = :productId AND week = :week LIMIT 1")
     suspend fun findByWeek(productId: String, week: Int): GrowthRecordEntity?
 
+    @Query("SELECT * FROM growth_records WHERE productId = :productId ORDER BY week ASC")
+    suspend fun getRecordsForProduct(productId: String): List<GrowthRecordEntity>
+
     @Query("SELECT COUNT(*) FROM growth_records WHERE createdAt BETWEEN :start AND :end")
     suspend fun countBetween(start: Long, end: Long): Int
 
@@ -99,6 +102,10 @@ interface MortalityRecordDao {
 
     @Query("SELECT * FROM mortality_records WHERE productId = :productId ORDER BY occurredAt DESC")
     suspend fun getByProduct(productId: String): List<MortalityRecordEntity>
+
+    @Query("SELECT * FROM mortality_records WHERE productId = :productId ORDER BY occurredAt DESC")
+    suspend fun getRecordsForProduct(productId: String): List<MortalityRecordEntity>
+
     
     // ========================================
     // Cost Aggregation Queries
@@ -115,6 +122,9 @@ interface MortalityRecordDao {
     /** Get total mortality financial impact across all assets for a farmer */
     @Query("SELECT COALESCE(SUM(financialImpactInr), 0.0) FROM mortality_records WHERE farmerId = :farmerId")
     suspend fun getTotalMortalityImpactByFarmer(farmerId: String): Double
+
+    @Query("SELECT COALESCE(SUM(financialImpactInr), 0.0) FROM mortality_records WHERE farmerId = :farmerId AND occurredAt BETWEEN :start AND :end")
+    suspend fun getTotalMortalityImpactByFarmerBetween(farmerId: String, start: Long, end: Long): Double
 
     @Query("SELECT * FROM mortality_records WHERE occurredAt > :since ORDER BY occurredAt DESC")
     suspend fun getRecentRecords(since: Long): List<MortalityRecordEntity>
@@ -202,6 +212,10 @@ interface VaccinationRecordDao {
     /** Get total vaccination costs across all assets for a farmer */
     @Query("SELECT COALESCE(SUM(costInr), 0.0) FROM vaccination_records WHERE farmerId = :farmerId")
     suspend fun getTotalVaccinationCostsByFarmer(farmerId: String): Double
+
+    @Query("SELECT COALESCE(SUM(costInr), 0.0) FROM vaccination_records WHERE farmerId = :farmerId AND administeredAt BETWEEN :start AND :end")
+    suspend fun getTotalVaccinationCostsByFarmerBetween(farmerId: String, start: Long, end: Long): Double
+
     @Query("SELECT * FROM vaccination_records WHERE farmerId = :farmerId")
     suspend fun getAllByFarmer(farmerId: String): List<VaccinationRecordEntity>
 }

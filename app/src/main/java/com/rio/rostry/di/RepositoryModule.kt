@@ -318,6 +318,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindRoleUpgradeRequestRepository(impl: com.rio.rostry.data.repository.RoleUpgradeRequestRepositoryImpl): com.rio.rostry.data.repository.RoleUpgradeRequestRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRoleMigrationRepository(impl: com.rio.rostry.data.repository.RoleMigrationRepositoryImpl): com.rio.rostry.data.repository.RoleMigrationRepository
 }
 
 @Module

@@ -96,5 +96,17 @@ interface FarmActivityLogDao {
     /** Get total expenses between dates for a farmer (for monthly reports) */
     @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND createdAt BETWEEN :start AND :end")
     suspend fun getTotalExpensesByFarmerBetween(farmerId: String, start: Long, end: Long): Double
+
+    /** Get total feed expenses between dates for a farmer */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = 'FEED' AND createdAt BETWEEN :start AND :end")
+    suspend fun getTotalFeedExpensesByFarmerBetween(farmerId: String, start: Long, end: Long): Double
+
+    /** Get total medication expenses between dates for a farmer */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = 'MEDICATION' AND createdAt BETWEEN :start AND :end")
+    suspend fun getTotalMedicationExpensesByFarmerBetween(farmerId: String, start: Long, end: Long): Double
+
+    /** Get total other expenses between dates for a farmer */
+    @Query("SELECT COALESCE(SUM(amountInr), 0.0) FROM farm_activity_logs WHERE farmerId = :farmerId AND activityType = 'EXPENSE' AND createdAt BETWEEN :start AND :end")
+    suspend fun getTotalOtherExpensesByFarmerBetween(farmerId: String, start: Long, end: Long): Double
 }
 

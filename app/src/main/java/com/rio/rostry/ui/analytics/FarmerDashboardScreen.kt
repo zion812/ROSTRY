@@ -12,6 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,10 +50,11 @@ fun FarmerDashboardScreen(
 ) {
     val d = vm.dashboard.collectAsState().value
     val last4 = vm.lastFour.collectAsState().value
+    val profit = vm.profitability.collectAsState().value
+    val dateRange by vm.dateRange.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    
     // Animation states
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -206,6 +210,63 @@ fun FarmerDashboardScreen(
                                     Text("• $s", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+            
+            // Financial Health Section (NEW)
+            
+            if (!profit.isLoading) {
+                item {
+                    Column {
+                        Text(
+                            "Financial Health",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                        // Date Filter Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            DateRange.values().forEach { range ->
+                                val label = when(range) {
+                                    DateRange.LAST_7_DAYS -> "7D"
+                                    DateRange.LAST_30_DAYS -> "30D"
+                                    DateRange.THIS_MONTH -> "Month"
+                                    DateRange.ALL_TIME -> "All"
+                                }
+                                FilterChip(
+                                    selected = dateRange == range,
+                                    onClick = { vm.setDateRange(range) },
+                                    label = { Text(label) },
+                                    leadingIcon = if (dateRange == range) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                    } else null
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                item {
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(animationSpec = tween(500, delayMillis = 350)) + slideInVertically { 50 }
+                    ) {
+                        FinancialOverviewCard(profit)
+                    }
+                }
+                
+                if (profit.costBreakdown.isNotEmpty()) {
+                    item {
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(animationSpec = tween(500, delayMillis = 400))
+                        ) {
+                            CostBreakdownCard(profit.costBreakdown)
                         }
                     }
                 }
@@ -483,6 +544,144 @@ private fun SparklineChart(values: List<Double>, color: Color) {
             val yRatio = ((v - minV) / range).toFloat()
             val y = size.height * (1f - yRatio)
             drawCircle(color, radius = 4f, center = Offset(x, y))
+        }
+    }
+}
+
+@Composable
+private fun FinancialOverviewCard(metrics: ProfitabilityMetrics) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Net Profit", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "₹${NumberFormat.getNumberInstance().format(metrics.netProfit.toInt())}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (metrics.netProfit >= 0) Color(0xFF4CAF50) else Color(0xFFD32F2F)
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (metrics.profitMargin >= 0) Color(0xFF4CAF50).copy(alpha = 0.1f) else Color(0xFFD32F2F).copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        "Margin: ${metrics.profitMargin.toInt()}%",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (metrics.profitMargin >= 0) Color(0xFF4CAF50) else Color(0xFFD32F2F)
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth()) {
+                FinancialBar(
+                    label = "Rev", 
+                    value = metrics.totalRevenue, 
+                    max = maxOf(metrics.totalRevenue, metrics.totalExpenses),
+                    color = Color(0xFF4CAF50),
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(16.dp))
+                FinancialBar(
+                    label = "Exp", 
+                    value = metrics.totalExpenses, 
+                    max = maxOf(metrics.totalRevenue, metrics.totalExpenses),
+                    color = Color(0xFFD32F2F),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FinancialBar(
+    label: String,
+    value: Double,
+    max: Double,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodySmall)
+            Text("₹${value.toInt()}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { if (max > 0) (value / max).toFloat() else 0f },
+            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+            color = color,
+            trackColor = color.copy(alpha = 0.2f),
+        )
+    }
+}
+
+@Composable
+private fun CostBreakdownCard(breakdown: Map<String, Double>) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Cost Breakdown", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Donut Chart
+                Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
+                   DonutChart(breakdown)
+                   Text("Total\n₹${breakdown.values.sum().toInt()}", textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.width(24.dp))
+                // Legend
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val colors = listOf(Color(0xFF2196F3), Color(0xFFFFC107), Color(0xFFF44336), Color(0xFF9E9E9E), Color(0xFF673AB7))
+                    breakdown.entries.sortedByDescending { it.value }.take(5).forEachIndexed { index, entry ->
+                         if (entry.value > 0) {
+                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                 Box(Modifier.size(12.dp).background(colors.getOrElse(index) { Color.Gray }, RoundedCornerShape(2.dp)))
+                                 Spacer(Modifier.width(8.dp))
+                                 Column {
+                                     Text(entry.key, style = MaterialTheme.typography.bodySmall)
+                                     Text("₹${entry.value.toInt()}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                 }
+                             }
+                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DonutChart(data: Map<String, Double>) {
+    val total = data.values.sum()
+    if (total == 0.0) return
+    
+    val colors = listOf(Color(0xFF2196F3), Color(0xFFFFC107), Color(0xFFF44336), Color(0xFF9E9E9E), Color(0xFF673AB7))
+    val angles = data.entries.sortedByDescending { it.value }.map { ((it.value / total) * 360).toFloat() }
+    
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        var startAngle = -90f
+        angles.forEachIndexed { index, sweepAngle ->
+            drawArc(
+                color = colors.getOrElse(index) { Color.Gray },
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 24f, cap = StrokeCap.Butt),
+                size = androidx.compose.ui.geometry.Size(size.width, size.height),
+                topLeft = Offset(0f, 0f)
+            )
+            startAngle += sweepAngle
         }
     }
 }
