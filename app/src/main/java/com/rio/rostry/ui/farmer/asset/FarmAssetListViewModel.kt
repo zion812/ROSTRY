@@ -226,6 +226,24 @@ class FarmAssetListViewModel @Inject constructor(
             filtered = filtered.filter { 
                 it.assetType.equals(filter, ignoreCase = true) || it.status.equals(filter, ignoreCase = true) 
             }
+        } else {
+            // Default "All" view - hide Archive/Sold/Consumed
+            filtered = filtered.filter { 
+                it.status != "ARCHIVED" && 
+                it.status != "SOLD" && 
+                it.status != "SOLD_OUT" && 
+                it.status != "CONSUMED" 
+            }
+        }
+        
+        // Also enforce status filtering for BATCH/ANIMAL tabs if not strictly status filter
+        if (filter == "BATCH" || filter == "ANIMAL") {
+             filtered = filtered.filter { 
+                it.status != "ARCHIVED" && 
+                it.status != "SOLD" && 
+                it.status != "SOLD_OUT" && 
+                it.status != "CONSUMED" 
+            }
         }
         
         // Apply quick filter

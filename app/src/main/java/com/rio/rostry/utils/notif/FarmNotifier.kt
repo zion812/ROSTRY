@@ -551,4 +551,39 @@ object FarmNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(("rec_" + eventId).hashCode(), notification)
     }
+    
+    /**
+     * Show storage warning or critical alert notification.
+     */
+    fun showStorageWarning(context: Context, title: String, message: String, isCritical: Boolean) {
+        ensureChannel(context)
+        val deepLink = ("rostry://" + Routes.SETTINGS).toUri()
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            "storageWarning".hashCode(),
+            Intent(Intent.ACTION_VIEW, deepLink),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val priority = if (isCritical) {
+            NotificationCompat.PRIORITY_HIGH
+        } else {
+            NotificationCompat.PRIORITY_DEFAULT
+        }
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(if (isCritical) android.R.drawable.ic_dialog_alert else android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(priority)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(if (isCritical) NotificationCompat.CATEGORY_ERROR else NotificationCompat.CATEGORY_STATUS)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify("storage_warning".hashCode(), notification)
+    }
 }
+

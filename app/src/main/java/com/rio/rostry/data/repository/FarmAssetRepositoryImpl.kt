@@ -121,23 +121,32 @@ class FarmAssetRepositoryImpl @Inject constructor(
     override suspend fun syncAssets(): Resource<Unit> {
         val userId = auth.currentUser?.uid ?: return Resource.Error("No user")
         return try {
+            Timber.d("Starting asset sync for user: $userId")
             val snapshot = firestore.collection("farm_assets")
                 .whereEqualTo("farmerId", userId)
                 .get().await()
             
             val remoteAssets = snapshot.toObjects(FarmAssetEntity::class.java)
+            Timber.d("Fetched ${remoteAssets.size} assets from Firestore")
+            
             // Naive sync: insert specific logic to avoid overwriting dirty
             // omitted for brevity, similar to ProductRepositoryImpl
+            var updatedCount = 0
             if (remoteAssets.isNotEmpty()) {
                 remoteAssets.forEach { remote ->
                     val local = dao.findById(remote.assetId)
                     if (local == null || !local.dirty) {
                         dao.upsert(remote)
+                        updatedCount++
+                    } else {
+                        Timber.d("Skipping overwrite of dirty local asset: ${remote.assetId}")
                     }
                 }
             }
+            Timber.d("Sync complete. Upserted $updatedCount assets.")
             Resource.Success(Unit)
         } catch (e: Exception) {
+            Timber.e(e, "Sync failed: ${e.message}")
             Resource.Error(e.message ?: "Sync failed")
         }
     }

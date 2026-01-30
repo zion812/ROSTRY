@@ -35,7 +35,8 @@ class FarmPerformanceWorker @AssistedInject constructor(
     private val farmerDashboardSnapshotDao: FarmerDashboardSnapshotDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val dailyLogDao: DailyLogDao,
-    private val transferDao: TransferDao
+    private val transferDao: TransferDao,
+    private val taskDao: TaskDao
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -134,6 +135,22 @@ class FarmPerformanceWorker @AssistedInject constructor(
                 0.0
             }
             
+            // Daily goals completed (count of completed tasks this week)
+            val dailyGoalsCompletedCount = taskDao.countCompletedForFarmerBetween(farmerId, weekStart, weekEnd)
+            
+            // Analytics insights count: count significant conditions met this week
+            // Insights are generated for: high mortality, low vaccination, improved hatch rate, revenue trends
+            val prevSnapshot = farmerDashboardSnapshotDao.getLatest(farmerId)
+            val analyticsInsightsCount = listOfNotNull(
+                if (mortalityRate > 0.05) "high_mortality" else null,
+                if (vaccinationCompletionRate < 0.80) "low_vaccination" else null,
+                if (prevSnapshot != null && hatchSuccessRate > prevSnapshot.hatchSuccessRate + 0.05) "hatch_improved" else null,
+                if (prevSnapshot != null && revenueInr > prevSnapshot.revenueInr) "revenue_growth" else null,
+                if (prevSnapshot != null && mortalityRate > prevSnapshot.mortalityRate + 0.10) "mortality_spike" else null,
+                if ((dailyLogComplianceRate ?: 1.0) < 0.5) "low_logging" else null,
+                if (quarantineActiveCount > 0) "active_quarantine" else null
+            ).size
+            
             // Create snapshot
             val snapshot = FarmerDashboardSnapshotEntity(
                 snapshotId = UUID.randomUUID().toString(),
@@ -157,8 +174,8 @@ class FarmPerformanceWorker @AssistedInject constructor(
                 transfersCompletedCount = transfersCompletedCount,
                 complianceScore = complianceScore,
                 onboardingCount = onboardingCount,
-                dailyGoalsCompletedCount = 0, // TODO: implement daily goals tracking
-                analyticsInsightsCount = 0, // TODO: implement analytics insights count
+                dailyGoalsCompletedCount = dailyGoalsCompletedCount,
+                analyticsInsightsCount = analyticsInsightsCount,
                 createdAt = System.currentTimeMillis(),
                 dirty = true
             )

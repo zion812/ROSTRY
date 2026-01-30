@@ -23,6 +23,7 @@ class LegacyProductMigrationWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val productDao: ProductDao,
     private val farmAssetRepository: FarmAssetRepository,
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
     private val inventoryRepository: InventoryRepository,
     private val marketListingRepository: MarketListingRepository
 ) : CoroutineWorker(appContext, workerParams) {
@@ -34,23 +35,18 @@ class LegacyProductMigrationWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Timber.d("Starting Legacy Product Migration...")
         return try {
-            val legacyProducts = productDao.getActiveWithBirth() // Or getAllProducts() if DAO allows
-            // Fallback: use getProductsWithMissingSellers() pattern or just a raw query if needed
-            // Ideally we need getAllProducts(). DAO has getAllProducts() returning Flow.
-            // We need a suspend function for OneShot.
-            val allProducts = productDao.findById("dummy") // Hack? No.
-            // Let's assume we can add `getAllProductsOneShot` to DAO later.
-            // For now, I'll use `getActiveWithBirth` which returns List. It covers most "Assets".
+            val legacyProducts = productDao.getActiveWithBirth() 
             
             var migratedCount = 0
             
             legacyProducts.forEach { product ->
-                // Check if already migrated (idempotency)
-                // We use product.productId as assetId
-                val existing = farmAssetRepository.getAssetById(product.productId)
-                // Flow collection is tricky in loop. 
-                // Better approach: try to insert, handle conflict.
-                // Or assume if we run once, we are good.
+                // Check if already migrated to avoid overwriting existing data (like tags)
+                val existing = farmAssetDao.findById(product.productId)
+                
+                if (existing != null) {
+                   Timber.d("Skipping migration for ${product.productId} (already exists)")
+                   return@forEach
+                }
                 
                 // 1. Create Farm Asset
                 val assetType = if (product.isBatch == true) "BATCH" else "ANIMAL"

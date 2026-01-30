@@ -228,6 +228,9 @@ class SessionViewModel @Inject constructor(
                             
                             Timber.d("SessionVM: Updating UI state with role=$finalRole, isAdmin=$isAdmin (hardcoded=$isHardcodedAdmin)")
 
+                            sessionManager.markAuthenticated(now, finalRole)
+                            rolePreferences.persist(finalRole)
+
                             _uiState.value = _uiState.value.copy(
                                 isAuthenticated = true,
                                 role = finalRole,
