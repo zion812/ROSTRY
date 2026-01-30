@@ -95,14 +95,6 @@ data class QuarantineRecordEntity(
 // Mortality record with cause categorization and cost impact
 @Entity(
     tableName = "mortality_records",
-    foreignKeys = [
-        ForeignKey(
-            entity = ProductEntity::class,
-            parentColumns = ["productId"],
-            childColumns = ["productId"],
-            onDelete = ForeignKey.SET_NULL
-        )
-    ],
     indices = [Index("productId"), Index("causeCategory"), Index("farmerId"), Index("occurredAt")]
 )
 data class MortalityRecordEntity(

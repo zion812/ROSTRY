@@ -139,7 +139,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Role Upgrade Requests (Phase 4)
         com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity::class
     ],
-    version = 70, // 69 -> 70
+    version = 71, // 70 -> 71
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -664,6 +664,8 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_58_59: Migration = Converters.MIGRATION_58_59
         // 66 -> 67
         // val MIGRATION_66_67 defined in companion object directly
+
+        val MIGRATION_70_71: Migration = Converters.MIGRATION_70_71
         
 
 
@@ -684,8 +686,61 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `farm_assets` ADD COLUMN `transferredAt` INTEGER")
                 
                 // Indexes for sold/listed queries
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_soldAt` ON `farm_assets` (`soldAt`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_assets_listingId` ON `farm_assets` (`listingId`)")
+            }
+        }
+
+        // Remove Foreign Key from MortalityRecordEntity to allow referencing FarmAssets (70 -> 71)
+        val MIGRATION_70_71 = object : Migration(70, 71) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create temporary table without foreign key
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `mortality_records_new` (
+                        `deathId` TEXT NOT NULL,
+                        `productId` TEXT,
+                        `farmerId` TEXT NOT NULL,
+                        `causeCategory` TEXT NOT NULL,
+                        `circumstances` TEXT,
+                        `ageWeeks` INTEGER,
+                        `disposalMethod` TEXT,
+                        `quantity` INTEGER NOT NULL,
+                        `financialImpactInr` REAL,
+                        `photoUrls` TEXT,
+                        `mediaItemsJson` TEXT,
+                        `occurredAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL,
+                        `syncedAt` INTEGER,
+                        `affectedProductIds` TEXT,
+                        `affectsAllChildren` INTEGER NOT NULL,
+                        PRIMARY KEY(`deathId`)
+                    )"""
+                )
+                
+                // 2. Copy data
+                db.execSQL(
+                    """INSERT INTO `mortality_records_new` (
+                        deathId, productId, farmerId, causeCategory, circumstances, ageWeeks, disposalMethod,
+                        quantity, financialImpactInr, photoUrls, mediaItemsJson, occurredAt, updatedAt,
+                        dirty, syncedAt, affectedProductIds, affectsAllChildren
+                    ) SELECT 
+                        deathId, productId, farmerId, causeCategory, circumstances, ageWeeks, disposalMethod,
+                        quantity, financialImpactInr, photoUrls, mediaItemsJson, occurredAt, updatedAt,
+                        dirty, syncedAt, affectedProductIds, affectsAllChildren
+                    FROM `mortality_records`"""
+                )
+                
+                // 3. Drop old table
+                db.execSQL("DROP TABLE `mortality_records`")
+                
+                // 4. Rename new table
+                db.execSQL("ALTER TABLE `mortality_records_new` RENAME TO `mortality_records`")
+                
+                // 5. Recreate indexes
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_productId` ON `mortality_records` (`productId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_causeCategory` ON `mortality_records` (`causeCategory`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_farmerId` ON `mortality_records` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_occurredAt` ON `mortality_records` (`occurredAt`)")
             }
         }
 
