@@ -665,7 +665,7 @@ abstract class AppDatabase : RoomDatabase() {
         // 66 -> 67
         // val MIGRATION_66_67 defined in companion object directly
 
-        val MIGRATION_70_71: Migration = Converters.MIGRATION_70_71
+
         
 
 
