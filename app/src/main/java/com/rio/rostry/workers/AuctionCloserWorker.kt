@@ -22,6 +22,7 @@ class AuctionCloserWorker @AssistedInject constructor(
     private val auctionDao: AuctionDao,
     private val bidDao: BidDao,
     private val notificationDao: NotificationDao,
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
     private val firestore: FirebaseFirestore
 ) : CoroutineWorker(appContext, workerParams) {
 
@@ -98,6 +99,23 @@ class AuctionCloserWorker @AssistedInject constructor(
             
             // Update auction status
             auctionDao.closeAuction(auctionId, newStatus, now)
+            
+            // If Sold, update the Farm Asset status to SOLD so it doesn't appear as "Active"
+            if (closeResult is CloseResult.Sold && winningBid != null) {
+                // Determine productId from auction
+                val productId = auction.productId
+                if (productId.isNotBlank()) {
+                    // Update asset status
+                    farmAssetDao.markAsSold(
+                        assetId = productId,
+                        buyerId = winningBid.userId,
+                        price = winningBid.amount,
+                        soldAt = now,
+                        updatedAt = now
+                    )
+                    Timber.d("Marked asset $productId as SOLD")
+                }
+            }
             
             // Sync to Firestore
             firestore.collection("auctions").document(auctionId)

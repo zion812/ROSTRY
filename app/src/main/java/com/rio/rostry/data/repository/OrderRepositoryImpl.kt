@@ -22,7 +22,9 @@ class AdvancedOrderService @Inject constructor(
     private val orderDao: OrderDao,
     private val paymentRepository: PaymentRepository,
     private val paymentGateway: PaymentGateway,
-    private val auditRepository: AuditRepository
+    private val auditRepository: AuditRepository,
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
+    private val inventoryItemDao: com.rio.rostry.data.database.dao.InventoryItemDao
 ) : OrderRepository {
 
     // ===== Existing interface fulfillment =====
@@ -87,7 +89,13 @@ class AdvancedOrderService @Inject constructor(
 
     suspend fun shipOrder(orderId: String): Resource<Unit> = transition(orderId, "OUT_FOR_DELIVERY", setOf("PROCESSING"))
 
-    suspend fun deliverOrder(orderId: String): Resource<Unit> = transition(orderId, "DELIVERED", setOf("OUT_FOR_DELIVERY"))
+    suspend fun deliverOrder(orderId: String): Resource<Unit> {
+        val result = transition(orderId, "DELIVERED", setOf("OUT_FOR_DELIVERY", "PROCESSING")) // Allow from PROCESSING for simpler flows
+        if (result is Resource.Success) {
+            handleOrderCompletion(orderId)
+        }
+        return result
+    }
 
     suspend fun cancelOrder(orderId: String, reason: String? = null): Resource<Unit> {
         val current = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
@@ -243,9 +251,51 @@ class AdvancedOrderService @Inject constructor(
                 lastModifiedAt = now
             )
             orderDao.insertOrUpdate(updated)
+            
+            // Handle completion (update assets)
+            handleOrderCompletion(orderId)
+            
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Verification failed")
+        }
+    }
+
+    private suspend fun handleOrderCompletion(orderId: String) {
+        try {
+            val items = orderDao.getOrderItemsList(orderId)
+            val now = System.currentTimeMillis()
+            
+            items.forEach { item ->
+                // 1. Find Inventory Item
+                val inventoryId = item.productId // product id in order item is usually inventory id for listings
+                val inventory = inventoryItemDao.getInventoryByIdSync(inventoryId)
+                
+                if (inventory != null) {
+                    // Update inventory quantity if needed (omitted for now as it's sold)
+                    
+                    // 2. Find Source Asset
+                    val assetId = inventory.sourceAssetId
+                    if (!assetId.isNullOrBlank()) {
+                        // Mark asset as sold
+                        // Note: For partial sales (quantity < asset.quantity), we might need split logic.
+                        // But for now, assuming 1-to-1 or full batch sale based on listing logic.
+                        // If it's a partial sale, this might be aggressive.
+                        // However, createListingFromAsset usually locks quantity.
+                        
+                        farmAssetDao.markAsSold(
+                            assetId = assetId,
+                            buyerId = "ORDER:$orderId", // Use order ID or buyer ID if available
+                            price = item.priceAtPurchase,
+                            soldAt = now,
+                            updatedAt = now
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Log but don't fail the order completion
+            e.printStackTrace()
         }
     }
 
