@@ -111,7 +111,7 @@ class FarmerMarketViewModel @Inject constructor(
             ) { legacy, new ->
                 val combined = mutableListOf<Listing>()
                 // Map legacy Products
-                (legacy.data ?: emptyList()).filter { it.isPublic }.forEach { 
+                (legacy.data ?: emptyList()).filter { it.isPublic && it.status != "sold_out" && it.status != "suspended" && it.status != "SOLD" }.forEach { 
                     combined.add(mapProductToListing(it))
                 }
                 // Map new MarketListings
