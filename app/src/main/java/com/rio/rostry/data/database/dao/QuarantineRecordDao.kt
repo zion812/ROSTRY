@@ -46,6 +46,6 @@ interface QuarantineRecordDao {
     @Query("SELECT * FROM quarantine_records WHERE dirty = 1")
     suspend fun getDirty(): List<QuarantineRecordEntity>
 
-    @Query("UPDATE quarantine_records SET dirty = 0 WHERE quarantineId IN (:ids)")
-    suspend fun clearDirty(ids: List<String>)
+    @Query("UPDATE quarantine_records SET dirty = 0, syncedAt = :syncedAt WHERE quarantineId IN (:ids)")
+    suspend fun clearDirty(ids: List<String>, syncedAt: Long)
 }

@@ -103,4 +103,7 @@ interface OrderDao {
 
     @Query("SELECT * FROM orders ORDER BY orderDate DESC LIMIT :limit")
     suspend fun getAllOrdersSnapshot(limit: Int): List<OrderEntity>
+
+    @Query("SELECT * FROM orders WHERE dirty = 1")
+    suspend fun getDirty(): List<OrderEntity>
 }

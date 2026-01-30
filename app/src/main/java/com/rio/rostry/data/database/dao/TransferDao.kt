@@ -159,4 +159,8 @@ interface TransferDao {
     
     @Query("SELECT * FROM transfers WHERE toUserId = :userId AND status = :status AND isDeleted = 0 ORDER BY initiatedAt DESC")
     suspend fun findByToUserAndStatus(userId: String, status: String): List<TransferEntity>
+    
+    // Cleanup: delete old completed transfers for archival
+    @Query("DELETE FROM transfers WHERE status IN ('COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT') AND completedAt < :cutoff")
+    suspend fun deleteCompletedBefore(cutoff: Long): Int
 }
