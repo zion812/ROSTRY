@@ -86,24 +86,25 @@ class MortalityViewModel @Inject constructor(
                 assetName = asset?.name
                 
                 if (asset != null) {
-                    // Decrement quantity
+                    // Calculate new quantity
                     val newQuantity = (asset.quantity - quantity).coerceAtLeast(0.0)
-                    farmAssetRepository.updateQuantity(productId, newQuantity)
                     
-                    // If individual (not batch) and quantity is 0, mark as DEAD/ARCHIVED
-                    // Or if Type is ANIMAL (Bird)
-                    if (!asset.assetType.equals("BATCH", ignoreCase = true) && newQuantity == 0.0) {
-                        farmAssetRepository.updateHealthStatus(productId, "DEAD") 
-                        // Or use status "ARCHIVED" / "DEAD". FarmAssetEntity has 'status'.
-                        // Ideally we should have updateStatus in repo.
-                        // I'll assume updateHealthStatus updates 'healthStatus'.
-                        // I might need a dedicated 'markAsDead' or 'updateStatus' method if 'healthStatus' is different.
-                        // For now updateHealthStatus("DEAD") is reasonable if healthStatus field is used for that.
-                    }
-                    if (newQuantity == 0.0 && asset.assetType.equals("BATCH", ignoreCase = true)) {
-                         // Batch depleted
-                         // Maybe update status to CONSUMED or CLOSED?
-                         // Leaving as is for now, just 0 quantity.
+                    // If individual (not batch) and quantity is 0, mark as DEAD & ARCHIVED
+                    if (newQuantity == 0.0) {
+                        // For both Individual and Batch, if quantity is 0, it's effectively gone.
+                        // Mark as ARCHIVED to hide from "Active" lists.
+                        // Also update health status to DEAD for record keeping.
+                        val updatedAsset = asset.copy(
+                            quantity = newQuantity,
+                            status = "ARCHIVED", 
+                            healthStatus = "DEAD",
+                            dirty = true,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        farmAssetRepository.updateAsset(updatedAsset)
+                    } else {
+                        // Just update quantity if not depleted
+                         farmAssetRepository.updateQuantity(productId, newQuantity)
                     }
                 }
             }

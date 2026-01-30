@@ -95,6 +95,34 @@ class SyncManager @Inject constructor(
     )
 
     val conflictEvents = MutableSharedFlow<ConflictEvent>(extraBufferCapacity = 64)
+    
+    // Sync state tracking
+    @Volatile private var syncInProgress = false
+    
+    // Helper classes for refactoring syncAllInternal
+    private data class SyncContext(
+        val userId: String?,
+        val role: UserType?,
+        val now: Long,
+        val state: SyncStateEntity,
+        val timedOutDomains: MutableList<String>
+    )
+
+    private data class SyncResult(
+        val pulls: Int = 0,
+        val pushes: Int = 0,
+        val processed: Int = 0, // For outbox
+        val errors: List<String> = emptyList()
+    ) {
+        operator fun plus(other: SyncResult): SyncResult {
+            return SyncResult(
+                pulls = this.pulls + other.pulls,
+                pushes = this.pushes + other.pushes,
+                processed = this.processed + other.processed,
+                errors = this.errors + other.errors
+            )
+        }
+    }
 
     private fun isForeignKeyConstraintFailure(t: Throwable): Boolean {
         var cur: Throwable? = t
@@ -267,991 +295,29 @@ class SyncManager @Inject constructor(
     ): Resource<SyncStats> {
         try {
             val state = syncStateDao.get() ?: SyncStateEntity()
-            var pushes = 0
-            var pulls = 0
-            val syncErrors = mutableListOf<String>()
-
             val userId = firebaseAuth.currentUser?.uid
             val role = sessionManager.sessionRole().first()
-
-            // ==============================
-            // Product Tracking (incremental)
-            // ==============================
-            try {
-                // Pull newer remote changes since lastTrackingSyncAt
-                val remoteTrackingUpdated: List<ProductTrackingEntity> = withRetry {
-                    firestoreService.fetchUpdatedTrackings(userId, state.lastTrackingSyncAt)
-                }
-                if (remoteTrackingUpdated.isNotEmpty()) {
-                    productTrackingDao.upsertAll(remoteTrackingUpdated)
-                    pulls += remoteTrackingUpdated.size
-                }
-
-                // Push local dirty rows
-                val localDirty =
-                    productTrackingDao.getUpdatedSince(state.lastTrackingSyncAt, limit = 50)
-                        .filter { it.dirty }
-                if (localDirty.isNotEmpty()) {
-                    // Push to remote, last-write-wins on server; then clear dirty
-                    withRetry { firestoreService.pushTrackings(localDirty) }
-                    val cleaned = localDirty.map { it.copy(dirty = false, updatedAt = now) }
-                    productTrackingDao.upsertAll(cleaned)
-                    pushes += cleaned.size
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Product Tracking sync failed")
-                syncErrors.add("Tracking: ${e.message}")
-            }
-
-            // ============================
-            // Enthusiast Entity Sync (UID)
-            // ============================
-            if (role == UserType.ENTHUSIAST && userId != null) {
-                try {
-                    // Mating Logs (use enthusiast-specific window)
-                    run {
-                        val remote = withRetry {
-                            firestoreService.fetchUpdatedMatingLogs(
-                                userId,
-                                state.lastEnthusiastBreedingSyncAt
-                            )
-                        }
-                        if (remote.isNotEmpty()) {
-                            remote.forEach { matingLogDao.upsert(it) }
-                            pulls += remote.size
-                        }
-                        val localDirty = matingLogDao.getDirty()
-                        if (localDirty.isNotEmpty()) {
-                            withRetry { firestoreService.pushMatingLogs(userId, localDirty) }
-                            matingLogDao.clearDirty(localDirty.map { it.logId }, now)
-                            pushes += localDirty.size
-                        }
-                    }
-
-                    // Egg Collections (use enthusiast-specific window)
-                    run {
-                        val remote = withRetry {
-                            firestoreService.fetchUpdatedEggCollections(
-                                userId,
-                                state.lastEnthusiastBreedingSyncAt
-                            )
-                        }
-                        if (remote.isNotEmpty()) {
-                            remote.forEach { eggCollectionDao.upsert(it) }
-                            pulls += remote.size
-                        }
-                        val localDirty = eggCollectionDao.getDirty()
-                        if (localDirty.isNotEmpty()) {
-                            withRetry { firestoreService.pushEggCollections(userId, localDirty) }
-                            eggCollectionDao.clearDirty(localDirty.map { it.collectionId }, now)
-                            pushes += localDirty.size
-                        }
-                    }
-
-                    // Enthusiast Dashboard Snapshots (use enthusiast-specific window)
-                    run {
-                        val remote = withRetry {
-                            firestoreService.fetchUpdatedEnthusiastSnapshots(
-                                userId,
-                                state.lastEnthusiastDashboardSyncAt
-                            )
-                        }
-                        if (remote.isNotEmpty()) {
-                            remote.forEach { enthusiastDashboardSnapshotDao.upsert(it) }
-                            pulls += remote.size
-                        }
-                        val localDirty = enthusiastDashboardSnapshotDao.getDirty()
-                        if (localDirty.isNotEmpty()) {
-                            withRetry {
-                                firestoreService.pushEnthusiastSnapshots(
-                                    userId,
-                                    localDirty
-                                )
-                            }
-                            enthusiastDashboardSnapshotDao.clearDirty(
-                                localDirty.map { it.snapshotId },
-                                now
-                            )
-                            pushes += localDirty.size
-                        }
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Enthusiast sync failed")
-                    syncErrors.add("Enthusiast Data: ${e.message}")
-                }
-            }
-
-            // =====
-            // Users
-            // =====
-            try {
-                // Pull updated users to ensure sellers exist before product sync
-                val remoteUsersUpdated: List<UserEntity> = withRetry {
-                    firestoreService.fetchUpdatedUsers(state.lastUserSyncAt)
-                }
-                if (remoteUsersUpdated.isNotEmpty()) {
-                    userDao.upsertUsers(remoteUsersUpdated)
-                    pulls += remoteUsersUpdated.size
-                }
-                // Users are not pushed as dirty in this context; handled elsewhere if needed
-            } catch (e: Exception) {
-                Timber.e(e, "Users sync failed")
-                syncErrors.add("Users: ${e.message}")
-            }
-
-            // ==========
-            // Products
-            // ==========
-            try {
-                var remoteProductsUpdated: List<ProductEntity> = emptyList()
-                var processedWithMissingUsers = false
-                try {
-                    withTimeout(PRODUCTS_SYNC_TIMEOUT_MS) {
-                        // Pull
-                        remoteProductsUpdated = withRetry {
-                            firestoreService.fetchUpdatedProducts(state.lastProductSyncAt)
-                        }
-                        // Ensure all referenced users exist before inserting products
-                        val sellerIds = remoteProductsUpdated.map { it.sellerId }.distinct()
-                        if (sellerIds.isNotEmpty()) {
-                            val existingSellers =
-                                userDao.getUsersByIds(sellerIds).map { it.userId }.toSet()
-                            val missingSellerIds = sellerIds.filter { it !in existingSellers }
-                            if (missingSellerIds.isNotEmpty()) {
-                                val fetchedUsers =
-                                    withRetry { firestoreService.fetchUsersByIds(missingSellerIds) }
-                                if (fetchedUsers.isNotEmpty()) userDao.upsertUsers(fetchedUsers)
-                                Timber.d("Auto-fetched ${fetchedUsers.size} users for product sync")
-                                val fetchedIds = fetchedUsers.map { it.userId }.toSet()
-                                val stillMissing = missingSellerIds.filter { it !in fetchedIds }
-                                if (stillMissing.isNotEmpty()) {
-                                    Timber.w("Skipping ${stillMissing.size} products due to unresolved sellers: ${stillMissing.joinToString()}")
-                                }
-                                // Filter out products with unresolved sellers
-                                val filtered =
-                                    remoteProductsUpdated.filter { it.sellerId !in stillMissing }
-                                if (filtered.isNotEmpty()) {
-                                    val resolved = mutableListOf<ProductEntity>()
-                                    for (remote in filtered) {
-                                        val local = productDao.findById(remote.productId)
-                                        resolved.add(
-                                            if (local != null) mergeProductRemoteLocal(
-                                                remote,
-                                                local
-                                            ) else remote
-                                        )
-                                    }
-                                    productDao.insertProducts(resolved)
-                                    // Emit conflict events
-                                    filtered.forEach { remote ->
-                                        val local = productDao.findById(remote.productId)
-                                        if (local != null) {
-                                            val conflictFields = mutableListOf<String>()
-                                            val rU = remote.updatedAt
-                                            val lU = local.updatedAt
-                                            if (rU > lU) {
-                                                if (remote.name != local.name) conflictFields.add("name")
-                                                if (remote.description != local.description) conflictFields.add(
-                                                    "description"
-                                                )
-                                                if (remote.price != local.price) conflictFields.add(
-                                                    "price"
-                                                )
-                                                if (remote.quantity != local.quantity) conflictFields.add(
-                                                    "quantity"
-                                                )
-                                                if (remote.unit != local.unit) conflictFields.add("unit")
-                                                if (remote.location != local.location) conflictFields.add(
-                                                    "location"
-                                                )
-                                                if (remote.stage != local.stage) conflictFields.add(
-                                                    "stage"
-                                                )
-                                                if (remote.lifecycleStatus != local.lifecycleStatus) conflictFields.add(
-                                                    "lifecycleStatus"
-                                                )
-                                            }
-                                            if (conflictFields.isNotEmpty()) {
-                                                conflictEvents.emit(
-                                                    ConflictEvent(
-                                                        entityType = OutboxEntity.TYPE_LISTING,
-                                                        entityId = remote.productId,
-                                                        conflictFields = conflictFields,
-                                                        mergedAt = now
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    }
-                                    pulls += resolved.size
-                                }
-                                // Mark that we processed products with missing users
-                                processedWithMissingUsers = true
-                            }
-                        }
-                        if (!processedWithMissingUsers && remoteProductsUpdated.isNotEmpty()) {
-                            // Merge with local on pull (explicit loop)
-                            val resolved = mutableListOf<ProductEntity>()
-                            for (remote in remoteProductsUpdated) {
-                                val local = productDao.findById(remote.productId)
-                                resolved.add(
-                                    if (local != null) mergeProductRemoteLocal(
-                                        remote,
-                                        local
-                                    ) else remote
-                                )
-                            }
-                            productDao.insertProducts(resolved)
-                            // Emit conflict events for fields that changed due to remote taking precedence
-                            remoteProductsUpdated.forEach { remote ->
-                                val local = productDao.findById(remote.productId)
-                                if (local != null) {
-                                    val conflictFields = mutableListOf<String>()
-                                    val rU = remote.updatedAt
-                                    val lU = local.updatedAt
-                                    if (rU > lU) {
-                                        if (remote.name != local.name) conflictFields.add("name")
-                                        if (remote.description != local.description) conflictFields.add(
-                                            "description"
-                                        )
-                                        if (remote.price != local.price) conflictFields.add("price")
-                                        if (remote.quantity != local.quantity) conflictFields.add("quantity")
-                                        if (remote.unit != local.unit) conflictFields.add("unit")
-                                        if (remote.location != local.location) conflictFields.add("location")
-                                        if (remote.stage != local.stage) conflictFields.add("stage")
-                                        if (remote.lifecycleStatus != local.lifecycleStatus) conflictFields.add(
-                                            "lifecycleStatus"
-                                        )
-                                    }
-                                    if (conflictFields.isNotEmpty()) {
-                                        conflictEvents.emit(
-                                            ConflictEvent(
-                                                entityType = OutboxEntity.TYPE_LISTING,
-                                                entityId = remote.productId,
-                                                conflictFields = conflictFields,
-                                                mergedAt = now
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                            pulls += resolved.size
-                        }
-                    }
-                } catch (e: TimeoutCancellationException) {
-                    Timber.e(e, "Products sync timed out after ${PRODUCTS_SYNC_TIMEOUT_MS}ms")
-                    timedOutDomains.add("products")
-                    syncErrors.add("Products: Timeout")
-                }
-
-                // Push (dirty only)
-                val localDirty = productDao.getUpdatedSince(state.lastProductSyncAt, limit = 50)
-                    .filter { it.dirty }
-                if (localDirty.isNotEmpty()) {
-                    // Protect lineage-related fields from being overwritten if remote has them newer/present
-                    val payload = localDirty.map { local ->
-                        val remote =
-                            remoteProductsUpdated.firstOrNull { it.productId == local.productId }
-                        protectLineageOnPush(local, remote)
-                    }
-                    withRetry { firestoreService.pushProducts(payload) }
-                    // Also apply the protected payload locally when clearing dirty to avoid clobbering lineage fields
-                    val cleaned = payload.map { it.copy(dirty = false, updatedAt = now) }
-                    productDao.insertProducts(cleaned)
-                    pushes += cleaned.size
-                }
-
-                // Purge soft-deleted
-                productDao.purgeDeleted()
-
-                // Evict stale marketplace cache older than 14 days (unless referenced by tracking)
-                val fourteenDaysMillis = 14L * 24 * 60 * 60 * 1000
-                val threshold = now - fourteenDaysMillis
-                productDao.purgeStaleMarketplace(threshold)
-            } catch (e: Exception) {
-                Timber.e(e, "Products sync failed")
-                syncErrors.add("Products: ${e.message}")
-            }
-
-            // =======
-            // Orders
-            // =======
-            try {
-                // Pull
-                if (userId != null) {
-                    val remoteOrdersUpdated: List<OrderEntity> = withRetry {
-                        firestoreService.fetchUpdatedOrders(userId, state.lastOrderSyncAt)
-                    }
-                    if (remoteOrdersUpdated.isNotEmpty()) {
-                        // Upsert each; OrderDao has insertOrUpdate
-                        remoteOrdersUpdated.forEach { orderDao.insertOrUpdate(it) }
-                        pulls += remoteOrdersUpdated.size
-                    }
-                }
-
-                // Push dirties
-                val localDirty = orderDao.getUpdatedSince(state.lastOrderSyncAt, limit = 50)
-                    .filter { it.dirty }
-                if (localDirty.isNotEmpty()) {
-                    withRetry { firestoreService.pushOrders(localDirty) }
-                    val cleaned = localDirty.map { it.copy(dirty = false, updatedAt = now) }
-                    cleaned.forEach { orderDao.insertOrUpdate(it) }
-                    pushes += cleaned.size
-                }
-
-                // Purge soft-deleted
-                orderDao.purgeDeleted()
-            } catch (e: Exception) {
-                Timber.e(e, "Orders sync failed")
-                syncErrors.add("Orders: ${e.message}")
-            }
-
-            // =========
-            // Transfers
-            // =========
-            try {
-                // Pull
-                val remoteTransfersUpdated: List<TransferEntity> = withRetry {
-                    firestoreService.fetchUpdatedTransfers(userId, state.lastTransferSyncAt)
-                }
-                if (remoteTransfersUpdated.isNotEmpty()) {
-                    remoteTransfersUpdated.forEach { transferDao.upsert(it) }
-                    pulls += remoteTransfersUpdated.size
-                }
-
-                // Push dirties
-                val localDirty = transferDao.getUpdatedSince(state.lastTransferSyncAt, limit = 50)
-                    .filter { it.dirty }
-                if (localDirty.isNotEmpty()) {
-                    // If remote has terminal state, prefer remote over local
-                    val toPush = localDirty.filter { local ->
-                        val remote =
-                            remoteTransfersUpdated.firstOrNull { it.transferId == local.transferId }
-                        val remoteTerminal = isTerminalTransferStatus(remote?.status)
-                        !remoteTerminal
-                    }
-                    withRetry { firestoreService.pushTransfers(toPush) }
-                    // When cleaning, keep remote terminal states by merging
-                    val cleaned = localDirty.map { local ->
-                        val remote =
-                            remoteTransfersUpdated.firstOrNull { it.transferId == local.transferId }
-                        if (remote != null && isTerminalTransferStatus(remote.status)) {
-                            // Emit conflict on status override
-                            if (remote.status != local.status) {
-                                conflictEvents.emit(
-                                    ConflictEvent(
-                                        entityType = OutboxEntity.TYPE_TRANSFER,
-                                        entityId = local.transferId,
-                                        conflictFields = listOf("status"),
-                                        mergedAt = now
-                                    )
-                                )
-                            }
-                            remote.copy(dirty = false, updatedAt = now)
-                        } else {
-                            local.copy(dirty = false, updatedAt = now)
-                        }
-                    }
-                    cleaned.forEach { transferDao.upsert(it) }
-                    pushes += cleaned.size
-                }
-
-                // Purge soft-deleted
-                transferDao.purgeDeleted()
-            } catch (e: Exception) {
-                Timber.e(e, "Transfers sync failed")
-                syncErrors.add("Transfers: ${e.message}")
-            }
-
-            // =====
-            // Chat
-            // =====
-            try {
-                // Pull only (no dirty flag by design here); could push by updatedAt window if needed
-                val remoteMessagesUpdated: List<ChatMessageEntity> = withRetry {
-                    firestoreService.fetchUpdatedChats(userId, state.lastChatSyncAt)
-                }
-                if (remoteMessagesUpdated.isNotEmpty()) {
-                    // Emit conflicts where remote overwrote different local fields by recency
-                    remoteMessagesUpdated.forEach { remote ->
-                        val local = chatMessageDao.getById(remote.messageId)
-                        if (local != null && remote.updatedAt > local.updatedAt) {
-                            val fields = mutableListOf<String>()
-                            if (remote.body != local.body) fields.add("body")
-                            if (remote.mediaUrl != local.mediaUrl) fields.add("mediaUrl")
-                            if (remote.deliveredAt != local.deliveredAt) fields.add("deliveredAt")
-                            if (remote.readAt != local.readAt) fields.add("readAt")
-                            if (fields.isNotEmpty()) {
-                                conflictEvents.emit(
-                                    ConflictEvent(
-                                        entityType = OutboxEntity.TYPE_CHAT_MESSAGE,
-                                        entityId = remote.messageId,
-                                        conflictFields = fields,
-                                        mergedAt = now
-                                    )
-                                )
-                            }
-                        }
-                    }
-                    chatMessageDao.upsertAll(remoteMessagesUpdated)
-                    pulls += remoteMessagesUpdated.size
-                }
-
-                // Purge soft-deleted
-                chatMessageDao.purgeDeleted()
-            } catch (e: Exception) {
-                Timber.e(e, "Chat sync failed")
-                syncErrors.add("Chat: ${e.message}")
-            }
-
-            // ================
-            // Outbox Processing
-            // ================
-            var outboxProcessed = 0
-            run {
-                val pendingEntries = outboxDao.getPendingPrioritized(limit = 50)
-                val totalPending = pendingEntries.size
-                var processed = 0
-                // Use global syncErrors list
-
-                // Group by entity type for batch processing
-                val groupedEntries = pendingEntries.groupBy { it.entityType }
-
-                for ((entityType, entries) in groupedEntries) {
-                    syncProgressFlow.emit(
-                        SyncProgress(
-                            totalPending,
-                            processed,
-                            entityType,
-                            syncErrors.toList()
-                        )
-                    )
-
-                    // Mark batch IN_PROGRESS to prevent duplicates in concurrent runs
-                    val batchIds = entries.map { it.outboxId }.filter { it.isNotBlank() }
-                    if (batchIds.isNotEmpty()) {
-                        outboxDao.updateStatusBatch(batchIds, "IN_PROGRESS", now)
-                    }
-
-                    // Map entityId -> OutboxEntity to avoid empty lookups
-                    val outboxByEntityId = entries.associateBy { it.entityId }
-
-                    when (entityType) {
-                        OutboxEntity.TYPE_DAILY_LOG -> {
-                            // SPLIT-BRAIN ARCHITECTURE: Daily logs are now LOCAL-ONLY
-                            // They no longer sync to cloud. Mark outbox entries as completed.
-                            for (e in entries) {
-                                outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                processed++
-                            }
-                            Timber.d("Skipped ${entries.size} daily log outbox entries (local-only)")
-                        }
-
-                        OutboxEntity.TYPE_TRANSFER -> {
-                            for (e in entries) {
-                                val transfer =
-                                    gson.fromJson(e.payloadJson, TransferEntity::class.java)
-                                try {
-                                    withRetry { firestoreService.pushTransfers(listOf(transfer)) }
-                                    transferDao.upsert(
-                                        transfer.copy(
-                                            dirty = false,
-                                            updatedAt = now
-                                        )
-                                    )
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    outboxDao.incrementRetry(e.outboxId, now)
-                                    val willRetry = (e.retryCount + 1) < e.maxRetries
-                                    outboxDao.updateStatus(
-                                        e.outboxId,
-                                        if (willRetry) "PENDING" else "FAILED",
-                                        now
-                                    )
-                                    syncErrors.add("Transfer push failed for ${transfer.transferId}: ${t.message}")
-                                }
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_PRODUCT_TRACKING -> {
-                            val userId = firebaseAuth.currentUser?.uid ?: ""
-                            for (e in entries) {
-                                val tracking =
-                                    gson.fromJson(e.payloadJson, ProductTrackingEntity::class.java)
-                                try {
-                                    withRetry { firestoreService.pushTrackings(listOf(tracking)) }
-                                    productTrackingDao.clearDirtyCustom(tracking.trackingId, now)
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    outboxDao.incrementRetry(e.outboxId, now)
-                                    val willRetry = (e.retryCount + 1) < e.maxRetries
-                                    outboxDao.updateStatus(
-                                        e.outboxId,
-                                        if (willRetry) "PENDING" else "FAILED",
-                                        now
-                                    )
-                                    syncErrors.add("Tracking push failed: ${t.message}")
-                                }
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_LISTING -> {
-                            for (e in entries) {
-                                val product = gson.fromJson(e.payloadJson, ProductEntity::class.java)
-                                try {
-                                    withRetry { firestoreService.pushProducts(listOf(product)) }
-                                    productDao.insertProducts(
-                                        listOf(
-                                            product.copy(
-                                                dirty = false,
-                                                updatedAt = now
-                                            )
-                                        )
-                                    )
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    // Check if it's the "missing seller" error
-                                    if (t.message?.contains("seller") == true) {
-                                        if (product.sellerId.isNotBlank()) {
-                                            // Attempt to fetch missing seller
-                                            val missingUser = withRetry {
-                                                firestoreService.fetchUsersByIds(
-                                                    listOf(product.sellerId)
-                                                ).firstOrNull()
-                                            }
-                                            if (missingUser != null) {
-                                                userDao.upsertUser(missingUser)
-                                                Timber.d("Fetched and inserted missing seller ${product.sellerId} for product ${product.productId}")
-                                                // Retry insert
-                                                productDao.insertProducts(listOf(product.copy(dirty = false, updatedAt = now)))
-                                                outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                            } else {
-                                                Timber.e("Failed to fetch seller ${product.sellerId} for product ${product.productId}")
-                                                outboxDao.incrementRetry(e.outboxId, now)
-                                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
-                                                syncErrors.add("Listing push failed for ${product.productId}: missing seller ${product.sellerId}")
-                                            }
-                                        } else {
-                                            throw t
-                                        }
-                                    } else {
-                                        outboxDao.incrementRetry(e.outboxId, now)
-                                        val willRetry = (e.retryCount + 1) < e.maxRetries
-                                        outboxDao.updateStatus(
-                                            e.outboxId,
-                                            if (willRetry) "PENDING" else "FAILED",
-                                            now
-                                        )
-                                        syncErrors.add("Listing push failed for ${product.productId}: ${t.message}")
-                                    }
-                                }
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_CHAT_MESSAGE -> {
-                            for (e in entries) {
-                                val message =
-                                    gson.fromJson(e.payloadJson, ChatMessageEntity::class.java)
-                                try {
-                                    withRetry { firestoreService.pushChats(listOf(message)) }
-                                    chatMessageDao.clearDirty(listOf(message.messageId), now)
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    outboxDao.incrementRetry(e.outboxId, now)
-                                    val willRetry = (e.retryCount + 1) < e.maxRetries
-                                    outboxDao.updateStatus(
-                                        e.outboxId,
-                                        if (willRetry) "PENDING" else "FAILED",
-                                        now
-                                    )
-                                    syncErrors.add("Chat message push failed for ${message.messageId}: ${t.message}")
-                                }
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_GROUP_MESSAGE -> {
-                            for (e in entries) {
-                                // No remote API defined for group messages; mark as FAILED to surface
-                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
-                                syncErrors.add("No remote API for group messages; marked FAILED for ${e.entityId}")
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_TASK -> {
-                            val userId = firebaseAuth.currentUser?.uid ?: ""
-                            for (e in entries) {
-                                val task = gson.fromJson(e.payloadJson, TaskEntity::class.java)
-                                try {
-                                    val userRole = role ?: UserType.GENERAL
-                                    withRetry { firestoreService.pushTasks(userId, userRole, listOf(task)) }
-                                    taskDao.clearDirty(listOf(task.taskId), now)
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    outboxDao.incrementRetry(e.outboxId, now)
-                                    val willRetry = (e.retryCount + 1) < e.maxRetries
-                                    outboxDao.updateStatus(
-                                        e.outboxId,
-                                        if (willRetry) "PENDING" else "FAILED",
-                                        now
-                                    )
-                                    syncErrors.add("Task push failed for ${task.taskId}: ${t.message}")
-                                }
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_ORDER -> {
-                            for (e in entries) {
-                                val order = gson.fromJson(e.payloadJson, OrderEntity::class.java)
-                                try {
-                                    withRetry { firestoreService.pushOrders(listOf(order)) }
-                                    orderDao.insertOrUpdate(
-                                        order.copy(
-                                            dirty = false,
-                                            updatedAt = now
-                                        )
-                                    )
-                                    outboxDao.updateStatus(e.outboxId, "COMPLETED", now)
-                                } catch (t: Throwable) {
-                                    outboxDao.incrementRetry(e.outboxId, now)
-                                    val willRetry = (e.retryCount + 1) < e.maxRetries
-                                    outboxDao.updateStatus(
-                                        e.outboxId,
-                                        if (willRetry) "PENDING" else "FAILED",
-                                        now
-                                    )
-                                    syncErrors.add("Order push failed for ${order.orderId}: ${t.message}")
-                                }
-                                processed++
-                            }
-                        }
-
-                        OutboxEntity.TYPE_POST -> {
-                            for (e in entries) {
-                                // No remote API defined in SyncRemote; mark as FAILED to surface
-                                outboxDao.updateStatus(e.outboxId, "FAILED", now)
-                                syncErrors.add("No remote API for posts; marked FAILED for ${e.entityId}")
-                                processed++
-                            }
-                        }
-
-                        else -> {
-                            Timber.w("Unknown outbox entity type: $entityType")
-                            syncErrors.add("Unknown type: $entityType")
-                        }
-                    }
-
-                    // Emit after each batch completion
-                    syncProgressFlow.emit(
-                        SyncProgress(
-                            totalPending,
-                            processed,
-                            entityType,
-                            syncErrors.toList()
-                        )
-                    )
-                }
-
-                outboxProcessed = processed
-
-                // Purge completed entries older than 7 days
-                val sevenDaysAgo = now - (7L * 24 * 60 * 60 * 1000)
-                outboxDao.purgeCompleted(sevenDaysAgo)
-            }
-
-            // =============================
-            // Farm Monitoring Entity Sync
-            // =============================
-            val canSyncMonitoring = (role == UserType.FARMER || role == UserType.ENTHUSIAST) && userId != null
-            val isMigrating = userId?.let { roleMigrationDao.hasActiveMigration(it) } ?: false
             
-            if (canSyncMonitoring) {
-                if (isMigrating) {
-                    Timber.d("Skipping monitoring sync due to active migration for $userId")
-                } else {
-                    val farmerId = userId!!
-                    // Breeding Pairs
-                try {
-                    val remotePairs = withRetry {
-                        firestoreService.fetchUpdatedBreedingPairs(
-                            farmerId,
-                            role,
-                            state.lastBreedingSyncAt
-                        )
-                    }
-                    if (remotePairs.isNotEmpty()) {
-                        remotePairs.forEach { breedingPairDao.upsert(it) }
-                        pulls += remotePairs.size
-                    }
-
-                    val localDirty = breedingPairDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushBreedingPairs(farmerId, role, localDirty) }
-                        breedingPairDao.clearDirty(localDirty.map { it.pairId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Breeding Pairs sync failed")
-                    syncErrors.add("Breeding Pairs: ${e.message}")
-                }
-
-                // Farm Alerts
-                try {
-                    val remoteAlerts = withRetry {
-                        firestoreService.fetchUpdatedAlerts(farmerId, role, state.lastAlertSyncAt)
-                    }
-                    if (remoteAlerts.isNotEmpty()) {
-                        remoteAlerts.forEach { farmAlertDao.upsert(it) }
-                        pulls += remoteAlerts.size
-                    }
-
-                    val localDirty = farmAlertDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushAlerts(farmerId, role, localDirty) }
-                        farmAlertDao.clearDirty(localDirty.map { it.alertId }, now)
-                        pushes += localDirty.size
-                    }
-
-                    // Clean up expired alerts
-                    farmAlertDao.deleteExpired(now)
-                } catch (e: Exception) {
-                    Timber.e(e, "Farm Alerts sync failed")
-                    syncErrors.add("Alerts: ${e.message}")
-                }
-
-                // Dashboard Snapshots
-                try {
-                    val remoteSnapshots = withRetry {
-                        firestoreService.fetchUpdatedDashboardSnapshots(
-                            farmerId,
-                            role,
-                            state.lastDashboardSyncAt
-                        )
-                    }
-                    if (remoteSnapshots.isNotEmpty()) {
-                        remoteSnapshots.forEach { farmerDashboardSnapshotDao.upsert(it) }
-                        pulls += remoteSnapshots.size
-                    }
-
-                    val localDirty = farmerDashboardSnapshotDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushDashboardSnapshots(farmerId, role, localDirty) }
-                        farmerDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Dashboard Snapshots sync failed")
-                    syncErrors.add("Dashboard: ${e.message}")
-                }
-
-                // Vaccination Records
-                try {
-                    val remoteVaccinations = withRetry {
-                        firestoreService.fetchUpdatedVaccinations(
-                            farmerId,
-                            role,
-                            state.lastVaccinationSyncAt
-                        )
-                    }
-                    if (remoteVaccinations.isNotEmpty()) {
-                        remoteVaccinations.forEach { vaccinationRecordDao.upsert(it) }
-                        pulls += remoteVaccinations.size
-                    }
-
-                    val localDirty = vaccinationRecordDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushVaccinations(farmerId, role, localDirty) }
-                        vaccinationRecordDao.clearDirty(localDirty.map { it.vaccinationId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Vaccination sync failed")
-                    syncErrors.add("Vaccinations: ${e.message}")
-                }
-
-                // Growth Records
-                try {
-                    val remoteGrowth = withRetry {
-                        firestoreService.fetchUpdatedGrowthRecords(farmerId, role, state.lastGrowthSyncAt)
-                    }
-                    if (remoteGrowth.isNotEmpty()) {
-                        remoteGrowth.forEach { growthRecordDao.upsert(it) }
-                        pulls += remoteGrowth.size
-                    }
-
-                    val localDirty = growthRecordDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushGrowthRecords(farmerId, role, localDirty) }
-                        growthRecordDao.clearDirty(localDirty.map { it.recordId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Growth sync failed")
-                    syncErrors.add("Growth: ${e.message}")
-                }
-
-                // Quarantine Records
-                try {
-                    val remoteQuarantine = withRetry {
-                        firestoreService.fetchUpdatedQuarantineRecords(
-                            farmerId,
-                            role,
-                            state.lastQuarantineSyncAt
-                        )
-                    }
-                    if (remoteQuarantine.isNotEmpty()) {
-                        remoteQuarantine.forEach { quarantineRecordDao.upsert(it) }
-                        pulls += remoteQuarantine.size
-                    }
-
-                    val localDirty = quarantineRecordDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushQuarantineRecords(farmerId, role, localDirty) }
-                        quarantineRecordDao.clearDirty(localDirty.map { it.quarantineId })
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Quarantine sync failed")
-                    syncErrors.add("Quarantine: ${e.message}")
-                }
-
-                // Mortality Records
-                try {
-                    val remoteMortality = withRetry {
-                        firestoreService.fetchUpdatedMortalityRecords(
-                            farmerId,
-                            role,
-                            state.lastMortalitySyncAt
-                        )
-                    }
-                    if (remoteMortality.isNotEmpty()) {
-                        remoteMortality.forEach { mortalityRecordDao.upsert(it) }
-                        pulls += remoteMortality.size
-                    }
-
-                    val localDirty = mortalityRecordDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushMortalityRecords(farmerId, role, localDirty) }
-                        mortalityRecordDao.clearDirty(localDirty.map { it.deathId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Mortality sync failed")
-                    syncErrors.add("Mortality: ${e.message}")
-                }
-
-                // Hatching Batches
-                try {
-                    val remoteHatching = withRetry {
-                        firestoreService.fetchUpdatedHatchingBatches(
-                            farmerId,
-                            role,
-                            state.lastHatchingSyncAt
-                        )
-                    }
-                    if (remoteHatching.isNotEmpty()) {
-                        remoteHatching.forEach { hatchingBatchDao.upsert(it) }
-                        pulls += remoteHatching.size
-                    }
-
-                    val localDirty = hatchingBatchDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushHatchingBatches(farmerId, role, localDirty) }
-                        hatchingBatchDao.clearDirty(localDirty.map { it.batchId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Hatching Batches sync failed")
-                    syncErrors.add("Hatching: ${e.message}")
-                }
-
-                // Hatching Logs
-                try {
-                    val remoteLogs = withRetry {
-                        firestoreService.fetchUpdatedHatchingLogs(
-                            farmerId,
-                            role,
-                            state.lastHatchingLogSyncAt
-                        )
-                    }
-                    if (remoteLogs.isNotEmpty()) {
-                        remoteLogs.forEach { hatchingLogDao.upsert(it) }
-                        pulls += remoteLogs.size
-                    }
-
-                    val localDirty = hatchingLogDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushHatchingLogs(farmerId, role, localDirty) }
-                        hatchingLogDao.clearDirty(localDirty.map { it.logId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Hatching Logs sync failed")
-                    syncErrors.add("Hatching Logs: ${e.message}")
-                }
-
-                // ===================
-                // Daily Logs - SPLIT-BRAIN: Now LOCAL-ONLY, no cloud sync
-                // ===================
-                // Daily logs are no longer synced to cloud to optimize for Firebase Free Tier.
-                // Use BatchSummary sync instead for lightweight cloud data.
-                Timber.d("Skipping Daily Logs sync (Split-Brain: local-only)")
-
-                // =====================
-                // BatchSummaries - SPLIT-BRAIN: Lightweight cloud sync
-                // =====================
-                try {
-                    val remoteSummaries = withRetry {
-                        firestoreService.fetchUpdatedBatchSummaries(userId, state.lastBatchSummarySyncAt)
-                    }
-                    if (remoteSummaries.isNotEmpty()) {
-                        remoteSummaries.forEach { batchSummaryDao.upsert(it) }
-                        pulls += remoteSummaries.size
-                    }
-
-                    val localDirty = batchSummaryDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushBatchSummaries(userId, localDirty) }
-                        batchSummaryDao.clearDirty(localDirty.map { it.batchId }, now)
-                        pushes += localDirty.size
-                    }
-                    Timber.d("BatchSummaries sync: pulled=${remoteSummaries.size}, pushed=${localDirty.size}")
-                } catch (e: Exception) {
-                    Timber.e(e, "BatchSummaries sync failed")
-                    syncErrors.add("BatchSummaries: ${e.message}")
-                }
-
-                // ============
-                // Tasks (Sprint 1)
-                // ============
-                try {
-                    val remoteTasks: List<TaskEntity> = withRetry {
-                        firestoreService.fetchUpdatedTasks(userId, role, state.lastTaskSyncAt)
-                    }
-                    if (remoteTasks.isNotEmpty()) {
-                        for (t in remoteTasks) {
-                            taskDao.upsert(t)
-                        }
-                        pulls += remoteTasks.size
-                    }
-                    val localDirty: List<TaskEntity> = taskDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushTasks(userId, role, localDirty) }
-                        taskDao.clearDirty(localDirty.map { it.taskId }, now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Tasks sync failed")
-                    syncErrors.add("Tasks: ${e.message}")
-                }
-            } // End of else (not migrating)
-        } // End of if (canSyncMonitoring)
-
+            val ctx = SyncContext(userId, role, now, state, timedOutDomains)
+            
+            // Execute sync blocks
+            val r1 = syncProductTracking(ctx)
+            val r2 = syncEnthusiastData(ctx)
+            val r3 = syncUsers(ctx)
+            val r4 = syncProducts(ctx)
+            val r5 = syncOrders(ctx)
+            val r6 = syncTransfers(ctx)
+            val r7 = syncChat(ctx)
+            val r8 = processOutbox(ctx)
+            val r9 = syncFarmMonitoring(ctx)
+            
+            // Aggregate results
+            val allResults = listOf(r1, r2, r3, r4, r5, r6, r7, r8, r9)
+            val totalPulls = allResults.sumOf { it.pulls }
+            val totalPushes = allResults.sumOf { it.pushes }
+            val totalProcessed = r8.processed
+            val allErrors = allResults.flatMap { it.errors }
+            
             // Update sync state for all domains once at the end
             syncStateDao.upsert(
                 SyncStateEntity(
@@ -1283,12 +349,12 @@ class SyncManager @Inject constructor(
                      0,
                      0,
                      "COMPLETED",
-                     syncErrors.toList()
+                     allErrors
                  )
             )
 
             val stats =
-                SyncStats(pushes, pulls, outboxProcessed = 0, timedOutDomains = timedOutDomains)
+                SyncStats(totalPushes, totalPulls, outboxProcessed = totalProcessed, timedOutDomains = timedOutDomains)
             if (timedOutDomains.isNotEmpty()) {
                 Timber.w("Sync completed with timeouts in: ${timedOutDomains.joinToString()}")
             }
@@ -1299,12 +365,777 @@ class SyncManager @Inject constructor(
         }
     }
     
-    // Sync state tracking
-    @Volatile private var syncInProgress = false
+    // ==========================================
+    // Refactored Helper Methods
+    // ==========================================
+
+    private suspend fun syncProductTracking(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+        try {
+            // Pull newer remote changes since lastTrackingSyncAt
+            val remoteTrackingUpdated: List<ProductTrackingEntity> = withRetry {
+                firestoreService.fetchUpdatedTrackings(ctx.userId, ctx.state.lastTrackingSyncAt)
+            }
+            if (remoteTrackingUpdated.isNotEmpty()) {
+                productTrackingDao.upsertAll(remoteTrackingUpdated)
+                pulls += remoteTrackingUpdated.size
+            }
+
+            // Push local dirty rows
+            val localDirty = productTrackingDao.getUpdatedSince(ctx.state.lastTrackingSyncAt, limit = 50)
+                .filter { it.dirty }
+            if (localDirty.isNotEmpty()) {
+                withRetry { firestoreService.pushTrackings(localDirty) }
+                val cleaned = localDirty.map { it.copy(dirty = false, updatedAt = ctx.now) }
+                productTrackingDao.upsertAll(cleaned)
+                pushes += cleaned.size
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Product Tracking sync failed")
+            errors.add("Tracking: ${e.message}")
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncEnthusiastData(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+        
+        if (ctx.role == UserType.ENTHUSIAST && ctx.userId != null) {
+            try {
+                // Mating Logs
+                run {
+                    val remote = withRetry {
+                        firestoreService.fetchUpdatedMatingLogs(ctx.userId, ctx.state.lastEnthusiastBreedingSyncAt)
+                    }
+                    if (remote.isNotEmpty()) {
+                        val localDirtyIds = matingLogDao.getDirty().map { it.logId }.toHashSet()
+                        val toUpsert = remote.filter { it.logId !in localDirtyIds }
+                        toUpsert.forEach { matingLogDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = matingLogDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushMatingLogs(ctx.userId, localDirty) }
+                        matingLogDao.clearDirty(localDirty.map { it.logId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                }
+
+                // Egg Collections
+                run {
+                    val remote = withRetry {
+                        firestoreService.fetchUpdatedEggCollections(ctx.userId, ctx.state.lastEnthusiastBreedingSyncAt)
+                    }
+                    if (remote.isNotEmpty()) {
+                        val localDirtyIds = eggCollectionDao.getDirty().map { it.collectionId }.toHashSet()
+                        val toUpsert = remote.filter { it.collectionId !in localDirtyIds }
+                        toUpsert.forEach { eggCollectionDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = eggCollectionDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushEggCollections(ctx.userId, localDirty) }
+                        eggCollectionDao.clearDirty(localDirty.map { it.collectionId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                }
+
+                // Snapshots
+                run {
+                    val remote = withRetry {
+                        firestoreService.fetchUpdatedEnthusiastSnapshots(ctx.userId, ctx.state.lastEnthusiastDashboardSyncAt)
+                    }
+                    if (remote.isNotEmpty()) {
+                        val localDirtyIds = enthusiastDashboardSnapshotDao.getDirty().map { it.snapshotId }.toHashSet()
+                        val toUpsert = remote.filter { it.snapshotId !in localDirtyIds }
+                        toUpsert.forEach { enthusiastDashboardSnapshotDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = enthusiastDashboardSnapshotDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushEnthusiastSnapshots(ctx.userId, localDirty) }
+                        enthusiastDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Enthusiast sync failed")
+                errors.add("Enthusiast Data: ${e.message}")
+            }
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncUsers(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        val errors = mutableListOf<String>()
+        try {
+            val remoteUsersUpdated: List<UserEntity> = withRetry {
+                firestoreService.fetchUpdatedUsers(ctx.state.lastUserSyncAt)
+            }
+            if (remoteUsersUpdated.isNotEmpty()) {
+                userDao.upsertUsers(remoteUsersUpdated)
+                pulls += remoteUsersUpdated.size
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Users sync failed")
+            errors.add("Users: ${e.message}")
+        }
+        return SyncResult(pulls, 0, 0, errors)
+    }
+
+    private suspend fun syncProducts(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+        var processedWithMissingUsers = false
+        
+        try {
+            var remoteProductsUpdated: List<ProductEntity> = emptyList()
+            try {
+                withTimeout(PRODUCTS_SYNC_TIMEOUT_MS) {
+                    // Pull
+                    remoteProductsUpdated = withRetry {
+                        firestoreService.fetchUpdatedProducts(ctx.state.lastProductSyncAt)
+                    }
+                    // Ensure all referenced users exist before inserting products
+                    val sellerIds = remoteProductsUpdated.map { it.sellerId }.distinct()
+                    if (sellerIds.isNotEmpty()) {
+                        val existingSellers = userDao.getUsersByIds(sellerIds).map { it.userId }.toSet()
+                        val missingSellerIds = sellerIds.filter { it !in existingSellers }
+                        if (missingSellerIds.isNotEmpty()) {
+                            val fetchedUsers = withRetry { firestoreService.fetchUsersByIds(missingSellerIds) }
+                            if (fetchedUsers.isNotEmpty()) userDao.upsertUsers(fetchedUsers)
+                            Timber.d("Auto-fetched ${fetchedUsers.size} users for product sync")
+                            val fetchedIds = fetchedUsers.map { it.userId }.toSet()
+                            val stillMissing = missingSellerIds.filter { it !in fetchedIds }
+                            if (stillMissing.isNotEmpty()) {
+                                Timber.w("Skipping ${stillMissing.size} products due to unresolved sellers: ${stillMissing.joinToString()}")
+                            }
+                            // Filter out products with unresolved sellers
+                            val filtered = remoteProductsUpdated.filter { it.sellerId !in stillMissing }
+                            if (filtered.isNotEmpty()) {
+                                val resolved = mutableListOf<ProductEntity>()
+                                for (remote in filtered) {
+                                    val local = productDao.findById(remote.productId)
+                                    resolved.add(if (local != null) mergeProductRemoteLocal(remote, local) else remote)
+                                }
+                                productDao.insertProducts(resolved)
+                                // Emit conflict events
+                                filtered.forEach { remote ->
+                                    val local = productDao.findById(remote.productId)
+                                    if (local != null) {
+                                        val conflictFields = mutableListOf<String>()
+                                        val rU = remote.updatedAt
+                                        val lU = local.updatedAt
+                                        if (rU > lU) {
+                                            if (remote.name != local.name) conflictFields.add("name")
+                                            if (remote.description != local.description) conflictFields.add("description")
+                                            if (remote.price != local.price) conflictFields.add("price")
+                                            if (remote.quantity != local.quantity) conflictFields.add("quantity")
+                                            if (remote.unit != local.unit) conflictFields.add("unit")
+                                            if (remote.location != local.location) conflictFields.add("location")
+                                            if (remote.stage != local.stage) conflictFields.add("stage")
+                                            if (remote.lifecycleStatus != local.lifecycleStatus) conflictFields.add("lifecycleStatus")
+                                        }
+                                        if (conflictFields.isNotEmpty()) {
+                                            conflictEvents.emit(ConflictEvent(OutboxEntity.TYPE_LISTING, remote.productId, conflictFields, ctx.now))
+                                        }
+                                    }
+                                }
+                                pulls += resolved.size
+                            }
+                            processedWithMissingUsers = true
+                        }
+                    }
+                    if (!processedWithMissingUsers && remoteProductsUpdated.isNotEmpty()) {
+                        // Merge with local on pull
+                        val resolved = mutableListOf<ProductEntity>()
+                        for (remote in remoteProductsUpdated) {
+                            val local = productDao.findById(remote.productId)
+                            resolved.add(if (local != null) mergeProductRemoteLocal(remote, local) else remote)
+                        }
+                        productDao.insertProducts(resolved)
+                        // Emit conflict events
+                        remoteProductsUpdated.forEach { remote ->
+                            val local = productDao.findById(remote.productId)
+                            if (local != null) {
+                                val conflictFields = mutableListOf<String>()
+                                val rU = remote.updatedAt
+                                val lU = local.updatedAt
+                                if (rU > lU) {
+                                    if (remote.name != local.name) conflictFields.add("name")
+                                    if (remote.description != local.description) conflictFields.add("description")
+                                    if (remote.price != local.price) conflictFields.add("price")
+                                    if (remote.quantity != local.quantity) conflictFields.add("quantity")
+                                    if (remote.unit != local.unit) conflictFields.add("unit")
+                                    if (remote.location != local.location) conflictFields.add("location")
+                                    if (remote.stage != local.stage) conflictFields.add("stage")
+                                    if (remote.lifecycleStatus != local.lifecycleStatus) conflictFields.add("lifecycleStatus")
+                                }
+                                if (conflictFields.isNotEmpty()) {
+                                    conflictEvents.emit(ConflictEvent(OutboxEntity.TYPE_LISTING, remote.productId, conflictFields, ctx.now))
+                                }
+                            }
+                        }
+                        pulls += resolved.size
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                Timber.e(e, "Products sync timed out after ${PRODUCTS_SYNC_TIMEOUT_MS}ms")
+                ctx.timedOutDomains.add("products")
+                errors.add("Products: Timeout")
+            }
+
+            // Push (dirty only)
+            val localDirty = productDao.getUpdatedSince(ctx.state.lastProductSyncAt, limit = 50).filter { it.dirty }
+            if (localDirty.isNotEmpty()) {
+                val payload = localDirty.map { local ->
+                    val remote = remoteProductsUpdated.firstOrNull { it.productId == local.productId }
+                    protectLineageOnPush(local, remote)
+                }
+                withRetry { firestoreService.pushProducts(payload) }
+                val cleaned = payload.map { it.copy(dirty = false, updatedAt = ctx.now) }
+                productDao.insertProducts(cleaned)
+                pushes += cleaned.size
+            }
+
+            // Purge soft-deleted
+            productDao.purgeDeleted()
+
+            // Evict stale
+            val fourteenDaysMillis = 14L * 24 * 60 * 60 * 1000
+            val threshold = ctx.now - fourteenDaysMillis
+            productDao.purgeStaleMarketplace(threshold)
+
+        } catch (e: Exception) {
+            Timber.e(e, "Products sync failed")
+            errors.add("Products: ${e.message}")
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncOrders(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+        try {
+            if (ctx.userId != null) {
+                val remoteOrdersUpdated: List<OrderEntity> = withRetry {
+                    firestoreService.fetchUpdatedOrders(ctx.userId, ctx.state.lastOrderSyncAt)
+                }
+                if (remoteOrdersUpdated.isNotEmpty()) {
+                    val localDirtyIds = orderDao.getDirty().map { it.orderId }.toHashSet()
+                    val toUpsert = remoteOrdersUpdated.filter { it.orderId !in localDirtyIds }
+                    toUpsert.forEach { orderDao.insertOrUpdate(it) }
+                    pulls += toUpsert.size
+                }
+            }
+
+            val localDirty = orderDao.getUpdatedSince(ctx.state.lastOrderSyncAt, limit = 50).filter { it.dirty }
+            if (localDirty.isNotEmpty()) {
+                withRetry { firestoreService.pushOrders(localDirty) }
+                val cleaned = localDirty.map { it.copy(dirty = false, updatedAt = ctx.now) }
+                cleaned.forEach { orderDao.insertOrUpdate(it) }
+                pushes += cleaned.size
+            }
+
+            orderDao.purgeDeleted()
+        } catch (e: Exception) {
+            Timber.e(e, "Orders sync failed")
+            errors.add("Orders: ${e.message}")
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncTransfers(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+        try {
+            val remoteTransfersUpdated: List<TransferEntity> = withRetry {
+                firestoreService.fetchUpdatedTransfers(ctx.userId, ctx.state.lastTransferSyncAt)
+            }
+            if (remoteTransfersUpdated.isNotEmpty()) {
+                remoteTransfersUpdated.forEach { transferDao.upsert(it) }
+                pulls += remoteTransfersUpdated.size
+            }
+
+            val localDirty = transferDao.getUpdatedSince(ctx.state.lastTransferSyncAt, limit = 50).filter { it.dirty }
+            if (localDirty.isNotEmpty()) {
+                val toPush = localDirty.filter { local ->
+                    val remote = remoteTransfersUpdated.firstOrNull { it.transferId == local.transferId }
+                    !isTerminalTransferStatus(remote?.status)
+                }
+                withRetry { firestoreService.pushTransfers(toPush) }
+                
+                val cleaned = localDirty.map { local ->
+                    val remote = remoteTransfersUpdated.firstOrNull { it.transferId == local.transferId }
+                    if (remote != null && isTerminalTransferStatus(remote.status)) {
+                        if (remote.status != local.status) {
+                            conflictEvents.emit(ConflictEvent(OutboxEntity.TYPE_TRANSFER, local.transferId, listOf("status"), ctx.now))
+                        }
+                        remote.copy(dirty = false, updatedAt = ctx.now)
+                    } else {
+                        local.copy(dirty = false, updatedAt = ctx.now)
+                    }
+                }
+                cleaned.forEach { transferDao.upsert(it) }
+                pushes += cleaned.size
+            }
+            transferDao.purgeDeleted()
+        } catch (e: Exception) {
+            Timber.e(e, "Transfers sync failed")
+            errors.add("Transfers: ${e.message}")
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncChat(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        val errors = mutableListOf<String>()
+        try {
+            val remoteMessagesUpdated: List<ChatMessageEntity> = withRetry {
+                firestoreService.fetchUpdatedChats(ctx.userId, ctx.state.lastChatSyncAt)
+            }
+            if (remoteMessagesUpdated.isNotEmpty()) {
+                remoteMessagesUpdated.forEach { remote ->
+                    val local = chatMessageDao.getById(remote.messageId)
+                    if (local != null && remote.updatedAt > local.updatedAt) {
+                        val fields = mutableListOf<String>()
+                        if (remote.body != local.body) fields.add("body")
+                        if (remote.mediaUrl != local.mediaUrl) fields.add("mediaUrl")
+                        if (remote.deliveredAt != local.deliveredAt) fields.add("deliveredAt")
+                        if (remote.readAt != local.readAt) fields.add("readAt")
+                        if (fields.isNotEmpty()) {
+                            conflictEvents.emit(ConflictEvent(OutboxEntity.TYPE_CHAT_MESSAGE, remote.messageId, fields, ctx.now))
+                        }
+                    }
+                }
+                chatMessageDao.upsertAll(remoteMessagesUpdated)
+                pulls += remoteMessagesUpdated.size
+            }
+            chatMessageDao.purgeDeleted()
+        } catch (e: Exception) {
+            Timber.e(e, "Chat sync failed")
+            errors.add("Chat: ${e.message}")
+        }
+        return SyncResult(pulls, 0, 0, errors)
+    }
     
-    /**
-     * Check if a sync is currently in progress.
-     */
+    private suspend fun processOutbox(ctx: SyncContext): SyncResult {
+        var processedCount = 0
+        val errors = mutableListOf<String>()
+        
+        try {
+            val pendingEntries = outboxDao.getPendingPrioritized(limit = 50)
+            val totalPending = pendingEntries.size
+            if (totalPending == 0) return SyncResult(0, 0, 0, emptyList())
+            
+            val groupedEntries = pendingEntries.groupBy { it.entityType }
+            
+            for ((entityType, entries) in groupedEntries) {
+                syncProgressFlow.emit(SyncProgress(totalPending, processedCount, entityType, errors.toList()))
+                
+                val batchIds = entries.map { it.outboxId }.filter { it.isNotBlank() }
+                if (batchIds.isNotEmpty()) {
+                    outboxDao.updateStatusBatch(batchIds, "IN_PROGRESS", ctx.now)
+                }
+                
+                when (entityType) {
+                    OutboxEntity.TYPE_DAILY_LOG -> {
+                        for (e in entries) {
+                            outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            processedCount++
+                        }
+                        Timber.d("Skipped ${entries.size} daily log outbox entries (local-only)")
+                    }
+                    OutboxEntity.TYPE_TRANSFER -> {
+                         for (e in entries) {
+                            val transfer = gson.fromJson(e.payloadJson, TransferEntity::class.java)
+                            try {
+                                withRetry { firestoreService.pushTransfers(listOf(transfer)) }
+                                transferDao.upsert(transfer.copy(dirty = false, updatedAt = ctx.now))
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                errors.add("Transfer push failed for ${transfer.transferId}: ${t.message}")
+                            }
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_PRODUCT_TRACKING -> {
+                        for (e in entries) {
+                            val tracking = gson.fromJson(e.payloadJson, ProductTrackingEntity::class.java)
+                            try {
+                                withRetry { firestoreService.pushTrackings(listOf(tracking)) }
+                                productTrackingDao.clearDirtyCustom(tracking.trackingId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                errors.add("Tracking push failed: ${t.message}")
+                            }
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_LISTING -> {
+                        for (e in entries) {
+                            val product = gson.fromJson(e.payloadJson, ProductEntity::class.java)
+                            try {
+                                withRetry { firestoreService.pushProducts(listOf(product)) }
+                                productDao.insertProducts(listOf(product.copy(dirty = false, updatedAt = ctx.now)))
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                if (t.message?.contains("seller") == true) {
+                                    if (product.sellerId.isNotBlank()) {
+                                        val missingUser = withRetry { firestoreService.fetchUsersByIds(listOf(product.sellerId)).firstOrNull() }
+                                        if (missingUser != null) {
+                                            userDao.upsertUser(missingUser)
+                                            Timber.d("Fetched and inserted missing seller ${product.sellerId}")
+                                            productDao.insertProducts(listOf(product.copy(dirty = false, updatedAt = ctx.now)))
+                                            outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                                        } else {
+                                            Timber.e("Failed to fetch seller ${product.sellerId}")
+                                            outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                            outboxDao.updateStatus(e.outboxId, "FAILED", ctx.now)
+                                            errors.add("Listing push failed for ${product.productId}: missing seller")
+                                        }
+                                    } else {
+                                        throw t
+                                    }
+                                } else {
+                                    outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                    outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                    errors.add("Listing push failed: ${t.message}")
+                                }
+                            }
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_CHAT_MESSAGE -> {
+                         for (e in entries) {
+                            val message = gson.fromJson(e.payloadJson, ChatMessageEntity::class.java)
+                            try {
+                                withRetry { firestoreService.pushChats(listOf(message)) }
+                                chatMessageDao.clearDirty(listOf(message.messageId), ctx.now)
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                errors.add("Chat message push failed: ${t.message}")
+                            }
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_GROUP_MESSAGE -> {
+                         for (e in entries) {
+                            outboxDao.updateStatus(e.outboxId, "FAILED", ctx.now)
+                            errors.add("No remote API for group messages; marked FAILED")
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_TASK -> {
+                         for (e in entries) {
+                            val task = gson.fromJson(e.payloadJson, TaskEntity::class.java)
+                            try {
+                                val userRole = ctx.role ?: UserType.GENERAL
+                                withRetry { firestoreService.pushTasks(ctx.userId ?: "", userRole, listOf(task)) }
+                                taskDao.clearDirty(listOf(task.taskId), ctx.now)
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                errors.add("Task push failed: ${t.message}")
+                            }
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_ORDER -> {
+                        for (e in entries) {
+                            val order = gson.fromJson(e.payloadJson, OrderEntity::class.java)
+                            try {
+                                withRetry { firestoreService.pushOrders(listOf(order)) }
+                                orderDao.insertOrUpdate(order.copy(dirty = false, updatedAt = ctx.now))
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                errors.add("Order push failed: ${t.message}")
+                            }
+                            processedCount++
+                        }
+                    }
+                    OutboxEntity.TYPE_POST -> {
+                        for (e in entries) {
+                            outboxDao.updateStatus(e.outboxId, "FAILED", ctx.now)
+                            errors.add("No remote API for posts; marked FAILED")
+                            processedCount++
+                        }
+                    }
+                    else -> {
+                        Timber.w("Unknown outbox entity type: $entityType")
+                        errors.add("Unknown type: $entityType")
+                    }
+                }
+                syncProgressFlow.emit(SyncProgress(totalPending, processedCount, entityType, errors.toList()))
+            }
+            // Purge completed
+            val sevenDaysAgo = ctx.now - (7L * 24 * 60 * 60 * 1000)
+            outboxDao.purgeCompleted(sevenDaysAgo)
+            
+        } catch (e: Exception) {
+            Timber.e(e, "Outbox processing failed")
+            errors.add("Outbox: ${e.message}")
+        }
+        return SyncResult(0, 0, processedCount, errors)
+    }
+
+    private suspend fun syncFarmMonitoring(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+        
+        val canSyncMonitoring = (ctx.role == UserType.FARMER || ctx.role == UserType.ENTHUSIAST) && ctx.userId != null
+        val isMigrating = ctx.userId?.let { roleMigrationDao.hasActiveMigration(it) } ?: false
+        
+        if (canSyncMonitoring) {
+            if (isMigrating) {
+                Timber.d("Skipping monitoring sync due to active migration for ${ctx.userId}")
+            } else {
+                val farmerId = ctx.userId!!
+                val role = ctx.role!!
+                
+                // Breeding Pairs
+                try {
+                    val remotePairs = withRetry { firestoreService.fetchUpdatedBreedingPairs(farmerId, role, ctx.state.lastBreedingSyncAt) }
+                    if (remotePairs.isNotEmpty()) {
+                        val localDirtyIds = breedingPairDao.getDirty().map { it.pairId }.toHashSet()
+                        val toUpsert = remotePairs.filter { it.pairId !in localDirtyIds }
+                        toUpsert.forEach { breedingPairDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = breedingPairDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushBreedingPairs(farmerId, role, localDirty) }
+                        breedingPairDao.clearDirty(localDirty.map { it.pairId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Breeding Pairs sync failed")
+                    errors.add("Breeding Pairs: ${e.message}")
+                }
+                
+                // Farm Alerts
+                try {
+                    val remoteAlerts = withRetry { firestoreService.fetchUpdatedAlerts(farmerId, role, ctx.state.lastAlertSyncAt) }
+                    if (remoteAlerts.isNotEmpty()) {
+                        val localDirtyIds = farmAlertDao.getDirty().map { it.alertId }.toHashSet()
+                        val toUpsert = remoteAlerts.filter { it.alertId !in localDirtyIds }
+                        toUpsert.forEach { farmAlertDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = farmAlertDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushAlerts(farmerId, role, localDirty) }
+                        farmAlertDao.clearDirty(localDirty.map { it.alertId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                    farmAlertDao.deleteExpired(ctx.now)
+                } catch (e: Exception) {
+                    Timber.e(e, "Farm Alerts sync failed")
+                    errors.add("Alerts: ${e.message}")
+                }
+                
+                // Dashboard Snapshots
+                try {
+                    val remoteSnapshots = withRetry { firestoreService.fetchUpdatedDashboardSnapshots(farmerId, role, ctx.state.lastDashboardSyncAt) }
+                    if (remoteSnapshots.isNotEmpty()) {
+                        val localDirtyIds = farmerDashboardSnapshotDao.getDirty().map { it.snapshotId }.toHashSet()
+                        val toUpsert = remoteSnapshots.filter { it.snapshotId !in localDirtyIds }
+                        toUpsert.forEach { farmerDashboardSnapshotDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = farmerDashboardSnapshotDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushDashboardSnapshots(farmerId, role, localDirty) }
+                        farmerDashboardSnapshotDao.clearDirty(localDirty.map { it.snapshotId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Dashboard Snapshots sync failed")
+                    errors.add("Dashboard: ${e.message}")
+                }
+                
+                // Vaccination Records
+                try {
+                    val remoteVaccinations = withRetry { firestoreService.fetchUpdatedVaccinations(farmerId, role, ctx.state.lastVaccinationSyncAt) }
+                    if (remoteVaccinations.isNotEmpty()) {
+                        val localDirtyIds = vaccinationRecordDao.getDirty().map { it.vaccinationId }.toHashSet()
+                        val toUpsert = remoteVaccinations.filter { it.vaccinationId !in localDirtyIds }
+                        toUpsert.forEach { vaccinationRecordDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = vaccinationRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushVaccinations(farmerId, role, localDirty) }
+                        vaccinationRecordDao.clearDirty(localDirty.map { it.vaccinationId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Vaccination sync failed")
+                    errors.add("Vaccinations: ${e.message}")
+                }
+                
+                // Growth Records
+                try {
+                    val remoteGrowth = withRetry { firestoreService.fetchUpdatedGrowthRecords(farmerId, role, ctx.state.lastGrowthSyncAt) }
+                    if (remoteGrowth.isNotEmpty()) {
+                        val localDirtyIds = growthRecordDao.getDirty().map { it.recordId }.toHashSet()
+                        val toUpsert = remoteGrowth.filter { it.recordId !in localDirtyIds }
+                        toUpsert.forEach { growthRecordDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = growthRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushGrowthRecords(farmerId, role, localDirty) }
+                        growthRecordDao.clearDirty(localDirty.map { it.recordId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Growth sync failed")
+                    errors.add("Growth: ${e.message}")
+                }
+                
+                // Quarantine Records
+                try {
+                    val remoteQuarantine = withRetry { firestoreService.fetchUpdatedQuarantineRecords(farmerId, role, ctx.state.lastQuarantineSyncAt) }
+                    if (remoteQuarantine.isNotEmpty()) {
+                        val localDirtyIds = quarantineRecordDao.getDirty().map { it.quarantineId }.toHashSet()
+                        val toUpsert = remoteQuarantine.filter { it.quarantineId !in localDirtyIds }
+                        toUpsert.forEach { quarantineRecordDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = quarantineRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushQuarantineRecords(farmerId, role, localDirty) }
+                        quarantineRecordDao.clearDirty(localDirty.map { it.quarantineId }, ctx.now) // Removed unused now arg if not needed or verify usage
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Quarantine sync failed")
+                    errors.add("Quarantine: ${e.message}")
+                }
+                
+                // Mortality Records
+                try {
+                    val remoteMortality = withRetry { firestoreService.fetchUpdatedMortalityRecords(farmerId, role, ctx.state.lastMortalitySyncAt) }
+                    if (remoteMortality.isNotEmpty()) {
+                        val localDirtyIds = mortalityRecordDao.getDirty().map { it.deathId }.toHashSet()
+                        val toUpsert = remoteMortality.filter { it.deathId !in localDirtyIds }
+                        toUpsert.forEach { mortalityRecordDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = mortalityRecordDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushMortalityRecords(farmerId, role, localDirty) }
+                        mortalityRecordDao.clearDirty(localDirty.map { it.deathId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Mortality sync failed")
+                    errors.add("Mortality: ${e.message}")
+                }
+                
+                // Hatching Batches
+                try {
+                    val remoteHatching = withRetry { firestoreService.fetchUpdatedHatchingBatches(farmerId, role, ctx.state.lastHatchingSyncAt) }
+                    if (remoteHatching.isNotEmpty()) {
+                        val localDirtyIds = hatchingBatchDao.getDirty().map { it.batchId }.toHashSet()
+                        val toUpsert = remoteHatching.filter { it.batchId !in localDirtyIds }
+                        toUpsert.forEach { hatchingBatchDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = hatchingBatchDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushHatchingBatches(farmerId, role, localDirty) }
+                        hatchingBatchDao.clearDirty(localDirty.map { it.batchId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Hatching Batches sync failed")
+                    errors.add("Hatching: ${e.message}")
+                }
+                
+                // Hatching Logs
+                try {
+                    val remoteLogs = withRetry { firestoreService.fetchUpdatedHatchingLogs(farmerId, role, ctx.state.lastHatchingLogSyncAt) }
+                    if (remoteLogs.isNotEmpty()) {
+                        val localDirtyIds = hatchingLogDao.getDirty().map { it.logId }.toHashSet()
+                        val toUpsert = remoteLogs.filter { it.logId !in localDirtyIds }
+                        toUpsert.forEach { hatchingLogDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = hatchingLogDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushHatchingLogs(farmerId, role, localDirty) }
+                        hatchingLogDao.clearDirty(localDirty.map { it.logId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Hatching Logs sync failed")
+                    errors.add("Hatching Logs: ${e.message}")
+                }
+                
+                // Batch Summaries
+                try {
+                    val remoteSummaries = withRetry { firestoreService.fetchUpdatedBatchSummaries(ctx.userId, ctx.state.lastBatchSummarySyncAt) }
+                    if (remoteSummaries.isNotEmpty()) {
+                        val localDirtyIds = batchSummaryDao.getDirty().map { it.batchId }.toHashSet()
+                        val toUpsert = remoteSummaries.filter { it.batchId !in localDirtyIds }
+                        toUpsert.forEach { batchSummaryDao.upsert(it) }
+                        pulls += toUpsert.size
+                    }
+                    val localDirty = batchSummaryDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushBatchSummaries(ctx.userId, localDirty) }
+                        batchSummaryDao.clearDirty(localDirty.map { it.batchId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "BatchSummaries sync failed")
+                    errors.add("BatchSummaries: ${e.message}")
+                }
+                
+                // Tasks
+                try {
+                    val remoteTasks = withRetry { firestoreService.fetchUpdatedTasks(ctx.userId, role, ctx.state.lastTaskSyncAt) }
+                    if (remoteTasks.isNotEmpty()) {
+                         val localDirtyIds = taskDao.getDirty().map { it.taskId }.toHashSet()
+                         val toUpsert = remoteTasks.filter { it.taskId !in localDirtyIds }
+                         toUpsert.forEach { taskDao.upsert(it) }
+                         pulls += toUpsert.size
+                    }
+                    val localDirty = taskDao.getDirty()
+                    if (localDirty.isNotEmpty()) {
+                        withRetry { firestoreService.pushTasks(ctx.userId, role, localDirty) }
+                        taskDao.clearDirty(localDirty.map { it.taskId }, ctx.now)
+                        pushes += localDirty.size
+                    }
+                } catch (e: Exception) {
+                    Timber.e(e, "Tasks sync failed")
+                    errors.add("Tasks: ${e.message}")
+                }
+            }
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
     fun isSyncInProgress(): Boolean = syncInProgress
     
     /**
