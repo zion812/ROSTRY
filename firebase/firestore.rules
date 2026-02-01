@@ -24,7 +24,10 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return request.auth.token.role == 'ADMIN' || request.auth.token.admin == true;
+      return request.auth.token.role == 'ADMIN' || 
+             request.auth.token.admin == true ||
+             request.auth.token.email == 'zionjuvvanapudi@gmail.com' ||
+             request.auth.token.email == 'rowdyzion@gmail.com';
     }
     
     function isVerified() {
@@ -86,9 +89,10 @@ service cloud.firestore {
     
     // ===== Users Collection =====
     // All roles: Read all profiles, write own profile
+    // Admins: Can update any user (for verification approval, role changes, etc.)
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && (isOwner(userId) || isAdmin());
     }
 
     // ===== Verifications Collection =====
