@@ -26,5 +26,8 @@ interface OrderRepository {
     // Admin
     suspend fun adminCancelOrder(orderId: String, reason: String): Resource<Unit>
     suspend fun getAllOrdersAdmin(): Resource<List<OrderEntity>>
+    suspend fun adminRefundOrder(orderId: String, reason: String): Resource<Unit>
+    suspend fun adminUpdateOrderStatus(orderId: String, newStatus: String): Resource<Unit>
+    suspend fun adminForceComplete(orderId: String): Resource<Unit>
 }
 

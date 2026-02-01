@@ -78,8 +78,8 @@ fun LeaderboardScreen(vm: LeaderboardViewModel = hiltViewModel()) {
                             Text(text = badge, style = MaterialTheme.typography.titleMedium)
                             Icon(Icons.Default.Person, contentDescription = "Avatar")
                             Column(Modifier.weight(1f)) {
-                                Text(text = rep.userId)
-                                Text(text = "Score: ${rep.score.toInt().toString().reversed().chunked(3).joinToString(",").reversed()}")
+                                Text(text = rep.displayName)
+                                Text(text = "Score: ${rep.score.toString().reversed().chunked(3).joinToString(",").reversed()}")
                             }
                         }
                     }

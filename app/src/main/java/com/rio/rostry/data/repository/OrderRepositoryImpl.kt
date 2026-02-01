@@ -340,4 +340,97 @@ class AdvancedOrderService @Inject constructor(
             Resource.Error("Failed to fetch admin orders: ${e.message}")
         }
     }
+
+    override suspend fun adminRefundOrder(orderId: String, reason: String): Resource<Unit> {
+        return try {
+            val current = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+            
+            if (current.status == "REFUNDED") {
+                return Resource.Error("Order already refunded")
+            }
+
+            val now = System.currentTimeMillis()
+            val updated = current.copy(
+                status = "REFUNDED",
+                cancellationReason = "Admin Refund: $reason",
+                updatedAt = now,
+                lastModifiedAt = now,
+                dirty = true
+            )
+            orderDao.insertOrUpdate(updated)
+
+            auditRepository.logAction(
+                adminId = "current_admin",
+                actionType = "ORDER_REFUND",
+                targetId = orderId,
+                targetType = "ORDER",
+                details = "Reason: $reason"
+            )
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to refund order")
+        }
+    }
+
+    override suspend fun adminUpdateOrderStatus(orderId: String, newStatus: String): Resource<Unit> {
+        return try {
+            val current = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+
+            val now = System.currentTimeMillis()
+            val updated = current.copy(
+                status = newStatus,
+                updatedAt = now,
+                lastModifiedAt = now,
+                dirty = true
+            )
+            orderDao.insertOrUpdate(updated)
+
+            auditRepository.logAction(
+                adminId = "current_admin",
+                actionType = "ORDER_STATUS_CHANGE",
+                targetId = orderId,
+                targetType = "ORDER",
+                details = "Status changed to: $newStatus"
+            )
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to update order status")
+        }
+    }
+
+    override suspend fun adminForceComplete(orderId: String): Resource<Unit> {
+        return try {
+            val current = orderDao.findById(orderId) ?: return Resource.Error("Order not found")
+
+            if (current.status == "DELIVERED" || current.status == "COMPLETED") {
+                return Resource.Error("Order already completed")
+            }
+
+            val now = System.currentTimeMillis()
+            val updated = current.copy(
+                status = "DELIVERED",
+                updatedAt = now,
+                lastModifiedAt = now,
+                dirty = true
+            )
+            orderDao.insertOrUpdate(updated)
+
+            // Handle completion logic
+            handleOrderCompletion(orderId)
+
+            auditRepository.logAction(
+                adminId = "current_admin",
+                actionType = "ORDER_FORCE_COMPLETE",
+                targetId = orderId,
+                targetType = "ORDER",
+                details = "Admin forced order completion"
+            )
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to force complete order")
+        }
+    }
 }

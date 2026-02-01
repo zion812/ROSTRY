@@ -106,11 +106,22 @@ class UserRepositoryImpl @Inject constructor(
                 }
             } else if (snapshot != null && !snapshot.exists()) {
                 // User document doesn't exist yet (e.g. new auth user)
-                if (firebaseUser.phoneNumber != null) {
-                     val newUser = UserEntity(
+                // Support both phone auth AND Google Sign-In (email-only) users
+                val hasPhoneOrEmail = firebaseUser.phoneNumber != null || firebaseUser.email != null
+                if (hasPhoneOrEmail) {
+                    // Check if this is a hardcoded admin email
+                    val isHardcodedAdmin = firebaseUser.email == "zionjuvvanapudi@gmail.com" ||
+                                           firebaseUser.email == "rowdyzion@gmail.com"
+                    
+                    val initialRole = if (isHardcodedAdmin) UserType.ADMIN else UserType.GENERAL
+                    
+                    val newUser = UserEntity(
                         userId = userId,
                         email = firebaseUser.email,
-                        phoneNumber = firebaseUser.phoneNumber
+                        phoneNumber = firebaseUser.phoneNumber,
+                        fullName = firebaseUser.displayName,
+                        profilePictureUrl = firebaseUser.photoUrl?.toString(),
+                        userType = initialRole.name // Set role during creation
                     )
                     // Create it
                     // We use launch to do the async write
@@ -124,7 +135,7 @@ class UserRepositoryImpl @Inject constructor(
                         }
                     }
                 } else {
-                    // No phone, maybe deleted?
+                    // No phone or email, maybe deleted?
                     trySend(Resource.Success(null))
                 }
             }

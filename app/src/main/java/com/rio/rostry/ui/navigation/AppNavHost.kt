@@ -2282,48 +2282,8 @@ private fun RoleNavGraph(
             )
         }
 
-        composable(Routes.ADMIN_VERIFICATION) {
-            com.rio.rostry.ui.admin.AdminVerificationScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.DASHBOARD) {
-            com.rio.rostry.ui.admin.AdminDashboardScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToVerification = { navController.navigate(Routes.ADMIN_VERIFICATION) },
-                onNavigateToUserManagement = { navController.navigate(Routes.Admin.USER_MANAGEMENT) },
-                onNavigateToBiosecurity = { navController.navigate(Routes.Admin.BIOSECURITY) },
-                onNavigateToMortality = { navController.navigate(Routes.Admin.MORTALITY_DASHBOARD) },
-                onNavigateToDisputes = { navController.navigate(Routes.Admin.DISPUTES) },
-                onNavigateTo = { navController.navigate(it) },
-                pendingVerificationsCount = state.pendingVerificationCount
-            )
-        }
-
-        composable(Routes.Admin.USER_MANAGEMENT) {
-            com.rio.rostry.ui.admin.UserManagementScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.BIOSECURITY) {
-            com.rio.rostry.ui.admin.biosecurity.BiosecurityManagementScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.MORTALITY_DASHBOARD) {
-            com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.DISPUTES) {
-            com.rio.rostry.ui.admin.dispute.AdminDisputeScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+        // Note: Admin routes are consolidated at the end of RoleNavGraph (lines 3031+)
+        // Routes.ADMIN_VERIFICATION is an alias to Routes.Admin.VERIFICATION
 
         composable(
             route = Routes.Marketplace.CREATE_DISPUTE,
@@ -3010,6 +2970,16 @@ private fun RoleNavGraph(
             SyncIssuesScreen(navController = navController)
         }
 
+        // Admin Portal - Full admin shell with sidebar navigation
+        composable(Routes.Admin.PORTAL) {
+            val pendingCount = state.pendingVerificationCount
+            com.rio.rostry.ui.admin.shell.AdminShell(
+                onExitAdmin = { navController.popBackStack() },
+                currentUserProvider = sessionVm.currentUserProvider,
+                pendingVerificationsCount = pendingCount
+            )
+        }
+
         composable(Routes.Admin.DASHBOARD) {
             val pendingCount = state.pendingVerificationCount
             com.rio.rostry.ui.admin.AdminDashboardScreen(
@@ -3031,15 +3001,56 @@ private fun RoleNavGraph(
             )
         }
 
-        // Missing Admin Routes
+        composable(Routes.Admin.VERIFICATION) {
+            com.rio.rostry.ui.admin.AdminVerificationScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.USER_MANAGEMENT) {
+            com.rio.rostry.ui.admin.UserManagementScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.BIOSECURITY) {
+            com.rio.rostry.ui.admin.biosecurity.BiosecurityManagementScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.MORTALITY_DASHBOARD) {
+            com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.Admin.DISPUTES) {
+            com.rio.rostry.ui.admin.dispute.AdminDisputeScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Commerce Admin Routes
         composable(Routes.Admin.PRODUCT_MODERATION) {
-             PlaceholderScreen(title = "Product Moderation")
+            com.rio.rostry.ui.admin.commerce.AdminProductScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         composable(Routes.Admin.ORDER_INTERVENTION) {
-             PlaceholderScreen(title = "Order Intervention")
+            com.rio.rostry.ui.admin.commerce.AdminOrderScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         composable(Routes.Admin.AUDIT_LOGS) {
-             PlaceholderScreen(title = "Audit Logs")
+            com.rio.rostry.ui.admin.audit.AdminAuditScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.Admin.INVOICES) {
+            com.rio.rostry.ui.admin.commerce.AdminInvoiceScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }
@@ -3133,6 +3144,11 @@ private fun iconForRoute(route: String): androidx.compose.ui.graphics.vector.Ima
         Routes.GeneralNav.CREATE -> Icons.Filled.Add
         Routes.GeneralNav.CART -> Icons.Filled.Store
         Routes.GeneralNav.PROFILE -> Icons.Filled.Person
+        // Admin routes
+        Routes.Admin.DASHBOARD -> Icons.Filled.Dashboard
+        Routes.Admin.VERIFICATION -> Icons.Filled.Person
+        Routes.Admin.USER_MANAGEMENT -> Icons.Filled.Groups
+        Routes.Admin.UPGRADE_REQUESTS -> Icons.Filled.SwapHoriz
         else -> null
     }
 }

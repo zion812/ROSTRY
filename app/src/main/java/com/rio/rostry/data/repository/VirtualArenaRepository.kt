@@ -15,6 +15,20 @@ class VirtualArenaRepository @Inject constructor(
     fun getCompetitions(status: CompetitionStatus): Flow<List<CompetitionEntryEntity>> {
         return dao.getCompetitionsByStatus(status)
     }
+    
+    /**
+     * Get competitions by status as a one-shot suspend function.
+     */
+    suspend fun getCompetitionsByStatus(status: CompetitionStatus): List<CompetitionEntryEntity> {
+        return dao.getCompetitionsByStatusOneShot(status)
+    }
+    
+    /**
+     * Insert a new competition.
+     */
+    suspend fun insertCompetition(competition: CompetitionEntryEntity) {
+        dao.insertCompetition(competition)
+    }
 
     fun getMyVotes(competitionId: String): Flow<List<MyVotesEntity>> {
         return dao.getMyVotesForCompetition(competitionId)

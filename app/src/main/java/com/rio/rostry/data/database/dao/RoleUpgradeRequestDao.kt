@@ -34,4 +34,7 @@ interface RoleUpgradeRequestDao {
     
     @Query("SELECT COUNT(*) FROM role_upgrade_requests WHERE status = 'PENDING'")
     fun observePendingCount(): Flow<Int>
+    
+    @Query("SELECT * FROM role_upgrade_requests WHERE status IN ('APPROVED', 'REJECTED') ORDER BY reviewedAt DESC LIMIT 50")
+    fun observeProcessedRequests(): Flow<List<RoleUpgradeRequestEntity>>
 }

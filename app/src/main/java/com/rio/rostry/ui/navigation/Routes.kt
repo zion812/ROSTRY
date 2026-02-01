@@ -156,6 +156,7 @@ object Routes {
 
     // Admin routes (only accessible to admin users)
     object Admin {
+        const val PORTAL = "admin/portal"  // New Admin Portal with shell
         const val VERIFICATION = "admin/verification"
         const val DASHBOARD = "admin/dashboard"
         const val USER_MANAGEMENT = "admin/users"
@@ -166,7 +167,9 @@ object Routes {
         const val ORDER_INTERVENTION = "admin/orders"
         const val AUDIT_LOGS = "admin/audit"
         const val UPGRADE_REQUESTS = "admin/upgrade_requests"
+        const val INVOICES = "admin/invoices"
     }
+
 
     object Marketplace {
         const val CREATE_DISPUTE = "marketplace/dispute/create/{transferId}/{reportedUserId}"
@@ -534,13 +537,33 @@ object Routes {
 
     private val adminConfig = RoleNavigationConfig(
         role = UserType.ADMIN,
-        startDestination = GeneralNav.HOME,
-        bottomNav = emptyList(),
+        startDestination = Admin.PORTAL,
+        bottomNav = listOf(
+            BottomNavDestination(Admin.PORTAL, "Dashboard"),
+            BottomNavDestination(Admin.VERIFICATION, "Verify"),
+            BottomNavDestination(Admin.USER_MANAGEMENT, "Users"),
+            BottomNavDestination(Admin.UPGRADE_REQUESTS, "Upgrades")
+        ),
         accessibleRoutes = generalConfig.accessibleRoutes + 
                            farmerConfig.accessibleRoutes + 
                            enthusiastConfig.accessibleRoutes + 
-                           setOf(Admin.VERIFICATION, Routes.PUBLIC_BIRD_LOOKUP, Admin.UPGRADE_REQUESTS)
+                           setOf(
+                               Admin.PORTAL,
+                               Admin.DASHBOARD,
+                               Admin.VERIFICATION,
+                               Admin.USER_MANAGEMENT,
+                               Admin.BIOSECURITY,
+                               Admin.MORTALITY_DASHBOARD,
+                               Admin.DISPUTES,
+                               Admin.PRODUCT_MODERATION,
+                               Admin.ORDER_INTERVENTION,
+                               Admin.AUDIT_LOGS,
+                               Admin.UPGRADE_REQUESTS,
+                               Admin.INVOICES,
+                               Routes.PUBLIC_BIRD_LOOKUP
+                           )
     )
+
 
     fun configFor(role: UserType): RoleNavigationConfig = when (role) {
         UserType.GENERAL -> generalConfig

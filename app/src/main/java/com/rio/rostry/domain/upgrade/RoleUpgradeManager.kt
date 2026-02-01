@@ -176,18 +176,17 @@ class RoleUpgradeManager @Inject constructor(
     /**
      * Submits a request for role upgrade.
      * The request will be set to PENDING status and requires Admin approval.
+     * 
+     * NOTE: For Farmer->Enthusiast, the user must first complete KYC verification
+     * via EnthusiastKycScreen. The migration (asset conversion) happens AFTER admin approval.
      */
     suspend fun requestUpgrade(
         userId: String,
         targetRole: UserType,
         skipValidation: Boolean = false
     ): Resource<String> {
-        // If targeting Enthusiast, direct to new flow? 
-        // For now, keep as request if checking for 'Application' vs 'Direct Upgrade'.
-        // Assuming we want to use the Migration flow for Farmer -> Enthusiast immediately.
-        if (targetRole == UserType.ENTHUSIAST) {
-             return startMigration(userId)
-        }
+        // All upgrades now go through the proper request/approval flow
+        // The migration will be triggered by admin approval, not here
 
         try {
             // Get current user to track from/to roles

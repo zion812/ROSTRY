@@ -84,4 +84,24 @@ class DisputeRepositoryImpl @Inject constructor(
         val snapshot = disputesCollection.document(disputeId).get().await()
         snapshot.toObject(DisputeEntity::class.java)
     }.firstResult()
+
+    override fun getResolvedDisputes(): Flow<Resource<List<DisputeEntity>>> = callbackFlow {
+        val listener = disputesCollection
+            .whereIn("status", listOf(
+                DisputeStatus.RESOLVED_REFUNDED.name, 
+                DisputeStatus.RESOLVED_DISMISSED.name,
+                DisputeStatus.RESOLVED_WARNING_ISSUED.name
+            ))
+            .orderBy("resolvedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(50)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Resource.Error(error.message ?: "Unknown error"))
+                    return@addSnapshotListener
+                }
+                val disputes = snapshot?.toObjects(DisputeEntity::class.java) ?: emptyList()
+                trySend(Resource.Success(disputes))
+            }
+        awaitClose { listener.remove() }
+    }
 }

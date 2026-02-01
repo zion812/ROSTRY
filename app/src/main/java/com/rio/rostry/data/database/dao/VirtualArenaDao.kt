@@ -22,6 +22,9 @@ interface VirtualArenaDao {
 
     @Query("SELECT * FROM competitions WHERE status = :status ORDER BY endTime ASC")
     fun getCompetitionsByStatus(status: CompetitionStatus): Flow<List<CompetitionEntryEntity>>
+    
+    @Query("SELECT * FROM competitions WHERE status = :status ORDER BY endTime ASC")
+    suspend fun getCompetitionsByStatusOneShot(status: CompetitionStatus): List<CompetitionEntryEntity>
 
     @Query("SELECT * FROM competitions WHERE competitionId = :id")
     suspend fun getCompetitionById(id: String): CompetitionEntryEntity?

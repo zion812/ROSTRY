@@ -259,23 +259,13 @@ class RoleUpgradeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             
-            // New Migration Flow for Farmer -> Enthusiast
+            // Farmer -> Enthusiast: Require KYC verification (admin approval)
+            // The migration (asset conversion) will happen AFTER admin approves the KYC
             if (currentState.currentRole == UserType.FARMER && targetRole == UserType.ENTHUSIAST) {
-                 val result = roleUpgradeManager.startMigration(userId)
-                 when (result) {
-                    is Resource.Success -> {
-                        _uiState.update { it.copy(
-                            isLoading = false,
-                            isUpgradePending = true
-                        ) }
-                        // The UI will now react to migrationStatus observation
-                    }
-                    is Resource.Error -> {
-                        _uiState.update { it.copy(isLoading = false, error = result.message) }
-                    }
-                    else -> {}
-                 }
-                 return@launch
+                _uiState.update { it.copy(isLoading = false, isUpgradePending = true) }
+                _uiEvent.emit(UiEvent.ShowSnackbar("Please complete the Enthusiast verification form."))
+                _uiEvent.emit(UiEvent.NavigateToVerification(UpgradeType.FARMER_TO_ENTHUSIAST))
+                return@launch
             }
 
             // Legacy/Request Flow for other upgrades

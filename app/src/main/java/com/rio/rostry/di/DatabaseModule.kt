@@ -689,4 +689,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideRoleUpgradeRequestDao(db: AppDatabase): com.rio.rostry.data.database.dao.RoleUpgradeRequestDao = db.roleUpgradeRequestDao()
+
+    // Gamification DAOs
+    @Provides
+    @Singleton
+    fun provideAchievementDao(db: AppDatabase): com.rio.rostry.data.database.dao.AchievementDao = db.achievementsDefDao()
 }

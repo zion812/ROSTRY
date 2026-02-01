@@ -12,6 +12,8 @@ interface DisputeRepository {
     fun getDisputesForUser(userId: String): Flow<Resource<List<DisputeEntity>>>
     
     fun getAllOpenDisputes(): Flow<Resource<List<DisputeEntity>>>
+
+    fun getResolvedDisputes(): Flow<Resource<List<DisputeEntity>>>
     
     suspend fun resolveDispute(disputeId: String, status: DisputeStatus, resolution: String, adminId: String): Resource<Unit>
     

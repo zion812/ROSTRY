@@ -26,13 +26,30 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 
+    companion object {
+        val REJECTION_REASONS = listOf(
+            "Insufficient experience documented",
+            "Bird count below requirement",
+            "Missing or unclear certifications",
+            "References could not be verified",
+            "Profile information incomplete",
+            "Duplicate or suspicious request",
+            "Other (see admin notes)"
+        )
+    }
+
     data class UiState(
         val isLoading: Boolean = false,
         val empty: Boolean = false,
-        val requests: List<RoleUpgradeRequestEntity> = emptyList(),
+        val pendingRequests: List<RoleUpgradeRequestEntity> = emptyList(),
+        val historyRequests: List<RoleUpgradeRequestEntity> = emptyList(),
         val error: String? = null,
-        val processingId: String? = null
+        val processingId: String? = null,
+        val selectedRequest: RoleUpgradeRequestEntity? = null
     )
+    
+    // Keep backward compatibility
+    val UiState.requests: List<RoleUpgradeRequestEntity> get() = pendingRequests
     
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
@@ -45,22 +62,42 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
 
     init {
-        loadRequests()
+        loadPendingRequests()
+        loadHistoryRequests()
     }
 
-    private fun loadRequests() {
+    fun loadPendingRequests() {
         viewModelScope.launch {
             roleUpgradeRequestRepository.observePendingRequests()
                 .collectLatest { list ->
                     _uiState.update { 
                         it.copy(
                             isLoading = false,
-                            requests = list,
+                            pendingRequests = list,
                             empty = list.isEmpty()
                         )
                     }
                 }
         }
+    }
+
+    fun loadHistoryRequests() {
+        viewModelScope.launch {
+            roleUpgradeRequestRepository.observeProcessedRequests()
+                .collectLatest { list ->
+                    _uiState.update { 
+                        it.copy(historyRequests = list)
+                    }
+                }
+        }
+    }
+
+    fun selectRequest(request: RoleUpgradeRequestEntity) {
+        _uiState.update { it.copy(selectedRequest = request) }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(selectedRequest = null) }
     }
 
     fun approveRequest(requestId: String, adminId: String, notes: String?) {
@@ -75,15 +112,15 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
                 _uiEvent.emit(UiEvent.ShowSnackbar(result.message ?: "Failed to approve"))
             }
             
-            _uiState.update { it.copy(processingId = null) }
+            _uiState.update { it.copy(processingId = null, selectedRequest = null) }
         }
     }
 
-    fun rejectRequest(requestId: String, adminId: String, notes: String?) {
+    fun rejectRequest(requestId: String, adminId: String, reason: String?) {
          viewModelScope.launch {
             _uiState.update { it.copy(processingId = requestId) }
             
-            val result = roleUpgradeManager.rejectRequest(requestId, adminId, notes)
+            val result = roleUpgradeManager.rejectRequest(requestId, adminId, reason)
             
             if (result is Resource.Success<*>) {
                  _uiEvent.emit(UiEvent.ShowSnackbar("Request Rejected"))
@@ -91,7 +128,7 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
                 _uiEvent.emit(UiEvent.ShowSnackbar(result.message ?: "Failed to reject"))
             }
             
-            _uiState.update { it.copy(processingId = null) }
+            _uiState.update { it.copy(processingId = null, selectedRequest = null) }
         }
     }
 }

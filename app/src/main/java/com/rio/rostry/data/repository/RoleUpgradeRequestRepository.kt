@@ -15,6 +15,7 @@ interface RoleUpgradeRequestRepository {
     suspend fun submitRequest(userId: String, currentRole: UserType, requestedRole: UserType): Resource<String>
     suspend fun getPendingRequest(userId: String): Resource<RoleUpgradeRequestEntity?>
     fun observePendingRequests(): Flow<List<RoleUpgradeRequestEntity>>
+    fun observeProcessedRequests(): Flow<List<RoleUpgradeRequestEntity>>
     suspend fun approveRequest(requestId: String, adminId: String, notes: String?): Resource<Unit>
     suspend fun rejectRequest(requestId: String, adminId: String, notes: String?): Resource<Unit>
 }
@@ -64,6 +65,10 @@ class RoleUpgradeRequestRepositoryImpl @Inject constructor(
 
     override fun observePendingRequests(): Flow<List<RoleUpgradeRequestEntity>> {
         return dao.observePendingRequests()
+    }
+
+    override fun observeProcessedRequests(): Flow<List<RoleUpgradeRequestEntity>> {
+        return dao.observeProcessedRequests()
     }
 
     override suspend fun approveRequest(requestId: String, adminId: String, notes: String?): Resource<Unit> {
