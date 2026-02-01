@@ -37,6 +37,7 @@ import com.rio.rostry.ui.admin.commerce.AdminProductScreen
 import com.rio.rostry.ui.admin.dispute.AdminDisputeScreen
 import com.rio.rostry.ui.admin.dispute.AdminDisputeDetailScreen
 import com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen
+import com.rio.rostry.ui.admin.roles.RoleManagementScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
 
@@ -131,10 +132,8 @@ fun AdminNavHost(
         }
         
         composable(AdminRoutes.Users.ROLES) {
-            // TODO: Implement RoleManagementScreen - placeholder for now
-            PlaceholderScreen(
-                title = "Role Management",
-                onBack = { navController.popBackStack() }
+            RoleManagementScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
