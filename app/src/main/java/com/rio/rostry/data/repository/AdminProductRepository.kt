@@ -114,14 +114,41 @@ class AdminProductRepository @Inject constructor(
     /**
      * Get all products for admin dashboard.
      * Includes hidden and flagged products.
+     * Fetches from Firestore to show all users' products, not just locally cached ones.
      */
     fun getAllProductsAdmin(): Flow<Resource<List<ProductEntity>>> = flow {
         emit(Resource.Loading())
         try {
-            val products = productDao.getAllProductsSnapshot()
+            // Fetch all products from Firestore for admin visibility
+            val snapshot = productsCollection
+                .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(500) // Reasonable limit for dashboard
+                .get()
+                .await()
+            
+            val products = snapshot.toObjects(ProductEntity::class.java)
+            
+            // Optionally cache locally for faster subsequent access
+            if (products.isNotEmpty()) {
+                products.forEach { product ->
+                    try {
+                        productDao.upsert(product)
+                    } catch (e: Exception) {
+                        // Ignore caching errors
+                    }
+                }
+            }
+            
             emit(Resource.Success(products))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to load products"))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // Fallback to local cache if Firestore fails
+            try {
+                val localProducts = productDao.getAllProductsSnapshot()
+                emit(Resource.Success(localProducts))
+            } catch (localError: Exception) {
+                emit(Resource.Error(e.message ?: "Failed to load products"))
+            }
         }
     }
 
@@ -134,6 +161,7 @@ class AdminProductRepository @Inject constructor(
             val products = productDao.getAllProductsSnapshot().filter { it.adminFlagged == true }
             emit(Resource.Success(products))
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             emit(Resource.Error(e.message ?: "Failed to load flagged products"))
         }
     }
@@ -161,6 +189,59 @@ class AdminProductRepository @Inject constructor(
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to clear flag")
+        }
+    }
+
+    /**
+     * Alias for clearFlag - unflag a product.
+     */
+    suspend fun unflagProduct(productId: String): Resource<Unit> = clearFlag(productId)
+
+    /**
+     * Delete a product permanently (soft delete - marks as deleted).
+     */
+    suspend fun deleteProduct(productId: String): Resource<Unit> {
+        return try {
+            val updates = mapOf(
+                "status" to "deleted",
+                "deletedByAdmin" to true,
+                "deletedAt" to FieldValue.serverTimestamp()
+            )
+            productsCollection.document(productId).update(updates).await()
+
+            // Remove from local cache
+            productDao.deleteProductById(productId)
+            
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to delete product")
+        }
+    }
+
+    /**
+     * Restore a hidden product back to active status.
+     */
+    suspend fun restoreProduct(productId: String): Resource<Unit> {
+        return try {
+            val updates = mapOf(
+                "status" to "active",
+                "hiddenByAdmin" to false,
+                "adminFlagged" to false
+            )
+            productsCollection.document(productId).update(updates).await()
+
+            val product = productDao.findById(productId)
+            if (product != null) {
+                productDao.updateProduct(product.copy(
+                    status = "active",
+                    adminFlagged = false,
+                    updatedAt = System.currentTimeMillis()
+                ))
+            }
+            
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to restore product")
         }
     }
 }
