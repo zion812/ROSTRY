@@ -110,14 +110,30 @@ class FarmerMarketViewModel @Inject constructor(
                 marketListingRepository.getPublicListings()
             ) { legacy, new ->
                 val combined = mutableListOf<Listing>()
-                // Map legacy Products
-                (legacy.data ?: emptyList()).filter { it.isPublic && it.status != "sold_out" && it.status != "suspended" && it.status != "SOLD" }.forEach { 
-                    combined.add(mapProductToListing(it))
+                val seen = mutableSetOf<String>() // Track by title+price composite key
+                
+                // Add MarketListingEntity items first (newer source, higher priority)
+                (new.data ?: emptyList()).forEach { entity ->
+                    val key = "${entity.title.lowercase().trim()}_${entity.price}"
+                    if (key !in seen) {
+                        seen.add(key)
+                        combined.add(mapMarketListingToListing(entity))
+                    }
                 }
-                // Map new MarketListings
-                (new.data ?: emptyList()).forEach { 
-                    combined.add(mapMarketListingToListing(it))
-                }
+                
+                // Add legacy Product items only if not already added from MarketListing
+                (legacy.data ?: emptyList())
+                    .filter { it.isPublic && it.status != "sold_out" && it.status != "suspended" && it.status != "SOLD" }
+                    .forEach { entity ->
+                        val title = entity.name.ifBlank { entity.category }.lowercase().trim()
+                        val key = "${title}_${entity.price}"
+                        if (key !in seen) {
+                            seen.add(key)
+                            combined.add(mapProductToListing(entity))
+                        }
+                    }
+                
+                // Final deduplication by ID as safety net
                 combined.distinctBy { it.id }
             }.collect { combined ->
                 _ui.value = _ui.value.copy(
@@ -138,13 +154,28 @@ class FarmerMarketViewModel @Inject constructor(
                 marketListingRepository.getListingsBySeller(current.userId)
             ) { legacy, new ->
                 val combined = mutableListOf<Listing>()
-                val newTitles = (new.data ?: emptyList()).map { it.title.lowercase() }.toSet()
-                // Only add legacy products that don't have a corresponding MarketListingEntity by title
-                (legacy.data ?: emptyList())
-                    .filter { (it.name ?: "").lowercase() !in newTitles }
-                    .forEach { combined.add(mapProductToListing(it)) }
-                // Add all MarketListingEntity items
-                (new.data ?: emptyList()).forEach { combined.add(mapMarketListingToListing(it)) }
+                val seen = mutableSetOf<String>() // Track by title+price composite key
+                
+                // Add MarketListingEntity items first (newer source, higher priority)
+                (new.data ?: emptyList()).forEach { entity ->
+                    val key = "${entity.title.lowercase().trim()}_${entity.price}"
+                    if (key !in seen) {
+                        seen.add(key)
+                        combined.add(mapMarketListingToListing(entity))
+                    }
+                }
+                
+                // Add legacy Product items only if not already added from MarketListing
+                (legacy.data ?: emptyList()).forEach { entity ->
+                    val title = (entity.name.ifBlank { entity.category }).lowercase().trim()
+                    val key = "${title}_${entity.price}"
+                    if (key !in seen) {
+                        seen.add(key)
+                        combined.add(mapProductToListing(entity))
+                    }
+                }
+                
+                // Final deduplication by ID as safety net
                 combined.distinctBy { it.id }
             }.collect { combined ->
                 _ui.value = _ui.value.copy(
