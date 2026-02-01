@@ -188,6 +188,8 @@ class AdminVerificationViewModel @Inject constructor(
             farmPhotoUrl = this.imageUrls.firstOrNull(),
             submittedAt = this.submittedAt?.time ?: 0L,
             userName = this.applicantName ?: "User: ${this.userId.take(8)}",
+            applicantPhone = this.applicantPhone,
+            farmAddress = this.farmAddress,
             status = this.currentStatus, 
             rejectionReason = this.rejectionReason ?: this.rejectionReason
         )
@@ -205,6 +207,8 @@ data class VerificationRequest(
     val farmPhotoUrl: String?,
     val submittedAt: Long,
     val userName: String?,
+    val applicantPhone: String? = null,
+    val farmAddress: String? = null,
     val status: VerificationStatus = VerificationStatus.PENDING,
     val rejectionReason: String? = null
 )

@@ -282,11 +282,7 @@ private fun VerificationRequestCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Person,
@@ -309,6 +305,22 @@ private fun VerificationRequestCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        // Phone number
+                        if (!request.applicantPhone.isNullOrBlank()) {
+                            Text(
+                                text = "📱 ${request.applicantPhone}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        // Farm address
+                        if (!request.farmAddress.isNullOrBlank()) {
+                            Text(
+                                text = "📍 ${request.farmAddress}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         if (isHistory) {
                             Text(
                                 text = "Status: ${request.status.name}",
