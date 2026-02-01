@@ -35,6 +35,7 @@ import com.rio.rostry.ui.admin.biosecurity.BiosecurityManagementScreen
 import com.rio.rostry.ui.admin.commerce.AdminOrderScreen
 import com.rio.rostry.ui.admin.commerce.AdminProductScreen
 import com.rio.rostry.ui.admin.dispute.AdminDisputeScreen
+import com.rio.rostry.ui.admin.dispute.AdminDisputeDetailScreen
 import com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
@@ -174,10 +175,8 @@ fun AdminNavHost(
             arguments = listOf(navArgument("disputeId") { type = NavType.StringType })
         ) { backStackEntry ->
             val disputeId = backStackEntry.arguments?.getString("disputeId") ?: return@composable
-            // TODO: Implement DisputeDetailScreen
-            PlaceholderScreen(
-                title = "Dispute Details",
-                onBack = { navController.popBackStack() }
+            AdminDisputeDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
