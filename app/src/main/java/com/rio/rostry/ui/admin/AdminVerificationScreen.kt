@@ -321,6 +321,21 @@ private fun VerificationRequestCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        // Upgrade type badge
+                        val upgradeLabel = when (request.upgradeType) {
+                            com.rio.rostry.domain.model.UpgradeType.GENERAL_TO_FARMER -> "🌾 New Farmer"
+                            com.rio.rostry.domain.model.UpgradeType.FARMER_VERIFICATION -> "✅ Farmer Verify"
+                            com.rio.rostry.domain.model.UpgradeType.FARMER_TO_ENTHUSIAST -> "⭐ Upgrade to Enthusiast"
+                        }
+                        Text(
+                            text = upgradeLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (request.upgradeType == com.rio.rostry.domain.model.UpgradeType.FARMER_TO_ENTHUSIAST) 
+                                MaterialTheme.colorScheme.tertiary 
+                            else 
+                                MaterialTheme.colorScheme.primary
+                        )
                         if (isHistory) {
                             Text(
                                 text = "Status: ${request.status.name}",

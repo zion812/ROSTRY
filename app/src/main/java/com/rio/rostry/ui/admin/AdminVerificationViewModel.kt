@@ -191,7 +191,9 @@ class AdminVerificationViewModel @Inject constructor(
             applicantPhone = this.applicantPhone,
             farmAddress = this.farmAddress,
             status = this.currentStatus, 
-            rejectionReason = this.rejectionReason ?: this.rejectionReason
+            rejectionReason = this.rejectionReason,
+            upgradeType = this.upgradeType,
+            targetRole = this.targetRole
         )
     }
 }
@@ -210,5 +212,7 @@ data class VerificationRequest(
     val applicantPhone: String? = null,
     val farmAddress: String? = null,
     val status: VerificationStatus = VerificationStatus.PENDING,
-    val rejectionReason: String? = null
+    val rejectionReason: String? = null,
+    val upgradeType: com.rio.rostry.domain.model.UpgradeType = com.rio.rostry.domain.model.UpgradeType.GENERAL_TO_FARMER,
+    val targetRole: com.rio.rostry.domain.model.UserType? = null
 )

@@ -2326,8 +2326,10 @@ private fun RoleNavGraph(
                         FarmerLocationVerificationScreen(onDone = { navController.popBackStack() })
                     }
                     com.rio.rostry.domain.model.UpgradeType.FARMER_TO_ENTHUSIAST -> {
-                        com.rio.rostry.ui.enthusiast.verification.EnthusiastVerificationScreen(
-                            onNavigateUp = { navController.popBackStack() }
+                        // Use EnthusiastKycScreen (via VerificationViewModel) which writes to
+                        // 'verifications' collection that Admin dashboard can see
+                        com.rio.rostry.ui.verification.EnthusiastKycScreen(
+                            onDone = { navController.popBackStack() }
                         )
                     }
                 }
