@@ -37,6 +37,9 @@ import com.rio.rostry.ui.admin.commerce.AdminProductScreen
 import com.rio.rostry.ui.admin.dispute.AdminDisputeScreen
 import com.rio.rostry.ui.admin.dispute.AdminDisputeDetailScreen
 import com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen
+import com.rio.rostry.ui.admin.monitoring.BiosecurityMonitoringScreen
+import com.rio.rostry.ui.admin.monitoring.MortalityMonitoringScreen
+import com.rio.rostry.ui.admin.monitoring.AlertManagementScreen
 import com.rio.rostry.ui.admin.roles.RoleManagementScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
@@ -202,23 +205,20 @@ fun AdminNavHost(
         
         // ========== Monitoring ==========
         composable(AdminRoutes.Monitoring.BIOSECURITY) {
-            PlaceholderScreen(
-                title = "Biosecurity Monitoring",
-                onBack = { navController.popBackStack() }
+            BiosecurityMonitoringScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         composable(AdminRoutes.Monitoring.MORTALITY) {
-            PlaceholderScreen(
-                title = "Mortality Monitoring",
-                onBack = { navController.popBackStack() }
+            MortalityMonitoringScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         composable(AdminRoutes.Monitoring.ALERTS) {
-            PlaceholderScreen(
-                title = "System Alerts",
-                onBack = { navController.popBackStack() }
+            AlertManagementScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
