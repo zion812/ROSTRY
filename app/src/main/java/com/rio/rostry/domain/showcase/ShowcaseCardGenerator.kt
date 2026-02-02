@@ -48,7 +48,7 @@ class ShowcaseCardGenerator @Inject constructor(
     companion object {
         private const val CARD_WIDTH = 1080
         private const val CARD_HEIGHT = 1920
-        private const val PHOTO_SIZE = 400
+        private const val PHOTO_SIZE = 650 // Increased from 400
         private const val CORNER_RADIUS = 60f
     }
     
@@ -82,7 +82,7 @@ class ShowcaseCardGenerator @Inject constructor(
                 drawBirdInfo(canvas, bird, config, config.theme)
                 
                 // Draw dynamic sections based on config
-                var currentY = 1100f
+                var currentY = 1300f // Adjusted starting Y for metrics
                 
                 if (config.showPedigreeBadge || config.showVaccinationBadge) {
                     drawBadges(canvas, completeness, vaccinationCount, config, currentY)
@@ -159,24 +159,24 @@ class ShowcaseCardGenerator @Inject constructor(
     
     private suspend fun drawBirdPhoto(canvas: Canvas, bird: ProductEntity, theme: ShowcaseTheme) {
         val centerX = CARD_WIDTH / 2f
-        val photoY = 350f
+        val photoY = 280f // Moved up slightly to accommodate larger size
         
         // Draw glowing ring behind photo
         val ringPaint = Paint().apply {
             shader = LinearGradient(
                 centerX - PHOTO_SIZE / 2, photoY,
                 centerX + PHOTO_SIZE / 2, photoY + PHOTO_SIZE,
-                intArrayOf(theme.accentColor, theme.accentColor), 
+                intArrayOf(theme.accentColor, Color.WHITE), // Added White for shine effect 
                 null,
-                Shader.TileMode.CLAMP
+                Shader.TileMode.MIRROR
             )
             style = Paint.Style.STROKE
-            strokeWidth = 10f
+            strokeWidth = 15f // Thicker ring
             if (theme == ShowcaseTheme.DARK_PREMIUM || theme == ShowcaseTheme.GOLD_LUXURY) {
-                setShadowLayer(25f, 0f, 0f, theme.accentColor)
+                setShadowLayer(40f, 0f, 0f, theme.accentColor)
             }
         }
-        canvas.drawCircle(centerX, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2f + 15, ringPaint)
+        canvas.drawCircle(centerX, photoY + PHOTO_SIZE / 2, PHOTO_SIZE / 2f + 20, ringPaint)
         
         // Load and draw bird photo
         val photoBitmap = loadBirdPhoto(bird)
@@ -242,7 +242,7 @@ class ShowcaseCardGenerator @Inject constructor(
     
     private fun drawBirdInfo(canvas: Canvas, bird: ProductEntity, config: ShowcaseConfig, theme: ShowcaseTheme) {
         val centerX = CARD_WIDTH / 2f
-        val nameY = 850f
+        val nameY = 1050f // Pushed down due to larger photo
         
         val textColor = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.BLACK else Color.WHITE
         val subTextColor = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.DKGRAY else Color.LTGRAY
@@ -250,7 +250,7 @@ class ShowcaseCardGenerator @Inject constructor(
         // Bird name
         val namePaint = Paint().apply {
             color = textColor
-            textSize = 72f
+            textSize = 80f // Slightly larger
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
@@ -380,43 +380,48 @@ class ShowcaseCardGenerator @Inject constructor(
 
 
     private fun drawBadge(canvas: Canvas, x: Float, y: Float, icon: String, text: String, accentColor: Int, theme: ShowcaseTheme) {
-        val badgeWidth = 280f
-        val badgeHeight = 120f
+        val badgeWidth = 320f // Wider
+        val badgeHeight = 110f // Sleeker
         
         val bgPaint = Paint().apply {
+            // Glassmorphism effect: Semi-transparent background
             color = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) 
-                Color.parseColor("#F0F0F0") else Color.parseColor("#1e1e3f")
+                Color.parseColor("#CCFFFFFF") else Color.parseColor("#40000000")
             isAntiAlias = true
         }
         
         val rect = RectF(x - badgeWidth / 2, y, x + badgeWidth / 2, y + badgeHeight)
-        canvas.drawRoundRect(rect, 20f, 20f, bgPaint)
+        canvas.drawRoundRect(rect, 55f, 55f, bgPaint) // Fully rounded pill shape
         
-        // Badge border
+        // Badge border (Subtle)
         val borderPaint = Paint().apply {
             color = accentColor
             style = Paint.Style.STROKE
-            strokeWidth = 3f
+            strokeWidth = 2f
             isAntiAlias = true
+            alpha = 180
         }
-        canvas.drawRoundRect(rect, 20f, 20f, borderPaint)
+        canvas.drawRoundRect(rect, 55f, 55f, borderPaint)
         
         // Icon
         val iconPaint = Paint().apply {
-            textSize = 40f
+            textSize = 36f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
-        canvas.drawText(icon, x, y + 45, iconPaint)
-        
-        // Text
-        val textPaint = Paint().apply {
+        // Draw icon and text side-by-side for Pill layout
+        // Instead of stacked
+        val combinedPaint = Paint().apply {
             color = if (theme == ShowcaseTheme.LIGHT_ELEGANCE || theme == ShowcaseTheme.NATURE_FRESH) Color.BLACK else Color.WHITE
-            textSize = 28f
+            textSize = 32f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
-        canvas.drawText(text, x, y + 90, textPaint)
+        
+        // Draw icon + text centered together
+        // "$icon  $text"
+        canvas.drawText("$icon  $text", x, y + 70, combinedPaint)
     }
     
     private fun drawBranding(canvas: Canvas, theme: ShowcaseTheme) {

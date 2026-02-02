@@ -19,6 +19,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -252,24 +255,28 @@ fun OnboardFarmBirdScreen(
                     
                     // Show date picker dialog when showDate is true
                     if (showDate.value) {
-                        val now = java.util.Calendar.getInstance()
-                        LaunchedEffect(Unit) {
-                            android.app.DatePickerDialog(
-                                ctx,
-                                { _, y, m, day ->
-                                    val cal = java.util.Calendar.getInstance()
-                                    cal.set(y, m, day, 0, 0, 0)
-                                    cal.set(java.util.Calendar.MILLISECOND, 0)
-                                    vm.updateCoreDetails { cd -> cd.copy(birthDate = cal.timeInMillis) }
+                        val datePickerState = rememberDatePickerState(
+                            initialSelectedDateMillis = state.coreDetails.birthDate ?: System.currentTimeMillis()
+                        )
+                        DatePickerDialog(
+                            onDismissRequest = { showDate.value = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        vm.updateCoreDetails { cd -> cd.copy(birthDate = millis) }
+                                    }
                                     showDate.value = false
-                                },
-                                now.get(java.util.Calendar.YEAR), 
-                                now.get(java.util.Calendar.MONTH), 
-                                now.get(java.util.Calendar.DAY_OF_MONTH)
-                            ).apply {
-                                setOnCancelListener { showDate.value = false }
-                                setOnDismissListener { showDate.value = false }
-                            }.show()
+                                }) {
+                                    Text("OK")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDate.value = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        ) {
+                            DatePicker(state = datePickerState)
                         }
                     }
                     

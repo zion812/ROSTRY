@@ -4,9 +4,11 @@ import com.google.gson.Gson
 import com.rio.rostry.data.database.entity.GrowthRecordEntity
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
+import com.rio.rostry.data.database.entity.FarmAssetEntity // Added import
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.notifications.IntelligentNotificationService
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.data.repository.FarmAssetRepository // Added import
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -51,6 +53,7 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
     private val taskRepository: TaskRepository,
     private val intelligentNotificationService: IntelligentNotificationService,
     private val analyticsRepository: AnalyticsRepository,
+    private val farmAssetRepository: FarmAssetRepository, // Injected
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : FarmOnboardingRepository {
 
@@ -71,6 +74,36 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
 
             val now = System.currentTimeMillis()
             val taskIds = mutableListOf<String>()
+
+            // Create corresponding FarmAssetEntity for immediate local availability
+            val farmAsset = FarmAssetEntity(
+                assetId = productId, // Same ID for 1:1 mapping
+                farmerId = farmerId,
+                name = product.name,
+                assetType = if (product.isBatch == true) "BATCH" else "ANIMAL",
+                category = "Chicken", // Defaulting, or infer from product.category/breed
+                status = "ACTIVE",
+                locationName = product.location,
+                latitude = product.latitude,
+                longitude = product.longitude,
+                quantity = product.quantity,
+                initialQuantity = product.quantity,
+                unit = product.unit,
+                birthDate = product.birthDate,
+                ageWeeks = product.ageWeeks,
+                breed = product.breed,
+                gender = product.gender,
+                color = product.color,
+                healthStatus = healthStatus,
+                description = product.description,
+                imageUrls = product.imageUrls,
+                createdAt = now,
+                updatedAt = now,
+                dirty = true,
+                metadataJson = if(product.isBatch == true) "{\"tagGroups\":[]}" else "{}",
+                batchId = product.batchId
+            )
+            farmAssetRepository.addAsset(farmAsset)
 
             // Create initial growth record with week 0
             val initialGrowthRecord = GrowthRecordEntity(

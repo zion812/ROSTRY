@@ -335,13 +335,13 @@ fun ShowcaseCardMiniPreview(
                         model = bird.imageUrls.first(),
                         contentDescription = bird.name,
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(120.dp) // Increased size
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(80.dp),
+                        modifier = Modifier.size(120.dp), // Increased size
                         shape = CircleShape,
                         color = Color(0xFF2a2a4a)
                     ) {
@@ -431,20 +431,20 @@ fun ShowcaseCardMiniPreview(
 @Composable
 private fun MiniPreviewBadge(icon: String, text: String, color: Color) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = color.copy(alpha = 0.2f)
+        shape = CircleShape, // Pill shape
+        color = color.copy(alpha = 0.15f) // More subtle background
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(icon, fontSize = 12.sp)
-            Spacer(Modifier.width(4.dp))
+            Text(icon, fontSize = 14.sp)
+            Spacer(Modifier.width(6.dp))
             Text(
                 text,
                 color = color,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
