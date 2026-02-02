@@ -168,6 +168,14 @@ object Routes {
         const val AUDIT_LOGS = "admin/audit"
         const val UPGRADE_REQUESTS = "admin/upgrade_requests"
         const val INVOICES = "admin/invoices"
+        // New routes for complete admin functionality
+        const val ANALYTICS = "admin/analytics"
+        const val REPORTS = "admin/reports"
+        const val SYSTEM_CONFIG = "admin/system_config"
+        const val FEATURE_TOGGLES = "admin/feature_toggles"
+        const val MODERATION = "admin/moderation"
+        const val BROADCAST = "admin/broadcast"
+        const val BULK_OPERATIONS = "admin/bulk_operations"
     }
 
 
@@ -560,6 +568,13 @@ object Routes {
                                Admin.AUDIT_LOGS,
                                Admin.UPGRADE_REQUESTS,
                                Admin.INVOICES,
+                               Admin.ANALYTICS,
+                               Admin.REPORTS,
+                               Admin.SYSTEM_CONFIG,
+                               Admin.FEATURE_TOGGLES,
+                               Admin.MODERATION,
+                               Admin.BROADCAST,
+                               Admin.BULK_OPERATIONS,
                                Routes.PUBLIC_BIRD_LOOKUP
                            )
     )

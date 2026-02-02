@@ -385,5 +385,13 @@ private fun mapLegacyRoute(route: String): String = when (route) {
     Routes.Admin.AUDIT_LOGS -> AdminRoutes.Audit.LOGS
     Routes.Admin.UPGRADE_REQUESTS -> AdminRoutes.Verification.UPGRADE_REQUESTS
     Routes.Admin.INVOICES -> AdminRoutes.Commerce.INVOICES
+    // New route mappings
+    Routes.Admin.ANALYTICS -> AdminRoutes.Analytics.OVERVIEW
+    Routes.Admin.REPORTS -> AdminRoutes.Reports.GENERATOR
+    Routes.Admin.SYSTEM_CONFIG -> AdminRoutes.System.CONFIG
+    Routes.Admin.FEATURE_TOGGLES -> AdminRoutes.System.FEATURE_TOGGLES
+    Routes.Admin.MODERATION -> AdminRoutes.Moderation.QUEUE
+    Routes.Admin.BROADCAST -> AdminRoutes.Communication.BROADCAST
+    Routes.Admin.BULK_OPERATIONS -> AdminRoutes.Bulk.OPERATIONS
     else -> route
 }

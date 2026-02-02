@@ -442,6 +442,56 @@ private fun QuickActionsGrid(
             icon = Icons.Default.Receipt,
             color = Color(0xFF673AB7),
             onClick = { onNavigateTo(Routes.Admin.INVOICES) }
+        ),
+        // New menu items for complete accessibility
+        AdminMenuItem(
+            title = "Analytics",
+            subtitle = "Overview & Insights",
+            icon = Icons.Default.Analytics,
+            color = Color(0xFF00BCD4),
+            onClick = { onNavigateTo(Routes.Admin.ANALYTICS) }
+        ),
+        AdminMenuItem(
+            title = "Reports",
+            subtitle = "Generate Reports",
+            icon = Icons.Default.Assessment,
+            color = Color(0xFF3F51B5),
+            onClick = { onNavigateTo(Routes.Admin.REPORTS) }
+        ),
+        AdminMenuItem(
+            title = "System Config",
+            subtitle = "Settings & Health",
+            icon = Icons.Default.Settings,
+            color = Color(0xFF455A64),
+            onClick = { onNavigateTo(Routes.Admin.SYSTEM_CONFIG) }
+        ),
+        AdminMenuItem(
+            title = "Feature Toggles",
+            subtitle = "Enable/Disable",
+            icon = Icons.Default.ToggleOn,
+            color = Color(0xFFFF9800),
+            onClick = { onNavigateTo(Routes.Admin.FEATURE_TOGGLES) }
+        ),
+        AdminMenuItem(
+            title = "Moderation",
+            subtitle = "Content Queue",
+            icon = Icons.Default.Shield,
+            color = Color(0xFF8BC34A),
+            onClick = { onNavigateTo(Routes.Admin.MODERATION) }
+        ),
+        AdminMenuItem(
+            title = "Broadcast",
+            subtitle = "Notifications",
+            icon = Icons.Default.Campaign,
+            color = Color(0xFFE91E63),
+            onClick = { onNavigateTo(Routes.Admin.BROADCAST) }
+        ),
+        AdminMenuItem(
+            title = "Bulk Operations",
+            subtitle = "Import/Export",
+            icon = Icons.Default.DynamicFeed,
+            color = Color(0xFF795548),
+            onClick = { onNavigateTo(Routes.Admin.BULK_OPERATIONS) }
         )
     )
 
