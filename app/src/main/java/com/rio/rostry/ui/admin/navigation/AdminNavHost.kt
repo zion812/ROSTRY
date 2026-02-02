@@ -49,6 +49,9 @@ import com.rio.rostry.ui.admin.reports.ReportGeneratorScreen
 import com.rio.rostry.ui.admin.system.SystemConfigScreen
 import com.rio.rostry.ui.admin.system.SystemHealthScreen
 import com.rio.rostry.ui.admin.system.FeatureTogglesScreen
+import com.rio.rostry.ui.admin.moderation.ModerationQueueScreen
+import com.rio.rostry.ui.admin.communication.BroadcastScreen
+import com.rio.rostry.ui.admin.bulk.BulkOperationsScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
 
@@ -292,25 +295,22 @@ fun AdminNavHost(
         
         // ========== Moderation ==========
         composable(AdminRoutes.Moderation.QUEUE) {
-            PlaceholderScreen(
-                title = "Content Moderation",
-                onBack = { navController.popBackStack() }
+            ModerationQueueScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         // ========== Communication ==========
         composable(AdminRoutes.Communication.BROADCAST) {
-            PlaceholderScreen(
-                title = "Broadcast Notifications",
-                onBack = { navController.popBackStack() }
+            BroadcastScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         // ========== Bulk Operations ==========
         composable(AdminRoutes.Bulk.OPERATIONS) {
-            PlaceholderScreen(
-                title = "Bulk Operations",
-                onBack = { navController.popBackStack() }
+            BulkOperationsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
