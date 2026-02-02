@@ -45,6 +45,10 @@ import com.rio.rostry.ui.admin.commerce.InvoicesScreen
 import com.rio.rostry.ui.admin.analytics.AnalyticsOverviewScreen
 import com.rio.rostry.ui.admin.analytics.UserAnalyticsScreen
 import com.rio.rostry.ui.admin.analytics.CommerceAnalyticsScreen
+import com.rio.rostry.ui.admin.reports.ReportGeneratorScreen
+import com.rio.rostry.ui.admin.system.SystemConfigScreen
+import com.rio.rostry.ui.admin.system.SystemHealthScreen
+import com.rio.rostry.ui.admin.system.FeatureTogglesScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
 
@@ -262,31 +266,27 @@ fun AdminNavHost(
         
         // ========== Reports ==========
         composable(AdminRoutes.Reports.GENERATOR) {
-            PlaceholderScreen(
-                title = "Report Generator",
-                onBack = { navController.popBackStack() }
+            ReportGeneratorScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         // ========== System ==========
         composable(AdminRoutes.System.CONFIG) {
-            PlaceholderScreen(
-                title = "System Configuration",
-                onBack = { navController.popBackStack() }
+            SystemConfigScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         composable(AdminRoutes.System.HEALTH) {
-            PlaceholderScreen(
-                title = "System Health",
-                onBack = { navController.popBackStack() }
+            SystemHealthScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         composable(AdminRoutes.System.FEATURE_TOGGLES) {
-            PlaceholderScreen(
-                title = "Feature Toggles",
-                onBack = { navController.popBackStack() }
+            FeatureTogglesScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
