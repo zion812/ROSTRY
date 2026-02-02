@@ -41,6 +41,8 @@ import com.rio.rostry.ui.admin.monitoring.BiosecurityMonitoringScreen
 import com.rio.rostry.ui.admin.monitoring.MortalityMonitoringScreen
 import com.rio.rostry.ui.admin.monitoring.AlertManagementScreen
 import com.rio.rostry.ui.admin.roles.RoleManagementScreen
+import com.rio.rostry.ui.admin.commerce.InvoicesScreen
+import com.rio.rostry.ui.admin.analytics.AnalyticsOverviewScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
 
@@ -166,6 +168,12 @@ fun AdminNavHost(
             )
         }
         
+        composable(AdminRoutes.Commerce.INVOICES) {
+            InvoicesScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
         composable(AdminRoutes.Commerce.DISPUTES) {
             AdminDisputeScreen(
                 onNavigateBack = { navController.popBackStack() }
@@ -231,9 +239,10 @@ fun AdminNavHost(
         
         // ========== Analytics ==========
         composable(AdminRoutes.Analytics.OVERVIEW) {
-            PlaceholderScreen(
-                title = "Analytics Overview",
-                onBack = { navController.popBackStack() }
+            AnalyticsOverviewScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToUsers = { navController.navigate(AdminRoutes.Analytics.USERS) },
+                onNavigateToCommerce = { navController.navigate(AdminRoutes.Analytics.COMMERCE) }
             )
         }
         
