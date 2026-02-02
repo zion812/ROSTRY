@@ -94,6 +94,9 @@ import com.rio.rostry.ui.farmer.asset.FarmAssetDetailScreen
 import com.rio.rostry.ui.farmer.listing.CreateListingScreen
 import com.rio.rostry.ui.screens.HomeGeneralScreen
 import com.rio.rostry.ui.screens.PlaceholderScreen
+import com.rio.rostry.ui.community.GroupDetailScreen
+import com.rio.rostry.ui.community.EventDetailScreen
+import com.rio.rostry.ui.community.ExpertProfileScreen
 import com.rio.rostry.ui.session.SessionViewModel
 import com.rio.rostry.ui.traceability.FamilyTreeView
 import com.rio.rostry.ui.traceability.TraceabilityScreen
@@ -2737,14 +2740,15 @@ private fun RoleNavGraph(
             )
         }
 
-        if (BuildConfig.DEBUG) {
-            composable(
-                route = Routes.GROUP_DETAILS,
-                arguments = listOf(navArgument("groupId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-                PlaceholderScreen(title = "Group: $groupId")
-            }
+        composable(
+            route = Routes.GROUP_DETAILS,
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            GroupDetailScreen(
+                groupId = groupId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(
@@ -2752,7 +2756,10 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("eventId") { type = NavType.StringType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getString("eventId") ?: return@composable
-            PlaceholderScreen(title = "Event: $eventId")
+            EventDetailScreen(
+                eventId = eventId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(
@@ -2760,7 +2767,10 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("expertId") { type = NavType.StringType })
         ) { backStackEntry ->
             val expertId = backStackEntry.arguments?.getString("expertId") ?: return@composable
-            PlaceholderScreen(title = "Expert: $expertId")
+            ExpertProfileScreen(
+                expertId = expertId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.NOTIFICATIONS) {
