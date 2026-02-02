@@ -43,6 +43,8 @@ import com.rio.rostry.ui.admin.monitoring.AlertManagementScreen
 import com.rio.rostry.ui.admin.roles.RoleManagementScreen
 import com.rio.rostry.ui.admin.commerce.InvoicesScreen
 import com.rio.rostry.ui.admin.analytics.AnalyticsOverviewScreen
+import com.rio.rostry.ui.admin.analytics.UserAnalyticsScreen
+import com.rio.rostry.ui.admin.analytics.CommerceAnalyticsScreen
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.session.CurrentUserProvider
 
@@ -247,16 +249,14 @@ fun AdminNavHost(
         }
         
         composable(AdminRoutes.Analytics.USERS) {
-            PlaceholderScreen(
-                title = "User Analytics",
-                onBack = { navController.popBackStack() }
+            UserAnalyticsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
         composable(AdminRoutes.Analytics.COMMERCE) {
-            PlaceholderScreen(
-                title = "Commerce Analytics",
-                onBack = { navController.popBackStack() }
+            CommerceAnalyticsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
