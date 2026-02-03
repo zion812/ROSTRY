@@ -88,4 +88,7 @@ interface ReviewDao {
     
     @Query("UPDATE reviews SET dirty = 0 WHERE reviewId = :reviewId")
     suspend fun markClean(reviewId: String)
+
+    @Query("SELECT * FROM reviews WHERE adminFlagged = 1 ORDER BY createdAt DESC")
+    fun getFlaggedReviews(): Flow<List<ReviewEntity>>
 }

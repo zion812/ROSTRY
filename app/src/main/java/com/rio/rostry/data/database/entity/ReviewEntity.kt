@@ -33,7 +33,9 @@ data class ReviewEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val isDeleted: Boolean = false,
-    val dirty: Boolean = true        // For sync
+    val dirty: Boolean = true,       // For sync
+    val adminFlagged: Boolean = false,
+    val moderationNote: String? = null
 )
 
 /**

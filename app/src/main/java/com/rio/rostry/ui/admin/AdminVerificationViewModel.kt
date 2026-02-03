@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -71,6 +72,19 @@ class AdminVerificationViewModel @Inject constructor(
     fun loadPendingRequests() {
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            // Guard: Check for Admin Role
+            val currentUserResource = userRepository.getCurrentUser().firstOrNull()
+            val user = currentUserResource?.data
+            if (user?.role != com.rio.rostry.domain.model.UserType.ADMIN) {
+                _isLoading.value = false
+                _pendingRequests.value = emptyList() // Clear list
+                // Only show toast if user is actually logged in but not admin (avoid noise during logout)
+                if (user != null) {
+                    _toastEvent.emit("Access Denied: Admin permissions required.")
+                }
+                return@launch
+            }
+
             userRepository.streamPendingVerifications().collect { resource ->
                 when (resource) {
                     is Resource.Loading -> if (_pendingRequests.value.isEmpty()) _isLoading.value = true

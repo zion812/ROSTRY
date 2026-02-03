@@ -19,6 +19,26 @@ interface OrderManagementRepository {
     suspend fun cancelOrder(orderId: String, reason: String?): Resource<Unit>
     suspend fun onPaymentStatusChanged(idempotencyKey: String, paymentStatus: String): Resource<Unit>
     suspend fun onRefundCompleted(paymentId: String, refundAmount: Double): Resource<Unit>
+
+    // Analytics
+    suspend fun getCommerceStats(): CommerceStats
+    suspend fun getTopProducts(limit: Int): List<ProductPerformance>
+    suspend fun getTopSellers(limit: Int): List<SellerPerformance>
+
+    data class CommerceStats(
+        val totalRevenue: Double,
+        val revenueThisWeek: Double,
+        val revenueThisMonth: Double,
+        val avgOrderValue: Double,
+        val totalOrders: Int,
+        val ordersThisWeek: Int,
+        val ordersThisMonth: Int,
+        val completedOrders: Int,
+        val pendingOrders: Int
+    )
+
+    data class ProductPerformance(val id: String, val name: String, val sales: Int, val revenue: Double)
+    data class SellerPerformance(val id: String, val name: String, val orders: Int, val revenue: Double)
 }
 
 @Singleton
@@ -28,6 +48,8 @@ class OrderManagementRepositoryImpl @Inject constructor(
     private val paymentDao: PaymentDao,
     private val invoiceDao: InvoiceDao,
     private val refundDao: RefundDao,
+    private val productDao: com.rio.rostry.data.database.dao.ProductDao,
+    private val userDao: com.rio.rostry.data.database.dao.UserDao,
 ) : OrderManagementRepository {
 
     override fun getOrder(orderId: String): Flow<OrderEntity?> = orderDao.getOrderById(orderId)
@@ -154,5 +176,66 @@ class OrderManagementRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to handle refund completion")
         }
+    }
+
+    override suspend fun getCommerceStats(): OrderManagementRepository.CommerceStats {
+        val now = System.currentTimeMillis()
+        val oneWeek = 7 * 24 * 60 * 60 * 1000L
+        val oneMonth = 30L * 24 * 60 * 60 * 1000L
+
+        val totalOrders = orderDao.countAllOrders()
+        val totalRevenue = orderDao.getTotalRevenue() ?: 0.0
+        val completedOrders = orderDao.countCompletedOrders()
+        
+        // Averages
+        val avgOrderValue = if (completedOrders > 0) totalRevenue / completedOrders else 0.0
+
+        return OrderManagementRepository.CommerceStats(
+            totalRevenue = totalRevenue,
+            revenueThisWeek = orderDao.getRevenueSince(now - oneWeek) ?: 0.0,
+            revenueThisMonth = orderDao.getRevenueSince(now - oneMonth) ?: 0.0,
+            avgOrderValue = avgOrderValue,
+            totalOrders = totalOrders,
+            ordersThisWeek = orderDao.countOrdersSince(now - oneWeek),
+            ordersThisMonth = orderDao.countOrdersSince(now - oneMonth),
+            completedOrders = completedOrders,
+            pendingOrders = orderDao.countPendingOrders()
+        )
+    }
+
+    override suspend fun getTopProducts(limit: Int): List<OrderManagementRepository.ProductPerformance> {
+        val stats = orderDao.getAllOrderValues()
+        // In-memory grouping (simple for <10k orders)
+        // Group by ID -> Accumulate Count & Revenue
+        val grouped = stats.groupBy { it.id }.mapValues { entry ->
+            val count = entry.value.size
+            val revenue = entry.value.sumOf { it.value }
+            Pair(count, revenue)
+        }
+
+        return grouped.entries
+            .sortedByDescending { it.value.second } // Sort by revenue
+            .take(limit)
+            .map { entry ->
+                val name = productDao.findById(entry.key)?.name ?: "Unknown Product"
+                OrderManagementRepository.ProductPerformance(entry.key, name, entry.value.first, entry.value.second)
+            }
+    }
+
+    override suspend fun getTopSellers(limit: Int): List<OrderManagementRepository.SellerPerformance> {
+        val stats = orderDao.getAllSellerValues()
+        val grouped = stats.groupBy { it.id }.mapValues { entry ->
+            val count = entry.value.size
+            val revenue = entry.value.sumOf { it.value }
+            Pair(count, revenue)
+        }
+
+        return grouped.entries
+            .sortedByDescending { it.value.second } // Sort by revenue
+            .take(limit)
+            .map { entry ->
+                val name = userDao.findById(entry.key)?.fullName ?: "Unknown Seller"
+                OrderManagementRepository.SellerPerformance(entry.key, name, entry.value.first, entry.value.second)
+            }
     }
 }

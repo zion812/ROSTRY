@@ -109,4 +109,34 @@ interface OrderDao {
 
     @Query("SELECT * FROM orders WHERE dirty = 1")
     suspend fun getDirty(): List<OrderEntity>
+
+    // Global Analytics
+    @Query("SELECT COUNT(*) FROM orders")
+    suspend fun countAllOrders(): Int
+
+    @Query("SELECT COUNT(*) FROM orders WHERE status = 'DELIVERED'")
+    suspend fun countCompletedOrders(): Int
+
+    @Query("SELECT COUNT(*) FROM orders WHERE status IN ('PENDING_PAYMENT', 'PLACED', 'CONFIRMED', 'PROCESSING')")
+    suspend fun countPendingOrders(): Int
+
+    @Query("SELECT COUNT(*) FROM orders WHERE orderDate >= :since")
+    suspend fun countOrdersSince(since: Long): Int
+
+    @Query("SELECT SUM(totalAmount) FROM orders WHERE status = 'DELIVERED'")
+    suspend fun getTotalRevenue(): Double?
+
+    @Query("SELECT SUM(totalAmount) FROM orders WHERE status = 'DELIVERED' AND orderDate >= :since")
+    suspend fun getRevenueSince(since: Long): Double?
+
+    @Query("SELECT productId as id, totalAmount as value FROM orders WHERE status = 'DELIVERED'")
+    suspend fun getAllOrderValues(): List<OrderValueTuple>
+
+    @Query("SELECT sellerId as id, totalAmount as value FROM orders WHERE status = 'DELIVERED'")
+    suspend fun getAllSellerValues(): List<OrderValueTuple>
 }
+
+data class OrderValueTuple(
+    val id: String,
+    val value: Double
+)

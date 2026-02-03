@@ -82,4 +82,10 @@ interface UserRepository {
     // Broadcast / Targeting
     suspend fun getAudienceSize(role: UserType?): Int
     fun getUsersStreamByRole(role: UserType): Flow<List<UserEntity>>
+
+    // Analytics
+    suspend fun countAllUsers(): Int
+    suspend fun getNewUsersCount(since: Long): Int
+    suspend fun getActiveUsersCount(since: Long): Int
+    suspend fun getPendingVerificationCount(): Int
 }

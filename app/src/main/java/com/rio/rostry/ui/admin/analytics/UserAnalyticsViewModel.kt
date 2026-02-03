@@ -11,7 +11,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class UserAnalyticsViewModel @Inject constructor() : ViewModel() {
+class UserAnalyticsViewModel @Inject constructor(
+    private val userRepository: com.rio.rostry.data.repository.UserRepository
+) : ViewModel() {
 
     data class RegionStat(val name: String, val userCount: Int)
 
@@ -39,26 +41,49 @@ class UserAnalyticsViewModel @Inject constructor() : ViewModel() {
     private fun loadData() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            delay(500)
             
-            _state.update { it.copy(
-                isLoading = false,
-                totalUsers = 1254,
-                newThisWeek = 47,
-                newThisMonth = 186,
-                enthusiastCount = 890,
-                farmerCount = 352,
-                adminCount = 12,
-                activeToday = 312,
-                activeWeek = 756,
-                topRegions = listOf(
-                    RegionStat("Karnataka", 342),
-                    RegionStat("Maharashtra", 289),
-                    RegionStat("Tamil Nadu", 234),
-                    RegionStat("Andhra Pradesh", 198),
-                    RegionStat("Kerala", 156)
-                )
-            ) }
+            try {
+                val now = System.currentTimeMillis()
+                val oneDay = 24 * 60 * 60 * 1000L
+                val oneWeek = 7 * oneDay
+                val oneMonth = 30 * oneDay
+                
+                val startOfToday = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }.timeInMillis
+
+                val totalUsers = userRepository.getAudienceSize(null)
+                val newThisWeek = userRepository.getNewUsersCount(now - oneWeek)
+                val newThisMonth = userRepository.getNewUsersCount(now - oneMonth)
+                
+                val enthusiastCount = userRepository.getAudienceSize(com.rio.rostry.domain.model.UserType.ENTHUSIAST)
+                val farmerCount = userRepository.getAudienceSize(com.rio.rostry.domain.model.UserType.FARMER)
+                val adminCount = userRepository.getAudienceSize(com.rio.rostry.domain.model.UserType.ADMIN)
+                
+                val activeToday = userRepository.getActiveUsersCount(startOfToday)
+                val activeWeek = userRepository.getActiveUsersCount(now - oneWeek)
+
+                // TODO: Implement Region Analytics
+                val topRegions = emptyList<RegionStat>() 
+
+                _state.update { it.copy(
+                    isLoading = false,
+                    totalUsers = totalUsers,
+                    newThisWeek = newThisWeek,
+                    newThisMonth = newThisMonth,
+                    enthusiastCount = enthusiastCount,
+                    farmerCount = farmerCount,
+                    adminCount = adminCount,
+                    activeToday = activeToday,
+                    activeWeek = activeWeek,
+                    topRegions = topRegions
+                ) }
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 

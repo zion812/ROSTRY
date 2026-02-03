@@ -12,24 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SystemConfigScreen(
+    viewModel: SystemConfigViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
-    val configItems = remember {
-        listOf(
-            ConfigItem("Max Upload Size", "10 MB", "Maximum file size for uploads"),
-            ConfigItem("Session Timeout", "30 minutes", "Auto-logout after inactivity"),
-            ConfigItem("Password Policy", "Strong (8+ chars, special)", "Password requirements"),
-            ConfigItem("Email Notifications", "Enabled", "System email notifications"),
-            ConfigItem("SMS Alerts", "Enabled", "Critical SMS alerts"),
-            ConfigItem("Maintenance Mode", "Disabled", "Put system in maintenance"),
-            ConfigItem("API Rate Limit", "100 req/min", "Rate limiting per user"),
-            ConfigItem("Cache TTL", "5 minutes", "Default cache expiration")
-        )
-    }
+    val configItems by viewModel.configItems.collectAsState()
 
     Scaffold(
         topBar = {
@@ -59,13 +50,27 @@ fun SystemConfigScreen(
 
             items(configItems) { item ->
                 Card(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp), 
+                        horizontalArrangement = Arrangement.SpaceBetween, 
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Column(Modifier.weight(1f)) {
                             Text(item.name, fontWeight = FontWeight.Medium)
                             Text(item.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
-                            Text(item.value, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium)
+                        
+                        if (item.isBoolean) {
+                            Switch(
+                                checked = item.booleanValue,
+                                onCheckedChange = { isChecked ->
+                                    viewModel.updateBoolean(item.key, isChecked)
+                                }
+                            )
+                        } else {
+                            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.small) {
+                                Text(item.value, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
@@ -73,5 +78,3 @@ fun SystemConfigScreen(
         }
     }
 }
-
-private data class ConfigItem(val name: String, val value: String, val description: String)

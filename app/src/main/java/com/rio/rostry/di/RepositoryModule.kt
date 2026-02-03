@@ -326,6 +326,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAdminRepository(impl: com.rio.rostry.data.repository.AdminRepositoryImpl): com.rio.rostry.data.repository.AdminRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSystemConfigRepository(impl: com.rio.rostry.data.repository.SystemConfigRepositoryImpl): com.rio.rostry.data.repository.SystemConfigRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindModerationRepository(impl: com.rio.rostry.data.repository.ModerationRepositoryImpl): com.rio.rostry.data.repository.ModerationRepository
 }
 
 @Module

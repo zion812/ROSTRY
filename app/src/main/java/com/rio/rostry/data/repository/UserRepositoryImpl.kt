@@ -419,22 +419,19 @@ class UserRepositoryImpl @Inject constructor(
         Unit
     }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to update farm location verification")
 
-    override fun streamPendingVerifications(): Flow<Resource<List<VerificationSubmission>>> =
-        flow<Resource<List<VerificationSubmission>>> {
-            // Query verifications collection directly for pending items
-            val query = firestore.collection("verifications")
-                .whereEqualTo("currentStatus", "PENDING")
-                .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            
-            val snap = query.get().await()
-            val submissions = snap.toObjects(VerificationSubmission::class.java)
-            emit(Resource.Success(submissions))
-        }
-            .onStart { emit(Resource.Loading()) }
-            .catch { e ->
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                emit(Resource.Error("Failed to load pending verifications: ${e.message}"))
-            }
+    override fun streamPendingVerifications(): Flow<Resource<List<VerificationSubmission>>> = safeCall {
+        // Query verifications collection directly for pending items
+        val query = firestore.collection("verifications")
+            .whereEqualTo("currentStatus", "PENDING")
+            .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+        
+        val snap = query.get().await()
+        snap.toObjects(VerificationSubmission::class.java)
+    }.filter { it !is Resource.Loading<*> }.onStart { emit(Resource.Loading()) }
+     .catch { e ->
+         if (e is kotlinx.coroutines.CancellationException) throw e
+         emit(Resource.Error("Failed to load pending verifications: ${e.message}"))
+     }
 
     override suspend fun submitKycVerification(
         userId: String, 
@@ -824,5 +821,29 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun getUsersStreamByRole(role: UserType): Flow<List<UserEntity>> {
         return userDao.getUsersByRole(role.name)
+    }
+
+    override suspend fun getNewUsersCount(since: Long): Int {
+        return userDao.countUsersCreatedAfter(since)
+    }
+
+    override suspend fun getActiveUsersCount(since: Long): Int {
+        return userDao.countUsersUpdatedAfter(since)
+    }
+
+    override suspend fun countAllUsers(): Int {
+        return userDao.countAllUsers()
+    }
+
+    override suspend fun getPendingVerificationCount(): Int {
+        return try {
+            val snapshot = firestore.collection("verifications")
+                .whereEqualTo("currentStatus", "PENDING")
+                .get()
+                .await()
+            snapshot.size()
+        } catch (e: Exception) {
+            0
+        }
     }
 }

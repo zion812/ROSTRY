@@ -57,6 +57,24 @@ object AppModule {
 
     @Provides
     @Singleton
+    @Named("system_config_prefs")
+    fun provideSystemConfigSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        // Allow disk reads for SharedPreferences initialization to prevent StrictMode violations
+        val oldPolicy = android.os.StrictMode.getThreadPolicy()
+        android.os.StrictMode.setThreadPolicy(
+            android.os.StrictMode.ThreadPolicy.Builder(oldPolicy)
+                .permitDiskReads()
+                .build()
+        )
+        try {
+            return context.getSharedPreferences("system_config_prefs", Context.MODE_PRIVATE)
+        } finally {
+            android.os.StrictMode.setThreadPolicy(oldPolicy)
+        }
+    }
+
+    @Provides
+    @Singleton
     fun provideTransferNotifier(@ApplicationContext context: Context): TransferNotifier {
         return TransferNotifierImpl(context)
     }

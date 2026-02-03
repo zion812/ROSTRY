@@ -325,6 +325,9 @@ interface ProductDao {
      */
     @Query("SELECT * FROM products WHERE (parentMaleId IN (:parentIds) OR parentFemaleId IN (:parentIds)) AND isDeleted = 0")
     suspend fun getOffspringBatch(parentIds: List<String>): List<ProductEntity>
+
+    @Query("SELECT * FROM products WHERE adminFlagged = 1 ORDER BY createdAt DESC")
+    fun getFlaggedProducts(): Flow<List<ProductEntity>>
 }
 
 data class StageCount(

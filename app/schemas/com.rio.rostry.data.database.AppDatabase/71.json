@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 71,
-    "identityHash": "e5d387b161324e519134dc83a83deef2",
+    "identityHash": "86009c70d7e53d0cf6ef26503d89e8d9",
     "entities": [
       {
         "tableName": "users",
@@ -9071,7 +9071,7 @@
       },
       {
         "tableName": "reviews",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`reviewId` TEXT NOT NULL, `productId` TEXT, `sellerId` TEXT NOT NULL, `orderId` TEXT, `reviewerId` TEXT NOT NULL, `rating` INTEGER NOT NULL, `title` TEXT, `content` TEXT, `isVerifiedPurchase` INTEGER NOT NULL, `helpfulCount` INTEGER NOT NULL, `responseFromSeller` TEXT, `responseAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, PRIMARY KEY(`reviewId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`reviewId` TEXT NOT NULL, `productId` TEXT, `sellerId` TEXT NOT NULL, `orderId` TEXT, `reviewerId` TEXT NOT NULL, `rating` INTEGER NOT NULL, `title` TEXT, `content` TEXT, `isVerifiedPurchase` INTEGER NOT NULL, `helpfulCount` INTEGER NOT NULL, `responseFromSeller` TEXT, `responseAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `adminFlagged` INTEGER NOT NULL, `moderationNote` TEXT, PRIMARY KEY(`reviewId`))",
         "fields": [
           {
             "fieldPath": "reviewId",
@@ -9162,6 +9162,17 @@
             "columnName": "dirty",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "adminFlagged",
+            "columnName": "adminFlagged",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moderationNote",
+            "columnName": "moderationNote",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -12457,7 +12468,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e5d387b161324e519134dc83a83deef2')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '86009c70d7e53d0cf6ef26503d89e8d9')"
     ]
   }
 }

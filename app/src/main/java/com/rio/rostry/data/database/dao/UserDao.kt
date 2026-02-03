@@ -69,6 +69,12 @@ interface UserDao {
     @Query("SELECT COUNT(*) FROM users WHERE userType = :role")
     suspend fun countUsersByRole(role: String): Int
 
+    @Query("SELECT COUNT(*) FROM users WHERE createdAt >= :timestamp")
+    suspend fun countUsersCreatedAfter(timestamp: Long): Int
+
+    @Query("SELECT COUNT(*) FROM users WHERE updatedAt >= :timestamp")
+    suspend fun countUsersUpdatedAfter(timestamp: Long): Int
+
     @Query("SELECT * FROM users WHERE userType = :role")
     fun getUsersByRole(role: String): Flow<List<UserEntity>>
 }

@@ -11,7 +11,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class CommerceAnalyticsViewModel @Inject constructor() : ViewModel() {
+class CommerceAnalyticsViewModel @Inject constructor(
+    private val repository: com.rio.rostry.data.repository.OrderManagementRepository
+) : ViewModel() {
 
     data class TopProduct(val name: String, val sales: Int, val revenue: Double)
     data class TopSeller(val name: String, val orders: Int, val revenue: Double)
@@ -43,34 +45,35 @@ class CommerceAnalyticsViewModel @Inject constructor() : ViewModel() {
     private fun loadData() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            delay(500)
             
-            _state.update { it.copy(
-                isLoading = false,
-                totalOrders = 856,
-                ordersThisWeek = 78,
-                ordersThisMonth = 312,
-                totalRevenue = 4850000.0,
-                revenueThisWeek = 425000.0,
-                revenueThisMonth = 1850000.0,
-                avgOrderValue = 5667.0,
-                completedOrders = 712,
-                pendingOrders = 98,
-                disputedOrders = 12,
-                topProducts = listOf(
-                    TopProduct("Kadaknath Chicken", 156, 780000.0),
-                    TopProduct("Country Eggs (30)", 234, 468000.0),
-                    TopProduct("Aseel Rooster", 89, 445000.0),
-                    TopProduct("Broiler Chicken (kg)", 312, 390000.0),
-                    TopProduct("Duck Eggs (12)", 145, 217500.0)
-                ),
-                topSellers = listOf(
-                    TopSeller("Sharma Farms", 89, 534000.0),
-                    TopSeller("Green Valley Poultry", 76, 456000.0),
-                    TopSeller("Sunrise Farms", 65, 390000.0),
-                    TopSeller("Premium Poultry", 58, 348000.0)
-                )
-            ) }
+            try {
+                // Launch concurrent fetching
+                val stats = repository.getCommerceStats()
+                val topProducts = repository.getTopProducts(5)
+                val topSellers = repository.getTopSellers(5)
+                
+                _state.update { it.copy(
+                    isLoading = false,
+                    totalOrders = stats.totalOrders,
+                    ordersThisWeek = stats.ordersThisWeek,
+                    ordersThisMonth = stats.ordersThisMonth,
+                    totalRevenue = stats.totalRevenue,
+                    revenueThisWeek = stats.revenueThisWeek,
+                    revenueThisMonth = stats.revenueThisMonth,
+                    avgOrderValue = stats.avgOrderValue,
+                    completedOrders = stats.completedOrders,
+                    pendingOrders = stats.pendingOrders,
+                    disputedOrders = 0, // Not yet implemented in repository
+                    topProducts = topProducts.map { 
+                        TopProduct(it.name, it.sales, it.revenue) 
+                    },
+                    topSellers = topSellers.map { 
+                        TopSeller(it.name, it.orders, it.revenue) 
+                    }
+                ) }
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 
