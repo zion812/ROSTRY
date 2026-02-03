@@ -176,6 +176,29 @@ fun AdminDisputeDetailScreen(
                                     }
                                 }
                             }
+                            }
+                        }
+
+                    // Chat Transcript
+                    if (state.chatMessages.isNotEmpty()) {
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Chat Transcript", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        state.chatMessages.forEach { msg ->
+                                            DisputeChatMessage(
+                                                message = msg, 
+                                                isReporter = msg.senderId == state.dispute?.reporterId,
+                                                reporterName = state.reporterName ?: "Reporter",
+                                                reportedName = state.reportedUserName ?: "Reported User"
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -347,4 +370,43 @@ fun AdminDisputeDetailScreen(
 
 private fun formatDate(timestamp: Long): String {
     return SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(timestamp))
+}
+
+@Composable
+fun DisputeChatMessage(
+    message: com.rio.rostry.data.database.entity.ChatMessageEntity,
+    isReporter: Boolean,
+    reporterName: String,
+    reportedName: String
+) {
+    val alignment = if (isReporter) Alignment.Start else Alignment.End
+    val color = if (isReporter) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val name = if (isReporter) reporterName else reportedName
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = alignment
+    ) {
+        Text(name, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+        Spacer(modifier = Modifier.height(2.dp))
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = color,
+            modifier = Modifier.widthIn(max = 280.dp)
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(message.body, style = MaterialTheme.typography.bodyMedium)
+                if (message.mediaUrl != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("[Image Attachment]", style = MaterialTheme.typography.bodySmall, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.sentAt)),
+            style = MaterialTheme.typography.labelSmall, 
+            color = Color.LightGray
+        )
+    }
 }

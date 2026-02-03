@@ -35,7 +35,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun UserManagementScreen(
     viewModel: UserManagementViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onUserClick: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -160,7 +161,8 @@ fun UserManagementScreen(
                             onDeleteUser = { viewModel.deleteUser(user.userId) },
                             onSuspendUser = { reason -> viewModel.suspendUser(user.userId, reason) },
                             onUnsuspendUser = { viewModel.unsuspendUser(user.userId) },
-                            onImpersonateUser = { viewModel.impersonateUser(user.userId) }
+                            onImpersonateUser = { viewModel.impersonateUser(user.userId) },
+                            onClick = { onUserClick(user.userId) }
                         )
                         HorizontalDivider()
                     }
@@ -250,7 +252,8 @@ fun UserListItem(
     onDeleteUser: () -> Unit,
     onSuspendUser: (String) -> Unit,
     onUnsuspendUser: () -> Unit,
-    onImpersonateUser: () -> Unit
+    onImpersonateUser: () -> Unit,
+    onClick: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -259,6 +262,7 @@ fun UserListItem(
     var suspendReason by remember { mutableStateOf("") }
 
     ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
         headlineContent = { 
             Text(
                 user.fullName ?: user.phoneNumber ?: "Unknown User",

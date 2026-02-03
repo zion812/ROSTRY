@@ -78,4 +78,8 @@ interface UserRepository {
     
     suspend fun suspendUser(userId: String, reason: String, durationMinutes: Long? = null): Resource<Unit>
     suspend fun unsuspendUser(userId: String): Resource<Unit>
+    
+    // Broadcast / Targeting
+    suspend fun getAudienceSize(role: UserType?): Int
+    fun getUsersStreamByRole(role: UserType): Flow<List<UserEntity>>
 }

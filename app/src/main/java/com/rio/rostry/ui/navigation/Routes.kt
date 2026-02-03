@@ -798,6 +798,8 @@ object Routes {
             return Onboarding.FARM_BIRD + q
         }
 
+        fun farmAssetDetails(assetId: String): String = "farmer/asset/${URLEncoder.encode(assetId, "UTF-8")}"
+
         fun onboardingFarmBatch(role: String? = null): String {
             val q = role?.takeIf { it.isNotBlank() }?.let { "?role=${URLEncoder.encode(it, "UTF-8")}" } ?: ""
             return Onboarding.FARM_BATCH + q

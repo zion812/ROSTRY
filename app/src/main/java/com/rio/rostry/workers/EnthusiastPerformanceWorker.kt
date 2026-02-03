@@ -37,6 +37,7 @@ class EnthusiastPerformanceWorker @AssistedInject constructor(
     private val eggCollectionDao: EggCollectionDao,
     private val matingLogDao: MatingLogDao,
     private val hatchingBatchDao: HatchingBatchDao,
+    private val quarantineRecordDao: com.rio.rostry.data.database.dao.QuarantineRecordDao,
     private val traceability: com.rio.rostry.data.repository.TraceabilityRepository,
     private val auth: FirebaseAuth
 ) : CoroutineWorker(context, params) {
@@ -152,7 +153,7 @@ class EnthusiastPerformanceWorker @AssistedInject constructor(
                 transfersPendingCount = pendingCount,
                 pairsToMateCount = pairsToMateCount,
                 incubatingCount = incubatingCount,
-                sickBirdsCount = 0, // TODO: Query from FarmAlertDao when available
+                sickBirdsCount = quarantineRecordDao.countActiveForFarmer(userId),
                 eggsCollectedToday = eggsToday,
                 createdAt = System.currentTimeMillis(),
                 dirty = true,

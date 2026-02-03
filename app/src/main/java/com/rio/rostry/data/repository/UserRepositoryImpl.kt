@@ -813,4 +813,16 @@ class UserRepositoryImpl @Inject constructor(
         }
         Unit
     }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to unsuspend user")
+
+    override suspend fun getAudienceSize(role: UserType?): Int {
+        return if (role == null) {
+            userDao.countAllUsers()
+        } else {
+            userDao.countUsersByRole(role.name)
+        }
+    }
+
+    override fun getUsersStreamByRole(role: UserType): Flow<List<UserEntity>> {
+        return userDao.getUsersByRole(role.name)
+    }
 }

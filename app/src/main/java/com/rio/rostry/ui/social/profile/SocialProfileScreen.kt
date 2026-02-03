@@ -35,6 +35,7 @@ fun SocialProfileScreen(
     onPostClick: (String) -> Unit,
     onMessage: (String) -> Unit = {}, // Navigate to messaging with userId
     onSettingsClick: () -> Unit = {},
+    onEditProfileClick: () -> Unit,
     vm: SocialProfileViewModel = hiltViewModel()
 ) {
     LaunchedEffect(userId) {
@@ -81,7 +82,7 @@ fun SocialProfileScreen(
                     followingCount = following,
                     isCurrentUser = isOwnProfile,
                     canEdit = canEditProfile,
-                    onEditProfile = { /* TODO: Navigate to Edit Profile */ },
+                    onEditProfile = onEditProfileClick,
                     onFollow = { vm.follow() },
                     onMessage = { onMessage(u.userId) }
                 )

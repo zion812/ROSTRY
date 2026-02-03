@@ -129,7 +129,10 @@ fun AdminNavHost(
         composable(AdminRoutes.Users.LIST) {
             // Uses existing screen with hiltViewModel() inside
             UserManagementScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { userId -> 
+                    navController.navigate(AdminRoutes.Users.detail(userId))
+                }
             )
         }
         
@@ -138,10 +141,13 @@ fun AdminNavHost(
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
-            // TODO: Create dedicated UserDetailScreen for admin view
-            // For now, navigate back to list
-            UserManagementScreen(
-                onNavigateBack = { navController.popBackStack() }
+            com.rio.rostry.ui.admin.users.AdminUserDetailScreen(
+                userId = userId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOrder = { orderId -> 
+                    // Assuming we have an order detail route in Admin or general
+                    navController.navigate(AdminRoutes.Commerce.orderDetail(orderId))
+                }
             )
         }
         

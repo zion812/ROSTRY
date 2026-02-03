@@ -23,6 +23,7 @@ class AdminDisputeDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DisputeRepository,
     private val userRepository: UserRepository,
+    private val chatRepository: com.rio.rostry.data.repository.ChatRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
@@ -35,7 +36,8 @@ class AdminDisputeDetailViewModel @Inject constructor(
         val reportedUserName: String? = null,
         val isProcessing: Boolean = false,
         val error: String? = null,
-        val isResolved: Boolean = false
+        val isResolved: Boolean = false,
+        val chatMessages: List<com.rio.rostry.data.database.entity.ChatMessageEntity> = emptyList()
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -66,6 +68,7 @@ class AdminDisputeDetailViewModel @Inject constructor(
                     dispute?.let { d ->
                         loadUserName(d.reporterId, isReporter = true)
                         loadUserName(d.reportedUserId, isReporter = false)
+                        loadChatHistory(d.reporterId, d.reportedUserId)
                     }
                 }
                 is Resource.Error -> {
@@ -86,6 +89,14 @@ class AdminDisputeDetailViewModel @Inject constructor(
                         else it.copy(reportedUserName = name)
                     }
                 }
+            }
+        }
+    }
+
+    private fun loadChatHistory(userA: String, userB: String) {
+        viewModelScope.launch {
+            chatRepository.conversation(userA, userB).collect { messages ->
+                _state.update { it.copy(chatMessages = messages.sortedBy { msg -> msg.sentAt }) }
             }
         }
     }

@@ -62,4 +62,13 @@ interface UserDao {
 
     @Query("UPDATE users SET verificationStatus = :status, updatedAt = :updatedAt WHERE userId = :userId")
     suspend fun updateVerificationStatus(userId: String, status: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("SELECT COUNT(*) FROM users")
+    suspend fun countAllUsers(): Int
+
+    @Query("SELECT COUNT(*) FROM users WHERE userType = :role")
+    suspend fun countUsersByRole(role: String): Int
+
+    @Query("SELECT * FROM users WHERE userType = :role")
+    fun getUsersByRole(role: String): Flow<List<UserEntity>>
 }

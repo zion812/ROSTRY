@@ -302,6 +302,9 @@ fun DocumentViewerDialog(
     onDismiss: () -> Unit
 ) {
     // TODO: Track document view analytics (implement in VerificationViewModel)
+    androidx.compose.runtime.LaunchedEffect(url) {
+        android.util.Log.d("Analytics", "Document viewed: $url")
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Document Preview") },

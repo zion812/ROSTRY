@@ -91,6 +91,7 @@ import com.rio.rostry.ui.farmer.FarmerCommunityScreen
 import com.rio.rostry.ui.farmer.FarmerProfileScreen
 import com.rio.rostry.ui.farmer.asset.FarmAssetListScreen
 import com.rio.rostry.ui.farmer.asset.FarmAssetDetailScreen
+import com.rio.rostry.ui.farmer.FarmerMarketViewModel
 import com.rio.rostry.ui.farmer.listing.CreateListingScreen
 import com.rio.rostry.ui.screens.HomeGeneralScreen
 import com.rio.rostry.ui.screens.PlaceholderScreen
@@ -1050,7 +1051,61 @@ private fun RoleNavGraph(
         
         // ============ NEW: Farm Asset Management Routes (Phase 1 of Farm-Market Separation) ============
         
+        // Farmer Market - Buy/Sell marketplace
+        composable(Routes.FarmerNav.MARKET) {
+            val viewModel: FarmerMarketViewModel = hiltViewModel()
+            val state by viewModel.ui.collectAsState()
+            
+            FarmerMarketScreen(
+                browse = state.filteredBrowse.ifEmpty { state.browse },
+                mine = state.mine,
+                isLoadingBrowse = state.isLoadingBrowse,
+                isLoadingMine = state.isLoadingMine,
+                metricsRevenue = state.metricsRevenue,
+                metricsOrders = state.metricsOrders,
+                metricsViews = state.metricsViews,
+                selectedTabIndex = state.selectedTabIndex,
+                onSelectTab = { viewModel.setTab(it) },
+                onRefresh = { viewModel.refresh() },
+                verificationStatus = state.verificationStatus,
+                onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
+                onEditListing = { listingId -> 
+                     // TODO: Navigate to Edit Listing
+                     navController.navigate("${Routes.FarmerNav.CREATE}?prefillProductId=$listingId") 
+                },
+                onBoostListing = { /* TODO */ },
+                onPauseListing = { /* TODO */ },
+                onOpenOrder = { orderId -> navController.navigate(Routes.Builders.orderDetails(orderId)) },
+                onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onSelectCategoryMeat = { viewModel.selectCategory(FarmerMarketViewModel.CategoryFilter.Meat) },
+                onSelectCategoryAdoption = { viewModel.selectCategory(FarmerMarketViewModel.CategoryFilter.Adoption) },
+                onSelectTraceable = { viewModel.selectTrace(FarmerMarketViewModel.TraceFilter.Traceable) },
+                onSelectNonTraceable = { viewModel.selectTrace(FarmerMarketViewModel.TraceFilter.NonTraceable) },
+                categoryMeatSelected = state.categoryFilter == FarmerMarketViewModel.CategoryFilter.Meat,
+                categoryAdoptionSelected = state.categoryFilter == FarmerMarketViewModel.CategoryFilter.Adoption,
+                traceableSelected = state.traceFilter == FarmerMarketViewModel.TraceFilter.Traceable,
+                nonTraceableSelected = state.traceFilter == FarmerMarketViewModel.TraceFilter.NonTraceable,
+                onApplyPriceBreed = { min, max, breed -> viewModel.applyPriceBreed(min, max, breed) },
+                onApplyDateFilter = { start, end -> viewModel.applyDateFilter(start, end) },
+                onClearDateFilter = { viewModel.clearDateFilter() },
+                startDate = state.startDate,
+                endDate = state.endDate,
+                onScanQr = { navController.navigate(Routes.Builders.scanQr("market")) },
+                onOpenPromoteListings = { /* TODO */ },
+                onOpenReports = { navController.navigate(Routes.REPORTS) }
+            )
+        }
+
         // Farm Assets List - "My Farm" tab destination
+        composable(Routes.FarmerNav.FARM_ASSETS) {
+            FarmAssetListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAssetClick = { assetId -> navController.navigate(Routes.Builders.farmAssetDetails(assetId)) },
+                onAddAsset = { navController.navigate(Routes.FarmerNav.CREATE_ASSET) },
+                onAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch("farmer")) },
+                onTagBatch = { assetId, qty -> /* Handled by ViewModel but callback available if needed */ }
+            )
+        }
 
         
         // Farm Asset Detail - view/manage individual asset
@@ -1802,6 +1857,19 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
         }
         
+        // Admin User Details
+        composable(
+            route = "admin/users/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            com.rio.rostry.ui.admin.users.AdminUserDetailScreen(
+                userId = userId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToOrder = { orderId -> navController.navigate(Routes.Builders.orderDetails(orderId)) }
+            )
+        }
+
         // ============ Core Monitoring Feature Routes ============
         
         // Vaccination Schedule Screen
@@ -2174,7 +2242,8 @@ private fun RoleNavGraph(
                 SocialProfileScreen(
                     userId = uid,
                     onBack = { navController.popBackStack() },
-                    onPostClick = { postId -> navController.navigate(Routes.Builders.discussionDetail(postId)) }
+                    onPostClick = { postId -> navController.navigate(Routes.Builders.discussionDetail(postId)) },
+                    onEditProfileClick = { navController.navigate(Routes.User.PROFILE_EDIT) }
                 )
             }
         }
@@ -2642,6 +2711,12 @@ private fun RoleNavGraph(
             )
         }
 
+        composable(Routes.Social.LIVE) {
+            com.rio.rostry.ui.social.LiveBroadcastScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(Routes.Social.STORY_CREATOR) {
             StoryCreatorScreen(onBack = { navController.popBackStack() })
         }
@@ -3021,7 +3096,8 @@ private fun RoleNavGraph(
 
         composable(Routes.Admin.USER_MANAGEMENT) {
             com.rio.rostry.ui.admin.UserManagementScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onUserClick = { userId -> navController.navigate("admin/users/$userId") }
             )
         }
 
