@@ -46,6 +46,9 @@ interface EggCollectionDao {
     @Query("SELECT IFNULL(SUM(eggsCollected), 0) FROM egg_collections WHERE pairId = :pairId")
     suspend fun getTotalEggsByPair(pairId: String): Int
 
+    @Query("SELECT * FROM egg_collections WHERE pairId = :pairId ORDER BY collectedAt DESC")
+    suspend fun getCollectionsByPair(pairId: String): List<EggCollectionEntity>
+
     @Query("SELECT * FROM egg_collections WHERE collectedAt BETWEEN :start AND :end ORDER BY collectedAt DESC")
     suspend fun getCollectionsDueBetween(start: Long, end: Long): List<EggCollectionEntity>
 

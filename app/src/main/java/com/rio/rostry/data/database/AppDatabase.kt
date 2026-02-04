@@ -24,6 +24,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TransferEntity::class,
         CoinEntity::class,
         NotificationEntity::class,
+        AlertEntity::class,
         ProductTrackingEntity::class,
         FamilyTreeEntity::class,
         ChatMessageEntity::class,
@@ -137,9 +138,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Calendar System
         FarmEventEntity::class,
         // Role Upgrade Requests (Phase 4)
-        com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity::class
+        com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity::class,
+        // Transactions (Phase 7)
+        com.rio.rostry.data.database.entity.TransactionEntity::class
     ],
-    version = 71, // 70 -> 71
+    version = 73, // 72 -> 73
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -153,6 +156,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transferDao(): TransferDao
     abstract fun coinDao(): CoinDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun alertDao(): AlertDao
+    abstract fun transactionDao(): TransactionDao
     abstract fun productTrackingDao(): ProductTrackingDao
     abstract fun familyTreeDao(): FamilyTreeDao
     abstract fun chatMessageDao(): ChatMessageDao
@@ -661,7 +666,6 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_56_57: Migration = Converters.MIGRATION_56_57
         val MIGRATION_57_58: Migration = Converters.MIGRATION_57_58
 
-        val MIGRATION_58_59: Migration = Converters.MIGRATION_58_59
         // 66 -> 67
         // val MIGRATION_66_67 defined in companion object directly
 
@@ -743,6 +747,53 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_mortality_records_occurredAt` ON `mortality_records` (`occurredAt`)")
             }
         }
+
+        // Admin Alerts (71 -> 72)
+        val MIGRATION_71_72 = object : Migration(71, 72) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `alerts` (
+                        `id` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `message` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL,
+                        `severity` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `relatedId` TEXT,
+                        `isRead` INTEGER NOT NULL,
+                        `isDismissed` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )"""
+                )
+            }
+        }
+
+        // Transactions (72 -> 73)
+        val MIGRATION_72_73 = object : Migration(72, 73) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `transactions` (
+                        `transactionId` TEXT NOT NULL,
+                        `orderId` TEXT NOT NULL,
+                        `userId` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `currency` TEXT NOT NULL DEFAULT 'INR',
+                        `status` TEXT NOT NULL,
+                        `paymentMethod` TEXT NOT NULL,
+                        `gatewayReference` TEXT,
+                        `timestamp` INTEGER NOT NULL,
+                        `notes` TEXT,
+                        PRIMARY KEY(`transactionId`)
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_orderId` ON `transactions` (`orderId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_userId` ON `transactions` (`userId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_timestamp` ON `transactions` (`timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_status` ON `transactions` (`status`)")
+            }
+        }
+
+
 
         // Auction enhancements (63 → 64)
         val MIGRATION_63_64 = object : Migration(63, 64) {

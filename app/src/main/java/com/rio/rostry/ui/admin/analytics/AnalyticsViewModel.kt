@@ -14,7 +14,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AnalyticsViewModel @Inject constructor(
     private val userRepository: com.rio.rostry.data.repository.UserRepository,
-    private val orderRepository: com.rio.rostry.data.repository.OrderManagementRepository
+    private val orderRepository: com.rio.rostry.data.repository.OrderManagementRepository,
+    private val analyticsDao: com.rio.rostry.data.database.dao.AnalyticsDao
 ) : ViewModel() {
 
     data class UiState(
@@ -48,6 +49,7 @@ class AnalyticsViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 val oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000L)
                 val oneDayAgo = now - (24 * 60 * 60 * 1000L)
+                val twoWeeksAgo = now - (14 * 24 * 60 * 60 * 1000L)
 
                 // Parallel fetch
                 val deferredUserCount = async { userRepository.countAllUsers() }
@@ -55,6 +57,10 @@ class AnalyticsViewModel @Inject constructor(
                 val deferredActiveUsers = async { userRepository.getActiveUsersCount(oneDayAgo) }
                 val deferredPendingVerifications = async { userRepository.getPendingVerificationCount() }
                 val deferredCommerceStats = async { orderRepository.getCommerceStats() }
+                
+                // Fetch historical data for trends
+                // For now, we just fetch to ensure DAO is working, but we could sum up revenue from 2 weeks ago vs 1 week ago
+                // val historicalStats = async { analyticsDao.listRange("admin", ...) } 
 
                 val totalUsers = deferredUserCount.await()
                 val newUsers = deferredNewUsers.await()
@@ -90,6 +96,7 @@ class AnalyticsViewModel @Inject constructor(
             }
         }
     }
+
 
     fun refresh() {
         loadAnalytics()

@@ -43,7 +43,8 @@ class FarmAlertWorker @AssistedInject constructor(
     private val mortalityRecordDao: MortalityRecordDao,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     private val farmAlertNotificationService: FarmAlertNotificationService,
-    private val flowAnalyticsTracker: FlowAnalyticsTracker
+    private val flowAnalyticsTracker: FlowAnalyticsTracker,
+    private val alertRepository: com.rio.rostry.data.repository.AlertRepository
 ) : CoroutineWorker(context, params) {
     
     private val alertPrefs: SharedPreferences by lazy {
@@ -79,6 +80,15 @@ class FarmAlertWorker @AssistedInject constructor(
                         record.scheduledAt,
                         if (severity == "CRITICAL") "overdue" else "due_today"
                     )
+                    
+                    alertRepository.createAlert(
+                        title = "Vaccination Due",
+                        message = "Vaccine ${record.vaccineType ?: "Unknown"} is due for batch/bird ${record.productId}",
+                        severity = severity,
+                        type = "BIOSECURITY",
+                        relatedId = record.productId
+                    )
+
                     markAlertSent(alertKey)
                     alertsSent++
                 }
@@ -95,6 +105,15 @@ class FarmAlertWorker @AssistedInject constructor(
                         record.productId,
                         record.lastUpdatedAt
                     )
+
+                    alertRepository.createAlert(
+                        title = "Quarantine Update Required",
+                        message = "Update required for quarantine record ${record.productId}",
+                        severity = "MEDIUM",
+                        type = "BIOSECURITY",
+                        relatedId = record.productId
+                    )
+
                     markAlertSent(alertKey)
                     alertsSent++
                 }
@@ -114,6 +133,15 @@ class FarmAlertWorker @AssistedInject constructor(
                         product.productId,
                         ageWeeks
                     )
+
+                    alertRepository.createAlert(
+                        title = "Batch Ready to Split",
+                        message = "Batch ${product.name} is ready to split.",
+                        severity = "INFO",
+                        type = "SYSTEM",
+                        relatedId = product.productId
+                    )
+
                     markAlertSent(alertKey)
                     alertsSent++
                 }
@@ -131,6 +159,15 @@ class FarmAlertWorker @AssistedInject constructor(
                         batch.expectedHatchAt ?: oneDayFromNow,
                         "day_before"
                     )
+
+                    alertRepository.createAlert(
+                        title = "Hatching Due Soon",
+                        message = "Batch ${batch.name} is due to hatch soon.",
+                        severity = "HIGH",
+                        type = "MORTALITY", // Using MORTALITY as a proxy for production events
+                        relatedId = batch.batchId
+                    )
+
                     markAlertSent(alertKey)
                     alertsSent++
                 }
@@ -158,6 +195,15 @@ class FarmAlertWorker @AssistedInject constructor(
                 
                 if (shouldSendAlert(alertKey, cooldown)) {
                     farmAlertNotificationService.sendMortalitySpikeAlert(farmerId, mortalityRate)
+                    
+                    alertRepository.createAlert(
+                        title = "Mortality Spike Detected",
+                        message = "Mortality rate is ${String.format("%.1f", mortalityRate)}% in the last 7 days.",
+                        severity = severity,
+                        type = "MORTALITY",
+                        relatedId = null
+                    )
+
                     markAlertSent(alertKey)
                     alertsSent++
                 }

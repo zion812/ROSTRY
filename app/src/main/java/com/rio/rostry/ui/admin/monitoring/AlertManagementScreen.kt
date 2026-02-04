@@ -247,6 +247,7 @@ private fun getIconForType(type: AlertManagementViewModel.AlertType) = when (typ
     AlertManagementViewModel.AlertType.COMMERCE -> Icons.Default.ShoppingCart
     AlertManagementViewModel.AlertType.BIOSECURITY -> Icons.Default.Shield
     AlertManagementViewModel.AlertType.MORTALITY -> Icons.Default.TrendingDown
+    else -> Icons.Default.Notifications
 }
 
 @Composable
@@ -257,4 +258,5 @@ private fun getColorForType(type: AlertManagementViewModel.AlertType) = when (ty
     AlertManagementViewModel.AlertType.COMMERCE -> Color(0xFF4CAF50)
     AlertManagementViewModel.AlertType.BIOSECURITY -> Color(0xFFFF9800)
     AlertManagementViewModel.AlertType.MORTALITY -> Color(0xFF9C27B0)
+    else -> Color.Gray
 }

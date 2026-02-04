@@ -342,6 +342,18 @@ abstract class RepositoryModule {
     abstract fun bindReportRepository(
         reportRepositoryImpl: com.rio.rostry.data.repository.ReportRepositoryImpl
     ): com.rio.rostry.data.repository.ReportRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAlertRepository(
+        impl: com.rio.rostry.data.repository.AlertRepositoryImpl
+    ): com.rio.rostry.data.repository.AlertRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTransactionRepository(
+        impl: com.rio.rostry.data.repository.TransactionRepositoryImpl
+    ): com.rio.rostry.data.repository.TransactionRepository
 }
 
 @Module

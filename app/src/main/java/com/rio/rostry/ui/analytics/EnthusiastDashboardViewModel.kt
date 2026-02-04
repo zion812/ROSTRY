@@ -44,6 +44,8 @@ class EnthusiastDashboardViewModel @Inject constructor(
     private val breedingPairDao: BreedingPairDao,
     private val eggCollectionDao: EggCollectionDao,
     private val matingLogDao: MatingLogDao,
+    private val hatchingBatchDao: com.rio.rostry.data.database.dao.HatchingBatchDao,
+    private val hatchingLogDao: com.rio.rostry.data.database.dao.HatchingLogDao,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
     private val empty = EnthusiastDashboard(breedingSuccessRate = 0.0, transfers = 0, engagementScore = 0.0)
@@ -92,25 +94,51 @@ class EnthusiastDashboardViewModel @Inject constructor(
 
     /**
      * Real-time stats for active breeding pairs.
-     * Aggregates data from BreedingPairDao and EggCollectionDao.
+     * Aggregates data from BreedingPairDao, EggCollectionDao, and HatchingBatchDao.
      */
     val breedingPairStats: StateFlow<List<BreedingPairStat>> = flow {
         val userId = uid
         if (userId != null) {
             breedingPairDao.observeActive(userId).collect { pairs ->
+                // For each pair, calculate stats (this could be optimized with a complex query, 
+                // but for MVP doing it imperatively here is acceptable as pair count is low <20)
                 val statsList = pairs.map { pair ->
+                    // 1. Get total eggs collected for this pair
                     val totalEggs = eggCollectionDao.getTotalEggsByPair(pair.pairId)
-                    // Note: In future, we'd fetch hatch count from HatchingRecords. 
-                    // For now, simulating hatch rate based on totalEggs for demo logic or 0 if no eggs.
-                    // Real implementation would calculate: hatched / total_incubated
-                    val simulatedHatchRate = if (totalEggs > 0) 0.85f else 0f 
+                    
+                    // 2. Calculate Hatch Rate
+                    // Get all egg collections -> find linked hatching batches
+                    val collections = eggCollectionDao.getCollectionsByPair(pair.pairId)
+                    val collectionIds = collections.map { it.collectionId }
+                    
+                    var hatchedCount = 0
+                    var incubatedCount = 0
+                    
+                    if (collectionIds.isNotEmpty()) {
+                        val batches = hatchingBatchDao.getBySourceCollectionIds(collectionIds)
+                        batches.forEach { batch ->
+                            val eggsSet = batch.eggsCount ?: 0
+                            if (eggsSet > 0) {
+                                incubatedCount += eggsSet
+                                // Count 'HATCHED' logs for this batch
+                                val hatchedInBatch = hatchingLogDao.countByBatchAndType(batch.batchId, "HATCHED")
+                                hatchedCount += hatchedInBatch
+                            }
+                        }
+                    }
+                    
+                    val realHatchRate = if (incubatedCount > 0) {
+                        (hatchedCount.toFloat() / incubatedCount.toFloat())
+                    } else {
+                        0f
+                    }
                     
                     BreedingPairStat(
                         pairId = pair.pairId,
                         pairName = "Pair ${pair.pairId.takeLast(4).uppercase()}", // Friendly name fallback
                         eggsCollected = totalEggs,
-                        hatchRate = simulatedHatchRate,
-                        trend = 5.0f, // Placeholder trend until historical diff implemented
+                        hatchRate = realHatchRate,
+                        trend = 0.0f, // Trend requires historical snapshots comparison
                         isActive = true
                     )
                 }

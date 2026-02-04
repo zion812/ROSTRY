@@ -52,6 +52,8 @@ import com.rio.rostry.data.database.dao.EventRsvpsDao
 import com.rio.rostry.data.database.dao.AnalyticsDao
 import com.rio.rostry.data.database.dao.ReportsDao
 import com.rio.rostry.data.database.dao.OutboxDao
+import com.rio.rostry.data.database.dao.AlertDao
+import com.rio.rostry.data.database.dao.TransactionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -263,7 +265,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_59_60,
             AppDatabase.MIGRATION_66_67,
             AppDatabase.MIGRATION_67_68,
-            AppDatabase.MIGRATION_70_71
+            AppDatabase.MIGRATION_70_71,
+            AppDatabase.MIGRATION_71_72,
+            AppDatabase.MIGRATION_72_73
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -694,4 +698,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAchievementDao(db: AppDatabase): com.rio.rostry.data.database.dao.AchievementDao = db.achievementsDefDao()
+
+    @Provides
+    @Singleton
+    fun provideAlertDao(db: AppDatabase): com.rio.rostry.data.database.dao.AlertDao = db.alertDao()
+
+    @Provides
+    @Singleton
+    fun provideTransactionDao(db: AppDatabase): com.rio.rostry.data.database.dao.TransactionDao = db.transactionDao()
 }

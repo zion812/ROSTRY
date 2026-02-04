@@ -189,11 +189,12 @@ private fun InvoiceCard(
                 ) {
                     Icon(
                         when (invoice.status) {
-                            InvoicesViewModel.InvoiceStatus.PAID -> Icons.Default.CheckCircle
+                          InvoicesViewModel.InvoiceStatus.PAID -> Icons.Default.CheckCircle
                             InvoicesViewModel.InvoiceStatus.PENDING -> Icons.Default.Schedule
                             InvoicesViewModel.InvoiceStatus.OVERDUE -> Icons.Default.Warning
                             InvoicesViewModel.InvoiceStatus.REFUNDED -> Icons.Default.Refresh
                             InvoicesViewModel.InvoiceStatus.PARTIAL -> Icons.Default.MoreHoriz
+                            else -> Icons.Default.HelpOutline
                         },
                         contentDescription = null,
                         tint = statusColor
@@ -270,4 +271,5 @@ private fun getStatusColor(status: InvoicesViewModel.InvoiceStatus) = when (stat
     InvoicesViewModel.InvoiceStatus.OVERDUE -> Color(0xFFD32F2F)
     InvoicesViewModel.InvoiceStatus.REFUNDED -> Color(0xFF9C27B0)
     InvoicesViewModel.InvoiceStatus.PARTIAL -> Color(0xFF2196F3)
+    else -> Color.Gray
 }

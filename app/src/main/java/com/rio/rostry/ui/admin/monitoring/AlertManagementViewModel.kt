@@ -14,7 +14,9 @@ import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
-class AlertManagementViewModel @Inject constructor() : ViewModel() {
+class AlertManagementViewModel @Inject constructor(
+    private val alertRepository: com.rio.rostry.data.repository.AlertRepository
+) : ViewModel() {
 
     data class SystemAlert(
         val id: String,
@@ -29,7 +31,7 @@ class AlertManagementViewModel @Inject constructor() : ViewModel() {
     )
 
     enum class AlertType {
-        SECURITY, SYSTEM, VERIFICATION, COMMERCE, BIOSECURITY, MORTALITY
+        SECURITY, SYSTEM, VERIFICATION, COMMERCE, BIOSECURITY, MORTALITY, UNKNOWN
     }
 
     enum class AlertSeverity {
@@ -56,105 +58,80 @@ class AlertManagementViewModel @Inject constructor() : ViewModel() {
 
     private fun loadAlerts() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            
-            // Simulate loading alerts - in production this would come from a repository
-            delay(500)
-            
-            val mockAlerts = listOf(
-                SystemAlert(
-                    id = "1",
-                    type = AlertType.BIOSECURITY,
-                    title = "New Disease Zone Created",
-                    message = "A new lockdown zone has been created in Karnataka",
-                    severity = AlertSeverity.WARNING,
-                    createdAt = Date(System.currentTimeMillis() - 3600000),
-                    isRead = false
-                ),
-                SystemAlert(
-                    id = "2",
-                    type = AlertType.VERIFICATION,
-                    title = "Pending Verifications",
-                    message = "5 new KYC verifications awaiting review",
-                    severity = AlertSeverity.INFO,
-                    createdAt = Date(System.currentTimeMillis() - 7200000),
-                    isRead = false,
-                    isActionable = true,
-                    actionLabel = "Review"
-                ),
-                SystemAlert(
-                    id = "3",
-                    type = AlertType.MORTALITY,
-                    title = "Elevated Mortality Rate",
-                    message = "Maharashtra region showing 12% mortality rate",
-                    severity = AlertSeverity.ERROR,
-                    createdAt = Date(System.currentTimeMillis() - 14400000),
-                    isRead = true
-                ),
-                SystemAlert(
-                    id = "4",
-                    type = AlertType.COMMERCE,
-                    title = "Disputed Order",
-                    message = "Order #ORD-2456 has an active dispute",
-                    severity = AlertSeverity.WARNING,
-                    createdAt = Date(System.currentTimeMillis() - 86400000),
-                    isRead = true,
-                    isActionable = true,
-                    actionLabel = "View"
-                )
-            )
-            
-            _state.update { it.copy(
-                isLoading = false,
-                alerts = mockAlerts,
-                unreadCount = mockAlerts.count { !it.isRead }
-            ) }
+            alertRepository.streamAlerts().collect { entities ->
+                val systemAlerts = entities.map { entity ->
+                    SystemAlert(
+                        id = entity.id,
+                        type = mapType(entity.type),
+                        severity = mapSeverity(entity.severity),
+                        title = entity.title,
+                        message = entity.message,
+                        createdAt = Date(entity.createdAt),
+                        isRead = entity.isRead,
+                        isActionable = entity.relatedId != null,
+                        actionLabel = if (entity.relatedId != null) "View" else null
+                    )
+                }
+                
+                _state.update { currentState ->
+                    val filtered = if (currentState.filterType != null) {
+                        systemAlerts.filter { it.type == currentState.filterType }
+                    } else {
+                        systemAlerts
+                    }
+                    
+                    currentState.copy(
+                        isLoading = false,
+                        alerts = filtered,
+                        unreadCount = systemAlerts.count { !it.isRead }
+                    )
+                }
+            }
+        }
+    }
+
+    private fun mapType(typeStr: String): AlertType {
+        return try {
+            AlertType.valueOf(typeStr)
+        } catch (e: Exception) {
+            AlertType.UNKNOWN
+        }
+    }
+
+    private fun mapSeverity(severityStr: String): AlertSeverity {
+        return try {
+            AlertSeverity.valueOf(severityStr)
+        } catch (e: Exception) {
+            AlertSeverity.INFO
         }
     }
 
     fun markAsRead(alertId: String) {
         viewModelScope.launch {
-            _state.update { state ->
-                val updatedAlerts = state.alerts.map { alert ->
-                    if (alert.id == alertId) alert.copy(isRead = true) else alert
-                }
-                state.copy(
-                    alerts = updatedAlerts,
-                    unreadCount = updatedAlerts.count { !it.isRead }
-                )
-            }
+            alertRepository.markAsRead(alertId)
+            // State updates automatically via flow
         }
     }
 
     fun markAllAsRead() {
         viewModelScope.launch {
-            _state.update { state ->
-                state.copy(
-                    alerts = state.alerts.map { it.copy(isRead = true) },
-                    unreadCount = 0
-                )
-            }
+            alertRepository.markAllAsRead()
             _toastEvent.emit("All alerts marked as read")
         }
     }
 
     fun dismissAlert(alertId: String) {
         viewModelScope.launch {
-            _state.update { state ->
-                val updatedAlerts = state.alerts.filter { it.id != alertId }
-                state.copy(
-                    alerts = updatedAlerts,
-                    unreadCount = updatedAlerts.count { !it.isRead }
-                )
-            }
+            alertRepository.dismissAlert(alertId)
         }
     }
 
     fun setFilter(type: AlertType?) {
         _state.update { it.copy(filterType = type) }
+        loadAlerts() 
     }
 
     fun refresh() {
-        loadAlerts()
+        // Flow updates automatically, but we can clear error if any
     }
 }
