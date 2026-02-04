@@ -38,6 +38,7 @@ fun AdminSidebar(
     onSectionClick: (AdminRoutes.SidebarSection) -> Unit,
     onCollapse: () -> Unit,
     onExitAdmin: () -> Unit,
+    onSignOut: () -> Unit,
     pendingVerificationsCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
@@ -76,7 +77,10 @@ fun AdminSidebar(
         }
         
         // Footer with exit button
-        SidebarFooter(onExitAdmin = onExitAdmin)
+        SidebarFooter(
+            onExitAdmin = onExitAdmin,
+            onSignOut = onSignOut
+        )
     }
 }
 
@@ -200,7 +204,10 @@ private fun SidebarItem(
 }
 
 @Composable
-private fun SidebarFooter(onExitAdmin: () -> Unit) {
+private fun SidebarFooter(
+    onExitAdmin: () -> Unit,
+    onSignOut: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -269,6 +276,30 @@ private fun SidebarFooter(onExitAdmin: () -> Unit) {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Exit Admin Mode")
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Sign Out button
+        OutlinedButton(
+            onClick = onSignOut,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color(0xFFE0E0E0)
+            ),
+            border = ButtonDefaults.outlinedButtonBorder(enabled = true).let {
+                androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0).copy(alpha = 0.3f))
+            }
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ExitToApp, // Using same icon but rotated or similar if available, or just same for now
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Sign Out")
         }
         
         Spacer(modifier = Modifier.height(16.dp))

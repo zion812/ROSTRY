@@ -3062,6 +3062,9 @@ private fun RoleNavGraph(
             val pendingCount = state.pendingVerificationCount
             com.rio.rostry.ui.admin.shell.AdminShell(
                 onExitAdmin = { navController.popBackStack() },
+                onSignOut = { sessionVm.signOut() },
+                onSearchClick = { navController.navigate(Routes.GeneralNav.EXPLORE) },
+                onNotificationsClick = { navController.navigate(Routes.NOTIFICATIONS) },
                 currentUserProvider = sessionVm.currentUserProvider,
                 pendingVerificationsCount = pendingCount
             )

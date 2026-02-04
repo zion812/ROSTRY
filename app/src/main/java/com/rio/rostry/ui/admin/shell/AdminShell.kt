@@ -35,6 +35,9 @@ import com.rio.rostry.session.CurrentUserProvider
 @Composable
 fun AdminShell(
     onExitAdmin: () -> Unit,
+    onSignOut: () -> Unit,
+    onSearchClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
     currentUserProvider: CurrentUserProvider,
     pendingVerificationsCount: Int = 0,
     syncStatus: SyncStatus = SyncStatus.SYNCED,
@@ -82,6 +85,7 @@ fun AdminShell(
                 },
                 onCollapse = { isSidebarExpanded = false },
                 onExitAdmin = onExitAdmin,
+                onSignOut = onSignOut,
                 pendingVerificationsCount = pendingVerificationsCount
             )
         }
@@ -94,7 +98,9 @@ fun AdminShell(
                 onToggleSidebar = { isSidebarExpanded = !isSidebarExpanded },
                 syncStatus = syncStatus,
                 alertCount = alertCount,
-                onExitAdmin = onExitAdmin
+                onExitAdmin = onExitAdmin,
+                onSearchClick = onSearchClick,
+                onNotificationsClick = onNotificationsClick
             )
             
             // Navigation content
@@ -116,7 +122,9 @@ private fun AdminTopBar(
     onToggleSidebar: () -> Unit,
     syncStatus: SyncStatus,
     alertCount: Int,
-    onExitAdmin: () -> Unit
+    onExitAdmin: () -> Unit,
+    onSearchClick: () -> Unit,
+    onNotificationsClick: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -146,18 +154,18 @@ private fun AdminTopBar(
                         Badge { Text(alertCount.toString()) }
                     }
                 ) {
-                    IconButton(onClick = { /* Navigate to alerts */ }) {
+                    IconButton(onClick = onNotificationsClick) {
                         Icon(Icons.Default.Notifications, contentDescription = "Alerts")
                     }
                 }
             } else {
-                IconButton(onClick = { /* Navigate to alerts */ }) {
+                IconButton(onClick = onNotificationsClick) {
                     Icon(Icons.Default.Notifications, contentDescription = "Alerts")
                 }
             }
             
             // Quick actions
-            IconButton(onClick = { /* Quick search */ }) {
+            IconButton(onClick = onSearchClick) {
                 Icon(Icons.Default.Search, contentDescription = "Search")
             }
             
