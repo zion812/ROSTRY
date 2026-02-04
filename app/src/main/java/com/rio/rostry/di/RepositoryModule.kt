@@ -333,7 +333,15 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindModerationRepository(impl: com.rio.rostry.data.repository.ModerationRepositoryImpl): com.rio.rostry.data.repository.ModerationRepository
+    abstract fun bindModerationRepository(
+        moderationRepositoryImpl: com.rio.rostry.data.repository.ModerationRepositoryImpl
+    ): com.rio.rostry.data.repository.ModerationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReportRepository(
+        reportRepositoryImpl: com.rio.rostry.data.repository.ReportRepositoryImpl
+    ): com.rio.rostry.data.repository.ReportRepository
 }
 
 @Module

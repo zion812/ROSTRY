@@ -13,24 +13,45 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.flow.collect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportGeneratorScreen(
+    viewModel: ReportGeneratorViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
     var selectedReportType by remember { mutableStateOf<ReportType?>(null) }
-    var isGenerating by remember { mutableStateOf(false) }
-    var showSuccess by remember { mutableStateOf(false) }
+    val isGenerating by viewModel.isGenerating.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(showSuccess) {
-        if (showSuccess) {
-            snackbarHostState.showSnackbar("Report generated successfully!")
-            showSuccess = false
+    LaunchedEffect(Unit) {
+        viewModel.errorEvent.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.generatedFile.collect { file ->
+            if (file != null) {
+                // Share the file
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/csv"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                
+                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Report"))
+                snackbarHostState.showSnackbar("Report generated successfully!")
+            }
         }
     }
 
@@ -66,25 +87,19 @@ fun ReportGeneratorScreen(
             item {
                 Button(
                     onClick = {
-                        isGenerating = true
-                        scope.launch {
-                            delay(1500)
-                            isGenerating = false
-                            showSuccess = true
-                        }
+                        selectedReportType?.let { viewModel.generateReport(it) }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = selectedReportType != null && !isGenerating
                 ) {
                     if (isGenerating) {
-                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary 
-, strokeWidth = 2.dp)
+                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                         Text("Generating...")
                     } else {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Generate Report")
+                        Text("Generate & Export")
                     }
                 }
             }

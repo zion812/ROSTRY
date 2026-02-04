@@ -77,4 +77,7 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE userType = :role")
     fun getUsersByRole(role: String): Flow<List<UserEntity>>
+
+    @Query("SELECT * FROM users ORDER BY createdAt DESC")
+    suspend fun getAllUsersSnapshot(): List<UserEntity>
 }
