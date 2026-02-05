@@ -1,3 +1,12 @@
+---
+Version: 2.0
+Last Updated: 2026-02-05
+Audience: Developers, Architects, Product Managers
+Status: Active
+Related_Docs: [architecture.md, CODEBASE_STRUCTURE.md, developer-onboarding.md]
+Tags: [system-architecture, blueprint, overview, enterprise]
+---
+
 # ROSTRY System Blueprint (SINF - System Information and Functionality)
 
 ## 1. Executive Summary
@@ -85,6 +94,22 @@ graph TB
 - **Remote**: Firebase Firestore, Storage, Auth, Functions
 - **Sync**: Offline-first with conflict resolution
 - **APIs**: Retrofit for external services
+
+### Fetcher System Architecture
+- **Purpose**: Centralized data fetching infrastructure with caching, deduplication, and health monitoring
+- **Core Components**:
+  - `FetcherRegistry`: Central registry for all fetchers with type-safe registration
+  - `FetcherCoordinator`: Orchestrates fetch operations, manages cache interactions
+  - `RequestCoalescer`: Deduplicates concurrent requests for same data
+  - `ContextualLoader`: Handles contextual data loading with priority management
+  - `FetcherHealthCheck`: Monitors fetcher performance and availability
+- **Design Pattern**: Strategy pattern with pluggable fetcher implementations
+- **Caching**: Integrated with CacheManager for intelligent caching strategies
+- **Concurrency**: Thread-safe request coalescing to prevent duplicate network calls
+- **Error Handling**: Built-in retry mechanisms and circuit breaker patterns
+- **Metrics**: Performance monitoring and health metrics collection
+- **Integration**: Seamlessly integrated with Repository layer for transparent caching
+- **Benefits**: Reduced network overhead, improved performance, enhanced reliability
 
 ### Dependency Injection Structure
 - **Framework**: Hilt with SingletonComponent, ViewModelScoped, ActivityRetainedScoped

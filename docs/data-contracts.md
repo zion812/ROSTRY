@@ -1,5 +1,75 @@
 # Data Contracts
 
+## Repository Pattern Implementation
+
+The ROSTRY application implements a comprehensive repository pattern with standardized interfaces and implementation patterns across 57+ repositories. The pattern follows a consistent architecture that combines local and remote data sources with caching, validation, and error handling.
+
+### Base Repository Pattern
+
+All repositories extend the `BaseRepository` pattern which provides common functionality:
+
+```kotlin
+abstract class BaseRepository {
+    protected suspend fun <T> safeApiCall(apiCall: suspend () -> T): Resource<T> {
+        return try {
+            Resource.Success(apiCall.invoke())
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+
+    protected suspend fun <T> safeCall(call: suspend () -> T): Resource<T> {
+        return try {
+            Resource.Success(call.invoke())
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Unknown error occurred")
+        }
+    }
+}
+```
+
+### Repository Interface Conventions
+
+Repository interfaces follow consistent naming and method patterns:
+
+```kotlin
+interface ProductRepository {
+    suspend fun getProducts(): Resource<List<Product>>
+    suspend fun getProduct(id: String): Resource<Product>
+    suspend fun createProduct(product: Product): Resource<String>
+    suspend fun updateProduct(product: Product): Resource<Unit>
+    suspend fun deleteProduct(id: String): Resource<Unit>
+    suspend fun syncProducts(): Resource<SyncResult>
+}
+```
+
+### Offline-First Implementation Patterns
+
+Repositories implement offline-first patterns with local-first strategies:
+
+- **Local Data Source**: Room database with SQLCipher encryption
+- **Remote Data Source**: Firebase Firestore, external APIs
+- **Conflict Resolution**: Timestamp-based with server preference
+- **Sync Strategy**: Background synchronization via WorkManager
+
+### Conflict Resolution Strategies
+
+Repositories handle conflicts using standardized approaches:
+
+- **Timestamp-based**: Server timestamps take precedence
+- **Last-write-wins**: With conflict detection
+- **Manual resolution**: For critical data requiring user intervention
+- **Merge strategies**: For non-conflicting field updates
+
+### Error Handling Across Data Sources
+
+Repositories implement comprehensive error handling:
+
+- **Network errors**: Graceful degradation with cached data
+- **Validation errors**: Early validation with user-friendly messages
+- **Data integrity errors**: Consistency checks and repair mechanisms
+- **Permission errors**: Role-based access control enforcement
+
 ## Room Schema
 Refer to `data/database/AppDatabase.kt` for the authoritative entity list. Key categories:
 - Users (`UserEntity`), products (`ProductEntity`), orders (`OrderEntity`, `OrderItemEntity`), payments (`PaymentEntity`, `RefundEntity`).

@@ -746,12 +746,508 @@ fun setName(name: String)
  
  ---
  
- ## Related Documentation
+ ## Repository Contracts
+
+### Repository Interface Documentation Standards
+
+Repository interfaces define the contract between the domain layer and data sources. Proper documentation is essential for understanding data flow and business logic.
+
+### Base Repository Contract
+
+```kotlin
+/**
+ * Base repository interface providing common operations for all repositories.
+ *
+ * Defines standard CRUD operations with error handling and resource wrapping.
+ * All repository implementations should extend this interface or implement
+ * similar patterns for consistency.
+ *
+ * **Thread Safety**: All methods are thread-safe and can be called from any
+ * coroutine context.
+ *
+ * **Error Handling**: All operations return Resource wrapper to handle
+ * success, loading, and error states consistently.
+ *
+ * @param T Type of entity managed by the repository
+ */
+interface BaseRepository<T> {
+    /**
+     * Retrieves all entities of type T.
+     *
+     * Returns a Flow that emits updates when data changes in the underlying
+     * data source. The flow emits Resource wrapper for consistent state
+     * handling.
+     *
+     * **Implementation Notes**:
+     * - Should work offline using local cache/database
+     * - Updates automatically when data changes
+     * - May apply default sorting/filtering
+     *
+     * @return Flow emitting Resource<List<T>> with current data state
+     */
+    fun getAll(): Flow<Resource<List<T>>>
+
+    /**
+     * Retrieves a specific entity by its identifier.
+     *
+     * @param id Unique identifier of the entity to retrieve
+     * @return Resource<T> with the entity if found, Error if not found
+     */
+    suspend fun getById(id: String): Resource<T>
+
+    /**
+     * Creates a new entity.
+     *
+     * Validates the entity, stores it in the local data source, and
+     * queues for remote synchronization if applicable.
+     *
+     * @param entity Entity to create
+     * @return Resource<String> with the created entity's ID on success
+     */
+    suspend fun create(entity: T): Resource<String>
+
+    /**
+     * Updates an existing entity.
+     *
+     * Validates the entity, updates it in the local data source, and
+     * queues for remote synchronization if applicable.
+     *
+     * @param entity Entity to update (must have valid ID)
+     * @return Resource<Unit> indicating success or failure
+     */
+    suspend fun update(entity: T): Resource<Unit>
+
+    /**
+     * Deletes an entity by its identifier.
+     *
+     * Marks the entity as deleted in the local data source and
+     * queues for remote synchronization if applicable.
+     *
+     * @param id Unique identifier of the entity to delete
+     * @return Resource<Unit> indicating success or failure
+     */
+    suspend fun delete(id: String): Resource<Unit>
+}
+```
+
+### Product Repository Contract
+
+```kotlin
+/**
+ * Repository for managing product data with offline-first architecture.
+ *
+ * Provides methods to create, read, update, and delete products
+ * with automatic synchronization between Room database and Firestore.
+ * All operations are suspend functions that should be called from
+ * a coroutine or ViewModel scope.
+ *
+ * **Offline Support**:
+ * - All read operations work offline using cached data
+ * - Write operations are queued when offline and synced when online
+ *
+ * **Data Validation**:
+ * - Product name must not be empty and max 100 characters
+ * - Price must be positive
+ * - Quantity must be non-negative
+ * - Seller ID must match authenticated user
+ *
+ * **Visibility Control**:
+ * - Public products (isPublic=true) appear in marketplace
+ * - Private products (isPublic=false) only visible to owner
+ *
+ * @see Product
+ * @see ProductEntity
+ * @see ProductDao
+ */
+interface ProductRepository : BaseRepository<Product> {
+    /**
+     * Retrieves products with optional filtering and pagination.
+     *
+     * Applies filters to the product list and returns paginated results.
+     * Supports filtering by category, price range, location, and other
+     * attributes. Results are sorted by relevance or specified criteria.
+     *
+     * **Filtering Logic**:
+     * - Category: Matches exact category enum value
+     * - Price Range: Inclusive bounds [minPrice, maxPrice]
+     * - Location: Within specified radius of user's location
+     * - Status: ACTIVE products only (inactive filtered out)
+     *
+     * @param filters Optional filters to apply to the product query
+     * @param pagination Optional pagination parameters (page, size)
+     * @return Flow<Resource<List<Product>>> with filtered products
+     */
+    fun getProducts(
+        filters: ProductFilters? = null,
+        pagination: Pagination? = null
+    ): Flow<Resource<List<Product>>>
+
+    /**
+     * Retrieves products by seller ID.
+     *
+     * Returns all products owned by the specified seller, regardless
+     * of their public/private status. Used for seller's inventory view.
+     *
+     * @param sellerId ID of the seller whose products to retrieve
+     * @return Flow<Resource<List<Product>>> with seller's products
+     */
+    fun getProductsBySeller(sellerId: String): Flow<Resource<List<Product>>>
+
+    /**
+     * Searches products by text query.
+     *
+     * Performs full-text search on product names, descriptions, and
+     * other searchable fields. Uses database indexing for performance.
+     *
+     * **Search Fields**:
+     * - Product name (exact and partial matches)
+     * - Description (partial matches)
+     * - Breed information (if applicable)
+     * - Category keywords
+     *
+     * @param query Text to search for in product data
+     * @return Flow<Resource<List<Product>>> with matching products
+     */
+    fun searchProducts(query: String): Flow<Resource<List<Product>>>
+
+    /**
+     * Updates product visibility status.
+     *
+     * Changes whether a product appears in the public marketplace.
+     * Private products are only visible to the owner.
+     *
+     * @param productId ID of the product to update
+     * @param isPublic New visibility status
+     * @return Resource<Unit> indicating success or failure
+     */
+    suspend fun updateVisibility(productId: String, isPublic: Boolean): Resource<Unit>
+
+    /**
+     * Syncs local products with remote data source.
+     *
+     * Processes pending changes in the sync queue and synchronizes
+     * with the remote data source. Handles conflicts using timestamp
+     * comparison (remote wins).
+     *
+     * **Sync Process**:
+     * 1. Upload local changes to remote
+     * 2. Download remote changes to local
+     * 3. Resolve conflicts (remote timestamp wins)
+     * 4. Update sync status
+     *
+     * @return Resource<SyncResult> with sync statistics
+     */
+    suspend fun syncProducts(): Resource<SyncResult>
+}
+```
+
+### User Repository Contract
+
+```kotlin
+/**
+ * Repository for managing user data and authentication state.
+ *
+ * Handles user profile management, authentication state, and
+ * user-specific preferences. Integrates with Firebase Authentication
+ * and local data storage.
+ *
+ * **Authentication Integration**:
+ * - Syncs Firebase Auth state with local user profile
+ * - Manages custom claims and role assignments
+ * - Handles token refresh and validation
+ *
+ * @see User
+ * @see UserEntity
+ * @see UserDao
+ */
+interface UserRepository : BaseRepository<User> {
+    /**
+     * Retrieves current authenticated user.
+     *
+     * Returns the user profile for the currently authenticated user.
+     * If no user is authenticated, returns an error.
+     *
+     * @return Resource<User> with current user profile or error
+     */
+    suspend fun getCurrentUser(): Resource<User>
+
+    /**
+     * Updates user profile information.
+     *
+     * Updates the user's profile data in both local storage and
+     * Firebase Authentication. Some fields may require special
+     * validation or permissions.
+     *
+     * **Validation Rules**:
+     * - Display name: 1-50 characters
+     * - Email: Valid email format (if changing)
+     * - Phone: Valid phone number format
+     * - Profile image: Valid URL or base64 data
+     *
+     * @param user Updated user profile data
+     * @return Resource<Unit> indicating success or failure
+     */
+    suspend fun updateUserProfile(user: User): Resource<Unit>
+
+    /**
+     * Updates user role and permissions.
+     *
+     * Changes the user's role (GENERAL, FARMER, ENTHUSIAST) and
+     * updates corresponding permissions and access rights.
+     *
+     * **Role Implications**:
+     * - FARMER: Access to farm management features
+     * - ENTHUSIAST: Access to breeding and showing features
+     * - GENERAL: Basic marketplace access
+     *
+     * @param userId ID of user to update
+     * @param newRole New role assignment
+     * @return Resource<Unit> indicating success or failure
+     */
+    suspend fun updateUserRole(userId: String, newRole: UserRole): Resource<Unit>
+
+    /**
+     * Checks if user has required permissions.
+     *
+     * Evaluates whether the user has the specified permissions
+     * based on their role and custom claims.
+     *
+     * @param userId ID of user to check
+     * @param permission Required permission
+     * @return Resource<Boolean> with permission status
+     */
+    suspend fun hasPermission(userId: String, permission: Permission): Resource<Boolean>
+}
+```
+
+### Transfer Workflow Repository Contract
+
+```kotlin
+/**
+ * Repository for managing ownership transfer workflows.
+ *
+ * Handles the complete transfer lifecycle from initiation to completion,
+ * including verification, documentation, and audit trails. Ensures
+ * secure and traceable transfers between users.
+ *
+ * **Transfer States**:
+ * - INITIATED: Transfer created, awaiting acceptance
+ * - ACCEPTED: Recipient accepted, pending verification
+ * - VERIFIED: Transfer verified, awaiting completion
+ * - COMPLETED: Transfer completed successfully
+ * - CANCELLED: Transfer cancelled by either party
+ * - DISPUTED: Transfer in dispute resolution
+ *
+ * @see Transfer
+ * @see TransferEntity
+ * @see TransferDao
+ */
+interface TransferWorkflowRepository {
+    /**
+     * Initiates a new transfer request.
+     *
+     * Creates a transfer record with initial state and sends
+     * notification to the recipient. Validates transfer eligibility
+     * and ownership before creation.
+     *
+     * **Validation Checks**:
+     * - Sender owns the product being transferred
+     * - Product is eligible for transfer (not sold/locked)
+     * - Recipient exists and is active
+     * - Transfer limits not exceeded
+     *
+     * @param transferRequest Details of the transfer to initiate
+     * @return Resource<Transfer> with created transfer record
+     */
+    suspend fun initiateTransfer(transferRequest: TransferRequest): Resource<Transfer>
+
+    /**
+     * Updates transfer status and processes state changes.
+     *
+     * Handles state transitions and triggers appropriate actions
+     * based on the new status (notifications, verifications, etc.).
+     *
+     * **State Transitions**:
+     * - INITIATED → ACCEPTED: Recipient accepts transfer
+     * - ACCEPTED → VERIFIED: Verification completed
+     * - VERIFIED → COMPLETED: Transfer finalized
+     * - Any → CANCELLED: Either party cancels
+     *
+     * @param transferId ID of transfer to update
+     * @param newStatus New status for the transfer
+     * @param verificationData Optional verification data
+     * @return Resource<Transfer> with updated transfer record
+     */
+    suspend fun updateTransferStatus(
+        transferId: String,
+        newStatus: TransferStatus,
+        verificationData: VerificationData? = null
+    ): Resource<Transfer>
+
+    /**
+     * Retrieves transfers for a specific user.
+     *
+     * Returns transfers where the user is either sender or recipient,
+     * filtered by status and date range.
+     *
+     * @param userId ID of user whose transfers to retrieve
+     * @param statusFilter Optional status filter
+     * @param dateRange Optional date range filter
+     * @return Flow<Resource<List<Transfer>>> with user's transfers
+     */
+    fun getUserTransfers(
+        userId: String,
+        statusFilter: TransferStatus? = null,
+        dateRange: DateRange? = null
+    ): Flow<Resource<List<Transfer>>>
+
+    /**
+     * Creates transfer verification record.
+     *
+     * Records verification details including photos, GPS coordinates,
+     * and other evidence supporting the transfer completion.
+     *
+     * @param verificationRequest Verification details
+     * @return Resource<TransferVerification> with verification record
+     */
+    suspend fun createVerification(verificationRequest: VerificationRequest): Resource<TransferVerification>
+}
+```
+
+### Evidence Order Repository Contract
+
+```kotlin
+/**
+ * Repository for managing evidence-based order workflows.
+ *
+ * Implements the 10-state evidence order system with immutable
+ * evidence collection and state-locked agreements. Ensures trust
+ * through transparent and verifiable order processes.
+ *
+ * **Order States**:
+ * 1. ENQUIRY: Initial inquiry from buyer
+ * 2. QUOTE: Seller responds with pricing/terms
+ * 3. AGREEMENT: Both parties agree to terms
+ * 4. ADVANCE_PAYMENT: Buyer pays initial amount
+ * 5. VERIFICATION: Payment proof uploaded/verified
+ * 6. DISPATCH: Seller ships product with proof
+ * 7. DELIVERY: Product delivered to buyer
+ * 8. COMPLETION: Buyer confirms receipt/satisfaction
+ * 9. DISPUTE: Raised if issues arise during any state
+ * 10. CANCELLED: Order cancelled by either party
+ *
+ * @see EvidenceOrder
+ * @see EvidenceOrderEntity
+ * @see EvidenceOrderDao
+ */
+interface EvidenceOrderRepository {
+    /**
+     * Creates a new evidence order enquiry.
+     *
+     * Initiates the evidence order process with initial enquiry
+     * from buyer to seller. Creates order record in ENQUIRY state.
+     *
+     * @param enquiryRequest Initial order enquiry details
+     * @return Resource<EvidenceOrder> with created order
+     */
+    suspend fun createEnquiry(enquiryRequest: EnquiryRequest): Resource<EvidenceOrder>
+
+    /**
+     * Submits a quote for an enquiry.
+     *
+     * Seller responds to buyer's enquiry with pricing, terms,
+     * and conditions. Moves order to QUOTE state.
+     *
+     * @param quoteRequest Quote details and terms
+     * @return Resource<EvidenceOrder> with updated order
+     */
+    suspend fun submitQuote(quoteRequest: QuoteRequest): Resource<EvidenceOrder>
+
+    /**
+     * Accepts an order quote and moves to agreement state.
+     *
+     * Buyer accepts seller's quote, creating binding agreement
+     * and moving order to AGREEMENT state.
+     *
+     * @param orderId ID of order to accept
+     * @param acceptanceData Acceptance confirmation data
+     * @return Resource<EvidenceOrder> with updated order
+     */
+    suspend fun acceptQuote(
+        orderId: String,
+        acceptanceData: OrderAcceptanceData
+    ): Resource<EvidenceOrder>
+
+    /**
+     * Processes advance payment for an order.
+     *
+     * Records advance payment from buyer and moves order to
+     * ADVANCE_PAYMENT state. Validates payment and updates status.
+     *
+     * @param paymentRequest Payment details and proof
+     * @return Resource<EvidenceOrder> with updated order
+     */
+    suspend fun processAdvancePayment(paymentRequest: PaymentRequest): Resource<EvidenceOrder>
+
+    /**
+     * Verifies payment and moves order to verification state.
+     *
+     * Validates payment proof and updates order status to VERIFICATION.
+     * May trigger additional verification steps.
+     *
+     * @param verificationRequest Payment verification details
+     * @return Resource<EvidenceOrder> with updated order
+     */
+    suspend fun verifyPayment(verificationRequest: PaymentVerificationRequest): Resource<EvidenceOrder>
+
+    /**
+     * Records dispatch with shipping proof.
+     *
+     * Updates order to DISPATCH state with shipping details
+     * and proof of shipment.
+     *
+     * @param dispatchRequest Dispatch details and proof
+     * @return Resource<EvidenceOrder> with updated order
+     */
+    suspend fun recordDispatch(dispatchRequest: DispatchRequest): Resource<EvidenceOrder>
+
+    /**
+     * Confirms delivery and moves to completion state.
+     *
+     * Records delivery confirmation and moves order toward
+     * completion. May require OTP or other verification.
+     *
+     * @param deliveryConfirmation Delivery confirmation details
+     * @return Resource<EvidenceOrder> with updated order
+     */
+    suspend fun confirmDelivery(deliveryConfirmation: DeliveryConfirmation): Resource<EvidenceOrder>
+
+    /**
+     * Retrieves evidence orders for a user.
+     *
+     * Returns orders where user is either buyer or seller,
+     * filtered by state and date range.
+     *
+     * @param userId ID of user whose orders to retrieve
+     * @param stateFilter Optional state filter
+     * @param dateRange Optional date range filter
+     * @return Flow<Resource<List<EvidenceOrder>>> with user's orders
+     */
+    fun getUserOrders(
+        userId: String,
+        stateFilter: OrderState? = null,
+        dateRange: DateRange? = null
+    ): Flow<Resource<List<EvidenceOrder>>>
+}
+```
+
+## Related Documentation
 
 - [CODE_STYLE.md](../CODE_STYLE.md) - Coding standards
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 - [Architecture](architecture.md) - System architecture
 - [Dokka Documentation](https://kotlinlang.org/docs/dokka-introduction.html)
+- [Repository Pattern Guide](repository-pattern.md) - Detailed repository implementation guide
 
 ---
 

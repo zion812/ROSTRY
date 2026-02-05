@@ -11,11 +11,45 @@ Status: Active
 The social subsystem enables community engagement through feeds, messaging, groups, events, expert sessions, moderation, and reputation tracking. Recently enhanced with a messenger-like community hub featuring context-aware messaging and intelligent recommendations.
 
 ## Feature Modules
+
+### Core Social Features
 - `ui/social/`: Feed, leaderboard, video player components.
+- `ui/social/SocialFeedScreen.kt`: Main social feed with posts, images, and videos
+- `ui/social/LeaderboardScreen.kt`: Community engagement rankings
+- `ui/social/profile/SocialProfileScreen.kt`: Enhanced user profiles with stats and tabs
+- `ui/social/profile/SocialProfileViewModel.kt`: Profile data management
+- `ui/social/stories/StoryViewerScreen.kt`: Full-screen story viewing
+- `ui/social/stories/StoryCreatorScreen.kt`: Story creation interface
+- `ui/social/stories/StoryCreatorViewModel.kt`: Story creation logic
+- `ui/social/discussion/DiscussionDetailScreen.kt`: Twitter-style threaded discussions
+- `ui/social/discussion/DiscussionDetailViewModel.kt`: Discussion management
+
+### Messaging System
 - `ui/messaging/`: Direct and group chat screens with queued sending, thread metadata.
+- `ui/messaging/ThreadScreen.kt`: Direct messaging interface
+- `ui/messaging/ThreadViewModel.kt`: Thread management and message handling
+- `ui/messaging/GroupChatScreen.kt`: Group chat functionality
+- `ui/messaging/GroupChatViewModel.kt`: Group chat management
+
+### Community Hub
 - `ui/community/`: Community hub with multi-tab interface (Messages, Discover, Feed, My Groups).
+- `ui/community/CommunityHubScreen.kt`: Main community hub interface
+- `ui/community/CommunityHubViewModel.kt`: Community hub state management
+- `ui/community/CommunityEngagementService.kt`: Recommendation and engagement logic
+
+### Farmer-Specific Features
 - `ui/farmer/`: Farmer-specific community features and expert consultation.
-- `ui/events/`, `ui/expert/`, `ui/moderation/`: Supporting UIs for events, expert booking, moderation workflows.
+- `ui/farmer/FarmerCommunityScreen.kt`: Farmer-focused community features
+- `ui/farmer/FarmerCommunityViewModel.kt`: Farmer community management
+
+### Supporting UIs
+- `ui/events/`: Event management and RSVP functionality
+- `ui/expert/`: Expert booking and consultation features
+- `ui/moderation/`: Content moderation workflows
+- `ui/gamification/`: Achievement and badge systems
+- `ui/insights/`: Community insights and analytics
+- `ui/feedback/`: Feedback and rating systems
+- `ui/support/`: Community support features
 
 ## Data Model
 
@@ -41,6 +75,11 @@ DAOs reside in `data/database/dao/` (e.g., `PostsDao`, `CommentsDao`, `GroupsDao
 - `SocialRepositoryImpl`: Paging feed, ranking, likes/comments, share counts, and moderation entrypoints.
 - `MessagingRepositoryImpl`: Thread retrieval, message queue management, delivery state updates, context-aware thread creation.
 - `CommunityRepository`: Groups, events, membership management, RSVP handling.
+- `LikesRepositoryImpl`: Social likes and reactions management
+- `ChatRepositoryImpl`: Chat messaging and conversation management
+- `CommunityRepositoryImpl`: Community features and engagement
+- `ModerationRepositoryImpl`: Content moderation and reporting
+- `ReputationRepositoryImpl`: Reputation scoring and badge management
 - Reputation and badge services for leaderboard and user trust signals.
 
 ## Service Layer
@@ -49,6 +88,16 @@ DAOs reside in `data/database/dao/` (e.g., `PostsDao`, `CommentsDao`, `GroupsDao
 - **Intelligent Recommendations**: Mentor matching, connection suggestions, expert matching by topic.
 - **Context-Aware Messaging**: Thread creation with business context (product inquiries, expert consultations, breeding discussions).
 - **Community Metrics**: Engagement scoring, community statistics, user activity tracking.
+
+### Additional Social Services
+- `data/service/ExternalServiceConnector.kt`: External service integration patterns
+- `data/service/ApiServiceWrapper.kt`: API service wrapper implementations
+- `utils/preferences/UserPreferencesRepository.kt`: User preference management for social features
+- `data/repository/CoinRepository.kt`: Coin wallet system for social rewards
+- `data/repository/WishlistRepository.kt`: Wishlist functionality for social sharing
+- `data/repository/ReviewRepository.kt`: Review and rating systems
+- `data/repository/AuctionRepository.kt`: Auction functionality with social bidding
+- `data/repository/CartRepository.kt`: Shopping cart with social sharing features
 
 ## UI Flow
 
@@ -88,6 +137,36 @@ DAOs reside in `data/database/dao/` (e.g., `PostsDao`, `CommentsDao`, `GroupsDao
    - Text-focused post rendering in feed.
    - Threaded replies view.
    - Quick reply input.
+
+### Additional Social Features
+4. **Gamification**: `AchievementsScreen` and `HallOfFameScreen` with:
+   - Bronze/Silver/Gold milestone badges
+   - Pulsing animations for achievements
+   - Competitive rankings
+5. **Live Broadcasting**: Real-time community events with:
+   - Live streaming capabilities
+   - Real-time audience interaction
+   - Viewer count tracking
+6. **Coin Wallet System**: `CoinRepository` and `CoinLedgerEntity` for:
+   - Social rewards and incentives
+   - Transaction tracking
+   - Social engagement monetization
+7. **Wishlist and Sharing**: `WishlistRepository` for:
+   - Social sharing of desired items
+   - Collaborative wish lists
+   - Social notifications for wishlist items
+8. **Reviews and Ratings**: `ReviewRepository` for:
+   - Social feedback on products and services
+   - Rating aggregation
+   - Review verification
+9. **Auction Participation**: `AuctionRepository` for:
+   - Social bidding experiences
+   - Real-time bid notifications
+   - Community auction participation
+10. **Shopping Cart Integration**: `CartRepository` with:
+    - Social sharing of cart items
+    - Collaborative shopping
+    - Social recommendations based on cart contents
 
 ### Diagram
 ```mermaid

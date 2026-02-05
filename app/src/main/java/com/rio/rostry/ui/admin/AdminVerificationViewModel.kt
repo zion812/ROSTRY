@@ -72,9 +72,11 @@ class AdminVerificationViewModel @Inject constructor(
     fun loadPendingRequests() {
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
-            // Guard: Check for Admin Role
-            val currentUserResource = userRepository.getCurrentUser().firstOrNull()
-            val user = currentUserResource?.data
+            // Guard: Wait for Resource.Success user emission before checking admin role
+            val user = userRepository.getCurrentUser().first { resource ->
+                resource is Resource.Success
+            }.data
+            
             if (user?.role != com.rio.rostry.domain.model.UserType.ADMIN) {
                 _isLoading.value = false
                 _pendingRequests.value = emptyList() // Clear list
@@ -91,7 +93,35 @@ class AdminVerificationViewModel @Inject constructor(
                     is Resource.Success -> {
                         _isLoading.value = false
                         val submissions = resource.data ?: emptyList()
-                        _pendingRequests.value = submissions.map { it.toUiModel() }
+                        val submissionUiModels = submissions.map { it.toUiModel() }
+
+                        // Detect Orphans: Users with PENDING status but no submission
+                        // This fixes the mismatch where Dashboard shows pending items but this screen shows empty
+                        val pendingUsersResource = userRepository.getUsersByVerificationStatus(VerificationStatus.PENDING)
+                        val orphans = if (pendingUsersResource is Resource.Success) {
+                            val pendingUsers = pendingUsersResource.data ?: emptyList()
+                            val submittedUserIds = submissions.map { it.userId }.toSet()
+
+                            pendingUsers.filter { it.userId !in submittedUserIds }.map { user ->
+                                VerificationRequest(
+                                    userId = user.userId,
+                                    requestId = "ORPHAN_${user.userId}",
+                                    govtIdUrl = user.profilePictureUrl, // Fallback to profile pic or null
+                                    farmPhotoUrl = null,
+                                    submittedAt = user.updatedAt?.time ?: System.currentTimeMillis(),
+                                    userName = user.fullName ?: "Unknown User",
+                                    applicantPhone = user.phoneNumber,
+                                    farmAddress = user.farmAddressLine1,
+                                    status = VerificationStatus.PENDING,
+                                    rejectionReason = "System Flag: Status Mismatch (Orphaned)",
+                                    upgradeType = com.rio.rostry.domain.model.UpgradeType.GENERAL_TO_FARMER // Default
+                                )
+                            }
+                        } else {
+                            emptyList()
+                        }
+
+                        _pendingRequests.value = (submissionUiModels + orphans).sortedByDescending { it.submittedAt }
                     }
                     is Resource.Error -> {
                         _isLoading.value = false
@@ -140,18 +170,26 @@ class AdminVerificationViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 val adminId = currentUserProvider.userIdOrNull() ?: "admin"
-                val result = userRepository.updateVerificationSubmissionStatus(
-                    submissionId = requestId,
-                    userId = userId,
-                    status = VerificationStatus.VERIFIED,
-                    reviewerId = adminId,
-                    rejectionReason = null
-                )
+                
+                val result = if (requestId.startsWith("ORPHAN_")) {
+                    // Handle Orphan: Only update user status, no submission to update
+                    userRepository.updateVerificationStatus(userId, VerificationStatus.VERIFIED)
+                } else {
+                    userRepository.updateVerificationSubmissionStatus(
+                        submissionId = requestId,
+                        userId = userId,
+                        status = VerificationStatus.VERIFIED,
+                        reviewerId = adminId,
+                        rejectionReason = null
+                    )
+                }
 
                 if (result is Resource.Success) {
                     _toastEvent.emit("User verified successfully!")
                     clearSelection()
-                    loadHistoryRequests() // Refresh history
+                    loadHistoryRequests()
+                    // Force refresh pending list to remove the orphan immediately
+                    loadPendingRequests()
                 } else {
                     _toastEvent.emit("Failed to verify: ${result.message}")
                 }
@@ -169,18 +207,28 @@ class AdminVerificationViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 val adminId = currentUserProvider.userIdOrNull() ?: "admin"
-                val result = userRepository.updateVerificationSubmissionStatus(
-                    submissionId = requestId,
-                    userId = userId,
-                    status = VerificationStatus.REJECTED,
-                    reviewerId = adminId,
-                    rejectionReason = reason
-                )
+                
+                val result = if (requestId.startsWith("ORPHAN_")) {
+                    // Handle Orphan: Only update user status
+                    // Note: We cannot record rejection reason in a non-existent submission, 
+                    // but updateVerificationStatus doesn't take a reason.
+                    // Ideally we should create a submission record for history, but for now just resetting the flag is enough.
+                    userRepository.updateVerificationStatus(userId, VerificationStatus.REJECTED)
+                } else {
+                    userRepository.updateVerificationSubmissionStatus(
+                        submissionId = requestId,
+                        userId = userId,
+                        status = VerificationStatus.REJECTED,
+                        reviewerId = adminId,
+                        rejectionReason = reason
+                    )
+                }
 
                 if (result is Resource.Success) {
                     _toastEvent.emit("Request rejected: $reason")
                     clearSelection()
-                    loadHistoryRequests() // Refresh history
+                    loadHistoryRequests()
+                    loadPendingRequests()
                 } else {
                     _toastEvent.emit("Failed to reject: ${result.message}")
                 }

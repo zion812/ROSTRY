@@ -568,7 +568,8 @@ class VerificationViewModel @Inject constructor(
                 upgradeType = upgradeType,
                 currentRole = user.role,
                 targetRole = targetRole,
-                farmLocation = locationMap
+                farmLocation = locationMap,
+                applicantPhone = form.contactPhone
             )
 
             if (result is Resource.Success) {

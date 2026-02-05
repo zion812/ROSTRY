@@ -55,6 +55,10 @@ ROSTRY uses 21+ Hilt modules to organize dependencies:
 - `di/AppEntryPoints.kt` — Hilt entry points for application components
 - `di/MediaUploadInitializer.kt` — Media upload initialization
 
+### Environment-Specific Modules
+- `di/AppCheckModule.kt` (debug/release) — Firebase App Check configuration for different environments
+- `di/FirebaseModule.kt` (debug/release) — Firebase services configuration for different environments
+
 ## Examples
 
 ### Lazy Initialization (PlacesModule)

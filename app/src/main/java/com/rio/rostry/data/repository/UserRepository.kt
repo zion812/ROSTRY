@@ -45,7 +45,8 @@ interface UserRepository {
         upgradeType: UpgradeType = UpgradeType.GENERAL_TO_FARMER,
         currentRole: UserType = UserType.GENERAL,
         targetRole: UserType? = null,
-        farmLocation: Map<String, Double>? = null
+        farmLocation: Map<String, Double>? = null,
+        applicantPhone: String? = null
     ): Resource<Unit>
 
     fun getKycSubmissionStatus(userId: String): Flow<Resource<String?>>
@@ -88,4 +89,6 @@ interface UserRepository {
     suspend fun getNewUsersCount(since: Long): Int
     suspend fun getActiveUsersCount(since: Long): Int
     suspend fun getPendingVerificationCount(): Int
+    
+    suspend fun getUsersByVerificationStatus(status: VerificationStatus): Resource<List<UserEntity>>
 }

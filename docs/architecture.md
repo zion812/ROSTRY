@@ -124,14 +124,65 @@ Status: Active
 
 See `background-jobs.md` for detailed worker configuration and monitoring.
 
-## 5. External Integrations
+## 5. Fetcher System Architecture
+The Fetcher System is a centralized data fetching infrastructure that provides intelligent caching, request deduplication, and health monitoring capabilities.
+
+### Core Components
+- **`FetcherRegistry`**: Central registry for all fetchers with type-safe registration and retrieval
+- **`FetcherCoordinator`**: Orchestrates fetch operations, manages cache interactions, and handles request routing
+- **`RequestCoalescer`**: Deduplicates concurrent requests for the same data to prevent redundant network calls
+- **`ContextualLoader`**: Handles contextual data loading with priority management and smart prefetching
+- **`FetcherHealthCheck`**: Monitors fetcher performance, availability, and response times for proactive maintenance
+
+### Design Pattern
+- **Strategy Pattern**: Pluggable fetcher implementations allowing different strategies for different data sources
+- **Factory Pattern**: For creating fetcher instances with appropriate configurations
+- **Observer Pattern**: For monitoring fetcher health and performance metrics
+
+### Caching Integration
+- **CacheManager**: Integrated with the central cache manager for intelligent caching strategies
+- **Cache Strategies**: Supports TTL-based, staleness-aware, and cache-aside patterns
+- **Cache Invalidation**: Smart invalidation based on data dependencies and update events
+
+### Concurrency & Performance
+- **Thread-Safe Operations**: All fetcher operations are thread-safe to handle concurrent requests
+- **Request Coalescing**: Prevents duplicate network calls for identical requests occurring simultaneously
+- **Connection Pooling**: Efficient reuse of network connections to minimize overhead
+- **Batching**: Groups similar requests when possible to reduce network round trips
+
+### Error Handling & Resilience
+- **Retry Mechanisms**: Configurable retry policies with exponential backoff
+- **Circuit Breaker Pattern**: Prevents cascading failures during service outages
+- **Fallback Strategies**: Graceful degradation with cached or default data when primary sources fail
+- **Graceful Degradation**: Continues to function with reduced capabilities during partial outages
+
+### Metrics & Monitoring
+- **Performance Metrics**: Tracks response times, success rates, and cache hit ratios
+- **Health Monitoring**: Continuous monitoring of fetcher availability and performance
+- **Logging**: Comprehensive logging for debugging and performance analysis
+- **Telemetry**: Integration with analytics systems for usage patterns and performance insights
+
+### Integration with Repository Layer
+- **Transparent Caching**: Seamlessly integrated with Repository layer for transparent caching
+- **Unified Interface**: Provides a consistent interface regardless of underlying data source
+- **Resource Wrapper**: Returns data wrapped in Resource sealed class for consistent error handling
+- **Flow Support**: Provides reactive data streams using Kotlin Flows
+
+### Benefits
+- **Reduced Network Overhead**: Minimizes redundant requests through intelligent caching and coalescing
+- **Improved Performance**: Faster response times through strategic caching and prefetching
+- **Enhanced Reliability**: Better fault tolerance and graceful degradation during service issues
+- **Centralized Management**: Single point of control for all data fetching operations
+- **Consistent Behavior**: Uniform error handling and caching behavior across the application
+
+## 6. External Integrations
 - **Firebase**: Auth, Firestore, Storage, Functions, Realtime Database, Cloud Messaging, Crashlytics, Performance Monitoring.
 - **Retrofit**: HTTP APIs for marketplace/analytics endpoints (configured in `di/HttpModule.kt`).
 - **Coil & ExoPlayer**: Media loading/streaming.
 - **WorkManager, Paging, DataStore**: Jetpack libraries for offline-first patterns.
 - **SQLCipher & Security Crypto**: Encrypted Room database support.
 
-## 6. Key Cross-Cutting Concerns
+## 7. Key Cross-Cutting Concerns
 - **Analytics**: Aggregation pipeline storing daily metrics in Room (`AnalyticsDailyEntity`) with dashboards under `ui/analytics/`. Includes AI-powered recommendations and export functionality.
 - **Traceability**: Graph-based lineage using `FamilyTreeEntity`, `TransferEntity`, and visualization in `FamilyTreeView`.
 - **Compliance & Trust**: Verification utilities, audit logs, disputes, and trust scoring in transfer workflows.
@@ -139,9 +190,9 @@ See `background-jobs.md` for detailed worker configuration and monitoring.
 - **Community Engagement**: Context-aware messaging with `ThreadMetadata`, intelligent recommendations via `CommunityEngagementService`, and personalized content.
 - **UX Enhancements**: Multi-step wizards, filter presets, tooltips, animations, and contextual help components for improved user experience.
 
-## 7. Detailed Diagrams
+## 8. Detailed Diagrams
 
-### 7.1 System Context
+### 8.1 System Context
 ```mermaid
 erDiagram
     ComposeUI ||--|| ViewModel : observes
@@ -156,7 +207,7 @@ erDiagram
     RostryApp ||--|| WorkManager : bootstraps
 ```
 
-### 7.2 Subsystem Interaction
+### 8.2 Subsystem Interaction
 ```mermaid
 graph TD
     subgraph UI
@@ -192,7 +243,7 @@ graph TD
     VM --> Compose
 ```
 
-### 7.3 Background Scheduling Lifecycle
+### 8.3 Background Scheduling Lifecycle
 ```mermaid
 sequenceDiagram
     participant App as RostryApp
@@ -209,13 +260,13 @@ sequenceDiagram
     Worker-->>WM: Result.success()/retry()
 ```
 
-### 7.4 Exporting Diagrams
+### 8.4 Exporting Diagrams
 For environments without native Mermaid support, render diagrams to images using:
 - **Mermaid CLI**: `npx @mermaid-js/mermaid-cli -i docs/architecture.md -o docs/images/`
 - **VS Code Extension**: "Markdown Preview Mermaid Support" → right-click → *Export Diagram*.
 Store exports under `docs/images/` and reference them via Markdown `![Diagram](images/diagram-name.png)`.
 
-### 7.5 Authentication Flow Diagram
+### 8.5 Authentication Flow Diagram
 
 ```mermaid
 sequenceDiagram
@@ -249,7 +300,7 @@ sequenceDiagram
 - **Dashed arrows**: Asynchronous responses
 - **Participants**: Key components in auth flow
 
-### 7.6 Data Sync Flow Diagram
+### 8.6 Data Sync Flow Diagram
 
 ```mermaid
 flowchart TD
@@ -281,11 +332,93 @@ flowchart TD
 - **Diamond**: Decision point
 - **Rounded**: Start/End state
 
+### 8.7 Fetcher System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "UI Layer"
+        UI[Compose UI]
+        VM[ViewModel]
+    end
+
+    subgraph "Fetcher System"
+        FR[FetcherRegistry]
+        FC[FetcherCoordinator]
+        RC[RequestCoalescer]
+        CL[ContextualLoader]
+        HC[FetcherHealthCheck]
+    end
+
+    subgraph "Caching Layer"
+        CM[CacheManager]
+        CH[CacheHealthMonitor]
+    end
+
+    subgraph "Data Sources"
+        Local[(Local Data - Room)]
+        Remote[(Remote Data - Firebase/APIs)]
+    end
+
+    UI --> VM
+    VM --> FR
+    FR --> FC
+    FC --> RC
+    FC --> CL
+    FC --> HC
+    FC --> CM
+    CM --> Local
+    CM --> Remote
+    FC --> Local
+    FC --> Remote
+    HC --> CM
+```
+
+**Legend**:
+- **Blue boxes**: Core fetcher components
+- **Green boxes**: Caching components
+- **Yellow cylinders**: Data sources
+- **Arrows**: Data flow and dependencies
+
+### 8.8 Fetcher Request Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant UI as Compose UI
+    participant VM as ViewModel
+    participant FC as FetcherCoordinator
+    participant RC as RequestCoalescer
+    participant CM as CacheManager
+    participant DS as Data Source
+
+    UI->>VM: Request Data
+    VM->>FC: fetch(ClientRequest)
+    FC->>RC: executeOrJoin(request)
+    RC->>CM: Check Cache
+    alt Cache Hit
+        CM-->>RC: Cached Data
+        RC-->>FC: Return Cached
+        FC->>HC: recordSuccess()
+    else Cache Miss
+        RC->>DS: Fetch from Source
+        DS-->>RC: Fresh Data
+        RC->>CM: Store in Cache
+        RC-->>FC: Return Fresh Data
+        FC->>HC: recordSuccess()
+    end
+    FC-->>VM: Resource<T>
+    VM-->>UI: Update State
+```
+
+**Legend**:
+- **Solid arrows**: Synchronous calls
+- **Dashed arrows**: Asynchronous responses
+- **Participants**: Key components in fetch flow
+
 ---
 
-## 8. Feature Specific Architectures
+## 9. Feature Specific Architectures
 
-### 8.1 Digital Farm Rendering Architecture
+### 9.1 Digital Farm Rendering Architecture
 The Digital Farm utilizes a canvas-based rendering engine implemented in `FarmCanvasRenderer.kt`.
 
 ```mermaid
@@ -300,7 +433,7 @@ flowchart TD
     B --> I[WeatherType State]
 ```
 
-### 8.2 Evidence-Based Order Flow
+### 9.2 Evidence-Based Order Flow
 The order system ensures trust through immutable evidence collection and state-locked agreements.
 
 ```mermaid
@@ -319,7 +452,7 @@ sequenceDiagram
     System->>Seller: Release Balance Payment
 ```
 
-### 8.3 Community Engagement Flow
+### 9.3 Community Engagement Flow
 The community hub provides context-aware messaging and intelligent recommendations.
 
 ```mermaid
@@ -337,7 +470,7 @@ graph TD
 
 ---
 
-## 9. State Management
+## 10. State Management
 
 ### StateFlow Pattern
 
@@ -470,7 +603,7 @@ class UserPreferencesDataStore @Inject constructor(
 
 ---
 
-## 10. Dependency Injection (Hilt)
+## 11. Dependency Injection (Hilt)
 
 ### Module Organization
 
@@ -589,7 +722,7 @@ abstract class TestRepositoryModule {
 
 ---
 
-## 11. Error Handling
+## 12. Error Handling
 
 ### Result Type Pattern
 
@@ -697,7 +830,7 @@ class CrashlyticsTree : Timber.Tree() {
 
 ---
 
-## 12. Security Architecture
+## 13. Security Architecture
 
 ### Authentication Flow
 
@@ -779,7 +912,7 @@ match /products/{productId} {
 
 ---
 
-## 13. Performance Considerations
+## 14. Performance Considerations
 
 ### Caching Strategy
 
@@ -845,7 +978,7 @@ AsyncImage(
 
 ---
 
-## 14. Testing Architecture
+## 15. Testing Architecture
 
 **Note**: Standard unit and instrumentation test suites are currently being finalized and are not yet fully checked in. Skeletons are provided in `app/src/test/java` and `app/src/androidTest/java`.
 
@@ -915,7 +1048,7 @@ class ProductViewModelTest {
 
 ---
 
-## 15. Recent Major Updates
+## 16. Recent Major Updates
 
 ### Database Migration v2→65 (Consolidated Refactor)
 Implemented a massive 64-step migration sequence:
@@ -936,7 +1069,7 @@ New reusable components in `ui/components/`:
 
 See `user-experience-guidelines.md` for usage patterns.
 
-## 16. Future Considerations
+## 17. Future Considerations
 
 ### Multi-Module Architecture
 - Split monolithic app into Gradle feature modules

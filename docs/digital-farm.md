@@ -114,13 +114,40 @@ Performance-optimized rendering mode for Farmer persona on low-end devices ($100
 
 ## Architecture
 
-### File Structure
+### 2.5D Isometric Engine Architecture
+
+The Digital Farm utilizes a sophisticated 2.5D isometric rendering engine implemented in `FarmCanvasRenderer.kt`. This engine creates a pseudo-3D effect by using 2D graphics with perspective projection, giving the appearance of depth without the computational cost of full 3D rendering.
+
+#### Core Rendering Components
+
+**FarmCanvasRenderer.kt** (~2040 lines) - The primary rendering engine that handles:
+- Isometric coordinate transformations
+- Z-ordering for proper depth sorting
+- Canvas drawing operations for all visual elements
+- Performance optimization for smooth rendering
+
+**Coordinate System**
+- Uses isometric projection with 30-degree angles
+- Z-axis represents depth, affecting draw order
+- Screen coordinates converted to world coordinates for interaction
+
+**Rendering Pipeline**
+1. **Transform**: Convert world coordinates to screen coordinates
+2. **Sort**: Depth-sort elements by Z-coordinate
+3. **Draw**: Render elements in correct order
+4. **Animate**: Update animations and particle effects
+
+#### File Structure
 
 ```
 ui/enthusiast/digitalfarm/
 ├── DigitalFarmScreen.kt        # Main Composable (entry point)
 ├── DigitalFarmViewModel.kt     # State management, grouping logic
 ├── FarmCanvasRenderer.kt       # Canvas drawing engine (~2000 lines)
+├── IsometricProjection.kt      # Coordinate transformation utilities
+├── DepthSorting.kt             # Z-ordering algorithms
+├── AnimationController.kt      # Animation management
+└── ParticleSystem.kt           # Weather and effect particles
 ```
 
 ### Domain Models
@@ -138,6 +165,57 @@ domain/model/
     ├── SharedFarm, FarmReaction
     └── OfflineFarmSnapshot
 ```
+
+### Weather Effects Implementation
+
+The weather system creates immersive environmental effects:
+
+**Rain Particle System**
+- Particle generation with physics simulation
+- Splash effects when particles hit ground
+- Performance optimization to maintain frame rate
+
+**Wind Animation**
+- Directional wind affecting grass and foliage
+- Particle movement influenced by wind direction
+- Smooth animation transitions
+
+**Overcast Clouds**
+- Dynamic cloud rendering based on weather
+- Light filtering effects for realistic atmosphere
+- Parallax scrolling for depth perception
+
+### Flocking Algorithm
+
+Natural group movement using sine-wave oscillation:
+- Birds move in coordinated groups
+- Wave-based animation for organic motion
+- Collision avoidance between birds
+- Pathfinding around obstacles
+
+### Zone-Based Layout System
+
+Organizes the farm into distinct areas:
+- **Nursery Zone**: Young birds with mother hen
+- **Breeding Zone**: Adult breeding pairs
+- **Free Range Zone**: Mature birds roaming
+- **Grow-Out Zone**: Birds approaching market weight
+- **Ready Display Zone**: Market-ready birds
+- **Market Zone**: Birds ready for sale
+
+### Building Placement System
+
+Eight types of placeable buildings:
+- Coop
+- Brooder
+- Water Fountain
+- Feeder
+- Nesting Box
+- Perch
+- Dust Bath
+- Shade Shelter
+
+Each building type has specific visual representation and functionality.
 
 ---
 

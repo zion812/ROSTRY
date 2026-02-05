@@ -8,14 +8,145 @@ Comprehensive monitoring across growth, vaccination, quarantine, mortality, hatc
 - DAOs manage records per module (Growth, Vaccination, Mortality, Quarantine, Hatching, Breeding).
 - Workers automate reminders and analytics.
 
-## Modules
+## Monitoring Modules
 
-- **Vaccination**: `VaccinationRecordDao` and `VaccinationReminderWorker.kt` schedule reminders and detect overdue records.
-- **Growth**: `GrowthRecordDao` stores weights; screens visualize curves and expected vs actual.
-- **Mortality**: `MortalityRecordDao` records cause, age, and trends for analysis.
-- **Quarantine**: `QuarantineRecordDao` tracks initiation, treatment, and recovery.
-- **Hatching**: `HatchingBatchDao` and `HatchingLogDao` manage incubation cycles and success rates.
-- **Breeding**: pair management, genetics tracking, and performance analytics.
+### 1. Growth Tracking (`ui/monitoring/GrowthTrackingScreen.kt`)
+- **Purpose**: Monitor and analyze growth patterns of birds
+- **Features**:
+  - Weight tracking over time
+  - Growth curve visualization
+  - Expected vs actual growth comparison
+  - Performance metrics and analytics
+- **Data Model**: `GrowthRecordEntity` with weight, date, bird identifier
+- **Repository**: `GrowthRepositoryImpl.kt`
+- **Worker**: `FarmMonitoringWorker.kt` for daily health checks
+- **ViewModel**: `GrowthViewModel.kt` and `GrowthRecordDetailViewModel.kt`
+
+### 2. Vaccination Management (`ui/monitoring/VaccinationScheduleScreen.kt`)
+- **Purpose**: Schedule and track vaccination records
+- **Features**:
+  - Vaccination schedule management
+  - Reminder notifications
+  - Due date tracking
+  - Vaccination history
+- **Data Model**: `VaccinationRecordEntity` with vaccine type, date, bird identifier
+- **Repository**: `VaccinationRepositoryImpl.kt`
+- **Worker**: `VaccinationReminderWorker.kt` for automated reminders
+- **ViewModel**: `VaccinationViewModel.kt` and `VaccinationDetailViewModel.kt`
+
+### 3. Mortality Tracking (`ui/monitoring/MortalityTrackingScreen.kt`)
+- **Purpose**: Record and analyze mortality events
+- **Features**:
+  - Cause of death recording
+  - Age and time tracking
+  - Trend analysis
+  - Statistical reporting
+- **Data Model**: `MortalityRecordEntity` with cause, age, date, bird identifier
+- **Repository**: `MortalityRepositoryImpl.kt`
+- **Worker**: `FarmMonitoringWorker.kt` for daily health checks
+- **ViewModel**: `MortalityViewModel.kt` and `MortalityDetailViewModel.kt`
+
+### 4. Quarantine Management (`ui/monitoring/QuarantineManagementScreen.kt`)
+- **Purpose**: Track and manage quarantine periods
+- **Features**:
+  - Quarantine initiation and tracking
+  - Treatment logs
+  - Recovery monitoring
+  - Status updates
+- **Data Model**: `QuarantineRecordEntity` with start/end dates, reason, treatment
+- **Repository**: `QuarantineRepositoryImpl.kt`
+- **Worker**: `QuarantineReminderWorker.kt` for health monitoring alerts
+- **ViewModel**: `QuarantineViewModel.kt`
+
+### 5. Hatching Process (`ui/monitoring/HatchingProcessScreen.kt`)
+- **Purpose**: Monitor hatching and incubation cycles
+- **Features**:
+  - Incubation cycle tracking
+  - Success rate monitoring
+  - Batch management
+  - Environmental condition logging
+- **Data Model**: `HatchingBatchEntity` and `HatchingLogEntity`
+- **Repository**: `HatchingRepositoryImpl.kt`
+- **Worker**: `FarmMonitoringWorker.kt` for daily health checks
+- **ViewModel**: `HatchingViewModel.kt`
+
+### 6. Breeding Management (`ui/monitoring/BreedingManagementScreen.kt`)
+- **Purpose**: Manage breeding pairs and genetics
+- **Features**:
+  - Pair management
+  - Genetics tracking
+  - Performance analytics
+  - Breeding schedule
+- **Data Model**: `BreedingPairEntity` and related breeding entities
+- **Repository**: `BreedingRepositoryImpl.kt`
+- **Worker**: `FarmMonitoringWorker.kt` for daily health checks
+- **ViewModel**: `BreedingManagementViewModel.kt`
+
+### 7. Farm Performance (`ui/monitoring/FarmPerformanceScreen.kt`)
+- **Purpose**: Aggregate farm performance metrics
+- **Features**:
+  - KPI dashboard
+  - Efficiency metrics
+  - Comparative analytics
+  - Performance trends
+- **Data Model**: Aggregated performance data
+- **Repository**: `FarmPerformanceRepositoryImpl.kt`
+- **Worker**: `FarmPerformanceWorker.kt` for weekly performance reports
+- **ViewModel**: `FarmPerformanceViewModel.kt`
+
+### 8. Daily Logging (`ui/monitoring/DailyLogScreen.kt`)
+- **Purpose**: Record daily farm activities and observations
+- **Features**:
+  - Daily activity logs
+  - Weight recordings
+  - Feed and medication tracking
+  - Photo documentation
+- **Data Model**: `DailyLogEntity` with comprehensive daily data
+- **Repository**: `DailyLogRepositoryImpl.kt`
+- **Worker**: `FarmMonitoringWorker.kt` for daily health checks
+- **ViewModel**: `DailyLogViewModel.kt`
+
+### 9. Task Management (`ui/monitoring/TasksScreen.kt`)
+- **Purpose**: Manage farm-related tasks and reminders
+- **Features**:
+  - Task scheduling
+  - Priority management
+  - Recurring tasks
+  - Completion tracking
+- **Data Model**: `TaskEntity` with task type, priority, due date
+- **Repository**: `TaskRepositoryImpl.kt`
+- **Worker**: `FarmMonitoringWorker.kt` for daily health checks
+- **ViewModel**: `TasksViewModel.kt`
+
+### 10. FCRCalculator (`ui/monitoring/FCRCalculatorScreen.kt`)
+- **Purpose**: Calculate Feed Conversion Ratio for performance analysis
+- **Features**:
+  - FCR calculation
+  - Performance metrics
+  - Historical comparisons
+- **Data Model**: Feed and weight data for FCR calculation
+- **Repository**: `FarmPerformanceRepositoryImpl.kt`
+- **ViewModel**: `FCRCalculatorViewModel.kt`
+
+### 11. Batch Splitting (`ui/monitoring/BatchSplitViewModel.kt`)
+- **Purpose**: Manage splitting of bird batches
+- **Features**:
+  - Batch division tracking
+  - New batch creation
+  - Lineage preservation
+- **Data Model**: Batch splitting metadata
+- **Repository**: `FarmOnboardingRepositoryImpl.kt`
+- **ViewModel**: `BatchSplitViewModel.kt`
+
+### 12. Batch Hierarchy (`ui/monitoring/BatchHierarchyViewModel.kt`)
+- **Purpose**: Visualize relationships between batches
+- **Features**:
+  - Hierarchical batch view
+  - Relationship tracking
+  - Split history
+- **Data Model**: Batch relationship data
+- **Repository**: `FarmOnboardingRepositoryImpl.kt`
+- **ViewModel**: `BatchHierarchyViewModel.kt`
 
 ## Performance Analytics
 

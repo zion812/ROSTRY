@@ -161,6 +161,72 @@ flowchart TD
 - Logcat filters, Database Inspector, Network Inspector
 - Timing and traces via Firebase Performance
 
+## Fetcher System Issues
+
+### Common Fetcher Problems
+
+- **Problem**: Fetch requests failing with network errors
+  - **Cause**: Network connectivity issues, request coalescer conflicts, or cache policy misconfiguration
+  - **Solution**:
+    1. Verify network connectivity using `ConnectivityManager`
+    2. Check `RequestCoalescer` for duplicate request handling
+    3. Review `CachePolicy` configuration in `ClientRequest`
+    4. Enable detailed logging for fetch operations
+
+- **Problem**: Cache misses when data should be available
+  - **Cause**: TTL expiration, incorrect cache key, or cache invalidation
+  - **Solution**:
+    1. Verify cache key generation in `FetcherCoordinator`
+    2. Check TTL settings in `CachePolicy`
+    3. Review cache invalidation triggers in `CacheInvalidator`
+    4. Inspect `CacheManager` for proper storage/retrieval
+
+- **Problem**: Duplicate network requests despite coalescing
+  - **Cause**: Different request keys, coalescer not properly initialized, or concurrent request timing
+  - **Solution**:
+    1. Ensure identical requests use same cache key
+    2. Verify `RequestCoalescer` singleton instance
+    3. Check for race conditions in request initiation
+
+- **Problem**: Fetcher health check reporting degraded status
+  - **Cause**: High failure rate, slow response times, or service unavailability
+  - **Solution**:
+    1. Review `FetcherHealthCheck` metrics collection
+    2. Check downstream service availability
+    3. Adjust health check thresholds if appropriate
+    4. Investigate specific fetcher implementations for issues
+
+- **Problem**: Memory leaks with fetcher operations
+  - **Cause**: Retained references to fetcher instances, improper coroutine scope management
+  - **Solution**:
+    1. Use proper coroutine scopes with lifecycle awareness
+    2. Implement proper cleanup in fetcher lifecycle
+    3. Check for retained references in ViewModels or Activities
+
+### Fetcher Debugging Steps
+
+1. Enable detailed logging:
+   ```kotlin
+   // In debug builds
+   Timber.plant(DebugTree())
+   // Add fetcher-specific logging
+   ```
+
+2. Monitor cache operations:
+   - Check cache hit/miss ratios
+   - Verify TTL expiration behavior
+   - Inspect cache size and eviction patterns
+
+3. Track request coalescing:
+   - Monitor concurrent request handling
+   - Verify duplicate request detection
+   - Check for proper response distribution
+
+4. Review health metrics:
+   - Failure rates
+   - Response times
+   - Availability percentages
+
 ## Still Stuck?
 - Open an issue with:
   - Steps to reproduce

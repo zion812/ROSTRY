@@ -405,6 +405,171 @@ service firebase.storage {
 - Sets up default preferences
 - Sends welcome notification
 
+**KYC Verification** (`functions/src/kyc/verifyDocument.ts`):
+- Processes uploaded identity documents
+- Performs OCR and validation
+- Updates user verification status
+- Stores verification metadata
+
+**Payment Processing** (`functions/src/payments/processPayment.ts`):
+- Handles payment gateway integration
+- Verifies payment authenticity
+- Updates order status
+- Sends payment confirmation
+
+**Auctions** (`functions/src/auctions/closeAuction.ts`):
+- Automatically closes expired auctions
+- Determines winning bid
+- Creates transfer request
+- Sends notifications to participants
+
+**Roles** (`functions/src/roles/upgradeRequest.ts`):
+- Processes role upgrade requests
+- Validates user eligibility
+- Updates user role and permissions
+- Migrates user data for new role
+
+**Auth** (`functions/src/auth/phoneAuth.ts`):
+- Handles phone number verification
+- Manages OTP generation and validation
+- Implements rate limiting
+- Tracks verification attempts
+
+**Payments** (`functions/src/payments/processPayment.ts`):
+- Processes payment transactions
+- Handles payment gateway callbacks
+- Updates transaction status
+- Sends payment notifications
+
+**Evidence Orders** (`functions/src/evidence-orders/quoteExpiry.ts`):
+- Manages quote expiration for evidence orders
+- Sends payment reminders
+- Handles order status transitions
+- Processes delivery confirmations
+
+### Function Triggers
+
+**HTTP Callable Functions**:
+- `verifyTransfer`: Secure transfer validation
+- `processPayment`: Payment processing and verification
+- `sendNotification`: FCM notification dispatching
+- `moderateContent`: Automated content moderation
+- `verifyKYC`: Identity document verification
+- `processAuction`: Auction closing and winner determination
+- `upgradeRole`: Role upgrade processing
+- `createEvidenceOrder`: Evidence-based order creation
+- `updateEvidenceOrder`: Evidence-based order updates
+
+**Background Triggers**:
+- `onUserCreate`: Triggered when new user registers
+- `onTransferUpdate`: Triggered when transfer status changes
+- `onOrderUpdate`: Triggered when order status changes
+- `onProductCreate`: Triggered when new product is listed
+- `onMessageCreate`: Triggered when new message is sent
+- `onPostCreate`: Triggered when new social post is created
+
+### Security & Validation
+
+**Input Validation**:
+All callable functions validate input parameters:
+```typescript
+export const verifyTransfer = functions.https.onCall(async (data, context) => {
+  // Verify user is authenticated
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  // Validate required parameters
+  if (!data.transferId || typeof data.transferId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'transferId is required');
+  }
+
+  // Process transfer verification
+  // Implementation details...
+});
+```
+
+**Rate Limiting**:
+Implement rate limiting to prevent abuse:
+```typescript
+const limiter = new RateLimiter({
+  redis: redisClient,
+  keyPrefix: 'verifyTransfer',
+  points: 10, // Number of requests
+  duration: 60 // Per 60 seconds
+});
+```
+
+**Authentication**:
+All functions verify user authentication and permissions:
+```typescript
+// Verify user role for specific operations
+if (context.auth.token.role !== 'FARMER' && context.auth.token.role !== 'ENTHUSIAST') {
+  throw new functions.https.HttpsError('permission-denied', 'Insufficient permissions');
+}
+```
+
+### Error Handling
+
+**Standard Error Types**:
+- `cancelled`: Operation was cancelled
+- `unknown`: Unknown error occurred
+- `invalid-argument`: Invalid function arguments
+- `deadline-exceeded`: Operation timed out
+- `not-found`: Requested resource not found
+- `already-exists`: Resource already exists
+- `permission-denied`: Insufficient permissions
+- `resource-exhausted`: Resource quota exceeded
+- `failed-precondition`: Operation failed precondition
+- `aborted`: Operation was aborted
+- `out-of-range`: Operation value out of range
+- `unimplemented`: Function not implemented
+- `internal`: Internal server error
+- `unavailable`: Service unavailable
+- `data-loss`: Unrecoverable data loss
+- `unauthenticated`: User not authenticated
+
+### Monitoring & Logging
+
+**Structured Logging**:
+```typescript
+import * as logger from 'firebase-functions/logger';
+
+export const processPayment = functions.https.onCall(async (data, context) => {
+  logger.log('Processing payment', {
+    userId: context.auth.uid,
+    amount: data.amount,
+    timestamp: Date.now()
+  });
+
+  try {
+    // Payment processing logic
+    const result = await paymentGateway.process(data);
+
+    logger.info('Payment processed successfully', {
+      paymentId: result.id,
+      userId: context.auth.uid
+    });
+
+    return result;
+  } catch (error) {
+    logger.error('Payment processing failed', {
+      error: error.message,
+      userId: context.auth.uid,
+      data: data
+    });
+
+    throw new functions.https.HttpsError('internal', 'Payment processing failed');
+  }
+});
+```
+
+**Performance Monitoring**:
+- Monitor function execution time
+- Track error rates and types
+- Analyze resource usage
+- Set up alerts for anomalies
+
 ### Deployment
 
 ```bash
@@ -413,6 +578,63 @@ firebase deploy --only functions
 
 # Deploy specific function
 firebase deploy --only functions:initiateTransfer
+
+# Deploy with environment variables
+firebase functions:config:set app.environment="production"
+firebase deploy --only functions
+
+# Rollback to previous version
+firebase functions:rollback functionName
+```
+
+### Testing Functions
+
+**Unit Testing**:
+```typescript
+import * as admin from 'firebase-admin';
+import * as functionsTest from 'firebase-functions-test';
+
+const test = functionsTest();
+
+describe('verifyTransfer', () => {
+  it('should verify transfer when authenticated', async () => {
+    const wrapped = test.wrap(require('../src/transfers/verifyTransfer'));
+
+    const data = { transferId: 'test-transfer' };
+    const context = { auth: { uid: 'test-user' } };
+
+    const result = await wrapped(data, context);
+
+    expect(result).toBeDefined();
+  });
+});
+```
+
+**Integration Testing**:
+```bash
+# Test functions locally with emulator
+firebase emulators:exec 'npm test'
+```
+
+### Environment Configuration
+
+**Secrets Management**:
+Store sensitive information in environment variables:
+```bash
+firebase functions:config:set stripe.secret_key="sk_test_..."
+firebase functions:config:set maps.api_key="AIza..."
+```
+
+**Multiple Environments**:
+Deploy different configurations for dev/staging/prod:
+```bash
+# Development
+firebase use dev
+firebase functions:config:set app.environment="development"
+
+# Production
+firebase use prod
+firebase functions:config:set app.environment="production"
 ```
 
 ---

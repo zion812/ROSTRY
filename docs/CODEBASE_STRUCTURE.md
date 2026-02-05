@@ -619,6 +619,77 @@ ui/animations/
 
 ## Data Layer (`data/`)
 
+### Fetcher System (`data/fetcher/`)
+
+Centralized data fetching infrastructure with caching, deduplication, and health monitoring:
+
+| File | Purpose |
+|------|---------|
+| `FetcherRegistry.kt` | Central registry for all fetchers with type-safe registration |
+| `FetcherCoordinator.kt` | Orchestrates fetch operations, manages cache interactions |
+| `RequestCoalescer.kt` | Deduplicates concurrent requests for same data |
+| `ContextualLoader.kt` | Handles contextual data loading with priority management |
+| `FetcherHealthCheck.kt` | Monitors fetcher performance and availability |
+
+### Cache Management (`data/cache/`)
+
+Intelligent caching system with TTL, health monitoring, and performance optimization:
+
+| File | Purpose |
+|------|---------|
+| `CacheManager.kt` | Central cache management API and usage |
+| `CacheHealthMonitor.kt` | Cache health monitoring and metrics |
+| `CachePolicy.kt` | Cache policies and TTL strategies |
+| `CacheInvalidator.kt` | Cache invalidation strategies |
+
+### Health Monitoring (`data/health/`)
+
+System health monitoring and metrics collection:
+
+| File | Purpose |
+|------|---------|
+| `HealthMonitor.kt` | Overall system health monitoring |
+| `DataLayerHealthCheck.kt` | Data layer health checks |
+| `NetworkHealthMonitor.kt` | Network connectivity health |
+
+### Data Integrity (`data/integrity/`)
+
+Data validation, integrity checks, and consistency enforcement:
+
+| File | Purpose |
+|------|---------|
+| `DataIntegrityChecker.kt` | Data integrity validation |
+| `ConsistencyValidator.kt` | Data consistency enforcement |
+| `ValidationPipeline.kt` | Validation pipeline implementation |
+
+### Resilience Patterns (`data/resilience/`)
+
+Circuit breakers, retry logic, and fault tolerance mechanisms:
+
+| File | Purpose |
+|------|---------|
+| `CircuitBreaker.kt` | Circuit breaker pattern implementation |
+| `RetryMechanism.kt` | Retry logic with exponential backoff |
+| `FallbackHandler.kt` | Fallback strategies for service failures |
+
+### Migration Management (`data/migration/`)
+
+Database migration strategies and version management:
+
+| File | Purpose |
+|------|---------|
+| `MigrationManager.kt` | Database migration orchestration |
+| `VersionedMigration.kt` | Version-specific migration logic |
+
+### Mock Data (`data/mock/`)
+
+Mock data providers for testing and development:
+
+| File | Purpose |
+|------|---------|
+| `MockDataProvider.kt` | Mock data generation for testing |
+| `TestDataFactory.kt` | Test data factory patterns |
+
 ### Database (`data/database/`)
 
 #### Entities (`data/database/entity/`)
@@ -821,6 +892,41 @@ ui/animations/
 |------|---------|
 | `SyncManager.kt` | Sync orchestration |
 | `Outbox.kt` | Offline queue |
+
+### Base (`data/base/`)
+
+| File | Purpose |
+|------|---------|
+| `BaseRepository.kt` | Base repository pattern with safeApiCall, safeCall |
+| `BaseDataSource.kt` | Base data source implementation |
+
+### Monitoring (`data/monitoring/`)
+
+| File | Purpose |
+|------|---------|
+| `DataLayerMonitor.kt` | Data layer monitoring utilities |
+| `PerformanceMetrics.kt` | Performance metric collection |
+
+### Service (`data/service/`)
+
+| File | Purpose |
+|------|---------|
+| `ExternalServiceConnector.kt` | External service integration patterns |
+| `ApiServiceWrapper.kt` | API service wrapper implementations |
+
+### Session (`data/session/`)
+
+| File | Purpose |
+|------|---------|
+| `SessionDataManager.kt` | Session data management |
+| `SessionStateProvider.kt` | Session state provision |
+
+### Storage (`data/storage/`)
+
+| File | Purpose |
+|------|---------|
+| `LocalStorageManager.kt` | Local storage management |
+| `StorageContract.kt` | Storage contract definitions |
 
 ---
 

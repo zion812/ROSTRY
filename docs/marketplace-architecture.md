@@ -34,6 +34,47 @@ data class ProductEntity(
 )
 ```
 
+## Evidence-Based Order System
+
+The Evidence-Based Order System ensures trust through immutable evidence collection and state-locked agreements. This system implements a 10-state workflow that provides transparency and accountability for all parties involved.
+
+### Order States
+1. **Enquiry**: Buyer expresses interest in a product
+2. **Quote**: Seller responds with pricing and terms
+3. **Agreement**: Both parties agree to terms
+4. **Advance Payment**: Buyer pays initial amount
+5. **Verification**: Payment proof uploaded and verified
+6. **Dispatch**: Seller ships the product with shipping proof
+7. **Delivery**: Product delivered to buyer
+8. **Completion**: Buyer confirms receipt and satisfaction
+9. **Dispute**: Raised if issues arise during any state
+10. **Cancelled**: Order cancelled by either party or system
+
+### Evidence-Based Verification
+- **Payment Proof**: Verification with evidence upload
+- **Shipping Proof**: Delivery confirmation with tracking
+- **Delivery OTP**: Secure delivery confirmation
+- **Immutable Evidence**: All evidence is cryptographically secured
+
+### Order Tracking
+Complete order lifecycle tracking with:
+- Real-time status updates
+- Evidence submission requirements
+- Notification system for state changes
+- Audit trail for all actions
+
+### Payment Verification
+- Multi-stage payment verification
+- Evidence-based payment confirmation
+- Secure payment gateway integration
+- Escrow-like payment handling
+
+### Review System
+- Order-based reviews and ratings
+- Seller performance tracking
+- Product quality feedback
+- Transaction history
+
 ## Filtering Logic
 
 ### GeneralMarketViewModel
@@ -43,8 +84,8 @@ The marketplace feed applies a filter to exclude private items.
 // GeneralMarketViewModel.kt
 val products = repository.getAllProducts()
     .map { list ->
-        list.filter { product -> 
-            product.status == "AVAILABLE" && product.isPublic 
+        list.filter { product ->
+            product.status == "AVAILABLE" && product.isPublic
         }
     }
 ```
@@ -56,3 +97,27 @@ The farm management screens show all products belonging to the authenticated far
 Farmers can toggle visibility from their inventory or listing details screen.
 - **Make Private**: Removes from marketplace search/feed, keeps in farm records.
 - **Make Public**: Publishes to marketplace if all validation criteria (images, price, location) are met.
+
+## Order Management Components
+
+### Order Repository
+- `EvidenceOrderRepositoryImpl.kt`: Handles evidence-based order operations
+- `OrderRepositoryImpl.kt`: Standard order management
+- `OrderManagementRepositoryImpl.kt`: Order lifecycle management
+
+### Order ViewModels
+- `EvidenceOrderViewModel.kt`: Manages evidence-based order states
+- `MyOrdersViewModel.kt`: User's order management
+- `OrderTrackingViewModel.kt`: Real-time order tracking
+
+### Order Entities
+- `EvidenceOrderEntities.kt`: Order quotes, payments, delivery confirmations, order evidence, order disputes, order audit logs
+- `OrderEntity.kt`: Standard order data
+- `OrderItemEntity.kt`: Order item details
+- `OrderTrackingEventEntity.kt`: Order state change events
+
+### Order UI Components
+- `ui/order/`: Order tracking and management screens
+- `ui/order/evidence/MyOrdersScreen.kt`: User's evidence-based orders
+- `ui/order/OrderTrackingScreen.kt`: Real-time order tracking
+- `ui/marketplace/dispute/CreateDisputeViewModel.kt`: Dispute creation and management

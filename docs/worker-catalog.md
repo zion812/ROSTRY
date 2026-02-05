@@ -1,14 +1,18 @@
 Title: Worker Catalog
-Version: 1.0
-Last Updated: 2025-10-29
+Version: 1.1
+Last Updated: 2026-02-05
 Audience: Developers, DevOps
 
 ## Table of Contents
+- [Core Sync Workers](#core-sync-workers)
 - [Farm Monitoring Workers](#farm-monitoring-workers)
 - [Personalization & Analytics Workers](#personalization--analytics-workers)
 - [Notification & Reminder Workers](#notification--reminder-workers)
 - [Media & Upload Workers](#media--upload-workers)
 - [Moderation & Maintenance Workers](#moderation--maintenance-workers)
+- [Transfer & Order Workers](#transfer--order-workers)
+- [Evidence-Based Order Workers](#evidence-based-order-workers)
+- [Data & Migration Workers](#data--migration-workers)
 - [Worker Configuration](#worker-configuration)
 - [Monitoring & Debugging](#monitoring--debugging)
 - [Implementation Guide](#implementation-guide)
@@ -23,6 +27,21 @@ val workRequest = OneTimeWorkRequestBuilder<SyncWorker>()
     .build()
 WorkManager.getInstance(context).enqueue(workRequest)
 ```
+
+## Core Sync Workers
+
+### SyncWorker
+**Purpose**: Primary data synchronization worker for Room/Firebase harmonization
+- Synchronizes local Room database with Firebase Firestore
+- Handles bidirectional sync of user data, products, transfers, and social content
+- Implements conflict resolution with server timestamp preference
+- Processes pending changes from outbox queue
+- Reduced from 6h to 8h intervals for quota optimization
+
+**Scheduling**: Periodic every 8 hours
+**Constraints**: Network connected, device idle preferred
+**Integration**: Works with SyncManager for incremental sync
+**Retry Logic**: Exponential backoff with max 3 attempts
 
 ### OutboxSyncWorker
 **Purpose**: Processes outbox pattern for offline changes
@@ -42,7 +61,7 @@ fun schedule(context: Context) {
         .setRequiredNetworkType(NetworkType.CONNECTED)
         .setRequiresBatteryNotLow(true)
         .build()
-    
+
     val workRequest = PeriodicWorkRequestBuilder<OutboxSyncWorker>(
         15, TimeUnit.MINUTES
     )
@@ -53,7 +72,7 @@ fun schedule(context: Context) {
             TimeUnit.MILLISECONDS
         )
         .build()
-    
+
     WorkManager.getInstance(context)
         .enqueueUniquePeriodicWork(WORK_NAME, EXISTING_KEEP, workRequest)
 }
@@ -243,6 +262,156 @@ These workers handle content moderation, system cleanup, and performance optimiz
 **Scheduling**: Every 4 hours
 **Constraints**: Network connected
 **Integration**: Updates moderation flags in entities
+
+## Transfer & Order Workers
+
+### TransferTimeoutWorker
+**Purpose**: Enforces SLA deadlines for transfer completion
+- Monitors pending transfers for timeout conditions
+- Automatically cancels transfers that exceed time limits
+- Sends notifications to involved parties about timeout status
+- Updates transfer status to TIMEOUT_EXPIRED
+
+**Scheduling**: Periodic every 2 hours
+**Constraints**: Network connected
+**Integration**: Works with TransferWorkflowRepository for status updates
+
+### OutgoingMessageWorker
+**Purpose**: Flushes queued outgoing messages to delivery system
+- Processes messages stored in OutgoingMessageEntity queue
+- Delivers messages to recipients via Firebase or other channels
+- Updates delivery status and timestamps
+- Replaced by OutboxSyncWorker for broader sync operations
+
+**Scheduling**: On-demand when messages are queued
+**Constraints**: Network connected
+**Integration**: Works with MessagingRepository for delivery
+
+## Evidence-Based Order Workers
+
+### EvidenceOrderWorker
+**Purpose**: Manages evidence-based order lifecycle automation
+- Handles quote expiry for unaccepted quotes
+- Sends payment reminder notifications
+- Processes delivery confirmation workflows
+- Manages dispute resolution timelines
+- Updates order status through 10-state workflow
+
+**Scheduling**: Periodic every 1 hour
+**Constraints**: Network connected
+**Integration**: Works with EvidenceOrderRepository for state management
+
+## Data & Migration Workers
+
+### LegacyProductMigrationWorker
+**Purpose**: One-time migration of legacy product data
+- Converts old product format to new schema
+- Preserves historical data during architecture updates
+- Runs only once during app upgrade
+- Validates migrated data integrity
+
+**Scheduling**: One-time execution on app upgrade
+**Constraints**: None (runs during app startup)
+**Integration**: Works with ProductRepository for data conversion
+
+### DataCleanupWorker
+**Purpose**: Regular cleanup of obsolete data
+- Removes expired temporary data
+- Cleans up orphaned records
+- Archives old logs and temporary files
+- Maintains database performance
+
+**Scheduling**: Daily at 1 AM
+**Constraints**: Device idle, storage not low
+**Integration**: Works with various repositories for cleanup
+
+### DataExportWorker
+**Purpose**: Handles bulk data export operations
+- Processes large-scale data export requests
+- Generates export files in background
+- Manages export file storage and cleanup
+- Notifies users when exports are ready
+
+**Scheduling**: On-demand for export requests
+**Constraints**: Sufficient storage, network connected
+**Integration**: Works with ExportManager for file generation
+
+### BatchGraduationWorker
+**Purpose**: Manages batch lifecycle transitions
+- Automatically advances batches through lifecycle stages
+- Updates batch statuses based on time thresholds
+- Creates follow-up tasks for graduated batches
+- Integrates with farm monitoring systems
+
+**Scheduling**: Daily at 3 AM
+**Constraints**: Device idle
+**Integration**: Works with FarmMonitoringRepository
+
+### DailyAnalyticsWorker
+**Purpose**: Processes daily analytics aggregation
+- Aggregates daily usage metrics
+- Calculates performance KPIs
+- Updates analytics dashboards
+- Generates daily reports
+
+**Scheduling**: Daily at 2 AM
+**Constraints**: Device idle
+**Integration**: Works with AnalyticsRepository
+
+### EventReminderWorker
+**Purpose**: Sends event reminder notifications
+- Monitors upcoming events
+- Sends timely reminders to attendees
+- Handles RSVP status updates
+- Integrates with calendar systems
+
+**Scheduling**: Daily at 9 AM
+**Constraints**: Network connected
+**Integration**: Works with EventRepository
+
+### FarmAlertWorker
+**Purpose**: Manages farm-specific alert notifications
+- Monitors farm health metrics
+- Sends critical alerts to farmers
+- Tracks alert acknowledgment
+- Integrates with farm monitoring systems
+
+**Scheduling**: Periodic every 30 minutes
+**Constraints**: Network connected
+**Integration**: Works with FarmMonitoringRepository
+
+### NotificationFlushWorker
+**Purpose**: Batch processes notification delivery
+- Groups multiple notifications for efficient delivery
+- Reduces battery drain from frequent notifications
+- Handles different notification priorities
+- Manages notification queuing and delivery
+
+**Scheduling**: Periodic every 15 minutes
+**Constraints**: Network connected
+**Integration**: Works with NotificationRepository
+
+### OrderStatusWorker
+**Purpose**: Monitors and updates order status changes
+- Tracks order progression through states
+- Sends status update notifications
+- Handles order timeout conditions
+- Integrates with EvidenceOrderRepository
+
+**Scheduling**: Periodic every 30 minutes
+**Constraints**: Network connected
+**Integration**: Works with OrderRepository
+
+### VerificationUploadWorker
+**Purpose**: Processes verification document uploads
+- Handles transfer verification document processing
+- Manages document validation and storage
+- Updates verification status
+- Integrates with TransferWorkflowRepository
+
+**Scheduling**: On-demand for verification uploads
+**Constraints**: Network connected, sufficient storage
+**Integration**: Works with VerificationRepository
 
 ### CacheCleanupWorker
 **Purpose**: Cache management and cleanup

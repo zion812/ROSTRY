@@ -443,7 +443,8 @@ class UserRepositoryImpl @Inject constructor(
         upgradeType: UpgradeType,
         currentRole: UserType,
         targetRole: UserType?,
-        farmLocation: Map<String, Double>?
+        farmLocation: Map<String, Double>?,
+        applicantPhone: String?
     ): Resource<Unit> = safeCall {
         val currentUser = firebaseAuth.currentUser
         if (currentUser == null) {
@@ -473,8 +474,9 @@ class UserRepositoryImpl @Inject constructor(
         
         // Fetch user info for denormalization (helps admin identify applicant)
         val localUser = userDao.getUserById(authUserId).firstOrNull()
-        val applicantName = localUser?.fullName ?: localUser?.phoneNumber ?: "Unknown"
-        val applicantPhone = localUser?.phoneNumber
+        val finalApplicantName = localUser?.fullName ?: localUser?.phoneNumber ?: "Unknown"
+        // Use passed phone if available, otherwise fallback to profile phone
+        val finalApplicantPhone = if (!applicantPhone.isNullOrBlank()) applicantPhone else localUser?.phoneNumber
         val farmAddress = localUser?.farmAddressLine1?.let { addr ->
             listOfNotNull(addr, localUser.farmCity, localUser.farmState)
                 .joinToString(", ")
@@ -494,8 +496,8 @@ class UserRepositoryImpl @Inject constructor(
             "submissionId" to submissionId,
             "userId" to authUserId,
             "referenceNumber" to referenceNumber,
-            "applicantName" to applicantName,
-            "applicantPhone" to applicantPhone,
+            "applicantName" to finalApplicantName,
+            "applicantPhone" to finalApplicantPhone,
             "upgradeType" to upgradeType.name,
             "currentRole" to currentRole.name,
             "targetRole" to targetRole?.name,
@@ -837,13 +839,29 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getPendingVerificationCount(): Int {
         return try {
-            val snapshot = firestore.collection("verifications")
-                .whereEqualTo("currentStatus", "PENDING")
-                .get()
+            // Check both collections for accuracy, or prioritize Users collection as the source of truth for "Status"
+            // Using users collection ensures we catch orphans
+            val snapshot = usersCollection
+                .whereEqualTo("verificationStatus", VerificationStatus.PENDING.name)
+                .count()
+                .get(com.google.firebase.firestore.AggregateSource.SERVER)
                 .await()
-            snapshot.size()
+            snapshot.count.toInt()
         } catch (e: Exception) {
             0
         }
     }
+
+    override suspend fun getUsersByVerificationStatus(status: VerificationStatus): Resource<List<UserEntity>> = safeCall {
+        val snapshot = usersCollection
+            .whereEqualTo("verificationStatus", status.name)
+            .get()
+            .await()
+            
+        val users = snapshot.toObjects(UserEntity::class.java)
+        if (users.isNotEmpty()) {
+            userDao.upsertUsers(users)
+        }
+        users
+    }.filter { it !is Resource.Loading<*> }.firstOrNull() ?: Resource.Error("Failed to fetch users by status")
 }

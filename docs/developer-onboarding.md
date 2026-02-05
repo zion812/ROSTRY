@@ -1,7 +1,12 @@
-**Version:** 2.2  
-**Last Updated:** 2025-10-29  
-**Audience:** New developers  
-**Estimated Time:** 2–3 hours for setup and first PR
+---
+Version: 2.2
+Last Updated: 2025-10-29
+Audience: New developers
+Status: Active
+Estimated_Time: 2-3_hours_for_setup_and_first_PR
+Related_Docs: [QUICK_START.md, CHEAT_SHEET.md, CODE_STYLE.md, CONTRIBUTING.md]
+Tags: [onboarding, setup, getting-started, environment]
+---
 
 # Developer Onboarding Guide
 
@@ -145,6 +150,63 @@ AppNavHost
 - `@Singleton` - App lifetime
 - `@ViewModelScoped` - ViewModel lifetime
 - `@ActivityRetainedScoped` - Survives config changes
+
+### Fetcher System Introduction
+
+The ROSTRY application implements a sophisticated **Fetcher System** that provides centralized data fetching infrastructure with intelligent caching, request deduplication, and health monitoring capabilities.
+
+#### Core Components
+
+1. **`FetcherRegistry`**: Central registry for all fetchers with type-safe registration and retrieval
+2. **`FetcherCoordinator`**: Orchestrates fetch operations, manages cache interactions, and handles request routing
+3. **`RequestCoalescer`**: Deduplicates concurrent requests for the same data to prevent redundant network calls
+4. **`ContextualLoader`**: Handles contextual data loading with priority management and smart prefetching
+5. **`FetcherHealthCheck`**: Monitors fetcher performance, availability, and response times for proactive maintenance
+
+#### Key Features
+
+- **Intelligent Caching**: Implements multiple caching strategies (TTL-based, staleness-aware, cache-aside)
+- **Request Deduplication**: Prevents duplicate network calls for identical requests occurring simultaneously
+- **Health Monitoring**: Continuously monitors fetcher availability and performance metrics
+- **Error Handling**: Built-in retry mechanisms and circuit breaker patterns
+- **Performance Optimization**: Connection pooling, batching, and adaptive strategies
+
+#### Integration Pattern
+
+The fetcher system integrates seamlessly with the repository layer:
+
+```kotlin
+@Singleton
+class ProductRepositoryImpl @Inject constructor(
+    private val fetcherCoordinator: FetcherCoordinator,
+    private val cacheManager: CacheManager,
+    private val localDataSource: LocalProductDataSource,
+    private val remoteDataSource: RemoteProductDataSource
+) : ProductRepository {
+
+    override suspend fun getProducts(): Resource<List<Product>> {
+        val request = ClientRequest(
+            key = "products",
+            fetcher = remoteDataSource::fetchProducts,
+            cachePolicy = CachePolicy.CACHE_FIRST,
+            ttl = 5.minutes
+        )
+
+        return fetcherCoordinator.fetch(request)
+    }
+}
+```
+
+#### Getting Started with Fetchers
+
+When working with data fetching in ROSTRY:
+1. Use the fetcher system for all data retrieval operations
+2. Define appropriate cache policies based on data volatility
+3. Monitor fetcher health metrics for performance optimization
+4. Implement proper error handling with fallback strategies
+5. Test fetcher behavior under various network conditions
+
+For detailed implementation and advanced patterns, see `fetcher-system.md` and `cache-management.md`.
 
 ---
 

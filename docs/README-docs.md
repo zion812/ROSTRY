@@ -1,6 +1,6 @@
 ---
-Version: 4.2
-Last Updated: 2026-01-04
+Version: 4.3
+Last Updated: 2026-02-06
 Audience: Developers, Architects
 Status: Active
 ---
@@ -11,7 +11,7 @@ Status: Active
 
 The documentation folder consolidates deep-dive guides to help new and existing contributors understand the system architecture, feature domains, and operational requirements.
 
-**Last Updated**: 2026-01-13
+**Last Updated**: 2026-02-06
 **Documentation Version**: 4.3
 
 📘 **NEW: Complete System Reference** - See `../ROSTRY_COMPLETE_RND_DOCUMENTATION.md` for the comprehensive R&D Master Document that provides end-to-end coverage of the entire codebase, including architecture, detailed features, and implementation patterns.
@@ -96,6 +96,10 @@ Understanding the ROSTRY implementation details:
 | `dependency-injection.md` | Hilt modules, scopes, testing, qualifiers | ✅ Up-to-date |
 | `error-handling.md` | Result pattern, repository/UI mapping, logging, Crashlytics | ✅ Up-to-date |
 | `data-contracts.md` | Room schema, Firebase collections, Retrofit APIs, validation | ✅ Up-to-date |
+| `fetcher-system.md` | **NEW** Fetcher system architecture, data retrieval patterns, caching strategies | ✅ Active |
+| `cache-management.md` | **NEW** Cache management implementation, strategies, and best practices | ✅ Active |
+| `data-layer-architecture.md` | **NEW** Data layer architecture, repository patterns, and data flow | ✅ Active |
+| `data-sources-integration.md` | **NEW** Data sources integration, API connectivity, and data synchronization | ✅ Active |
 
 ---
 
@@ -106,6 +110,7 @@ Essential guides for developers working on ROSTRY:
 | Document | Description | Audience |
 |----------|-------------|----------|
 | `api-documentation.md` | KDoc standards, Dokka configuration, documentation requirements | All developers |
+| `api-integration-guide.md` | **NEW** API integration patterns, Retrofit setup, interceptors, and error handling | All developers |
 | `firebase-setup.md` | Complete Firebase configuration, security rules, Cloud Functions | Developers, DevOps |
 | `database-migrations.md` | Room migration guide, schema evolution, testing migrations | Backend developers |
 | `ci-cd.md` | GitHub Actions workflows, deployment automation, pipeline configuration | DevOps, Contributors |
@@ -153,6 +158,11 @@ Essential guides for developers working on ROSTRY:
 | `feature-toggles.md` | Feature flags, A/B testing, lifecycle |
 | `notification-system.md` | FCM integration, channels, preferences, deep links |
 | `api-integration.md` | Retrofit, interceptors, rate limiting, offline-first |
+| `api-integration-guide.md` | **NEW** API integration patterns, Retrofit setup, interceptors, and error handling |
+| `fetcher-system.md` | **NEW** Fetcher system architecture, data retrieval patterns, caching strategies |
+| `cache-management.md` | **NEW** Cache management implementation, strategies, and best practices |
+| `data-layer-architecture.md` | **NEW** Data layer architecture, repository patterns, and data flow |
+| `data-sources-integration.md` | **NEW** Data sources integration, API connectivity, and data synchronization |
 | `security-encryption.md` | SQLCipher, biometrics, sessions, audit logging |
 | `background-jobs.md` | WorkManager workers, constraints, monitoring |
 | `performance-optimization.md` | Performance best practices and profiling |
@@ -248,9 +258,11 @@ flowchart TD
 | Adding tests | `testing-strategy.md`, `CODE_STYLE.md` |
 | UX component | `user-experience-guidelines.md`, `CODE_STYLE.md` |
 | Security feature | `security-encryption.md`, `rbac-permissions.md` |
-| API documentation | `api-documentation.md`, `CODE_STYLE.md` |
+| API documentation | `api-documentation.md`, `api-integration-guide.md`, `CODE_STYLE.md` |
 | CI/CD pipeline | `ci-cd.md`, `deployment.md` |
 | API key management | `api-keys-setup.md`, `firebase-setup.md` |
+| API integration | `api-integration.md`, `api-integration-guide.md`, `fetcher-system.md` |
+| Data layer architecture | `data-layer-architecture.md`, `data-sources-integration.md`, `cache-management.md` |
 | AI recommendations | `ai-personalization.md`, `analytics-dashboard.md` |
 | Gamification features | `gamification.md`, `user-experience-guidelines.md` |
 | Traceability tracking | `traceability.md`, `farm-monitoring.md` |

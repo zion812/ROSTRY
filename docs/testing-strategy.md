@@ -182,6 +182,104 @@ class ProductRepositoryTest {
 
 For database migration testing patterns and examples, see the comprehensive guide in `database-migrations.md` (Testing Migrations section).
 
+### Fetcher System Testing
+
+Fetcher system components require specialized testing approaches due to their complex caching, deduplication, and health monitoring capabilities.
+
+#### Fetcher Testing Pattern
+
+```kotlin
+@HiltAndroidTest
+@RunWith(MockitoJUnitRunner::class)
+class FetcherIntegrationTest {
+    @get:Rule
+    val hiltRule = HiltAndroidRule(this)
+
+    @Inject
+    lateinit var fetcherCoordinator: FetcherCoordinator
+
+    @Inject
+    lateinit var cacheManager: CacheManager
+
+    @Test
+    fun `fetch with cache miss should fetch from remote and cache result`() = runTest {
+        // Given
+        val request = ClientRequest(
+            key = "test-product-123",
+            fetcher = { /* Simulate remote fetch */ },
+            cachePolicy = CachePolicy.default()
+        )
+
+        // When
+        val result = fetcherCoordinator.fetch(request)
+
+        // Then
+        assertIs<Resource.Success<Product>>(result)
+        // Verify result was cached
+        assertNotNull(cacheManager.get<Product>("test-product-123"))
+    }
+
+    @Test
+    fun `concurrent requests should be deduplicated`() = runTest {
+        // Given
+        val request = ClientRequest(
+            key = "test-product-456",
+            fetcher = { /* Simulate slow remote fetch */ },
+            cachePolicy = CachePolicy(CacheStrategy.CACHE_ONLY)
+        )
+
+        // When - Multiple concurrent requests
+        val results = (1..5).map {
+            async { fetcherCoordinator.fetch(request) }
+        }.awaitAll()
+
+        // Then - Should return same result for all requests
+        val firstResult = results.first()
+        assertTrue(results.all { it == firstResult })
+    }
+}
+```
+
+#### Cache Testing Pattern
+
+```kotlin
+@Test
+fun `cache with TTL expiration should return null after expiry`() = runTest {
+    // Given
+    val cacheManager = CacheManagerImpl()
+    val testData = "test data"
+    val testKey = "ttl-test-key"
+
+    // When
+    cacheManager.put(testKey, testData, CachePolicy(ttl = 100.milliseconds))
+    delay(150) // Wait for expiration
+
+    // Then
+    assertNull(cacheManager.get<String>(testKey))
+}
+```
+
+#### Health Check Testing
+
+```kotlin
+@Test
+fun `fetcher health check should report degraded status when failure rate high`() = runTest {
+    // Given
+    val fetcherHealthCheck = FetcherHealthCheck()
+
+    // Simulate multiple failures
+    repeat(10) {
+        fetcherHealthCheck.recordFailure("test-fetcher")
+    }
+
+    // When
+    val healthStatus = fetcherHealthCheck.getHealthStatus("test-fetcher")
+
+    // Then
+    assertEquals(HealthStatus.DEGRADED, healthStatus)
+}
+```
+
 ---
 
 ## UI Testing
