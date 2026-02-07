@@ -8,6 +8,7 @@ import com.rio.rostry.data.mock.VirtualArenaMockData
 import com.rio.rostry.data.repository.VirtualArenaRepository
 import com.rio.rostry.domain.model.CompetitionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +68,16 @@ class VirtualArenaViewModel @Inject constructor(
 
     fun setStatusFilter(status: CompetitionStatus) {
         _selectedStatus.value = status
+    }
+
+    /**
+     * Get a specific competition by ID.
+     */
+    fun getCompetitionById(competitionId: String): Flow<CompetitionEntryEntity?> {
+        // Return a flow that emits the found competition or null
+        return combine(_competitions) { comps ->
+            comps.first().find { it.competitionId == competitionId }
+        }
     }
     
     /**

@@ -42,6 +42,14 @@ interface PostsDao {
     @Query("SELECT COUNT(*) FROM posts WHERE authorId = :authorId")
     fun countByAuthor(authorId: String): Flow<Int>
 
+    // Feed of followed users
+    @Query("""
+        SELECT * FROM posts 
+        WHERE authorId IN (SELECT followedId FROM follows WHERE followerId = :userId) 
+        ORDER BY createdAt DESC
+    """)
+    fun pagingByFollowedUsers(userId: String): PagingSource<Int, PostEntity>
+
     @Query("DELETE FROM posts WHERE postId = :postId")
     suspend fun delete(postId: String)
 }

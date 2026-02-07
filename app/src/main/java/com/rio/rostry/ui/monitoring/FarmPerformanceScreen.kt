@@ -309,6 +309,7 @@ private fun FCRCard(fcr: com.rio.rostry.data.repository.FCRAnalysis) {
         FCRRating.GOOD -> Color(0xFF4CAF50)
         FCRRating.AVERAGE -> Color(0xFFFFC107)
         FCRRating.POOR -> Color(0xFFD32F2F)
+        FCRRating.UNKNOWN -> Color.Gray
     }
     
     Card(

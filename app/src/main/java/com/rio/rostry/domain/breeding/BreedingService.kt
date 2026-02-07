@@ -30,7 +30,8 @@ data class TraitPrediction(
 
 @Singleton
 class BreedingService @Inject constructor(
-    private val pedigreeRepository: PedigreeRepository
+    private val pedigreeRepository: PedigreeRepository,
+    private val geneticPotentialService: com.rio.rostry.domain.service.GeneticPotentialService
 ) {
 
     /**
@@ -165,6 +166,29 @@ class BreedingService @Inject constructor(
             possibleColors = possibleColors,
             possibleBreeds = possibleBreeds,
             estimatedQuality = estimatedQuality
+        )
+    }
+
+    /**
+     * Advanced genetic analysis using potential service.
+     */
+    suspend fun analyzePairingPotential(sire: ProductEntity, dam: ProductEntity): com.rio.rostry.domain.service.GeneticPotentialResult {
+        // Simplified: Averaging the potential of both parents
+        val sirePotential = geneticPotentialService.analyzeLineage(sire.productId)
+        val damPotential = geneticPotentialService.analyzeLineage(dam.productId)
+        
+        val newStrength = (sirePotential.lineageStrength + damPotential.lineageStrength) / 2
+        
+        // Merge traits
+        val newTraits = mutableMapOf<String, Float>()
+        sirePotential.traitPotential.forEach { (trait, score) ->
+            newTraits[trait] = (score + (damPotential.traitPotential[trait] ?: 0f)) / 2
+        }
+        
+        return com.rio.rostry.domain.service.GeneticPotentialResult(
+            lineageStrength = newStrength,
+            traitPotential = newTraits,
+            notableAncestors = sirePotential.notableAncestors + damPotential.notableAncestors
         )
     }
 }

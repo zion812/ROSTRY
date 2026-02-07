@@ -41,6 +41,7 @@ import com.rio.rostry.data.database.dao.FollowsDao
 import com.rio.rostry.data.database.dao.GroupsDao
 import com.rio.rostry.data.database.dao.GroupMembersDao
 import com.rio.rostry.data.database.dao.EventsDao
+import com.rio.rostry.data.database.dao.ExpenseDao
 import com.rio.rostry.data.database.dao.ExpertBookingsDao
 import com.rio.rostry.data.database.dao.ModerationReportsDao
 import com.rio.rostry.data.database.dao.BadgesDao
@@ -267,7 +268,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_67_68,
             AppDatabase.MIGRATION_70_71,
             AppDatabase.MIGRATION_71_72,
-            AppDatabase.MIGRATION_72_73
+            AppDatabase.MIGRATION_72_73,
+            AppDatabase.MIGRATION_73_74
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -305,6 +307,12 @@ object DatabaseModule {
     @Singleton
     fun provideOrderDao(appDatabase: AppDatabase): OrderDao {
         return appDatabase.orderDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideExpenseDao(appDatabase: AppDatabase): ExpenseDao {
+        return appDatabase.expenseDao()
     }
 
     @Provides

@@ -26,7 +26,8 @@ class SaleCompletionService @Inject constructor(
     
     /**
      * Complete the sale for a delivered order.
-     * Marks source assets as SOLD and creates buyer copies.
+     * Supports partial sales: decrements source asset quantity and only marks as SOLD if remaining is 0.
+     * Buyer receives a new FarmAsset with the purchased quantity.
      */
     suspend fun completeOrderSale(orderId: String, buyerId: String): Resource<Int> {
         return try {
@@ -45,22 +46,32 @@ class SaleCompletionService @Inject constructor(
                 val sourceAssetId = product.sourceAssetId ?: continue
                 val sourceAsset = farmAssetDao.findById(sourceAssetId) ?: continue
                 
-                Timber.d("SaleCompletionService: Processing asset $sourceAssetId for product ${product.productId}")
+                val quantitySold = item.quantity.toDouble()
+                val currentQty = sourceAsset.quantity ?: 1.0
+                val remainingQty = (currentQty - quantitySold).coerceAtLeast(0.0)
                 
-                // 4. Mark source asset as SOLD
-                farmAssetDao.markAsSold(
-                    assetId = sourceAssetId,
-                    buyerId = buyerId,
-                    price = item.priceAtPurchase * item.quantity,
-                    soldAt = now,
-                    updatedAt = now
-                )
+                Timber.d("SaleCompletionService: Processing asset $sourceAssetId - selling $quantitySold of $currentQty, remaining: $remainingQty")
                 
-                // 5. Create buyer's copy of the asset (with lineage link)
-                val buyerAsset = createBuyerAsset(sourceAsset, buyerId, now)
+                // 4. Handle based on remaining quantity
+                if (remainingQty <= 0) {
+                    // Full sale - mark as SOLD
+                    farmAssetDao.markAsSold(
+                        assetId = sourceAssetId,
+                        buyerId = buyerId,
+                        price = item.priceAtPurchase * item.quantity,
+                        soldAt = now,
+                        updatedAt = now
+                    )
+                } else {
+                    // Partial sale - only decrement quantity
+                    farmAssetDao.updateQuantity(sourceAssetId, remainingQty, now)
+                }
+                
+                // 5. Create buyer's copy of the asset with sold quantity
+                val buyerAsset = createBuyerAsset(sourceAsset, buyerId, quantitySold, now)
                 farmAssetDao.insertAsset(buyerAsset)
                 
-                Timber.d("SaleCompletionService: Created buyer asset ${buyerAsset.assetId} from ${sourceAsset.assetId}")
+                Timber.d("SaleCompletionService: Created buyer asset ${buyerAsset.assetId} with qty $quantitySold from ${sourceAsset.assetId}")
                 assetsTransferred++
             }
             
@@ -74,16 +85,19 @@ class SaleCompletionService @Inject constructor(
     
     /**
      * Create a buyer's copy of the asset with lineage tracking.
+     * @param quantitySold The quantity being transferred to the buyer (for partial sales)
      */
     private fun createBuyerAsset(
         sourceAsset: FarmAssetEntity,
         buyerId: String,
+        quantitySold: Double,
         now: Long
     ): FarmAssetEntity {
         return sourceAsset.copy(
             assetId = UUID.randomUUID().toString(),
             farmerId = buyerId,
             status = "ACTIVE",
+            quantity = quantitySold, // Set to sold quantity for partial sales
             
             // Lineage tracking
             previousOwnerId = sourceAsset.farmerId,

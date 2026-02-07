@@ -19,5 +19,8 @@ data class CompetitionEntryEntity(
     val participantCount: Int = 0,
     val participantsPreviewJson: String? = null, // Top 3 avatar URLs
     val rulesJson: String? = null,
+    val bracketsJson: String? = null,       // Structure of the tournament tree
+    val leaderboardJson: String? = null,    // Ranked list of participants
+    val galleryUrlsJson: String? = null,    // List of event photos
     val createdAt: Long = System.currentTimeMillis()
 )

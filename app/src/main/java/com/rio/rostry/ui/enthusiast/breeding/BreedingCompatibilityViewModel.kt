@@ -11,17 +11,24 @@ import com.rio.rostry.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.rio.rostry.domain.service.GeneticPotentialResult
+import com.rio.rostry.domain.service.GeneticPotentialService
 
 @HiltViewModel
 class BreedingCompatibilityViewModel @Inject constructor(
     private val breedingService: BreedingService,
     private val pedigreeRepository: PedigreeRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val geneticPotentialService: GeneticPotentialService
 ) : ViewModel() {
+
+    private val _geneticPotentialState = MutableStateFlow<GeneticPotentialResult?>(null)
+    val geneticPotentialState: StateFlow<GeneticPotentialResult?> = _geneticPotentialState.asStateFlow()
 
     data class UiState(
         val isLoading: Boolean = false,
@@ -106,5 +113,17 @@ class BreedingCompatibilityViewModel @Inject constructor(
     
     fun clearSelection() {
         _state.update { it.copy(selectedSire = null, selectedDam = null, compatibility = null, prediction = null) }
+    }
+
+    fun loadGeneticPotential(birdId: String) {
+        viewModelScope.launch {
+            try {
+                val result = geneticPotentialService.analyzeLineage(birdId)
+                _geneticPotentialState.value = result
+            } catch (e: Exception) {
+                // Handle error
+                e.printStackTrace()
+            }
+        }
     }
 }

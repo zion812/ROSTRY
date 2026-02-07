@@ -76,12 +76,35 @@ fun SocialFeedScreen(
     onOpenStoryCreator: () -> Unit,
     vm: SocialFeedViewModel = hiltViewModel(),
 ) {
-    val feed = vm.feed().collectAsLazyPagingItems()
+    val feed = vm.feed.collectAsLazyPagingItems()
     val stories by vm.activeStories.collectAsState(initial = emptyList())
     
     Column(Modifier.fillMaxSize()) {
         // ... (Filter chips code remains similar, can be optimized) ...
-        // For brevity, keeping the structure but updating the list content
+        // Feed Type Tabs
+        val feedType by vm.feedType.collectAsState()
+        
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = feedType == SocialFeedViewModel.FeedType.GLOBAL,
+                onClick = { vm.setFeedType(SocialFeedViewModel.FeedType.GLOBAL) },
+                label = { Text("For You") },
+                leadingIcon = if (feedType == SocialFeedViewModel.FeedType.GLOBAL) {
+                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                } else null
+            )
+            FilterChip(
+                selected = feedType == SocialFeedViewModel.FeedType.FOLLOWING,
+                onClick = { vm.setFeedType(SocialFeedViewModel.FeedType.FOLLOWING) },
+                label = { Text("Following") },
+                leadingIcon = if (feedType == SocialFeedViewModel.FeedType.FOLLOWING) {
+                   { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                } else null
+            )
+        }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -47,6 +48,7 @@ fun FarmerDashboardScreen(
     vm: FarmerDashboardViewModel = hiltViewModel(),
     onOpenReports: () -> Unit = {},
     onOpenFeed: () -> Unit = {},
+    onOpenProfitability: () -> Unit = {}
 ) {
     val d = vm.dashboard.collectAsState().value
     val last4 = vm.lastFour.collectAsState().value
@@ -256,7 +258,10 @@ fun FarmerDashboardScreen(
                         visible = visible,
                         enter = fadeIn(animationSpec = tween(500, delayMillis = 350)) + slideInVertically { 50 }
                     ) {
-                        FinancialOverviewCard(profit)
+                        FinancialOverviewCard(
+                            metrics = profit,
+                            onClick = onOpenProfitability
+                        )
                     }
                 }
                 
@@ -549,9 +554,14 @@ private fun SparklineChart(values: List<Double>, color: Color) {
 }
 
 @Composable
-private fun FinancialOverviewCard(metrics: ProfitabilityMetrics) {
+private fun FinancialOverviewCard(
+    metrics: ProfitabilityMetrics,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(16.dp)) {

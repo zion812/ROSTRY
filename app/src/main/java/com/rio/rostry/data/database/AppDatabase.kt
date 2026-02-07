@@ -140,9 +140,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Role Upgrade Requests (Phase 4)
         com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity::class,
         // Transactions (Phase 7)
-        com.rio.rostry.data.database.entity.TransactionEntity::class
+        com.rio.rostry.data.database.entity.TransactionEntity::class,
+        // Expense Tracking (Phase 17)
+        ExpenseEntity::class
     ],
-    version = 73, // 72 -> 73
+    version = 74, // 73 -> 74 (Added ExpenseEntity)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -188,6 +190,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun farmAssetDao(): FarmAssetDao
     abstract fun inventoryItemDao(): InventoryItemDao
     abstract fun marketListingDao(): MarketListingDao
+    abstract fun expenseDao(): ExpenseDao
 
     // Farm monitoring DAOs
     abstract fun growthRecordDao(): com.rio.rostry.data.database.dao.GrowthRecordDao
@@ -2576,6 +2579,31 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_eventType` ON `farm_timeline_events` (`eventType`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_eventDate` ON `farm_timeline_events` (`eventDate`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_farm_timeline_events_isPublic` ON `farm_timeline_events` (`isPublic`)")
+            }
+        }
+        
+        // MIGRATION 73->74: Add expenses table for expense tracking
+        val MIGRATION_73_74 = object : Migration(73, 74) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `expenses` (
+                        `expenseId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `assetId` TEXT,
+                        `category` TEXT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `description` TEXT,
+                        `expenseDate` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1,
+                        `syncedAt` INTEGER
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_farmerId` ON `expenses` (`farmerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_assetId` ON `expenses` (`assetId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_category` ON `expenses` (`category`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_expenseDate` ON `expenses` (`expenseDate`)")
             }
         }
     }

@@ -52,6 +52,8 @@ fun SocialProfileScreen(
 
     val isOwnProfile by vm.isOwnProfile.collectAsState()
     val canEditProfile by vm.canEditProfile.collectAsState()
+    val isFollowing by vm.isFollowing.collectAsState()
+    val isFollowLoading by vm.isFollowLoading.collectAsState()
 
     Scaffold(
         topBar = {
@@ -82,8 +84,10 @@ fun SocialProfileScreen(
                     followingCount = following,
                     isCurrentUser = isOwnProfile,
                     canEdit = canEditProfile,
+                    isFollowing = isFollowing,
+                    isFollowLoading = isFollowLoading,
                     onEditProfile = onEditProfileClick,
-                    onFollow = { vm.follow() },
+                    onFollow = { if (isFollowing) vm.unfollow() else vm.follow() },
                     onMessage = { onMessage(u.userId) }
                 )
             }
@@ -134,7 +138,9 @@ fun ProfileHeader(
     followersCount: Int,
     followingCount: Int,
     isCurrentUser: Boolean,
-    canEdit: Boolean, // New parameter
+    canEdit: Boolean,
+    isFollowing: Boolean,
+    isFollowLoading: Boolean,
     onEditProfile: () -> Unit,
     onFollow: () -> Unit,
     onMessage: () -> Unit = {}
@@ -195,9 +201,10 @@ fun ProfileHeader(
                  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = onFollow,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        enabled = !isFollowLoading
                     ) {
-                        Text("Follow")
+                        Text(if (isFollowing) "Following" else "Follow")
                     }
                     Button(
                         onClick = onMessage,
@@ -213,9 +220,10 @@ fun ProfileHeader(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = onFollow,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    enabled = !isFollowLoading
                 ) {
-                    Text("Follow")
+                    Text(if (isFollowing) "Following" else "Follow")
                 }
                 Button(
                     onClick = onMessage,

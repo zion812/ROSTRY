@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -1795,6 +1796,42 @@ private fun RoleNavGraph(
                 )
             }
         }
+
+        // Expense Ledger Screen
+        composable(Routes.Monitoring.EXPENSE_LEDGER) {
+            com.rio.rostry.ui.farmer.expense.ExpenseLedgerScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Profitability Screen
+        composable(Routes.Monitoring.PROFITABILITY) {
+            com.rio.rostry.ui.analytics.financial.ProfitabilityScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Asset Lifecycle Documentation Screen
+        composable(
+            route = Routes.Monitoring.ASSET_DOCUMENT,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
+            if (assetId.isBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.farmer.documentation.AssetDocumentScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+        
+        // Farm-Wide Documentation Screen
+        composable(Routes.Monitoring.FARM_DOCUMENT) {
+            com.rio.rostry.ui.farmer.documentation.FarmDocumentScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
         
         // ============ Order Routes ============
         
@@ -1974,7 +2011,8 @@ private fun RoleNavGraph(
         composable(Routes.Analytics.FARMER) {
             com.rio.rostry.ui.analytics.FarmerDashboardScreen(
                 onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) },
-                onOpenFeed = { navController.navigate(Routes.Social.FEED) }
+                onOpenFeed = { navController.navigate(Routes.Social.FEED) },
+                onOpenProfitability = { navController.navigate(Routes.Monitoring.PROFITABILITY) }
             )
         }
         
@@ -2415,6 +2453,54 @@ private fun RoleNavGraph(
                     collectionId = collectionId,
                     onNavigateBack = { navController.popBackStack() }
                 )
+            }
+        }
+        
+        // Virtual Arena Dashboard
+        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
+            com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToStatus = { competitionId ->
+                    navController.navigate(Routes.EnthusiastNav.competitionDetail(competitionId))
+                }
+            )
+        }
+
+        // Virtual Arena Competition Detail
+        composable(
+            route = Routes.EnthusiastNav.COMPETITION_DETAIL,
+            arguments = listOf(navArgument("competitionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val competitionId = backStackEntry.arguments?.getString("competitionId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.arena.CompetitionDetailScreen(
+                competitionId = competitionId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Bloodline Genetics Analytics
+        composable(
+            route = Routes.EnthusiastNav.ANALYTICS_GENETICS,
+            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val birdId = backStackEntry.arguments?.getString("birdId") ?: return@composable
+            val breedingVm: com.rio.rostry.ui.enthusiast.breeding.BreedingCompatibilityViewModel = hiltViewModel()
+            
+            LaunchedEffect(birdId) {
+                breedingVm.loadGeneticPotential(birdId)
+            }
+            
+            val state by breedingVm.geneticPotentialState.collectAsState()
+            
+            if (state != null) {
+                com.rio.rostry.ui.enthusiast.analytics.BloodlineAnalyticsScreen(
+                    result = state!!,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            } else {
+                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                 }
             }
         }
         

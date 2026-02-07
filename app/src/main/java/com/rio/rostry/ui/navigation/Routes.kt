@@ -226,6 +226,17 @@ object Routes {
         
         // NEW: Financial Analytics Routes
         const val FCR_CALCULATOR = "monitoring/fcr/{assetId}"
+        const val EXPENSE_LEDGER = "monitoring/expenses"
+        const val PROFITABILITY = "monitoring/profitability"
+        
+        // NEW: Asset Lifecycle Documentation
+        const val ASSET_DOCUMENT = "monitoring/document/{assetId}"
+        
+        // NEW: Farm-Wide Documentation
+        const val FARM_DOCUMENT = "monitoring/farm_document"
+        
+        // Builder functions
+        fun assetDocument(assetId: String) = "monitoring/document/$assetId"
     }
 
     // Loveable product feature routes
@@ -294,6 +305,10 @@ object Routes {
         const val ROOSTER_CARD = "enthusiast/rooster_card/{productId}"
         const val BREEDING_CALCULATOR = "enthusiast/breeding_calculator"
         const val PERFORMANCE_JOURNAL = "enthusiast/performance_journal"
+        
+        // Analytics
+        const val ANALYTICS_GENETICS = "enthusiast/analytics/genetics/{birdId}"
+        fun geneticsAnalytics(birdId: String) = "enthusiast/analytics/genetics/$birdId"
         const val PEDIGREE_EXPORT = "enthusiast/pedigree/{birdId}/export"
         const val VIRTUAL_ARENA = "enthusiast/virtual_arena"
         // Legacy Builder Features
@@ -438,6 +453,11 @@ object Routes {
             Monitoring.BIRD_HISTORY,
             // Financial Analytics
             Monitoring.FCR_CALCULATOR,
+            Monitoring.PROFITABILITY,
+            // Asset Lifecycle Documentation
+            Monitoring.ASSET_DOCUMENT,
+            // Farm-Wide Documentation
+            Monitoring.FARM_DOCUMENT,
             // Settings
             Settings.BACKUP_RESTORE,
             // Analytics
@@ -522,6 +542,8 @@ object Routes {
             EnthusiastNav.BREEDING_CALCULATOR,
             EnthusiastNav.PERFORMANCE_JOURNAL,
             EnthusiastNav.VIRTUAL_ARENA,
+            EnthusiastNav.COMPETITION_DETAIL,
+            EnthusiastNav.ANALYTICS_GENETICS,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features

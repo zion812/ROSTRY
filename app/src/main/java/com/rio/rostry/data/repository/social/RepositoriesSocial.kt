@@ -36,6 +36,7 @@ data class EngagementMetrics(
 interface SocialRepository {
     fun feed(pageSize: Int = 20): Flow<PagingData<PostEntity>>
     fun feedRanked(pageSize: Int = 20): Flow<PagingData<PostEntity>>
+    fun feedFollowing(userId: String, pageSize: Int = 20): Flow<PagingData<PostEntity>>
     fun getUserPosts(userId: String, pageSize: Int = 20): Flow<PagingData<PostEntity>>
     suspend fun createPost(
         authorId: String,
@@ -116,6 +117,9 @@ class SocialRepositoryImpl @Inject constructor(
 
     override fun feedRanked(pageSize: Int): Flow<PagingData<PostEntity>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingRanked() }.flow
+
+    override fun feedFollowing(userId: String, pageSize: Int): Flow<PagingData<PostEntity>> =
+        Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingByFollowedUsers(userId) }.flow
 
     override fun getUserPosts(userId: String, pageSize: Int): Flow<PagingData<PostEntity>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingByAuthor(userId) }.flow

@@ -572,6 +572,21 @@ fun FarmAssetDetailScreen(
                         Text("View Show Records")
                     }
 
+                    // Export Documentation Button
+                    OutlinedButton(
+                        onClick = { 
+                            onNavigateRoute(com.rio.rostry.ui.navigation.Routes.Monitoring.assetDocument(assetId))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.Description, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Export Asset Documentation")
+                    }
+
                     // Showcase Toggle & Share
                     Card(
                         modifier = Modifier.fillMaxWidth(),

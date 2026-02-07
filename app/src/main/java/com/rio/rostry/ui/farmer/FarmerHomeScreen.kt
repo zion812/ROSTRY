@@ -41,6 +41,7 @@ import com.rio.rostry.ui.farmer.TodayTasksCard
 import com.rio.rostry.ui.farmer.QuickLogBottomSheet
 import com.rio.rostry.ui.farmer.QuickLogType
 import com.rio.rostry.ui.farmer.HarvestTriggerCard
+import com.rio.rostry.ui.farmer.SmartActionCard
 import com.rio.rostry.ui.components.VerificationStatusCard
 
 data class FetcherCard(
@@ -145,6 +146,116 @@ fun FarmerHomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
                 }
+            }
+            
+            // Smart Action Card - Aggregated urgent actions (Priority 1: Smart Task Aggregator)
+            item {
+                SmartActionCard(
+                    vaccinationOverdue = uiState.vaccinationOverdueCount,
+                    vaccinationDue = uiState.vaccinationDueCount,
+                    tasksOverdue = uiState.tasksOverdueCount,
+                    tasksDue = uiState.tasksDueCount,
+                    hatchingDueThisWeek = uiState.hatchingDueThisWeek,
+                    ordersToVerify = paymentsToVerify.size,
+                    enquiriesPending = incomingEnquiries.size,
+                    onVaccinationClick = { onNavigateRoute(Routes.Builders.monitoringVaccinationWithFilter("today")) },
+                    onTasksClick = { onNavigateRoute(Routes.MONITORING_TASKS) },
+                    onHatchingClick = { onNavigateRoute(Routes.Builders.monitoringHatching()) },
+                    onOrdersClick = { onNavigateRoute(Routes.Order.MY_ORDERS_FARMER) }
+                )
+            }
+            
+            // Farm-Wide Documentation Export Card
+            item {
+                Card(
+                    onClick = { onNavigateRoute(Routes.Monitoring.FARM_DOCUMENT) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Farm Report",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = "Export complete farm documentation as PDF",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+            
+            // Expense Ledger Card
+            item {
+                Card(
+                    onClick = { onNavigateRoute(Routes.Monitoring.EXPENSE_LEDGER) },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ReceiptLong,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Expense Ledger",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                text = "Track feed, medicine, and other farm costs",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
+            
+            // Market Timing Widget (New)
+            item {
+                com.rio.rostry.ui.analytics.market.MarketTimingWidget(
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
             }
             
             // Weather Card - Heat Stress Warning (Open-Meteo API)

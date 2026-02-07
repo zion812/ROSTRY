@@ -56,7 +56,8 @@ enum class FCRRating {
     EXCELLENT,  // < 1.8
     GOOD,       // 1.8 - 2.2
     AVERAGE,    // 2.2 - 2.8
-    POOR        // > 2.8
+    POOR,       // > 2.8
+    UNKNOWN
 }
 
 /**

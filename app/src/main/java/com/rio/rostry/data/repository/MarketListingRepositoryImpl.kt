@@ -167,13 +167,39 @@ class MarketListingRepositoryImpl @Inject constructor(
             }
             
             val now = System.currentTimeMillis()
+            var listingAssetId = assetId
+            
+            // 2b. Handle Partial Listing
+            if (quantity < asset.quantity) {
+                Timber.d("createListingFromAsset: Splitting asset for partial listing. Total: ${asset.quantity}, Listing: $quantity")
+                
+                // Create new asset specifically for this listing
+                listingAssetId = UUID.randomUUID().toString()
+                val listedAsset = asset.copy(
+                    assetId = listingAssetId,
+                    quantity = quantity,
+                    createdAt = now,
+                    updatedAt = now,
+                    dirty = true,
+                    // Ensure split asset inherits necessary fields but not listing fields yet
+                    listingId = null,
+                    listedAt = null
+                )
+                farmAssetDao.insertAsset(listedAsset)
+                
+                // Update original asset with remaining quantity
+                val remainingQty = asset.quantity - quantity
+                farmAssetDao.updateQuantity(assetId, remainingQty, now)
+                
+                Timber.d("createListingFromAsset: Created split asset $listingAssetId, updated original $assetId to $remainingQty")
+            }
             
             // 3. Create Inventory Item (for stock tracking)
             val inventoryId = UUID.randomUUID().toString()
             val inventory = InventoryItemEntity(
                 inventoryId = inventoryId,
                 farmerId = userId,
-                sourceAssetId = assetId,
+                sourceAssetId = listingAssetId,
                 sourceBatchId = asset.batchId,
                 name = title,
                 category = asset.category,
@@ -212,9 +238,9 @@ class MarketListingRepositoryImpl @Inject constructor(
             dao.upsert(listing)
             Timber.d("createListingFromAsset: Listing created $listingId")
             
-            // 5. Mark source asset as LISTED
+            // 5. Mark the target asset as LISTED
             farmAssetDao.markAsListed(
-                assetId = assetId,
+                assetId = listingAssetId,
                 listingId = listingId,
                 listedAt = now,
                 updatedAt = now

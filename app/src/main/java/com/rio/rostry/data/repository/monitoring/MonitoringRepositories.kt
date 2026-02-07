@@ -38,11 +38,27 @@ interface MortalityRepository {
     suspend fun insert(record: MortalityRecordEntity)
 }
 
+/**
+ * MortalityRepositoryImpl with Inventory Auto-Sync.
+ * When a mortality record is inserted, the linked FarmAsset's quantity is decremented.
+ */
 class MortalityRepositoryImpl @Inject constructor(
-    private val dao: MortalityRecordDao
+    private val dao: MortalityRecordDao,
+    private val farmAssetDao: FarmAssetDao
 ): MortalityRepository {
     override fun observeAll() = dao.observeAll()
-    override suspend fun insert(record: MortalityRecordEntity) = dao.insert(record)
+    
+    override suspend fun insert(record: MortalityRecordEntity) {
+        // 1. Insert the mortality record
+        dao.insert(record)
+        
+        // 2. Decrement FarmAsset quantity if productId is present
+        record.productId?.let { assetId ->
+            val currentQty = farmAssetDao.getCurrentQuantity(assetId) ?: 0.0
+            val newQty = (currentQty - record.quantity).coerceAtLeast(0.0)
+            farmAssetDao.updateQuantity(assetId, newQty, System.currentTimeMillis())
+        }
+    }
 }
 
 interface VaccinationRepository {
