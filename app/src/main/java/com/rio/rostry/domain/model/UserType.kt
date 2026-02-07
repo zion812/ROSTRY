@@ -34,13 +34,30 @@ enum class UserType(
             "Coin wallet"
         )
     ),
+    SUPPORT(
+        displayName = "Support Agent",
+        primaryFeatures = listOf(
+            "User lookup",
+            "Order viewing",
+            "Communication tools"
+        )
+    ),
+    MODERATOR(
+        displayName = "Content Moderator",
+        primaryFeatures = listOf(
+            "Product moderation",
+            "User moderation",
+            "Review management"
+        )
+    ),
     ADMIN(
-        displayName = "System Admin",
+        displayName = "Super Admin",
         primaryFeatures = listOf(
             "Verification management",
             "Audit log viewing",
             "System configuration",
-            "User management"
+            "User management",
+            "Full access"
         )
     );
 
@@ -48,6 +65,8 @@ enum class UserType(
         GENERAL -> FARMER
         FARMER -> ENTHUSIAST
         ENTHUSIAST -> null
+        SUPPORT -> null
+        MODERATOR -> null
         ADMIN -> null
     }
 }

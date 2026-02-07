@@ -294,6 +294,7 @@ object Routes {
         const val ROOSTER_CARD = "enthusiast/rooster_card/{productId}"
         const val BREEDING_CALCULATOR = "enthusiast/breeding_calculator"
         const val PERFORMANCE_JOURNAL = "enthusiast/performance_journal"
+        const val PEDIGREE_EXPORT = "enthusiast/pedigree/{birdId}/export"
         const val VIRTUAL_ARENA = "enthusiast/virtual_arena"
         // Legacy Builder Features
         const val PEDIGREE = "enthusiast/pedigree/{productId}"
@@ -303,14 +304,22 @@ object Routes {
         const val TRANSFER_CODE = "enthusiast/transfer_code/{productId}"
         const val CLAIM_TRANSFER = "enthusiast/claim_transfer"
         const val SHOWCASE_CARD = "enthusiast/showcase/{productId}"
-        const val SHOW_LOG = "enthusiast/show_log/{productId}"
+        const val SHOW_LOG = "enthusiast/show_log/{productId}" // Legacy?
+        const val SHOW_RECORDS = "enthusiast/show_records/{productId}" // New Phase 16
+        const val SHOW_ENTRY = "enthusiast/show_entry/{productId}" // New Phase 16
         const val COMPETITION_DETAIL = "enthusiast/virtual_arena/{competitionId}"
         
+        const val BREEDING_CALENDAR = "enthusiast/breeding_calendar"
+
         // Builder functions
         fun pedigree(productId: String) = "enthusiast/pedigree/$productId"
+        fun pedigreeExport(birdId: String) = "enthusiast/pedigree/$birdId/export"
         fun transferCode(productId: String) = "enthusiast/transfer_code/$productId"
         fun showcaseCard(productId: String) = "enthusiast/showcase/$productId"
         fun showLog(productId: String) = "enthusiast/show_log/$productId"
+        fun showRecords(productId: String) = "enthusiast/show_records/$productId"
+        fun showEntry(productId: String) = "enthusiast/show_entry/$productId"
+
         fun competitionDetail(competitionId: String) = "enthusiast/virtual_arena/$competitionId"
     }
     
@@ -495,10 +504,13 @@ object Routes {
             Upgrade.POST_ONBOARDING,
             // Digital Coop Features
             EnthusiastNav.PEDIGREE,
+            EnthusiastNav.PEDIGREE_EXPORT,
             EnthusiastNav.TRANSFER_CODE,
             EnthusiastNav.CLAIM_TRANSFER,
             EnthusiastNav.SHOWCASE_CARD,
             EnthusiastNav.SHOW_LOG,
+            EnthusiastNav.SHOW_RECORDS,
+            EnthusiastNav.SHOW_ENTRY,
             EnthusiastNav.HALL_OF_FAME,
             // Hatchability Features
             Hatchability.TRACKER,
@@ -580,11 +592,16 @@ object Routes {
     )
 
 
+    private val supportConfig = adminConfig.copy(role = UserType.SUPPORT)
+    private val moderatorConfig = adminConfig.copy(role = UserType.MODERATOR)
+
     fun configFor(role: UserType): RoleNavigationConfig = when (role) {
         UserType.GENERAL -> generalConfig
         UserType.FARMER -> farmerConfig
         UserType.ENTHUSIAST -> enthusiastConfig
         UserType.ADMIN -> adminConfig
+        UserType.SUPPORT -> supportConfig
+        UserType.MODERATOR -> moderatorConfig
     }
 
     const val AUTH_WELCOME = Auth.WELCOME

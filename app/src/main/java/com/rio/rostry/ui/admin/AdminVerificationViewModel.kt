@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -73,9 +75,10 @@ class AdminVerificationViewModel @Inject constructor(
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             // Guard: Wait for Resource.Success user emission before checking admin role
-            val user = userRepository.getCurrentUser().first { resource ->
-                resource is Resource.Success
-            }.data
+            val user = userRepository.getCurrentUser()
+                .filter { it is Resource.Success }
+                .first()
+                .data
             
             if (user?.role != com.rio.rostry.domain.model.UserType.ADMIN) {
                 _isLoading.value = false

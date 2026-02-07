@@ -300,7 +300,7 @@ class SessionViewModel @Inject constructor(
                 val timeoutDays = when (role) {
                     UserType.GENERAL -> 30L
                     UserType.FARMER, UserType.ENTHUSIAST -> 7L
-                    UserType.ADMIN -> 1L // Strict timeout for admins
+                    UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> 1L // Strict timeout for admins
                 }
                 val timeoutMillis = timeoutDays * 24 * 60 * 60 * 1000
                 val now = System.currentTimeMillis()

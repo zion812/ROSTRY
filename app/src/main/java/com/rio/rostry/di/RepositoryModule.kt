@@ -305,15 +305,7 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindAdminMortalityRepository(impl: com.rio.rostry.data.repository.admin.AdminMortalityRepositoryImpl): com.rio.rostry.data.repository.admin.AdminMortalityRepository
-
-    @Binds
-    @Singleton
     abstract fun bindDisputeRepository(impl: com.rio.rostry.data.repository.DisputeRepositoryImpl): com.rio.rostry.data.repository.DisputeRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindAuditRepository(impl: com.rio.rostry.data.repository.AuditRepositoryImpl): com.rio.rostry.data.repository.AuditRepository
 
     @Binds
     @Singleton
@@ -322,26 +314,6 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindRoleMigrationRepository(impl: com.rio.rostry.data.repository.RoleMigrationRepositoryImpl): com.rio.rostry.data.repository.RoleMigrationRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindAdminRepository(impl: com.rio.rostry.data.repository.AdminRepositoryImpl): com.rio.rostry.data.repository.AdminRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindSystemConfigRepository(impl: com.rio.rostry.data.repository.SystemConfigRepositoryImpl): com.rio.rostry.data.repository.SystemConfigRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindModerationRepository(
-        moderationRepositoryImpl: com.rio.rostry.data.repository.ModerationRepositoryImpl
-    ): com.rio.rostry.data.repository.ModerationRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindReportRepository(
-        reportRepositoryImpl: com.rio.rostry.data.repository.ReportRepositoryImpl
-    ): com.rio.rostry.data.repository.ReportRepository
 
     @Binds
     @Singleton

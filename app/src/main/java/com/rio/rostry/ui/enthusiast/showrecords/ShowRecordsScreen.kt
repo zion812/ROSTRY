@@ -30,10 +30,11 @@ import java.util.*
 fun ShowRecordsScreen(
     productId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToAddRecord: () -> Unit,
     viewModel: ShowRecordsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
+    // var showAddDialog by remember { mutableStateOf(false) } // Removed dialog state
     val snackbarHostState = remember { SnackbarHostState() }
     
     LaunchedEffect(productId) {
@@ -60,7 +61,7 @@ fun ShowRecordsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(onClick = onNavigateToAddRecord) {
                 Icon(Icons.Default.Add, contentDescription = "Add Record")
             }
         }
@@ -101,7 +102,7 @@ fun ShowRecordsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { showAddDialog = true }) {
+                        Button(onClick = onNavigateToAddRecord) {
                             Icon(Icons.Default.Add, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Add First Record")
@@ -125,24 +126,7 @@ fun ShowRecordsScreen(
         }
     }
     
-    // Add Record Dialog
-    if (showAddDialog) {
-        AddShowRecordDialog(
-            onDismiss = { showAddDialog = false },
-            onSave = { eventName, recordType, result, eventDate, placement, notes ->
-                viewModel.addRecord(
-                    productId = productId,
-                    eventName = eventName,
-                    recordType = recordType,
-                    result = result,
-                    eventDate = eventDate,
-                    placement = placement,
-                    notes = notes
-                )
-                showAddDialog = false
-            }
-        )
-    }
+    // Dialog removed in favor of ShowEntryScreen
 }
 
 @Composable

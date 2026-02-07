@@ -46,6 +46,8 @@ import com.rio.rostry.domain.pedigree.PedigreeTree
 fun PedigreeScreen(
     onNavigateBack: () -> Unit,
     onBirdClick: (String) -> Unit,
+    onNavigateToExport: (String) -> Unit,
+    onNavigateToShowRecords: (String) -> Unit,
     viewModel: PedigreeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -74,6 +76,16 @@ fun PedigreeScreen(
                     }
                 },
                 actions = {
+                    // Show Records Button
+                    IconButton(onClick = { 
+                        val state = uiState
+                        if (state is PedigreeUiState.Success) {
+                            onNavigateToShowRecords(state.rootBird.productId)
+                        }
+                    }) {
+                        Icon(Icons.Default.EmojiEvents, contentDescription = "Show Records")
+                    }
+
                     // Export Menu
                     Box {
                         IconButton(onClick = { showExportMenu = true }) {
@@ -84,28 +96,15 @@ fun PedigreeScreen(
                             onDismissRequest = { showExportMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Share Text Summary") },
+                                text = { Text("Export Options") },
                                 onClick = {
                                     showExportMenu = false
                                     val state = uiState
                                     if (state is PedigreeUiState.Success) {
-                                        sharePedigreeAsImage(context, state.rootBird.name, state.pedigreeTree)
-                                        exportMessage = "Pedigree shared"
+                                        onNavigateToExport(state.rootBird.productId)
                                     }
                                 },
-                                leadingIcon = { Icon(Icons.Default.Description, null) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Export PDF") },
-                                onClick = {
-                                    showExportMenu = false
-                                    val state = uiState
-                                    if (state is PedigreeUiState.Success) {
-                                        exportPedigreePdf(context, state.rootBird.name, state.pedigreeTree)
-                                        exportMessage = "PDF saved to Downloads"
-                                    }
-                                },
-                                leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) }
+                                leadingIcon = { Icon(Icons.Default.Share, null) }
                             )
                             DropdownMenuItem(
                                 text = { Text("Print-Friendly View") },

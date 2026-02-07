@@ -251,7 +251,7 @@ private fun getFeaturesForRole(role: UserType): List<Feature> {
                 icon = androidx.compose.material.icons.Icons.Filled.Insights
             )
         )
-        UserType.GENERAL, UserType.ADMIN -> emptyList() // Not applicable
+        UserType.GENERAL, UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> emptyList() // Not applicable
     }
 }
 
@@ -267,6 +267,6 @@ private fun getQuickActionsForRole(role: UserType): List<QuickAction> {
             QuickAction("Add Your First Bird", Routes.Builders.onboardingFarmBird("enthusiast")),
             QuickAction("View Analytics", Routes.ANALYTICS_ENTHUSIAST)
         )
-        UserType.GENERAL, UserType.ADMIN -> emptyList() // Not applicable
+        UserType.GENERAL, UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> emptyList() // Not applicable
     }
 }

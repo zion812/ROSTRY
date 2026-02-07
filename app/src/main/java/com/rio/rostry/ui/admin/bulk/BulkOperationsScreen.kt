@@ -13,10 +13,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BulkOperationsScreen(
+    viewModel: BulkOperationsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
     val operations = remember {
@@ -31,6 +34,15 @@ fun BulkOperationsScreen(
         )
     }
 
+    val runningOps by viewModel.runningOperations.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.toastEvent.collectLatest { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -41,7 +53,8 @@ fun BulkOperationsScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
@@ -58,7 +71,11 @@ fun BulkOperationsScreen(
             }
 
             items(operations) { op ->
-                OperationCard(op)
+                OperationCard(
+                    op = op,
+                    isRunning = runningOps.contains(op.name),
+                    onRun = { viewModel.runOperation(op.name) }
+                )
             }
         }
     }
@@ -67,9 +84,7 @@ fun BulkOperationsScreen(
 private data class BulkOperation(val name: String, val description: String, val icon: ImageVector, val color: Color)
 
 @Composable
-private fun OperationCard(op: BulkOperation) {
-    var isRunning by remember { mutableStateOf(false) }
-
+private fun OperationCard(op: BulkOperation, isRunning: Boolean, onRun: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().padding(16.dp),
@@ -85,7 +100,7 @@ private fun OperationCard(op: BulkOperation) {
                 }
             }
             Button(
-                onClick = { isRunning = !isRunning },
+                onClick = onRun,
                 enabled = !isRunning,
                 colors = ButtonDefaults.buttonColors(containerColor = op.color)
             ) {

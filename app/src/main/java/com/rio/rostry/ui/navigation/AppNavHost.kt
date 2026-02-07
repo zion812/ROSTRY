@@ -1352,7 +1352,9 @@ private fun RoleNavGraph(
             BreedingFlowScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onOpenPairDetail = { pairId -> navController.navigate("breeding/pair/$pairId") },
-                onOpenBatchDetail = { batchId -> navController.navigate("hatching/batch/$batchId") }
+                onOpenBatchDetail = { batchId -> navController.navigate("hatching/batch/$batchId") },
+                onOpenCalculator = { navController.navigate(Routes.EnthusiastNav.BREEDING_CALCULATOR) },
+                onOpenCalendar = { navController.navigate(Routes.EnthusiastNav.BREEDING_CALENDAR) }
             )
         }
 
@@ -1505,7 +1507,13 @@ private fun RoleNavGraph(
         }
 
         composable(Routes.EnthusiastNav.BREEDING_CALCULATOR) {
-            com.rio.rostry.ui.enthusiast.breeding.BreedingCalculatorScreen(
+            com.rio.rostry.ui.enthusiast.breeding.BreedingCompatibilityScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.EnthusiastNav.BREEDING_CALENDAR) {
+            com.rio.rostry.ui.enthusiast.breeding.BreedingCalendarScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -1541,15 +1549,34 @@ private fun RoleNavGraph(
         // Pedigree View
         composable(
             route = Routes.EnthusiastNav.PEDIGREE,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            arguments = listOf(
+                navArgument("productId") { type = NavType.StringType }
+            )
+        ) {
             com.rio.rostry.ui.enthusiast.pedigree.PedigreeScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onBirdClick = { id -> navController.navigate(Routes.Builders.productDetails(id)) }
+                onBirdClick = { birdId ->
+                    navController.navigate(Routes.EnthusiastNav.pedigree(birdId))
+                },
+                onNavigateToExport = { birdId ->
+                    navController.navigate(Routes.EnthusiastNav.pedigreeExport(birdId))
+                },
+                onNavigateToShowRecords = { birdId ->
+                    navController.navigate(Routes.EnthusiastNav.showRecords(birdId))
+                }
             )
         }
-        
+
+        composable(
+            route = Routes.EnthusiastNav.PEDIGREE_EXPORT,
+            arguments = listOf(
+                navArgument("birdId") { type = NavType.StringType }
+            )
+        ) {
+            com.rio.rostry.ui.enthusiast.pedigree.export.PedigreeExportScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
         // Showcase Card Preview
         composable(
             route = Routes.EnthusiastNav.SHOWCASE_CARD,
@@ -1585,6 +1612,31 @@ private fun RoleNavGraph(
                 onNavigateToAddBird = { 
                      navController.navigate(Routes.Onboarding.FARM_BIRD)
                 }
+            )
+        }
+
+        // ============ Admin Portal ============
+        composable(Routes.Admin.PORTAL) {
+            // We are now in the Admin Portal context
+            // The AdminShell provides its own internal navigation (AdminNavHost)
+            // and UI structure (Sidebar, TopBar)
+            
+            // Get necessary dependencies from parent scope
+            val currentUserProvider = sessionVm.currentUserProvider
+            
+            // We need to handle the exit callback to return to a safe state
+            // For now, we'll just sign out, but in future this could toggle modes
+            val onExit = { 
+                sessionVm.signOut() 
+            }
+            
+            com.rio.rostry.ui.admin.shell.AdminShell(
+                onExitAdmin = onExit,
+                onSignOut = { sessionVm.signOut() },
+                currentUserProvider = currentUserProvider,
+                pendingVerificationsCount = state.pendingVerificationCount, // Pass real count from session state
+                onSearchClick = { /* TODO: Global admin search */ },
+                onNotificationsClick = { navController.navigate(Routes.NOTIFICATIONS) }
             )
         }
 
@@ -1628,7 +1680,8 @@ private fun RoleNavGraph(
             } else {
                 com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
                     productId = productId,
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToAddRecord = { navController.navigate(Routes.EnthusiastNav.showEntry(productId)) }
                 )
             }
         }
@@ -2111,7 +2164,33 @@ private fun RoleNavGraph(
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
                 productId = productId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddRecord = { navController.navigate(Routes.EnthusiastNav.showEntry(productId)) }
+            )
+        }
+
+        // Alias for Show Records (New Route)
+        composable(
+            route = Routes.EnthusiastNav.SHOW_RECORDS,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddRecord = { navController.navigate(Routes.EnthusiastNav.showEntry(productId)) }
+            )
+        }
+
+        // Show Entry Screen (Add/Edit)
+        composable(
+            route = Routes.EnthusiastNav.SHOW_ENTRY,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.showrecords.ShowEntryScreen(
+                productId = productId,
+                navController = navController
             )
         }
 
@@ -3061,10 +3140,24 @@ private fun RoleNavGraph(
         composable(Routes.Admin.PORTAL) {
             val pendingCount = state.pendingVerificationCount
             com.rio.rostry.ui.admin.shell.AdminShell(
-                onExitAdmin = { navController.popBackStack() },
-                onSignOut = { sessionVm.signOut() },
-                onSearchClick = { navController.navigate(Routes.GeneralNav.EXPLORE) },
-                onNotificationsClick = { navController.navigate(Routes.NOTIFICATIONS) },
+                onExitAdmin = {
+                    // Try to pop. If we are at the root (Admin Portal as start destination),
+                    // fallback to navigating to General Home or User Profile to "Exit" the portal view.
+                    if (!navController.popBackStack()) {
+                         navController.navigate(Routes.HOME_GENERAL) {
+                             popUpTo(Routes.Admin.PORTAL) { inclusive = true }
+                         }
+                    }
+                },
+                onSignOut = { 
+                    sessionVm.signOut() 
+                },
+                onSearchClick = { 
+                    navController.navigate(Routes.GeneralNav.EXPLORE) 
+                },
+                onNotificationsClick = { 
+                    navController.navigate(Routes.NOTIFICATIONS) 
+                },
                 currentUserProvider = sessionVm.currentUserProvider,
                 pendingVerificationsCount = pendingCount
             )

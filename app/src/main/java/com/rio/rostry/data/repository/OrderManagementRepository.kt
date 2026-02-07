@@ -50,6 +50,7 @@ class OrderManagementRepositoryImpl @Inject constructor(
     private val refundDao: RefundDao,
     private val productDao: com.rio.rostry.data.database.dao.ProductDao,
     private val userDao: com.rio.rostry.data.database.dao.UserDao,
+    private val transactionRepository: com.rio.rostry.data.repository.TransactionRepository
 ) : OrderManagementRepository {
 
     override fun getOrder(orderId: String): Flow<OrderEntity?> = orderDao.getOrderById(orderId)
@@ -145,6 +146,28 @@ class OrderManagementRepositoryImpl @Inject constructor(
             if (result is Resource.Error) {
                 return result // Propagate the error from advanceState
             }
+
+            // Record transaction if success
+            if (paymentStatus == "SUCCESS") {
+                transactionRepository.recordTransaction(
+                    orderId = orderId,
+                    amount = payment.amount,
+                    status = "SUCCESS",
+                    paymentMethod = payment.method,
+                    gatewayRef = payment.providerRef,
+                    notes = "Payment confirmed for order $orderId"
+                )
+            } else if (paymentStatus == "REFUNDED") {
+                 transactionRepository.recordTransaction(
+                    orderId = orderId,
+                    amount = payment.amount,
+                    status = "REFUNDED",
+                    paymentMethod = payment.method,
+                    gatewayRef = payment.providerRef,
+                    notes = "Payment refunded for order $orderId"
+                )
+            }
+            
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to handle payment status change")
@@ -172,6 +195,17 @@ class OrderManagementRepositoryImpl @Inject constructor(
             if (result is Resource.Error) {
                 return result // Propagate the error from advanceState
             }
+
+            // Record refund transaction
+            transactionRepository.recordTransaction(
+                orderId = orderId,
+                amount = refundAmount,
+                status = "REFUNDED",
+                paymentMethod = payment.method,
+                gatewayRef = payment.providerRef,
+                notes = "Refund processed: $refundAmount"
+            )
+
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to handle refund completion")

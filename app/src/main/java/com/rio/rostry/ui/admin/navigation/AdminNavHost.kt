@@ -205,12 +205,7 @@ fun AdminNavHost(
             )
         }
         
-        composable(AdminRoutes.Commerce.INVOICES) {
-            PlaceholderScreen(
-                title = "Invoice Management",
-                onBack = { navController.popBackStack() }
-            )
-        }
+
         
         // ========== Biosecurity ==========
         composable(AdminRoutes.Biosecurity.ZONES) {

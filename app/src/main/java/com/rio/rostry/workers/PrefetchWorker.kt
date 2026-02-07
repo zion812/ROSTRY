@@ -121,7 +121,7 @@ class PrefetchWorker @AssistedInject constructor(
                         }
                     }
                 }
-                UserType.ADMIN -> {
+                UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> {
                     // Admin might not need prefetch specifically, or can use GENERAL
                 }
             }

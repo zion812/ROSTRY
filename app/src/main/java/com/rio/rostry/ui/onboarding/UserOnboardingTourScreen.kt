@@ -361,6 +361,6 @@ private fun getTourPagesForRole(role: UserType): List<TourPage> {
                 )
                 )
             )
-            UserType.ADMIN -> emptyList()
+            UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> emptyList()
         }
 }

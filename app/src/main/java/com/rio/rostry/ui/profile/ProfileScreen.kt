@@ -146,7 +146,7 @@ fun ProfileScreen(
                     UserType.ENTHUSIAST -> {
                         Text("Max role reached")
                     }
-                    UserType.ADMIN -> {
+                    UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> {
                         Text("Admin Account")
                     }
                 }

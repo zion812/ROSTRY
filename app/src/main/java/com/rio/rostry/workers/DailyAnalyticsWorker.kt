@@ -13,6 +13,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import timber.log.Timber
 import java.util.UUID
+import kotlinx.coroutines.flow.firstOrNull
 
 @HiltWorker
 class DailyAnalyticsWorker @AssistedInject constructor(
@@ -21,7 +22,9 @@ class DailyAnalyticsWorker @AssistedInject constructor(
     private val farmerDashboardSnapshotDao: FarmerDashboardSnapshotDao,
     private val analyticsDao: com.rio.rostry.data.database.dao.AnalyticsDao,
     private val transactionRepository: TransactionRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val userRepository: com.rio.rostry.data.repository.UserRepository,
+    private val orderRepository: com.rio.rostry.data.repository.OrderManagementRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -48,40 +51,55 @@ class DailyAnalyticsWorker @AssistedInject constructor(
         val todayDateKey = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(now))
         
         // 1. Generate Daily Analytics Entity (Admin View)
-        // Ideally we fetch actual counts from repositories
-        val dailyEntity = com.rio.rostry.data.database.entity.AnalyticsDailyEntity(
-            id = UUID.randomUUID().toString(),
-            userId = farmerId,
-            role = "FARMER",
-            dateKey = todayDateKey,
-            salesRevenue = 0.0, // Should be calculated
-            ordersCount = 0,
-            productViews = 0,
-            likesCount = 0,
-            commentsCount = 0,
-            transfersCount = 0,
-            breedingSuccessRate = 0.0,
-            engagementScore = 0.0,
-            createdAt = now
-        )
-        analyticsDao.upsertDaily(dailyEntity)
+        val user = userRepository.getCurrentUserSuspend()
+        // Check for admin role
+        val isAdmin = user?.role == com.rio.rostry.domain.model.UserType.ADMIN
+        val isFarmer = user?.role == com.rio.rostry.domain.model.UserType.FARMER
 
-        // 2. Generate Weekly Dashboard Snapshot (Farmer View)
-        val weekStart = now - 7 * 24 * 60 * 60 * 1000
-        val weekEnd = now
-        
-        val snapshot = FarmerDashboardSnapshotEntity(
-            snapshotId = UUID.randomUUID().toString(),
-            farmerId = farmerId,
-            weekStartAt = weekStart,
-            weekEndAt = weekEnd,
-            revenueInr = 0.0, 
-            ordersCount = 0,
-            mortalityRate = 0.0,
-            complianceScore = 85.0 
-        )
-        
-        farmerDashboardSnapshotDao.upsert(snapshot)
-        Timber.d("Generated analytics snapshot for farmer: $farmerId")
+        if (isAdmin) {
+             // Generate Global Admin Stats
+             val commerceStats = orderRepository.getCommerceStats()
+             // val totalUsers = userRepository.countAllUsers() // Not used in Entity currently
+             
+             val dailyEntity = com.rio.rostry.data.database.entity.AnalyticsDailyEntity(
+                id = UUID.randomUUID().toString(),
+                userId = farmerId,
+                role = "ADMIN",
+                dateKey = todayDateKey,
+                salesRevenue = commerceStats.revenueThisWeek,
+                ordersCount = commerceStats.ordersThisWeek,
+                productViews = 0,
+                likesCount = 0,
+                commentsCount = 0,
+                transfersCount = 0,
+                breedingSuccessRate = 0.0,
+                engagementScore = 0.0,
+                createdAt = now
+            )
+            analyticsDao.upsertDaily(dailyEntity)
+        }
+
+        if (isFarmer) {
+            // 2. Generate Farmer Dashboard Snapshot
+            val transactions = transactionRepository.streamTransactionsByUser(farmerId).firstOrNull() ?: emptyList()
+            val revenue = transactions.filter { it.status == "SUCCESS" }.sumOf { it.amount }
+            
+            val weekStart = now - 7 * 24 * 60 * 60 * 1000
+            val weekEnd = now
+            
+            val snapshot = FarmerDashboardSnapshotEntity(
+                snapshotId = UUID.randomUUID().toString(),
+                farmerId = farmerId,
+                weekStartAt = weekStart,
+                weekEndAt = weekEnd,
+                revenueInr = revenue, 
+                ordersCount = transactions.count(), // Approximation based on transactions
+                mortalityRate = 0.0, // Need MortalityRepo
+                complianceScore = 85.0 // Mock for now
+            )
+            
+            farmerDashboardSnapshotDao.upsert(snapshot)
+            Timber.d("Generated analytics snapshot for farmer: $farmerId")
+        }
     }
 }

@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,6 +67,8 @@ fun AdminDashboardScreen(
             QuickStatsRow(
                 userMetrics = uiState.userMetrics,
                 productMetrics = uiState.productMetrics,
+                orderMetrics = uiState.orderMetrics,
+                systemHealth = uiState.systemHealth,
                 pendingActions = uiState.pendingActions
             )
         }
@@ -178,10 +183,13 @@ private fun WelcomeHeader(
 private fun QuickStatsRow(
     userMetrics: UserMetrics,
     productMetrics: ProductMetrics,
+    orderMetrics: OrderMetrics,
+    systemHealth: SystemHealth,
     pendingActions: PendingActions
 ) {
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp)
     ) {
         item {
             StatCard(
@@ -190,6 +198,15 @@ private fun QuickStatsRow(
                 subtitle = "${userMetrics.farmers} farmers, ${userMetrics.enthusiasts} enthusiasts",
                 icon = Icons.Default.People,
                 gradientColors = listOf(Color(0xFF667EEA), Color(0xFF764BA2))
+            )
+        }
+        item {
+            StatCard(
+                title = "Revenue",
+                value = "$${orderMetrics.totalRevenue.toInt()}",
+                subtitle = "${orderMetrics.completedThisMonth} orders this month",
+                icon = Icons.Default.AttachMoney,
+                gradientColors = listOf(Color(0xFF2E7D32), Color(0xFF4CAF50))
             )
         }
         item {
@@ -208,6 +225,16 @@ private fun QuickStatsRow(
                 subtitle = "${pendingActions.verifications} verifications",
                 icon = Icons.Default.PendingActions,
                 gradientColors = listOf(Color(0xFFEB3349), Color(0xFFF45C43))
+            )
+        }
+        item {
+            val healthColor = if (systemHealth.databaseStatus == HealthStatus.HEALTHY) Color(0xFF4CAF50) else Color(0xFFF44336)
+            StatCard(
+                title = "System Health",
+                value = if (systemHealth.databaseStatus == HealthStatus.HEALTHY) "Healthy" else "Issues",
+                subtitle = "DB: ${systemHealth.databaseStatus}",
+                icon = Icons.Default.Dns,
+                gradientColors = listOf(healthColor.copy(alpha = 0.8f), healthColor)
             )
         }
     }
@@ -337,6 +364,32 @@ private fun PendingActionsCard(
                         leadingIcon = {
                             Icon(
                                 Icons.Default.VerifiedUser,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                }
+                if (pendingActions.upgradeRequests > 0) {
+                    AssistChip(
+                        onClick = { /* Navigate to Requests */ },
+                        label = { Text("${pendingActions.upgradeRequests} Role Requests") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Upgrade,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                }
+                if (pendingActions.reports > 0) {
+                    AssistChip(
+                        onClick = { /* Navigate to Moderation */ },
+                        label = { Text("${pendingActions.reports} Reports") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Flag,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )

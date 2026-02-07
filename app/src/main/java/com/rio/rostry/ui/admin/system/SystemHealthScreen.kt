@@ -12,12 +12,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SystemHealthScreen(
+    viewModel: SystemHealthViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
+    val state by viewModel.uiState.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -38,25 +42,49 @@ fun SystemHealthScreen(
 
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    HealthCard(Modifier.weight(1f), "API Server", "Operational", true, Icons.Default.Cloud)
-                    HealthCard(Modifier.weight(1f), "Database", "Operational", true, Icons.Default.Storage)
+                    HealthCard(
+                        modifier = Modifier.weight(1f), 
+                        name = "API Server", 
+                        status = state.apiStatus.name, 
+                        isHealthy = state.apiStatus == SystemHealthViewModel.HealthStatus.OPERATIONAL, 
+                        icon = Icons.Default.Cloud
+                    )
+                    HealthCard(
+                        modifier = Modifier.weight(1f), 
+                        name = "Database", 
+                        status = state.dbStatus.name, 
+                        isHealthy = state.dbStatus == SystemHealthViewModel.HealthStatus.OPERATIONAL, 
+                        icon = Icons.Default.Storage
+                    )
                 }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    HealthCard(Modifier.weight(1f), "Auth Service", "Operational", true, Icons.Default.Security)
-                    HealthCard(Modifier.weight(1f), "Push Notifs", "Degraded", false, Icons.Default.Notifications)
+                    HealthCard(
+                        modifier = Modifier.weight(1f), 
+                        name = "Auth Service", 
+                        status = state.authStatus.name, 
+                        isHealthy = state.authStatus == SystemHealthViewModel.HealthStatus.OPERATIONAL, 
+                        icon = Icons.Default.Security
+                    )
+                    HealthCard(
+                        modifier = Modifier.weight(1f), 
+                        name = "Push Notifs", 
+                        status = state.notificationStatus.name, 
+                        isHealthy = state.notificationStatus == SystemHealthViewModel.HealthStatus.OPERATIONAL, 
+                        icon = Icons.Default.Notifications
+                    )
                 }
             }
 
             item { Spacer(Modifier.height(8.dp)); Text("Performance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
 
-            item { MetricRow("API Latency", "45ms", Color(0xFF4CAF50)) }
-            item { MetricRow("Database Queries", "2.3k/min", Color(0xFF2196F3)) }
-            item { MetricRow("Memory Usage", "67%", Color(0xFFFF9800)) }
-            item { MetricRow("CPU Usage", "34%", Color(0xFF4CAF50)) }
-            item { MetricRow("Active Connections", "156", Color(0xFF2196F3)) }
-            item { MetricRow("Error Rate", "0.02%", Color(0xFF4CAF50)) }
+            item { MetricRow("API Latency", "${state.apiLatency}ms", if(state.apiLatency < 100) Color(0xFF4CAF50) else Color(0xFFFF9800)) }
+            item { MetricRow("Database Queries", "${state.dbQueriesPerMin}/min", Color(0xFF2196F3)) }
+            item { MetricRow("Memory Usage", "${state.memoryUsage}%", if(state.memoryUsage < 80) Color(0xFF4CAF50) else Color(0xFFFF9800)) }
+            item { MetricRow("CPU Usage", "${state.cpuUsage}%", Color(0xFF4CAF50)) }
+            item { MetricRow("Active Connections", "${state.activeConnections}", Color(0xFF2196F3)) }
+            item { MetricRow("Error Rate", String.format("%.2f%%", state.errorRate), if(state.errorRate < 1f) Color(0xFF4CAF50) else Color.Red) }
         }
     }
 }

@@ -50,6 +50,18 @@ object Rbac {
             Permission.COIN_MANAGEMENT,
             Permission.EDIT_LINEAGE
         ),
+        UserType.SUPPORT to setOf(
+            Permission.BROWSE_MARKET,
+            Permission.BASIC_PROFILE,
+            Permission.MANAGE_ORDERS // View/Edit orders
+            // Add specific support permissions if defined
+        ),
+        UserType.MODERATOR to setOf(
+            Permission.BROWSE_MARKET,
+            Permission.BASIC_PROFILE,
+            Permission.LIST_PRODUCT // To view/manage products
+            // Add moderation permissions
+        ),
         UserType.ADMIN to Permission.values().toSet()
     )
 

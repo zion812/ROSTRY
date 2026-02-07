@@ -3,6 +3,10 @@ package com.rio.rostry.ui.enthusiast.breeding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,17 +69,20 @@ fun BreedingFlowScreen(
     onNavigateBack: () -> Unit,
     onOpenPairDetail: (String) -> Unit,
     onOpenBatchDetail: (String) -> Unit,
+    onOpenCalculator: () -> Unit,
+    onOpenCalendar: () -> Unit,
     vm: BreedingFlowViewModel = hiltViewModel()
 ) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
-    val tabs = listOf("Pairs", "Mating", "Eggs", "Incubation", "Hatching")
+    val tabs = listOf("Pairs", "Mating", "Eggs", "Incubation", "Hatching", "Tools")
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(vm.message) {
         vm.message.collect { msg -> if (!msg.isNullOrBlank()) snackbar.showSnackbar(msg) }
     }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SnackbarHost(hostState = snackbar) { data -> Snackbar(snackbarData = data) }
-        TabRow(selectedTabIndex = tabIndex) {
+        
+        androidx.compose.material3.ScrollableTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp) {
             tabs.forEachIndexed { idx, title ->
                 Tab(selected = tabIndex == idx, onClick = { tabIndex = idx }, text = { Text(title) })
             }
@@ -87,6 +94,52 @@ fun BreedingFlowScreen(
             2 -> EggsTab(vm)
             3 -> IncubationTab(vm, onOpenBatchDetail)
             4 -> HatchingTab(vm)
+            5 -> ToolsTab(onOpenCalculator, onOpenCalendar)
+        }
+    }
+}
+
+@Composable
+private fun ToolsTab(onOpenCalculator: () -> Unit, onOpenCalendar: () -> Unit) {
+    ElevatedCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("Breeding Tools", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+            
+            OutlinedButton(
+                onClick = onOpenCalculator,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Calculate, contentDescription = null)
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("Breeding Calculator", style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+                        Text("Check compatibility and predict offspring traits", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = onOpenCalendar,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.CalendarToday, contentDescription = null)
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("Breeding Calendar", style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+                        Text("Track hatch dates, vaccinations, and events", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
     }
 }
