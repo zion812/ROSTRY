@@ -17,11 +17,12 @@ import org.junit.Test
 class BreedingServiceTest {
 
     private val pedigreeRepository = mockk<PedigreeRepository>()
+    private val geneticPotentialService = mockk<com.rio.rostry.domain.service.GeneticPotentialService>()
     private lateinit var breedingService: BreedingService
 
     @Before
     fun setup() {
-        breedingService = BreedingService(pedigreeRepository)
+        breedingService = BreedingService(pedigreeRepository, geneticPotentialService)
     }
 
     @Test

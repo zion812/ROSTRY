@@ -2231,6 +2231,20 @@ private fun RoleNavGraph(
             )
         }
         
+        // Breeding Calculator (Compatibility Analysis)
+        composable(Routes.EnthusiastNav.BREEDING_CALCULATOR) {
+            com.rio.rostry.ui.enthusiast.breeding.BreedingCompatibilityScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Breeding Calendar
+        composable(Routes.EnthusiastNav.BREEDING_CALENDAR) {
+            com.rio.rostry.ui.enthusiast.breeding.BreedingCalendarScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
         // ============ END: Missing Enthusiast Routes ============
 
         composable(Routes.PROFILE) {
