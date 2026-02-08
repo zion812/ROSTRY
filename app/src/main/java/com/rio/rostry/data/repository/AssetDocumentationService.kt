@@ -179,6 +179,26 @@ class AssetDocumentationService @Inject constructor(
         return timeline.sortedBy { it.date }
     }
 
+    /**
+     * Gather all media items associated with this asset from activities and logs.
+     */
+    suspend fun getAssetMedia(assetId: String): List<com.rio.rostry.ui.components.MediaItem> {
+        val doc = loadDocumentation(assetId) ?: return emptyList()
+        val mediaList = mutableListOf<com.rio.rostry.ui.components.MediaItem>()
+        
+        // 1. From Activities
+        doc.activities.forEach { activity ->
+            mediaList.addAll(activity.getMediaItems())
+        }
+        
+        // 2. From Lifecycle Events (if they have imageUrl)
+        // Note: LifecycleEventEntity does not have direct image url. 
+        // It's mainly a metadata record. If we need images, we might need to fetch related timeline events or logs.
+        // For now, we'll skip LifecycleEventEntity images as they don't exist directly.
+        
+        return mediaList
+    }
+
     companion object {
         private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
         

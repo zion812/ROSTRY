@@ -45,8 +45,44 @@ class AssetDocumentPdfGenerator @Inject constructor(
      * @return Filename if successful, null otherwise.
      */
     fun generatePdf(documentation: AssetDocumentation, timeline: List<LifecycleTimelineEntry>): String? {
-        val document = PdfDocument()
+        val fileName = "Asset_${documentation.asset.name.replace(" ", "_")}_${System.currentTimeMillis()}.pdf"
         
+        val contentValues = android.content.ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+        
+        try {
+            val uri = context.contentResolver.insert(
+                MediaStore.Files.getContentUri("external"),
+                contentValues
+            ) ?: throw IOException("Failed to create MediaStore entry")
+            
+            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                writePdfToStream(documentation, timeline, outputStream)
+            }
+            return fileName
+        } catch (e: IOException) {
+            e.printStackTrace()
+            return null
+        }
+    }
+
+    fun generatePdfToFile(documentation: AssetDocumentation, timeline: List<LifecycleTimelineEntry>, outputFile: java.io.File): Boolean {
+        return try {
+            java.io.FileOutputStream(outputFile).use { outputStream ->
+                writePdfToStream(documentation, timeline, outputStream)
+            }
+            true
+        } catch (e: IOException) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    private fun writePdfToStream(documentation: AssetDocumentation, timeline: List<LifecycleTimelineEntry>, outputStream: java.io.OutputStream) {
+        val document = PdfDocument()
         try {
             var pageNum = 1
             
@@ -74,28 +110,7 @@ class AssetDocumentPdfGenerator @Inject constructor(
                 document.finishPage(financialPage)
             }
             
-            // Save to Downloads
-            val fileName = "Asset_${documentation.asset.name.replace(" ", "_")}_${System.currentTimeMillis()}.pdf"
-            
-            val contentValues = android.content.ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            }
-            
-            val uri = context.contentResolver.insert(
-                MediaStore.Files.getContentUri("external"),
-                contentValues
-            ) ?: throw IOException("Failed to create MediaStore entry")
-            
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                document.writeTo(outputStream)
-            }
-            
-            return fileName
-        } catch (e: IOException) {
-            e.printStackTrace()
-            return null
+            document.writeTo(outputStream)
         } finally {
             document.close()
         }

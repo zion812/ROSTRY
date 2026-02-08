@@ -70,6 +70,7 @@ android {
         targetSdk = 36
         versionCode = 9
         versionName = "1.0"
+        multiDexEnabled = true
 
         testInstrumentationRunner = "com.rio.rostry.HiltTestRunner"
         // Pass App Check debug secret from CI environment for instrumentation tests

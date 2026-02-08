@@ -20,6 +20,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.SharedFlow // Added
+import kotlinx.coroutines.flow.MutableSharedFlow // Added
+import kotlinx.coroutines.flow.asSharedFlow // Added
+import com.rio.rostry.data.repository.social.MessagingRepository // Added
+import com.rio.rostry.session.CurrentUserProvider // Added
 import com.rio.rostry.ui.farmer.Listing
 
 @HiltViewModel
@@ -31,6 +36,8 @@ class FarmerMarketViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val analytics: GeneralAnalyticsTracker,
     private val analyticsRepository: AnalyticsRepository,
+    private val messagingRepository: MessagingRepository, // Added
+    private val currentUserProvider: CurrentUserProvider, // Added
     private val savedState: SavedStateHandle
 ) : ViewModel() {
 
@@ -62,6 +69,9 @@ class FarmerMarketViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui
+
+    private val _navigateToChat = MutableSharedFlow<String>(extraBufferCapacity = 1) // Added
+    val navigateToChat: SharedFlow<String> = _navigateToChat.asSharedFlow() // Added
 
     init {
         // Restore persisted
@@ -190,6 +200,7 @@ class FarmerMarketViewModel @Inject constructor(
         id = e.productId,
         title = e.name.ifBlank { e.category },
         price = e.price,
+        sellerId = e.sellerId, // Added
         views = 0, // Mock for now
         inquiries = 0,
         orders = 0,
@@ -203,6 +214,7 @@ class FarmerMarketViewModel @Inject constructor(
         id = e.listingId,
         title = e.title,
         price = e.price,
+        sellerId = e.sellerId, // Added
         views = e.viewsCount,
         inquiries = e.inquiriesCount,
         orders = 0, // Needs order repository link
@@ -345,5 +357,38 @@ class FarmerMarketViewModel @Inject constructor(
         const val KEY_BREED = "market_breed"
         const val KEY_START_DATE = "market_start_date"
         const val KEY_END_DATE = "market_end_date"
+    }
+
+    fun startChatWithSeller(sellerId: String) {
+        viewModelScope.launch {
+            val userId = getCurrentUserOrNull()?.userId ?: return@launch
+            if (userId == sellerId) return@launch // Can't chat with self
+
+            try {
+                // Check if thread exists
+                val threads = messagingRepository.streamUserThreadsWithMetadata(userId).first()
+                val existingThread = threads.find { thread ->
+                    val participants = thread.metadata?.participantIds ?: emptyList()
+                    participants.contains(userId) && participants.contains(sellerId) && 
+                    thread.metadata?.context?.type == "PRODUCT_INQUIRY"
+                }
+
+                if (existingThread != null) {
+                    _navigateToChat.emit(existingThread.threadId)
+                } else {
+                    // Create new thread
+                    val context = MessagingRepository.ThreadContext(
+                        type = "PRODUCT_INQUIRY",
+                        relatedEntityId = null, // Generic inquiry if coming from list
+                        topic = "Inquiry from Market"
+                    )
+                    val threadId = messagingRepository.createThreadWithContext(userId, sellerId, context)
+                    _navigateToChat.emit(threadId)
+                }
+            } catch (e: Exception) {
+                // Handle error
+                _ui.value = _ui.value.copy(error = "Failed to start chat: ${e.message}")
+            }
+        }
     }
 }

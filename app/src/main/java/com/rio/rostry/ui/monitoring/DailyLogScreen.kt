@@ -31,6 +31,8 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -111,6 +113,8 @@ fun DailyLogScreen(
             vm.addCapturedPhoto(uri)
         }
     }
+    
+    var showMediaGallery by remember { mutableStateOf(false) }
     // Camera capture launcher with a temp content Uri
     val captureTargetUri = remember { mutableStateOf<android.net.Uri?>(null) }
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -410,12 +414,31 @@ fun DailyLogScreen(
                             minLines = 3
                         )
                         
+                        // Media Section
+                        val mediaItems = remember(state.currentLog?.mediaItemsJson, state.currentLog?.photoUrls) {
+                            state.currentLog?.getMediaItems() ?: emptyList()
+                        }
+                        
+                        if (mediaItems.isNotEmpty()) {
+                            Text(
+                                "Attached Photos (${mediaItems.size})", 
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            com.rio.rostry.ui.components.MediaThumbnailRow(
+                                urls = mediaItems.map { it.url },
+                                onViewGallery = { showMediaGallery = true },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(
                                 onClick = { pickImageLauncher.launch(arrayOf("image/*")) },
                                 modifier = Modifier.weight(1f)
                             ) { 
-                                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text("Gallery") 
                             }
@@ -431,7 +454,7 @@ fun DailyLogScreen(
                                 },
                                 modifier = Modifier.weight(1f)
                             ) { 
-                                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp)) 
+                                Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(18.dp)) 
                                 Spacer(Modifier.width(8.dp))
                                 Text("Camera") 
                             }
@@ -527,5 +550,17 @@ fun DailyLogScreen(
                 Spacer(Modifier.height(80.dp)) // Clearance for FAB
             }
         }
+    }
+    
+    if (showMediaGallery) {
+        val mediaItems = remember(state.currentLog?.mediaItemsJson, state.currentLog?.photoUrls) {
+            state.currentLog?.getMediaItems() ?: emptyList()
+        }
+        
+        com.rio.rostry.ui.components.RecordMediaGallerySheet(
+            mediaItems = mediaItems,
+            onDismiss = { showMediaGallery = false },
+            onDelete = { index -> vm.removeMediaItem(index) }
+        )
     }
 }

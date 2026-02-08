@@ -61,6 +61,7 @@
 
 # Room - Optimized rules (keep only what's needed)
 -keep class androidx.room.RoomDatabase { *; }
+-keep class com.rio.rostry.data.database.AppDatabase_Impl { *; }
 -keep class androidx.room.Room { *; }
 -keepclassmembers class * extends androidx.room.RoomDatabase {
     public static *** createOpenHelper(...);

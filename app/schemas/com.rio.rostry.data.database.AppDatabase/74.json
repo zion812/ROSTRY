@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 74,
-    "identityHash": "c257adade202b377c4d3a12f6b17eee0",
+    "identityHash": "1a11b26db00fa37fca3ed6ccfef332b4",
     "entities": [
       {
         "tableName": "users",
@@ -7857,7 +7857,7 @@
       },
       {
         "tableName": "daily_logs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`logId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `logDate` INTEGER NOT NULL, `weightGrams` REAL, `feedKg` REAL, `medicationJson` TEXT, `symptomsJson` TEXT, `activityLevel` TEXT, `photoUrls` TEXT, `notes` TEXT, `temperature` REAL, `humidity` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, `deviceTimestamp` INTEGER NOT NULL, `author` TEXT, `mergedAt` INTEGER, `mergeCount` INTEGER NOT NULL, `conflictResolved` INTEGER NOT NULL, PRIMARY KEY(`logId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`logId` TEXT NOT NULL, `productId` TEXT NOT NULL, `farmerId` TEXT NOT NULL, `logDate` INTEGER NOT NULL, `weightGrams` REAL, `feedKg` REAL, `medicationJson` TEXT, `symptomsJson` TEXT, `activityLevel` TEXT, `photoUrls` TEXT, `notes` TEXT, `temperature` REAL, `humidity` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `syncedAt` INTEGER, `deviceTimestamp` INTEGER NOT NULL, `author` TEXT, `mergedAt` INTEGER, `mergeCount` INTEGER NOT NULL, `conflictResolved` INTEGER NOT NULL, `mediaItemsJson` TEXT, PRIMARY KEY(`logId`), FOREIGN KEY(`productId`) REFERENCES `products`(`productId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "logId",
@@ -7978,6 +7978,11 @@
             "columnName": "conflictResolved",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "mediaItemsJson",
+            "columnName": "mediaItemsJson",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -12775,7 +12780,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c257adade202b377c4d3a12f6b17eee0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1a11b26db00fa37fca3ed6ccfef332b4')"
     ]
   }
 }

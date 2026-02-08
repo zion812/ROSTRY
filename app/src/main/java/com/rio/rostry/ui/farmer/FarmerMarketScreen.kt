@@ -45,6 +45,8 @@ fun FarmerMarketScreen(
     onPauseListing: (String) -> Unit,
     onOpenOrder: (String) -> Unit,
     onOpenProduct: (String) -> Unit = {},
+    onOpenCart: () -> Unit = {}, // NEW
+    onChat: (String) -> Unit = {}, // NEW
     onApplyPriceBreed: (Double?, Double?, String?) -> Unit = { _, _, _ -> },
     onApplyDateFilter: (Long?, Long?) -> Unit = { _, _ -> },
     onClearDateFilter: () -> Unit = {},
@@ -117,6 +119,9 @@ fun FarmerMarketScreen(
                         ) 
                     },
                     actions = {
+                        IconButton(onClick = onOpenCart) {
+                            Icon(Icons.Filled.ShoppingCart, contentDescription = "Cart")
+                        }
                         IconButton(onClick = { /* Notifications */ }) {
                             Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
                         }
@@ -196,7 +201,8 @@ fun FarmerMarketScreen(
                             categoryAdoptionSelected = categoryAdoptionSelected,
                             traceableSelected = traceableSelected,
                             nonTraceableSelected = nonTraceableSelected,
-                            onScanQr = onScanQr
+                            onScanQr = onScanQr,
+                            onChat = onChat
                         )
                     }
                 }
@@ -246,7 +252,8 @@ private fun BrowseMarket(
     categoryAdoptionSelected: Boolean,
     traceableSelected: Boolean,
     nonTraceableSelected: Boolean,
-    onScanQr: () -> Unit
+    onScanQr: () -> Unit,
+    onChat: (String) -> Unit // NEW
 ) {
     var searchText by remember { mutableStateOf("") }
     var showFilters by remember { mutableStateOf(false) }
@@ -333,7 +340,7 @@ private fun BrowseMarket(
                 MarketListingCard(
                     item = item,
                     onOpenProduct = onOpenProduct,
-                    onMessage = { onOpenOrder(item.id) }
+                    onMessage = { onChat(item.sellerId) }
                 )
             }
         }
@@ -697,5 +704,6 @@ data class Listing(
     val isBatch: Boolean = false,
     val quantity: Int = 1,
     val category: String = "",
-    val isTraceable: Boolean = false
+    val isTraceable: Boolean = false,
+    val sellerId: String = "" // NEW
 )

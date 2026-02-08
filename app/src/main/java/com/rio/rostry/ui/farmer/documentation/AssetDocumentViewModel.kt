@@ -29,7 +29,7 @@ data class AssetDocumentUiState(
 class AssetDocumentViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val documentationService: AssetDocumentationService,
-    private val pdfGenerator: AssetDocumentPdfGenerator
+    private val exportManager: com.rio.rostry.utils.export.AssetExportManager
 ) : ViewModel() {
 
     private val assetId: String = savedStateHandle.get<String>("assetId") ?: ""
@@ -56,7 +56,7 @@ class AssetDocumentViewModel @Inject constructor(
         }
     }
 
-    fun exportToPdf() {
+    fun exportAsZip() {
         val doc = _uiState.value.documentation ?: return
         val timeline = _uiState.value.timeline
         
@@ -64,18 +64,24 @@ class AssetDocumentViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isExporting = true, exportError = null)
             
             try {
-                val fileName = pdfGenerator.generatePdf(doc, timeline)
+                // Gather all media
+                val mediaItems = documentationService.getAssetMedia(assetId)
                 
-                if (fileName != null) {
-                    _uiState.value = _uiState.value.copy(
-                        isExporting = false,
-                        exportedFileName = fileName
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isExporting = false,
-                        exportError = "Failed to generate PDF"
-                    )
+                val result = exportManager.exportAssetPackage(doc, timeline, mediaItems)
+                
+                when (result) {
+                    is com.rio.rostry.utils.export.AssetExportManager.ExportResult.Success -> {
+                        _uiState.value = _uiState.value.copy(
+                            isExporting = false,
+                            exportedFileName = result.fileName
+                        )
+                    }
+                    is com.rio.rostry.utils.export.AssetExportManager.ExportResult.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            isExporting = false,
+                            exportError = result.message
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

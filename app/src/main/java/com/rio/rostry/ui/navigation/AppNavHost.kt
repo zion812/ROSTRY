@@ -2106,6 +2106,12 @@ private fun RoleNavGraph(
         composable(Routes.FarmerNav.MARKET) {
             val viewModel = hiltViewModel<com.rio.rostry.ui.farmer.FarmerMarketViewModel>()
             val state by viewModel.ui.collectAsState()
+
+            LaunchedEffect(Unit) {
+                viewModel.navigateToChat.collect { threadId ->
+                    navController.navigate(Routes.Messaging.THREAD.replace("{threadId}", threadId))
+                }
+            }
             
             com.rio.rostry.ui.farmer.FarmerMarketScreen(
                 onCreateListing = { navController.navigate(Routes.FarmerNav.CREATE) },
@@ -2117,6 +2123,8 @@ private fun RoleNavGraph(
                 onScanQr = { navController.navigate(Routes.Scan.QR) },
                 onOpenPromoteListings = { /* TODO */ },
                 onOpenReports = { navController.navigate(Routes.Analytics.REPORTS) },
+                onOpenCart = { navController.navigate(Routes.GeneralNav.CART) }, // NEW
+                onChat = { sellerId -> viewModel.startChatWithSeller(sellerId) }, // NEW
                 // State wiring
                 selectedTabIndex = state.selectedTabIndex,
                 onSelectTab = { index -> viewModel.setTab(index) },
@@ -2629,7 +2637,8 @@ private fun RoleNavGraph(
                     onOpenTraceability = { navController.navigate(Routes.Builders.traceability(productId)) },
                     onOpenSellerProfile = { userId -> navController.navigate(Routes.USER_PROFILE.replace("{userId}", userId)) },
                     onChatWithSeller = { sellerId -> navController.navigate(Routes.Builders.messagesThread(sellerId)) },
-                    onNavigateToAuction = { auctionId -> navController.navigate(Routes.Builders.auction(auctionId)) }
+                    onNavigateToAuction = { auctionId -> navController.navigate(Routes.Builders.auction(auctionId)) },
+                    onNavigateToCart = { navController.navigate(Routes.GeneralNav.CART) }
                 )
             }
         }

@@ -43,6 +43,7 @@ fun ProductDetailsScreen(
     onOpenSellerProfile: (String) -> Unit = {},
     onChatWithSeller: (String) -> Unit = {},
     onNavigateToAuction: (String) -> Unit = {},
+    onNavigateToCart: () -> Unit = {}, // NEW
     viewModel: ProductDetailsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,6 +99,12 @@ fun ProductDetailsScreen(
     LaunchedEffect(Unit) {
         viewModel.navigateToChat.collect { threadId ->
             onChatWithSeller(threadId)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.navigateToCart.collect { 
+            onNavigateToCart()
         }
     }
 

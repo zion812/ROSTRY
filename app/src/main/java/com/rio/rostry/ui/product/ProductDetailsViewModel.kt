@@ -48,9 +48,11 @@ class ProductDetailsViewModel @Inject constructor(
     private val _lineage = MutableStateFlow<com.rio.rostry.data.database.entity.FamilyTreeEntity?>(null)
     private val _qrSaved = MutableSharedFlow<String>(extraBufferCapacity = 1)
     private val _navigateToChat = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    private val _navigateToCart = MutableSharedFlow<Unit>(extraBufferCapacity = 1) // NEW
 
     val qrSaved: SharedFlow<String> = _qrSaved.asSharedFlow()
     val navigateToChat: SharedFlow<String> = _navigateToChat.asSharedFlow()
+    val navigateToCart: SharedFlow<Unit> = _navigateToCart.asSharedFlow() // NEW
 
     val uiState: StateFlow<ProductDetailsUiState> = combine(
         _product,
@@ -253,6 +255,7 @@ class ProductDetailsViewModel @Inject constructor(
         addToCart(quantity)
         // In a real app, navigate to checkout here
         _cartMessage.value = "Proceeding to checkout..."
+        _navigateToCart.tryEmit(Unit) // NEW
     }
 
     fun startChatWithSeller() {

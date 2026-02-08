@@ -132,21 +132,16 @@ class DailyLogViewModel @Inject constructor(
                     is MediaUploadManager.UploadEvent.Success -> {
                         // Heuristic: only handle daily log paths
                         if (ev.remotePath.startsWith("daily_logs/")) {
-                            // Replace placeholder entry equal to remotePath with the final download URL
                             _currentLog.value?.let { cur ->
-                                val listType = object : TypeToken<MutableList<String>>() {}.type
-                                val currentList: MutableList<String> = when {
-                                    cur.photoUrls.isNullOrBlank() -> mutableListOf()
-                                    cur.photoUrls!!.trim().startsWith("[") -> runCatching { Gson().fromJson<MutableList<String>>(cur.photoUrls, listType) }.getOrElse { mutableListOf() }
-                                    else -> mutableListOf()
-                                }
-                                val idx = currentList.indexOf(ev.remotePath)
-                                if (idx >= 0) {
-                                    currentList[idx] = ev.downloadUrl
-                                    _currentLog.value = cur.copy(photoUrls = Gson().toJson(currentList))
+                                // Update structured media items
+                                val items = cur.getMediaItems().toMutableList()
+                                val index = items.indexOfFirst { it.url == ev.remotePath }
+                                if (index >= 0) {
+                                    items[index] = items[index].copy(url = ev.downloadUrl)
+                                    _currentLog.value = cur.copy(mediaItemsJson = Gson().toJson(items))
                                     save()
                                 } else {
-                                    // Fallback: append if placeholder not found
+                                    // Fallback: append if not found (unexpected but safe)
                                     addPhoto(ev.downloadUrl)
                                     save()
                                 }
@@ -212,15 +207,32 @@ class DailyLogViewModel @Inject constructor(
     }
 
     fun addPhoto(url: String) {
+        if (url.isBlank()) return
         updateCurrent { cur ->
-            val listType = object : TypeToken<MutableList<String>>() {}.type
-            val currentList: MutableList<String> = when {
-                cur.photoUrls.isNullOrBlank() -> mutableListOf()
-                cur.photoUrls!!.trim().startsWith("[") -> runCatching { Gson().fromJson<MutableList<String>>(cur.photoUrls, listType) }.getOrElse { _: Throwable -> mutableListOf<String>() }
-                else -> mutableListOf() // legacy comma-separated; optional: split by comma
+            val items = cur.getMediaItems().toMutableList()
+            items.add(
+                com.rio.rostry.ui.components.MediaItem(
+                    url = url,
+                    caption = "Photo ${items.size + 1}",
+                    recordType = "DAILY_LOG",
+                    recordId = cur.logId,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+            cur.copy(mediaItemsJson = Gson().toJson(items))
+        }
+        debounceAutoSave()
+    }
+
+    fun removeMediaItem(index: Int) {
+        updateCurrent { cur ->
+            val items = cur.getMediaItems().toMutableList()
+            if (index in items.indices) {
+                items.removeAt(index)
+                cur.copy(mediaItemsJson = Gson().toJson(items))
+            } else {
+                cur
             }
-            if (url.isNotBlank()) currentList.add(url)
-            cur.copy(photoUrls = Gson().toJson(currentList))
         }
         debounceAutoSave()
     }
@@ -231,7 +243,7 @@ class DailyLogViewModel @Inject constructor(
         val hasContent = (current.weightGrams != null) || (current.feedKg != null) ||
                 !current.medicationJson.isNullOrBlank() || !current.symptomsJson.isNullOrBlank() ||
                 !current.activityLevel.isNullOrBlank() || !current.notes.isNullOrBlank() ||
-                !current.photoUrls.isNullOrBlank()
+                !current.mediaItemsJson.isNullOrBlank() || !current.photoUrls.isNullOrBlank()
         if (!hasContent) {
             Timber.w("DailyLog save blocked: no content")
             return
@@ -272,15 +284,6 @@ class DailyLogViewModel @Inject constructor(
     fun saveAndExit() {
         viewModelScope.launch {
             save()
-            // Wait for save to initiate/complete slightly if needed, but save() is suspended. 
-            // However, save() launches a coroutine. We should wait for it. 
-            // Actually save() launches its own coroutine. We should probably make save() suspend or just signal after.
-            // Since save() sets _saving, we can just emit. 
-            // Better: update save() to be suspend or allow waiting.
-            // For now, simple approach: call save (which debounces/runs) then emit. 
-            // Ideally save() should be suspend. But modifying save signature might break other callers? 
-            // save() is void. 
-            // Let's just emit immediately. The save runs in background. 
             delay(100) // Small visual delay for ripple
             _completionEvent.emit(Unit)
         }
@@ -361,15 +364,7 @@ class DailyLogViewModel @Inject constructor(
                 
                 // Optimistically persist placeholder with remotePath token and save immediately
                 run {
-                    val listType = object : TypeToken<MutableList<String>>() {}.type
-                    val currentList: MutableList<String> = when {
-                        cur.photoUrls.isNullOrBlank() -> mutableListOf()
-                        cur.photoUrls!!.trim().startsWith("[") -> runCatching { Gson().fromJson<MutableList<String>>(cur.photoUrls, listType) }.getOrElse { mutableListOf() }
-                        else -> mutableListOf()
-                    }
-                    currentList.add(remotePath)
-                    _currentLog.value = cur.copy(photoUrls = Gson().toJson(currentList))
-                    save()
+                   addPhoto(remotePath)
                 }
                 // Enqueue to outbox (handled by worker/background)
                 mediaUploadManager.enqueueToOutbox(

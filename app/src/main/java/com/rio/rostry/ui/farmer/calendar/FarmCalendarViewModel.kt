@@ -29,7 +29,11 @@ import kotlinx.coroutines.flow.flowOf
 class FarmCalendarViewModel @Inject constructor(
     private val farmEventRepository: FarmEventRepository,
     private val sessionManager: SessionManager,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
+    private val growthPredictionService: com.rio.rostry.domain.service.GrowthPredictionService,
+    private val projectedEventMapper: ProjectedEventMapper,
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
+    private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao
 ) : ViewModel() {
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
@@ -65,7 +69,37 @@ class FarmCalendarViewModel @Inject constructor(
              if (userId.isBlank()) {
                  flowOf(emptyList())
              } else {
-                 farmEventRepository.getCalendarEvents(userId)
+                 // Combine actual database events with projected events
+                 combine(
+                     farmEventRepository.getCalendarEvents(userId),
+                     farmAssetDao.getAssetsByFarmer(userId),
+                     growthRecordDao.observeAllByFarmer(userId)
+                 ) { dbEvents, assets, allGrowthRecords ->
+                     
+                     val projectedEvents = assets.flatMap { asset ->
+                         val assetRecords = allGrowthRecords.filter { it.productId == asset.assetId }
+                             .sortedBy { it.createdAt }
+                             .map { (it.weightGrams ?: 0).toInt() }
+                         
+                         // Only predict if enough data
+                         if (assetRecords.size >= 2) {
+                             val prediction = growthPredictionService.predictGrowthTrajectory(
+                                 weights = assetRecords,
+                                 breed = asset.breed ?: "Broiler" // Default
+                             )
+                             
+                             projectedEventMapper.mapPredictionToEvents(
+                                 batchId = asset.assetId,
+                                 batchName = asset.name,
+                                 prediction = prediction
+                             )
+                         } else {
+                             emptyList()
+                         }
+                     }
+                     
+                     dbEvents + projectedEvents
+                 }
              }
         }
         .stateIn(
@@ -144,5 +178,23 @@ class FarmCalendarViewModel @Inject constructor(
          viewModelScope.launch {
              farmEventRepository.deleteEvent(eventId)
          }
+    }
+
+    fun confirmProjectedEvent(event: CalendarEvent) {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            
+            val newEvent = com.rio.rostry.data.database.entity.FarmEventEntity(
+                farmerId = userId,
+                eventType = event.type,
+                title = event.title,
+                description = event.description,
+                scheduledAt = event.date,
+                batchId = event.metadata?.get("batchId"),
+                metadata = event.metadata?.toString()
+            )
+            
+            farmEventRepository.createEvent(newEvent)
+        }
     }
 }

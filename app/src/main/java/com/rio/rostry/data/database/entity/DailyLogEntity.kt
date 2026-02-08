@@ -58,7 +58,9 @@ data class DailyLogEntity(
     /** Number of times this log has been merged during conflict resolution. */
     val mergeCount: Int = 0,
     /** Flag indicating if a conflict was resolved during the last merge. */
-    val conflictResolved: Boolean = false
+    val conflictResolved: Boolean = false,
+    /** Structured media items (photos, videos) with metadata. Overrides photoUrls if present. */
+    val mediaItemsJson: String? = null
 ) {
     // No-arg constructor for Firestore deserialization
     constructor() : this(
@@ -67,4 +69,48 @@ data class DailyLogEntity(
         farmerId = "",
         logDate = 0L
     )
+
+    /**
+     * Get media items from structured JSON, falling back to parsing photoUrls (legacy).
+     */
+    fun getMediaItems(): List<com.rio.rostry.ui.components.MediaItem> {
+        // Prefer structured mediaItemsJson
+        if (!mediaItemsJson.isNullOrBlank()) {
+            try {
+                val type = object : com.google.gson.reflect.TypeToken<List<com.rio.rostry.ui.components.MediaItem>>() {}.type
+                val items: List<com.rio.rostry.ui.components.MediaItem>? = com.google.gson.Gson().fromJson(mediaItemsJson, type)
+                if (!items.isNullOrEmpty()) return items
+            } catch (_: Exception) { }
+        }
+        
+        // Fallback: parse legacy photoUrls
+        return photoUrls?.let { urls ->
+            val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+            // Try parsing as JSON array first
+            try {
+                 val parsed: List<String> = com.google.gson.Gson().fromJson(urls, listType)
+                 parsed.mapIndexed { index, url ->
+                     com.rio.rostry.ui.components.MediaItem(
+                         url = url,
+                         caption = "Photo ${index + 1}",
+                         recordType = "DAILY_LOG",
+                         recordId = logId
+                     )
+                 }
+            } catch (e: Exception) {
+                // Fallback to comma-separated
+                urls.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .mapIndexed { index, url ->
+                        com.rio.rostry.ui.components.MediaItem(
+                            url = url,
+                            caption = "Photo ${index + 1}",
+                            recordType = "DAILY_LOG",
+                            recordId = logId
+                        )
+                    }
+            }
+        } ?: emptyList()
+    }
 }

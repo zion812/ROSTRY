@@ -59,7 +59,7 @@ fun AssetDocumentScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.exportToPdf() },
+                        onClick = { viewModel.exportAsZip() },
                         enabled = uiState.documentation != null && !uiState.isExporting
                     ) {
                         if (uiState.isExporting) {
@@ -68,7 +68,7 @@ fun AssetDocumentScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Default.PictureAsPdf, contentDescription = "Export PDF")
+                            Icon(Icons.Default.FolderZip, contentDescription = "Export ZIP")
                         }
                     }
                 }
@@ -131,7 +131,7 @@ fun AssetDocumentScreen(
                 // Export Button
                 item {
                     Button(
-                        onClick = { viewModel.exportToPdf() },
+                        onClick = { viewModel.exportAsZip() },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !uiState.isExporting
                     ) {
@@ -146,7 +146,7 @@ fun AssetDocumentScreen(
                             Icon(Icons.Default.Download, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text(if (uiState.isExporting) "Generating PDF..." else "Export as PDF")
+                        Text(if (uiState.isExporting) "Generating Package..." else "Export Records (ZIP)")
                     }
                 }
             }

@@ -41,6 +41,9 @@ interface GrowthRecordDao {
     @Query("SELECT * FROM growth_records WHERE farmerId = :farmerId ORDER BY week ASC")
     suspend fun getAllByFarmer(farmerId: String): List<GrowthRecordEntity>
 
+    @Query("SELECT * FROM growth_records WHERE farmerId = :farmerId ORDER BY week ASC")
+    fun observeAllByFarmer(farmerId: String): Flow<List<GrowthRecordEntity>>
+
     @Query("SELECT * FROM growth_records WHERE dirty = 1")
     suspend fun getDirty(): List<GrowthRecordEntity>
 

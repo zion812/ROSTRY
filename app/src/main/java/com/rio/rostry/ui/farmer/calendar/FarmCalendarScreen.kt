@@ -10,12 +10,17 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,7 +69,7 @@ fun FarmCalendarScreen(
                 title = { Text("Farm Calendar") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 }
             )
@@ -115,43 +121,12 @@ fun FarmCalendarScreen(
             }
 
             // Day View (Events List)
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    Text(
-                        text = selectedDate.format(DateTimeFormatter.ofPattern("EEEE, MMM dd")),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                if (filteredEvents.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No events for this day",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    items(filteredEvents) { event ->
-                        EventItem(
-                            event = event,
-                            onClick = { selectedEvent = event }
-                        )
-                    }
-                }
-            }
+            EventList(
+                events = filteredEvents,
+                onEventClick = { selectedEvent = it },
+                onDeleteEvent = { viewModel.deleteEvent(it) },
+                onConfirmEvent = { viewModel.confirmProjectedEvent(it) }
+            )
         }
     }
 
@@ -183,6 +158,161 @@ fun FarmCalendarScreen(
 }
 
 @Composable
+fun EventList(
+    events: List<CalendarEvent>,
+    onEventClick: (CalendarEvent) -> Unit,
+    onDeleteEvent: (String) -> Unit,
+    onConfirmEvent: (CalendarEvent) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (events.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No events for this day",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(events) { event ->
+                val isProjected = event.metadata?.get("isProjected") == "true"
+                val backgroundColor = if (isProjected) 
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) 
+                else 
+                    MaterialTheme.colorScheme.surface
+                    
+                val borderModifier = if (isProjected) {
+                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                } else {
+                    Modifier
+                }
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(borderModifier)
+                        .clickable { onEventClick(event) },
+                    colors = CardDefaults.cardColors(containerColor = backgroundColor),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isProjected) 0.dp else 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Type Icon
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(getEventColor(event.type).copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getEventTypeIcon(event.type),
+                                contentDescription = null,
+                                tint = getEventColor(event.type),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // Content
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isProjected) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ShowChart,
+                                        contentDescription = "Projected",
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = "PROJECTED",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = event.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Text(
+                                text = event.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            
+                            // Time/Status
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = java.time.format.DateTimeFormatter.ofPattern("hh:mm a")
+                                        .withZone(java.time.ZoneId.systemDefault())
+                                        .format(java.time.Instant.ofEpochMilli(event.date)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
+                        // Action Button
+                        if (!isProjected) {
+                            IconButton(onClick = { onDeleteEvent(event.id) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        } else {
+                             IconButton(
+                                onClick = { onConfirmEvent(event) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AddCircleOutline,
+                                    contentDescription = "Add",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun CalendarMonthView(
     currentMonth: YearMonth,
     onMonthChange: (YearMonth) -> Unit,
@@ -198,7 +328,7 @@ fun CalendarMonthView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
-                Icon(Icons.Default.ArrowBack, "Previous Month")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Previous Month")
             }
             Text(
                 text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
@@ -206,7 +336,7 @@ fun CalendarMonthView(
                 fontWeight = FontWeight.Bold
             )
             IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
-                Icon(Icons.Default.ArrowForward, "Next Month")
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, "Next Month")
             }
         }
 
