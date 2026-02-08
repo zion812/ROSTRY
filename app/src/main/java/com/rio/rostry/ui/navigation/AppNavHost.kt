@@ -1670,22 +1670,7 @@ private fun RoleNavGraph(
             )
         }
         
-        // Show Log Screen
-        composable(
-            route = Routes.EnthusiastNav.SHOW_LOG,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            if (productId.isBlank()) {
-                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
-            } else {
-                com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
-                    productId = productId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToAddRecord = { navController.navigate(Routes.EnthusiastNav.showEntry(productId)) }
-                )
-            }
-        }
+
         
         // Hall of Fame Screen
         composable(Routes.EnthusiastNav.HALL_OF_FAME) {
@@ -2209,9 +2194,8 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
-                productId = productId,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAddRecord = { navController.navigate(Routes.EnthusiastNav.showEntry(productId)) }
+                birdId = productId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -2222,21 +2206,8 @@ private fun RoleNavGraph(
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
             com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
-                productId = productId,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAddRecord = { navController.navigate(Routes.EnthusiastNav.showEntry(productId)) }
-            )
-        }
-
-        // Show Entry Screen (Add/Edit)
-        composable(
-            route = Routes.EnthusiastNav.SHOW_ENTRY,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            com.rio.rostry.ui.enthusiast.showrecords.ShowEntryScreen(
-                productId = productId,
-                navController = navController
+                birdId = productId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

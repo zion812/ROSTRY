@@ -1,84 +1,162 @@
 package com.rio.rostry.ui.enthusiast.showrecords
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ShowRecordEntity
 import com.rio.rostry.data.repository.ShowRecordRepository
-import com.google.firebase.auth.FirebaseAuth
+import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
+import org.json.JSONArray
+
+data class ShowRecordsUiState(
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val records: List<ShowRecordEntity> = emptyList(),
+    val totalShows: Int = 0,
+    val totalWins: Int = 0,
+    val winRate: Int = 0,
+    // Add Sheet State
+    val isAddSheetOpen: Boolean = false,
+    val isSaving: Boolean = false
+)
 
 @HiltViewModel
 class ShowRecordsViewModel @Inject constructor(
-    private val showRecordRepository: ShowRecordRepository,
-    private val firebaseAuth: FirebaseAuth
+    private val repository: ShowRecordRepository
 ) : ViewModel() {
 
-    data class UiState(
-        val records: List<ShowRecordEntity> = emptyList(),
-        val isLoading: Boolean = false,
-        val message: String? = null
-    )
+    private val _uiState = MutableStateFlow(ShowRecordsUiState())
+    val uiState: StateFlow<ShowRecordsUiState> = _uiState.asStateFlow()
 
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-    
-    private var currentProductId: String? = null
+    private var currentBirdId: String? = null
 
-    fun loadRecords(productId: String) {
-        currentProductId = productId
+    // Helper for photos in Add Sheet
+    private val _inputPhotos = MutableStateFlow<List<String>>(emptyList())
+    val inputPhotos: StateFlow<List<String>> = _inputPhotos.asStateFlow()
+
+    fun loadRecords(birdId: String) {
+        currentBirdId = birdId
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            showRecordRepository.getRecordsForProduct(productId).collect { records ->
-                _uiState.update { it.copy(records = records, isLoading = false) }
+            repository.getRecordsForProduct(birdId).collect { records ->
+                val sorted = records.sortedByDescending { it.eventDate }
+                val stats = calculateStats(sorted)
+                
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    records = sorted,
+                    totalShows = sorted.size,
+                    totalWins = stats.first,
+                    winRate = stats.second
+                )
             }
         }
     }
 
-    fun addRecord(
-        productId: String,
+    private fun calculateStats(records: List<ShowRecordEntity>): Pair<Int, Int> {
+        if (records.isEmpty()) return Pair(0, 0)
+        
+        val wins = records.count { it.isWin || it.isPodium }
+        val winRate = if (records.isNotEmpty()) ((wins.toDouble() / records.size) * 100).toInt() else 0
+        
+        return Pair(wins, winRate)
+    }
+
+    fun openAddSheet() {
+        _inputPhotos.value = emptyList() // Reset photos
+        _uiState.value = _uiState.value.copy(isAddSheetOpen = true)
+    }
+
+    fun closeAddSheet() {
+        _uiState.value = _uiState.value.copy(isAddSheetOpen = false)
+    }
+
+    fun addPhoto(uri: Uri) {
+        // In a real app, we'd copy/upload this Uri. For now, we persist the string uri.
+        // Assuming local persistence or sync handles it.
+        val current = _inputPhotos.value.toMutableList()
+        current.add(uri.toString())
+        _inputPhotos.value = current
+    }
+    
+    fun removePhoto(index: Int) {
+        val current = _inputPhotos.value.toMutableList()
+        if (index in current.indices) {
+            current.removeAt(index)
+            _inputPhotos.value = current
+        }
+    }
+
+    fun saveRecord(
         eventName: String,
-        recordType: String,
-        result: String,
         eventDate: Long,
-        placement: Int?,
+        type: String, // SHOW, EXHIBITION, SPARRING
+        result: String,
+        placement: String?, // Can be parsed to Int or stored in notes if complex
+        judge: String?,
         notes: String?
     ) {
+        val birdId = currentBirdId ?: return
+        if (eventName.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Event name required")
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(isSaving = true)
+
+        val photosJson = JSONArray(_inputPhotos.value).toString()
+
+        val record = ShowRecordEntity(
+            recordId = UUID.randomUUID().toString(),
+            productId = birdId,
+            ownerId = "current_user", // Should be injected or fetched
+            recordType = type,
+            eventName = eventName,
+            eventDate = eventDate,
+            result = result,
+            placement = placement?.toIntOrNull(),
+            judgesNotes = judge, // Mapping judge name to notes field temporarily or handling separately
+            notes = notes,
+            photoUrls = photosJson,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+
         viewModelScope.launch {
-            val ownerId = firebaseAuth.currentUser?.uid ?: return@launch
-            
-            val record = ShowRecordEntity(
-                recordId = UUID.randomUUID().toString(),
-                productId = productId,
-                ownerId = ownerId,
-                recordType = recordType,
-                eventName = eventName,
-                eventDate = eventDate,
-                result = result,
-                placement = placement,
-                notes = notes,
-                dirty = true
-            )
-            
-            showRecordRepository.addRecord(record)
-            _uiState.update { it.copy(message = "Record added successfully") }
+            when (val result = repository.addRecord(record)) {
+                is Resource.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        isAddSheetOpen = false,
+                        errorMessage = null
+                    )
+                }
+                is Resource.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        errorMessage = result.message
+                    )
+                }
+                else -> {}
+            }
         }
     }
-    
+
     fun deleteRecord(recordId: String) {
         viewModelScope.launch {
-            showRecordRepository.deleteRecord(recordId)
-            _uiState.update { it.copy(message = "Record deleted") }
+            repository.deleteRecord(recordId)
         }
     }
     
-    fun clearMessage() {
-        _uiState.update { it.copy(message = null) }
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 }
