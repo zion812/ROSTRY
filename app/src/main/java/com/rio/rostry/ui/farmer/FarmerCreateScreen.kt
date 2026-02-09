@@ -639,11 +639,19 @@ private fun DetailsStep(
                 )
             }
             AgeGroup.Grower -> {
-                OutlinedTextField(
-                    value = state.weightText,
-                    onValueChange = { value -> onUpdate { it.copy(weightText = value) } },
-                    label = { Text("Weight (grams)") },
-                    modifier = Modifier.fillMaxWidth()
+                // Enhanced Weight Input with Validation (Phase 8)
+                WeightInputWithValidation(
+                    weightText = state.weightText,
+                    onWeightChange = { value -> onUpdate { it.copy(weightText = value) } },
+                    expectedRange = state.expectedWeightRange,
+                    ageDescription = state.ageDescription,
+                    validationMessage = state.weightValidationMessage,
+                    isBelow = state.isWeightBelowExpected,
+                    isAbove = state.isWeightAboveExpected,
+                    suggestedWeight = state.suggestedWeight,
+                    onUseSuggested = { suggested -> 
+                        onUpdate { it.copy(weightText = suggested.toString()) }
+                    }
                 )
                 OutlinedTextField(
                     value = state.healthUri,
@@ -975,5 +983,98 @@ private fun WizardNavigationButtons(
     
     if (!uiState.isOnline) {
         Text("Listing will publish when online", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
+ * Enhanced weight input field with lifecycle-based validation (Phase 8).
+ * Shows expected weight range, validation warnings, and suggested weight.
+ */
+@Composable
+private fun WeightInputWithValidation(
+    weightText: String,
+    onWeightChange: (String) -> Unit,
+    expectedRange: IntRange?,
+    ageDescription: String?,
+    validationMessage: String?,
+    isBelow: Boolean,
+    isAbove: Boolean,
+    suggestedWeight: Int?,
+    onUseSuggested: (Int) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Weight input field
+        OutlinedTextField(
+            value = weightText,
+            onValueChange = onWeightChange,
+            label = { Text("Weight (grams)") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = false, // Non-blocking - just show warning
+            supportingText = {
+                // Show expected range hint
+                if (expectedRange != null && ageDescription != null) {
+                    Text(
+                        "Expected: ${expectedRange.first}-${expectedRange.last}g for $ageDescription birds",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            trailingIcon = {
+                // Show suggest button if available
+                if (suggestedWeight != null && weightText.isBlank()) {
+                    TextButton(onClick = { onUseSuggested(suggestedWeight) }) {
+                        Text("${suggestedWeight}g", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+        )
+        
+        // Warning chip (non-blocking)
+        if (validationMessage != null) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isBelow) {
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+                    } else {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                    }
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = "Warning",
+                        tint = if (isBelow) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = validationMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isBelow) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        }
+                    )
+                }
+            }
+            
+            // Suggest correct weight button
+            if (suggestedWeight != null) {
+                OutlinedButton(
+                    onClick = { onUseSuggested(suggestedWeight) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Lightbulb, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Use suggested: ${suggestedWeight}g")
+                }
+            }
+        }
     }
 }

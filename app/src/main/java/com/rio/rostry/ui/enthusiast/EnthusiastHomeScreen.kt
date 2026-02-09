@@ -137,10 +137,14 @@ fun EnthusiastHomeScreen(
     onOpenBreedingCalculator: () -> Unit = {},
     onOpenPerformanceJournal: () -> Unit = {},
     onOpenVirtualArena: () -> Unit = {},
+    // Premium Features Callbacks
+    onOpenHallOfFame: () -> Unit = {},
+    onOpenDigitalFarm: () -> Unit = {},
     // Farmer Parity Callbacks
     onOpenFarmAssets: () -> Unit = {},
     onOpenFarmLog: () -> Unit = {}
 ) {
+
     val vm: EnthusiastHomeViewModel = hiltViewModel()
     val ui by vm.ui.collectAsState()
     val refreshing by vm.isRefreshing.collectAsState()
@@ -387,7 +391,17 @@ fun EnthusiastHomeScreen(
                 OutlinedButton(onClick = onOpenPerformanceJournal, modifier = Modifier.weight(1f)) { Text("Journal") }
                 OutlinedButton(onClick = onOpenVirtualArena, modifier = Modifier.weight(1f)) { Text("Arena") }
             }
+            Spacer(Modifier.size(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpenHallOfFame, modifier = Modifier.weight(1f)) { 
+                    Text("🏆 Hall of Fame") 
+                }
+                OutlinedButton(onClick = onOpenDigitalFarm, modifier = Modifier.weight(1f)) { 
+                    Text("🐔 Digital Farm") 
+                }
+            }
         }
+
 
         // Dialog for egg collection
         if (showDialog) {

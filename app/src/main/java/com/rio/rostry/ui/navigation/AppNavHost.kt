@@ -2161,6 +2161,8 @@ private fun RoleNavGraph(
                 onOpenBreedingCalculator = { navController.navigate(Routes.EnthusiastNav.BREEDING_CALCULATOR) },
                 onOpenPerformanceJournal = { navController.navigate(Routes.EnthusiastNav.PERFORMANCE_JOURNAL) },
                 onOpenVirtualArena = { navController.navigate(Routes.EnthusiastNav.VIRTUAL_ARENA) },
+                onOpenHallOfFame = { navController.navigate(Routes.EnthusiastNav.HALL_OF_FAME) },
+                onOpenDigitalFarm = { navController.navigate(Routes.EnthusiastNav.DIGITAL_FARM) },
                 onOpenFarmAssets = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
                 onOpenFarmLog = { navController.navigate(Routes.Monitoring.FARM_LOG) }
             )
@@ -2241,6 +2243,102 @@ private fun RoleNavGraph(
         // Breeding Calendar
         composable(Routes.EnthusiastNav.BREEDING_CALENDAR) {
             com.rio.rostry.ui.enthusiast.breeding.BreedingCalendarScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Bird Comparison Tool (Phase 9 Gap Fix)
+        composable(Routes.EnthusiastNav.BIRD_COMPARISON) {
+            com.rio.rostry.ui.enthusiast.comparison.BirdComparisonScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Pedigree Screen (Phase 10 Audit Fix)
+        composable(
+            route = Routes.EnthusiastNav.PEDIGREE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.pedigree.PedigreeScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onBirdClick = { birdId -> navController.navigate(Routes.Builders.productDetails(birdId)) },
+                onNavigateToExport = { birdId -> navController.navigate(Routes.EnthusiastNav.pedigreeExport(birdId)) },
+                onNavigateToShowRecords = { birdId -> navController.navigate(Routes.EnthusiastNav.showRecords(birdId)) }
+            )
+        }
+        
+        // Digital Farm Screen (Phase 10 Audit Fix)
+        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
+            com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onNavigateToListProduct = { productId -> navController.navigate(Routes.FarmerNav.CREATE_LISTING_FROM_ASSET.replace("{assetId}", productId)) },
+                onNavigateToLogEggs = { productId -> navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION) },
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) }
+            )
+        }
+        
+        // Hall of Fame Screen (Phase 10 Audit Fix)
+        composable(Routes.EnthusiastNav.HALL_OF_FAME) {
+            com.rio.rostry.ui.enthusiast.halloffame.HallOfFameScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onBirdClick = { birdId -> navController.navigate(Routes.Builders.productDetails(birdId)) }
+            )
+        }
+        
+        // Showcase Card Screen (Phase 10 Audit Fix)
+        composable(
+            route = Routes.EnthusiastNav.SHOWCASE_CARD,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.showcase.ShowcaseCardPreviewScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Transfer Code Screen (Phase 10 Audit Fix)
+        composable(
+            route = Routes.EnthusiastNav.TRANSFER_CODE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.transfer.TransferCodeScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Claim Transfer Screen (Phase 10 Audit Fix)
+        composable(Routes.EnthusiastNav.CLAIM_TRANSFER) {
+            com.rio.rostry.ui.enthusiast.transfer.ClaimTransferScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onClaimSuccess = { navController.navigate(Routes.EnthusiastNav.HOME) { popUpTo(Routes.EnthusiastNav.CLAIM_TRANSFER) { inclusive = true } } }
+            )
+        }
+        
+        // Performance Journal Screen (Phase 10 Audit Fix)
+        composable(Routes.EnthusiastNav.PERFORMANCE_JOURNAL) {
+            com.rio.rostry.ui.enthusiast.journal.PerformanceJournalScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Rooster Card Screen (Phase 10 Audit Fix)
+        composable(
+            route = Routes.EnthusiastNav.ROOSTER_CARD,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.cards.RoosterCardScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        // Enthusiast Create Screen (Phase 10 Audit Fix - reuses FarmerCreateScreen)
+        composable(Routes.EnthusiastNav.CREATE) {
+            com.rio.rostry.ui.farmer.FarmerCreateScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

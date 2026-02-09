@@ -153,7 +153,15 @@ class FarmerCreateViewModel @Inject constructor(
         val breed: String = "",
         val deliveryOptions: List<String> = emptyList(),
         val deliveryCost: Double? = null,
-        val leadTimeDays: Int? = null
+        val leadTimeDays: Int? = null,
+        // Weight validation fields (Phase 8)
+        val expectedWeightRange: IntRange? = null,
+        val weightValidationMessage: String? = null,
+        val isWeightBelowExpected: Boolean = false,
+        val isWeightAboveExpected: Boolean = false,
+        val suggestedWeight: Int? = null,
+        val ageInDays: Int? = null,
+        val ageDescription: String? = null
     )
 
     data class MediaInfoState(
@@ -503,10 +511,86 @@ class FarmerCreateViewModel @Inject constructor(
 
     fun updateDetails(transform: (DetailsInfoState) -> DetailsInfoState) {
         val current = _ui.value.wizardState
+        val updatedDetails = transform(current.detailsInfo)
+        
+        // Calculate age and validate weight (Phase 8)
+        val validatedDetails = validateWeightInput(updatedDetails, current.basicInfo.ageGroup)
+        
         _ui.value = _ui.value.copy(
-            wizardState = current.copy(detailsInfo = transform(current.detailsInfo))
+            wizardState = current.copy(detailsInfo = validatedDetails)
         )
         debounceSaveDraft()
+    }
+    
+    /**
+     * Validate weight input against lifecycle benchmarks.
+     * Non-blocking - just populates warning fields.
+     */
+    private fun validateWeightInput(
+        details: DetailsInfoState,
+        ageGroup: AgeGroup
+    ): DetailsInfoState {
+        // Calculate age in days from birth date
+        val ageInDays = com.rio.rostry.domain.model.PoultryWeightBenchmarks.calculateAgeInDays(details.birthDateMillis)
+            ?: estimateAgeFromAgeGroup(ageGroup)
+        
+        val ageDescription = ageInDays?.let { 
+            com.rio.rostry.domain.model.PoultryWeightBenchmarks.getAgeDescription(it) 
+        }
+        
+        // Get expected weight range
+        val expectedRange = ageInDays?.let { 
+            com.rio.rostry.domain.model.PoultryWeightBenchmarks.getExpectedRangeForAge(it) 
+        }
+        
+        // Get suggested weight
+        val suggestedWeight = com.rio.rostry.domain.model.PoultryWeightBenchmarks.getSuggestedWeight(
+            ageInDays, 
+            details.genderText.ifBlank { null }
+        )
+        
+        // Validate weight if provided
+        val weightGrams = details.weightText.toIntOrNull()
+        val validationResult = if (weightGrams != null && weightGrams > 0) {
+            com.rio.rostry.domain.model.PoultryWeightBenchmarks.validateWeight(
+                weightGrams,
+                ageInDays,
+                details.genderText.ifBlank { null }
+            )
+        } else {
+            null
+        }
+        
+        // Extract validation message and flags
+        val (message, isBelow, isAbove) = when (validationResult) {
+            is com.rio.rostry.domain.model.PoultryWeightBenchmarks.WeightValidationResult.BelowExpected -> 
+                Triple(validationResult.message, true, false)
+            is com.rio.rostry.domain.model.PoultryWeightBenchmarks.WeightValidationResult.AboveExpected -> 
+                Triple(validationResult.message, false, true)
+            else -> Triple(null, false, false)
+        }
+        
+        return details.copy(
+            ageInDays = ageInDays,
+            ageDescription = ageDescription,
+            expectedWeightRange = expectedRange,
+            suggestedWeight = suggestedWeight,
+            weightValidationMessage = message,
+            isWeightBelowExpected = isBelow,
+            isWeightAboveExpected = isAbove
+        )
+    }
+    
+    /**
+     * Estimate age in days based on AgeGroup selection.
+     */
+    private fun estimateAgeFromAgeGroup(ageGroup: AgeGroup): Int? {
+        return when (ageGroup) {
+            AgeGroup.Chick -> 14    // ~2 weeks
+            AgeGroup.Grower -> 56   // ~8 weeks
+            AgeGroup.Adult -> 140   // ~20 weeks
+            AgeGroup.Senior -> 365  // ~1 year
+        }
     }
 
     fun addMedia(type: String, uris: List<String>) {

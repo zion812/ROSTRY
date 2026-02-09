@@ -325,6 +325,9 @@ object Routes {
         const val COMPETITION_DETAIL = "enthusiast/virtual_arena/{competitionId}"
         
         const val BREEDING_CALENDAR = "enthusiast/breeding_calendar"
+        
+        // Bird Comparison Tool (Phase 9 Gap Fix)
+        const val BIRD_COMPARISON = "enthusiast/bird_comparison"
 
         // Builder functions
         fun pedigree(productId: String) = "enthusiast/pedigree/$productId"
@@ -443,6 +446,8 @@ object Routes {
             FarmerNav.CREATE_AUCTION_FROM_ASSET,
             // Calendar
             FarmerNav.CALENDAR,
+            // Feed History
+            FarmerNav.FEED_HISTORY,
             // Farm Activity Log
             Monitoring.FARM_LOG,
             // Monitoring Detail Views
@@ -544,6 +549,8 @@ object Routes {
             EnthusiastNav.VIRTUAL_ARENA,
             EnthusiastNav.COMPETITION_DETAIL,
             EnthusiastNav.ANALYTICS_GENETICS,
+            // Bird Comparison Tool
+            EnthusiastNav.BIRD_COMPARISON,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features

@@ -105,10 +105,39 @@ fun PerformanceJournalScreen(
                     }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(logs.size) { index ->
-                        val log = logs[index]
-                        LogEntryCard(log, onDelete = { vm.deleteLog(log.id) })
+                if (logs.isEmpty()) {
+                    // Empty state for logs
+                    Column(
+                        Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("📓", style = MaterialTheme.typography.displayLarge)
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "No entries yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Start tracking ${selectedBird?.name ?: "this bird"}'s daily performance",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(onClick = { showAddEntryDialog = true }) {
+                            Icon(Icons.Filled.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add First Entry")
+                        }
+                    }
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(logs.size) { index ->
+                            val log = logs[index]
+                            LogEntryCard(log, onDelete = { vm.deleteLog(log.id) })
+                        }
                     }
                 }
             }
