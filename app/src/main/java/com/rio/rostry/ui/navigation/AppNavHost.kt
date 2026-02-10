@@ -2268,17 +2268,6 @@ private fun RoleNavGraph(
             )
         }
         
-        // Digital Farm Screen (Phase 10 Audit Fix)
-        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
-            com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
-                onNavigateToListProduct = { productId -> navController.navigate(Routes.FarmerNav.CREATE_LISTING_FROM_ASSET.replace("{assetId}", productId)) },
-                onNavigateToLogEggs = { productId -> navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION) },
-                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) }
-            )
-        }
-        
         // Hall of Fame Screen (Phase 10 Audit Fix)
         composable(Routes.EnthusiastNav.HALL_OF_FAME) {
             com.rio.rostry.ui.enthusiast.halloffame.HallOfFameScreen(

@@ -284,3 +284,29 @@
 -dontwarn com.google.android.gms.common.GooglePlayServicesUtil
 -dontwarn com.google.android.gms.dynamite.DynamiteModule
 -dontwarn com.google.android.gms.common.wrappers.**
+
+# --- Gson-serialized classes outside entity package ---
+# MediaItem (used by MediaItemListConverter for Room JSON serialization)
+-keep class com.rio.rostry.ui.components.MediaItem { *; }
+-keep class com.rio.rostry.data.database.converters.MediaUploadContext { *; }
+
+# BackupService data classes (serialized/deserialized for backup files)
+-keep class com.rio.rostry.data.service.BackupService$BackupMetadata { *; }
+-keep class com.rio.rostry.data.service.BackupService$ComprehensiveExportData { *; }
+-keep class com.rio.rostry.data.service.BackupService$* { *; }
+
+# Domain models used with Gson.fromJson()
+-keep class com.rio.rostry.domain.model.FarmLocation { *; }
+-keep class com.rio.rostry.domain.model.** { *; }
+
+# TypeConverters (all locations)
+-keep class com.rio.rostry.data.database.converters.** { *; }
+-keep class com.rio.rostry.data.database.LifecycleConverters { *; }
+
+# Transfer documentation snapshot classes
+-keep class com.rio.rostry.domain.service.TransferDocumentationService$* { *; }
+
+# Prevent R8 from removing no-arg constructors needed by Gson
+-keepclassmembers class com.rio.rostry.** {
+    <init>();
+}
