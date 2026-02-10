@@ -1,5 +1,7 @@
 package com.rio.rostry.ui.monitoring
 
+import androidx.compose.ui.text.font.FontWeight
+import com.rio.rostry.ui.theme.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,7 +58,8 @@ import com.rio.rostry.ui.components.BirdSelectionItem
 @Composable
 fun GrowthTrackingScreen(
     productId: String = "",
-    onListProduct: (String) -> Unit = {}
+    onListProduct: (String) -> Unit = {},
+    isPremium: Boolean = false
 ) {
     val vm: GrowthViewModel = hiltViewModel()
     val state by vm.ui.collectAsState()
@@ -89,7 +92,26 @@ fun GrowthTrackingScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)
     ) {
         item {
-            Text("Growth Tracking", style = MaterialTheme.typography.titleLarge)
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Growth Tracking", style = MaterialTheme.typography.titleLarge)
+                if (isPremium) {
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = EnthusiastElectric.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = "PRO",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = EnthusiastElectric
+                        )
+                    }
+                }
+            }
         }
 
         item {
@@ -315,6 +337,29 @@ fun GrowthTrackingScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+                                
+                                // Premium: Genetic potential and breeding optimization
+                                if (isPremium) {
+                                    Spacer(Modifier.height(8.dp))
+                                    androidx.compose.material3.Divider()
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(
+                                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Info,
+                                            contentDescription = null,
+                                            tint = EnthusiastElectric,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "Track consistently to build a growth profile for breeding pair selection.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = EnthusiastPrimary
+                                        )
+                                    }
                                 }
                             }
                         }

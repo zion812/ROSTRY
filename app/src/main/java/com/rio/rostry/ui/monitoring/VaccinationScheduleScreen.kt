@@ -1,5 +1,8 @@
 package com.rio.rostry.ui.monitoring
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import com.rio.rostry.ui.theme.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,7 +58,8 @@ import java.util.Locale
 @Composable
 fun VaccinationScheduleScreen(
     onListProduct: (String) -> Unit = {},
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    isPremium: Boolean = false
 ) {
     val vm: VaccinationViewModel = hiltViewModel()
     val state by vm.ui.collectAsState()
@@ -75,10 +79,33 @@ fun VaccinationScheduleScreen(
     val dateFmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()) }
 
 
+    val accentColor = MaterialTheme.colorScheme.primary
+
     androidx.compose.material3.Scaffold(
         topBar = {
             androidx.compose.material3.TopAppBar(
-                title = { Text("Vaccination") },
+                title = {
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Vaccination")
+                        if (isPremium) {
+                            androidx.compose.material3.Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = EnthusiastElectric.copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    text = "PRO",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EnthusiastElectric
+                                )
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     androidx.compose.material3.IconButton(onClick = onNavigateBack) {
                         androidx.compose.material3.Icon(
@@ -124,6 +151,57 @@ fun VaccinationScheduleScreen(
                     )
                 }
                 
+                // Premium: Medical timeline export hint
+                if (isPremium) {
+                    item {
+                        androidx.compose.material3.Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                                containerColor = EnthusiastPrimary.copy(alpha = 0.08f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    androidx.compose.material.icons.Icons.Filled.CheckCircle,
+                                    contentDescription = null,
+                                    tint = EnthusiastElectric,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Medical Timeline Available",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = EnthusiastPrimary
+                                    )
+                                    Text(
+                                        text = "Complete vaccination records are auto-snapshotted on bird transfers.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                androidx.compose.material3.Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = EnthusiastElectric.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "ENTHUSIAST",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = EnthusiastElectric,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 item {
                     Text("Vaccination Schedule", style = MaterialTheme.typography.titleLarge)
                 }

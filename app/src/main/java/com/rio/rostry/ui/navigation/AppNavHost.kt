@@ -3159,7 +3159,8 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.monitoring.VaccinationScheduleScreen(
                 onListProduct = { productId ->
                     navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId))
-                }
+                },
+                isPremium = true
             )
         }
         composable(
@@ -3181,7 +3182,8 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.monitoring.GrowthTrackingScreen(
                 onListProduct = { productId ->
                     navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId))
-                }
+                },
+                isPremium = true
             )
         }
         composable(
