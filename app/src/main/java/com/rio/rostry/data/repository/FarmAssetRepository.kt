@@ -33,4 +33,7 @@ interface FarmAssetRepository {
 
     // Batch Lifecycle (Phase 3)
     suspend fun graduateBatch(batchId: String, newAssets: List<FarmAssetEntity>): Resource<Unit>
+
+    // Bird Studio - Appearance Customization
+    suspend fun updateMetadataJson(assetId: String, metadataJson: String): Resource<Unit>
 }

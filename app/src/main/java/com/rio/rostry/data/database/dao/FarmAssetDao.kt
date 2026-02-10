@@ -162,5 +162,13 @@ interface FarmAssetDao {
     /** Count active assets for a farmer (for profitability dashboard) */
     @Query("SELECT COUNT(*) FROM farm_assets WHERE farmerId = :farmerId AND status = 'ACTIVE' AND isDeleted = 0")
     suspend fun countActiveByFarmer(farmerId: String): Int
+
+    // ========================================
+    // Bird Studio / Appearance
+    // ========================================
+    
+    /** Update metadataJson for bird appearance customization */
+    @Query("UPDATE farm_assets SET metadataJson = :metadataJson, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
+    suspend fun updateMetadataJson(assetId: String, metadataJson: String, updatedAt: Long = System.currentTimeMillis())
 }
 

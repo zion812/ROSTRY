@@ -572,6 +572,22 @@ fun FarmAssetDetailScreen(
                         Text("View Show Records")
                     }
 
+                    // Bird Studio - BGMI-style Customization
+                    Button(
+                        onClick = { 
+                            onNavigateRoute(com.rio.rostry.ui.navigation.Routes.EnthusiastNav.birdStudio(assetId))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF673AB7),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(Icons.Default.Palette, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("🎨 Bird Studio", fontWeight = FontWeight.Bold)
+                    }
+
                     // Export Documentation Button
                     OutlinedButton(
                         onClick = { 

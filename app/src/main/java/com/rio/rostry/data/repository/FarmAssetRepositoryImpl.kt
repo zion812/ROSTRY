@@ -224,4 +224,19 @@ class FarmAssetRepositoryImpl @Inject constructor(
             Resource.Error(e.message ?: "Graduation failed")
         }
     }
+
+    // ========================================
+    // Bird Studio - Appearance Customization
+    // ========================================
+
+    override suspend fun updateMetadataJson(assetId: String, metadataJson: String): Resource<Unit> {
+        return try {
+            dao.updateMetadataJson(assetId, metadataJson)
+            Timber.d("Updated metadataJson for asset $assetId")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to update metadataJson for $assetId")
+            Resource.Error(e.message ?: "Failed to save appearance")
+        }
+    }
 }

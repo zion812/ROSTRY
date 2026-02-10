@@ -110,23 +110,35 @@ private val ASEEL_PRESETS = listOf(
 fun BirdStudioScreen(
     productId: String,
     onNavigateBack: () -> Unit,
-    birdName: String = "My Bird",
-    birdBreed: String? = "Aseel",
-    birdGender: String? = "Male",
-    birdAgeWeeks: Int = 24,
-    initialAppearance: BirdAppearance? = null,
-    onSaveAppearance: ((BirdAppearance) -> Unit)? = null
+    viewModel: BirdStudioViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
-    // Derive or use initial appearance
-    val defaultAppearance = remember(birdBreed, birdGender, birdAgeWeeks) {
-        initialAppearance ?: deriveAppearanceFromBreed(birdBreed, birdGender, birdAgeWeeks)
+    val state by viewModel.uiState.collectAsState()
+
+    // Bird data from ViewModel
+    val asset = state.asset
+    val birdName = asset?.name ?: "My Bird"
+    val birdBreed = asset?.breed
+    val birdGender = asset?.gender
+    val birdAgeWeeks = asset?.ageWeeks ?: 24
+
+    // Derive default appearance from ViewModel state
+    val defaultAppearance = remember(state.appearance) {
+        state.appearance ?: deriveAppearanceFromBreed(birdBreed, birdGender, birdAgeWeeks)
     }
 
     // Mutable state for the appearance being edited
-    var appearance by remember { mutableStateOf(defaultAppearance) }
+    var appearance by remember(defaultAppearance) { mutableStateOf(defaultAppearance) }
     var selectedCategory by remember { mutableStateOf(StudioCategory.BODY) }
     var selectedSubPart by remember { mutableStateOf<StudioSubPart?>(null) }
     var hasChanges by remember { mutableStateOf(false) }
+
+    // Handle save success
+    LaunchedEffect(state.savedSuccessfully) {
+        if (state.savedSuccessfully) {
+            hasChanges = false
+            viewModel.clearSaveFlag()
+        }
+    }
 
     // Animation for live preview
     val infiniteTransition = rememberInfiniteTransition(label = "studio_anim")
@@ -142,6 +154,21 @@ fun BirdStudioScreen(
 
     // Preview zoom
     var previewScale by remember { mutableFloatStateOf(2.5f) }
+
+    // Show loading
+    if (state.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = Color(0xFF00E5FF))
+                Spacer(Modifier.height(12.dp))
+                Text("Loading bird data...", color = Color.White.copy(alpha = 0.6f))
+            }
+        }
+        return
+    }
 
     val bgGradient = Brush.verticalGradient(
         listOf(Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460))
@@ -184,7 +211,7 @@ fun BirdStudioScreen(
                     // Save button
                     Button(
                         onClick = {
-                            onSaveAppearance?.invoke(appearance)
+                            viewModel.saveAppearance(appearance)
                             hasChanges = false
                         },
                         enabled = hasChanges,
