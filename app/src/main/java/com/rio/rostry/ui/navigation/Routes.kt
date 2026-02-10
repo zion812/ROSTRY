@@ -369,15 +369,18 @@ object Routes {
         accessibleRoutes = setOf(
             GeneralNav.HOME,
             GeneralNav.DISCOVER,
+            GeneralNav.CART,                 // Cart access for browsing buyers
             Settings.ROOT,
             Settings.ADDRESS_SELECTION,
             User.PROFILE,
             Common.STORAGE_QUOTA,
             Product.DETAILS,
             Product.TRACEABILITY,
+            Product.CART,                    // Product cart page
             Social.FEED,
             Messaging.THREAD,
             Order.DETAILS,
+            Order.MY_ORDERS,                 // View own orders
             Sync.ISSUES,
             Upgrade.WIZARD,
             Upgrade.POST_ONBOARDING,
@@ -409,16 +412,29 @@ object Routes {
             Settings.ADDRESS_SELECTION,
             User.PROFILE,
             Product.CREATE,
+            Product.DETAILS,
+            Product.TRACEABILITY,
+            Product.CART,                    // Cart for purchasing supplies/birds
+            Product.FAMILY_TREE,             // View lineage of farm birds
+            // Social & Community
             Social.FEED,
             Social.GROUPS,
             Social.EVENTS,
+            Social.LEADERBOARD,
+            Social.DISCUSSION_DETAIL,
+            Social.STORY_VIEWER,
+            // Messaging
+            Messaging.THREAD,
+            Messaging.OUTBOX,
             Scan.QR,
+            // Transfers
             Transfers.DETAILS,
+            Transfers.LIST,                  // Full transfer list view
             Transfers.FARMER_TRANSFERS,
             Transfers.COMPLIANCE_DETAILS,
             "compliance",
             Analytics.FARMER,
-            Analytics.REPORTS,  // Correctly verify Reports screen access
+            Analytics.REPORTS,
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,
@@ -433,12 +449,28 @@ object Routes {
             Monitoring.PERFORMANCE,
             Onboarding.FARM_BIRD,
             Onboarding.FARM_BATCH,
+            // Orders
             Order.DETAILS,
+            Order.MY_ORDERS,
+            Order.MY_ORDERS_FARMER,
+            Order.CREATE_ENQUIRY,
+            Order.QUOTE_NEGOTIATION_BUYER,
+            Order.QUOTE_NEGOTIATION_SELLER,
+            Order.PAYMENT_PROOF,
+            Order.DELIVERY_OTP_BUYER,
+            Order.DELIVERY_OTP_SELLER,
+            Order.ORDER_TRACKING,
+            Order.RAISE_DISPUTE,
+            Order.MY_DISPUTES,
+            Order.DISPUTE_DETAILS,
+            Order.PAYMENT_VERIFY,
+            Order.ORDER_REVIEW,
+            Order.SELLER_REVIEWS,
             Sync.ISSUES,
             Upgrade.WIZARD,
             Upgrade.POST_ONBOARDING,
             FarmerNav.DIGITAL_FARM,
-            // NEW: Farm Asset Management routes
+            // Farm Asset Management routes
             FarmerNav.FARM_ASSETS,
             FarmerNav.ASSET_DETAILS,
             FarmerNav.CREATE_ASSET,
@@ -459,6 +491,7 @@ object Routes {
             // Financial Analytics
             Monitoring.FCR_CALCULATOR,
             Monitoring.PROFITABILITY,
+            Monitoring.EXPENSE_LEDGER,
             // Asset Lifecycle Documentation
             Monitoring.ASSET_DOCUMENT,
             // Farm-Wide Documentation
@@ -467,12 +500,19 @@ object Routes {
             Settings.BACKUP_RESTORE,
             // Analytics
             Analytics.MONTHLY_REPORT,
-            // Upgrade paths - Farmer can access enthusiast verification when upgrading
+            // Notifications
+            Notifications.LIST,
+            // Upgrade paths
             Upgrade.ENTHUSIAST_VERIFICATION,
             Common.VERIFY_ENTHUSIAST_KYC,
             // Farm asset pedigree and showcase card views
             EnthusiastNav.PEDIGREE,
             EnthusiastNav.SHOWCASE_CARD,
+            // Glass Box Farm Profile
+            FarmerNav.PUBLIC_PROFILE_PREVIEW,
+            FarmerNav.EDIT_PROFILE,
+            FarmerNav.PRIVACY_SETTINGS,
+            PublicFarm.PROFILE,
             Routes.PUBLIC_BIRD_LOOKUP
         )
     )
@@ -499,14 +539,31 @@ object Routes {
             Settings.ROOT,
             Settings.ADDRESS_SELECTION,
             User.PROFILE,
+            // Product Access
+            Product.DETAILS,
+            Product.TRACEABILITY,
+            Product.CART,                    // Cart for buying birds/supplies
+            Product.FAMILY_TREE,
+            // Analytics
             Analytics.ENTHUSIAST,
             Analytics.REPORTS,
+            Analytics.MONTHLY_REPORT,        // Monthly farm/flock report
+            // Transfers
             Transfers.DETAILS,
             Transfers.LIST,
-            Product.TRACEABILITY,
+            Transfers.COMPLIANCE_DETAILS,    // Compliance visibility for transfers
             Scan.QR,
+            // Social & Community
+            Social.FEED,
+            Social.GROUPS,                   // Community groups
+            Social.EVENTS,                   // Community events
+            Social.LEADERBOARD,              // Competitive leaderboard
+            Social.DISCUSSION_DETAIL,
+            Social.STORY_VIEWER,
+            // Messaging
             Messaging.THREAD,
-            Social.FEED, // Ensure accessible
+            Messaging.OUTBOX,
+            // Monitoring & Health
             Monitoring.DAILY_LOG,
             Monitoring.DAILY_LOG_PRODUCT,
             Monitoring.TASKS,
@@ -519,11 +576,35 @@ object Routes {
             Monitoring.HATCHING,
             Monitoring.HATCHING_BATCH,
             Monitoring.PERFORMANCE,
-            Product.FAMILY_TREE,
+            // Monitoring Detail Views
+            Monitoring.VACCINATION_DETAIL,
+            Monitoring.GROWTH_DETAIL,
+            Monitoring.MORTALITY_DETAIL,
+            Monitoring.FARM_ACTIVITY_DETAIL,
+            Monitoring.BIRD_HISTORY,
+            Monitoring.FARM_LOG,
+            // Financial Analytics (Farmer parity)
+            Monitoring.FCR_CALCULATOR,
+            Monitoring.PROFITABILITY,        // Profitability analysis
+            Monitoring.EXPENSE_LEDGER,       // Expense tracking
+            // Asset Documentation (Farmer parity)
+            Monitoring.ASSET_DOCUMENT,       // Per-bird documentation
+            Monitoring.FARM_DOCUMENT,        // Farm-wide documentation
+            // Enthusiast-specific features
             EnthusiastNav.EGG_COLLECTION,
             Onboarding.FARM_BIRD,
             Onboarding.FARM_BATCH,
+            // Orders
             Order.DETAILS,
+            Order.MY_ORDERS,
+            Order.CREATE_ENQUIRY,
+            Order.QUOTE_NEGOTIATION_BUYER,
+            Order.ORDER_TRACKING,
+            Order.RAISE_DISPUTE,
+            Order.MY_DISPUTES,
+            Order.DISPUTE_DETAILS,
+            Order.ORDER_REVIEW,
+            Order.SELLER_REVIEWS,
             Sync.ISSUES,
             Upgrade.WIZARD,
             Upgrade.POST_ONBOARDING,
@@ -549,37 +630,26 @@ object Routes {
             EnthusiastNav.VIRTUAL_ARENA,
             EnthusiastNav.COMPETITION_DETAIL,
             EnthusiastNav.ANALYTICS_GENETICS,
+            EnthusiastNav.BREEDING_CALENDAR,
             // Bird Comparison Tool
             EnthusiastNav.BIRD_COMPARISON,
             // Settings
             Settings.BACKUP_RESTORE,
-            // Farmer Parity Features
+            // Farmer Parity Features - Farm Management
             FarmerNav.FARM_ASSETS,
             FarmerNav.ASSET_DETAILS,
             FarmerNav.CREATE_ASSET,
             FarmerNav.CREATE_LISTING_FROM_ASSET,
             FarmerNav.CREATE_AUCTION_FROM_ASSET,
-            Monitoring.FARM_LOG,
-            Monitoring.FCR_CALCULATOR,
-            // Core Monitoring Parity
-            Monitoring.VACCINATION,
-            Monitoring.MORTALITY,
-            Monitoring.QUARANTINE,
-            Monitoring.BREEDING,
-            Monitoring.GROWTH,
-            Monitoring.HATCHING,
-            Monitoring.HATCHING_BATCH,
-            Monitoring.DASHBOARD,
-            Monitoring.PERFORMANCE,
-            Monitoring.DAILY_LOG,
-            Monitoring.DAILY_LOG_PRODUCT,
-            Monitoring.TASKS,
-            // Monitoring Detail Views
-            Monitoring.VACCINATION_DETAIL,
-            Monitoring.GROWTH_DETAIL,
-            Monitoring.MORTALITY_DETAIL,
-            Monitoring.FARM_ACTIVITY_DETAIL,
-            Monitoring.BIRD_HISTORY,
+            FarmerNav.CALENDAR,              // Farm calendar
+            FarmerNav.FEED_HISTORY,           // Feed tracking history
+            // Glass Box Farm Profile (Enthusiast can also have farm profile)
+            FarmerNav.PUBLIC_PROFILE_PREVIEW,
+            FarmerNav.EDIT_PROFILE,
+            FarmerNav.PRIVACY_SETTINGS,
+            PublicFarm.PROFILE,
+            // Notifications
+            Notifications.LIST,
             Routes.PUBLIC_BIRD_LOOKUP
         )
     )
