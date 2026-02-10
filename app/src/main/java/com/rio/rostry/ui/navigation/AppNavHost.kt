@@ -2253,6 +2253,18 @@ private fun RoleNavGraph(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        // Bird Studio - BGMI-style customization
+        composable(
+            route = Routes.EnthusiastNav.BIRD_STUDIO,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.studio.BirdStudioScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
         
         // Pedigree Screen (Phase 10 Audit Fix)
         composable(

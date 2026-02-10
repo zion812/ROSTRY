@@ -262,34 +262,118 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
         )
     }
 
+    // Lifecycle stage adjustments (adolescent birds)
+    val isAdolescent = ageWeeks in 4..12
+
     return when (breed?.lowercase()?.trim()) {
-        // ---- Indian Game / Fighter Breeds ----
-        "aseel", "asil", "aseel fighter" -> BirdAppearance(
-            comb = CombStyle.PEA,
-            combColor = PartColor.RED,
-            beak = BeakStyle.SHORT,
-            beakColor = PartColor.HORN,
-            chest = PlumagePattern.SOLID,
+        // ==================== ASEEL SUB-BREEDS (Primary Focus) ====================
+        
+        // Generic Aseel / Asil
+        "aseel", "asil", "aseel fighter" -> aseelBase(isMale, isAdolescent).copy(
             chestColor = if (isMale) PartColor.RED else PartColor.BROWN,
-            back = BackStyle.SMOOTH,
             backColor = if (isMale) PartColor.DARK_RED else PartColor.BROWN,
-            crown = CrownStyle.CLEAN,
-            wings = WingStyle.TIGHT,
-            wingColor = if (isMale) PartColor.RED else PartColor.BROWN,
-            tail = TailStyle.SHORT,
-            tailColor = PartColor.BLACK,
-            legs = LegStyle.SPURRED,
-            legColor = PartColor.YELLOW,
-            joints = JointStyle.HEAVY,
-            nails = NailStyle.CURVED,
-            nailColor = PartColor.HORN,
-            eye = EyeColor.RED,
-            wattle = WattleStyle.SMALL,
-            wattleColor = PartColor.RED,
-            earLobe = EarLobeColor.RED,
-            bodySize = BodySize.LARGE,
-            isMale = isMale
+            wingColor = if (isMale) PartColor.RED else PartColor.BROWN
         )
+
+        // Reza Aseel - Classic fighting type, tall & lean, red/wheaten
+        "reza", "reza aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = if (isMale) PartColor.WHEATEN else PartColor.BROWN,
+            backColor = if (isMale) PartColor.RED else PartColor.BROWN,
+            wingColor = if (isMale) PartColor.COPPER else PartColor.BROWN,
+            tailColor = PartColor.GREEN_BLACK,
+            bodySize = BodySize.LARGE,
+            nails = if (isMale) NailStyle.CURVED else NailStyle.SHORT
+        )
+
+        // Mianwali Aseel - Compact, muscular, golden-red, from Punjab
+        "mianwali", "mianwali aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = if (isMale) PartColor.GOLD else PartColor.BUFF,
+            backColor = if (isMale) PartColor.COPPER else PartColor.BROWN,
+            wingColor = if (isMale) PartColor.GOLD else PartColor.BUFF,
+            tailColor = PartColor.BLACK,
+            bodySize = BodySize.MEDIUM,
+            legColor = PartColor.YELLOW
+        )
+
+        // Sindhi Aseel - Larger, darker coloring
+        "sindhi", "sindhi aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = if (isMale) PartColor.DARK_RED else PartColor.MAHOGANY,
+            backColor = if (isMale) PartColor.MAHOGANY else PartColor.DARK_BROWN,
+            wingColor = if (isMale) PartColor.DARK_RED else PartColor.MAHOGANY,
+            tailColor = PartColor.BLACK,
+            bodySize = BodySize.XLARGE,
+            legColor = PartColor.YELLOW,
+            nails = if (isMale) NailStyle.DOUBLE_SPUR else NailStyle.SHORT
+        )
+
+        // Madras Aseel / Tamil Aseel - South Indian variety, bright red
+        "madras", "madras aseel", "tamil aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = if (isMale) PartColor.RED else PartColor.BROWN,
+            backColor = if (isMale) PartColor.RED else PartColor.BROWN,
+            wingColor = if (isMale) PartColor.DARK_RED else PartColor.BROWN,
+            tailColor = PartColor.BLACK,
+            bodySize = BodySize.LARGE,
+            legColor = PartColor.SLATE
+        )
+
+        // Lasani Aseel - White/cream coloring, rare variety
+        "lasani", "lasani aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = PartColor.WHITE,
+            backColor = PartColor.CREAM,
+            wingColor = PartColor.WHITE,
+            tailColor = if (isMale) PartColor.WHITE else PartColor.CREAM,
+            legColor = PartColor.WHITE_PINK,
+            eye = EyeColor.PEARL,
+            bodySize = BodySize.LARGE
+        )
+
+        // Mushki Aseel - Jet black coloring
+        "mushki", "mushki aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = PartColor.BLACK,
+            backColor = PartColor.GREEN_BLACK,
+            wingColor = PartColor.GREEN_BLACK,
+            tailColor = PartColor.GREEN_BLACK,
+            legColor = PartColor.SLATE,
+            beakColor = PartColor.BLACK,
+            eye = EyeColor.DARK,
+            combColor = PartColor.DARK_RED,
+            bodySize = BodySize.LARGE
+        )
+
+        // Lakha Aseel - Speckled/mottled pattern
+        "lakha", "lakha aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chest = PlumagePattern.SPECKLED,
+            chestColor = if (isMale) PartColor.RED else PartColor.BROWN,
+            wingPattern = PlumagePattern.SPECKLED,
+            backColor = if (isMale) PartColor.RED else PartColor.BROWN,
+            wingColor = if (isMale) PartColor.RED else PartColor.BROWN,
+            tailColor = PartColor.BLACK,
+            bodySize = BodySize.LARGE
+        )
+
+        // Kilmora Aseel - Golden-copper, champion bloodline
+        "kilmora", "kilmora aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = if (isMale) PartColor.COPPER else PartColor.BUFF,
+            backColor = if (isMale) PartColor.COPPER else PartColor.BUFF,
+            wingColor = if (isMale) PartColor.GOLD else PartColor.BUFF,
+            tailColor = PartColor.GREEN_BLACK,
+            bodySize = BodySize.LARGE,
+            legColor = PartColor.YELLOW
+        )
+
+        // Java Aseel - Largest variant, thick-boned
+        "java", "java aseel" -> aseelBase(isMale, isAdolescent).copy(
+            chestColor = if (isMale) PartColor.DARK_RED else PartColor.MAHOGANY,
+            backColor = if (isMale) PartColor.DARK_RED else PartColor.DARK_BROWN,
+            wingColor = if (isMale) PartColor.DARK_RED else PartColor.MAHOGANY,
+            tailColor = PartColor.BLACK,
+            bodySize = BodySize.XLARGE,
+            joints = JointStyle.HEAVY,
+            legColor = PartColor.YELLOW,
+            nails = if (isMale) NailStyle.DOUBLE_SPUR else NailStyle.SHORT
+        )
+
+        // ==================== OTHER INDIAN BREEDS ====================
 
         "kadaknath", "kadak nath" -> BirdAppearance(
             comb = CombStyle.SINGLE,
@@ -317,7 +401,8 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
             isMale = isMale
         )
 
-        // ---- American / Dual Purpose ----
+        // ==================== AMERICAN / DUAL PURPOSE ====================
+
         "rhode island red", "rir", "rhode island" -> BirdAppearance(
             comb = CombStyle.SINGLE,
             combColor = PartColor.RED,
@@ -370,7 +455,8 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
             isMale = isMale
         )
 
-        // ---- British Breeds ----
+        // ==================== BRITISH BREEDS ====================
+
         "buff orpington", "orpington" -> BirdAppearance(
             comb = CombStyle.SINGLE,
             combColor = PartColor.RED,
@@ -396,7 +482,8 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
             isMale = isMale
         )
 
-        // ---- Asian Breeds ----
+        // ==================== ASIAN BREEDS ====================
+
         "brahma", "light brahma" -> BirdAppearance(
             comb = CombStyle.PEA,
             combColor = PartColor.RED,
@@ -449,7 +536,8 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
             isMale = isMale
         )
 
-        // ---- Egg Layers ----
+        // ==================== EGG LAYERS ====================
+
         "leghorn", "white leghorn" -> BirdAppearance(
             comb = CombStyle.SINGLE,
             combColor = PartColor.RED,
@@ -475,7 +563,8 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
             isMale = isMale
         )
 
-        // ---- Ornamental ----
+        // ==================== ORNAMENTAL ====================
+
         "polish" -> BirdAppearance(
             comb = CombStyle.V_SHAPED,
             combColor = PartColor.RED,
@@ -528,9 +617,9 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
             isMale = isMale
         )
 
-        // ---- Default / Unknown ----
+        // ==================== DEFAULT / UNKNOWN ====================
         else -> BirdAppearance(
-            comb = if (isMale) CombStyle.SINGLE else CombStyle.SINGLE,
+            comb = CombStyle.SINGLE,
             combColor = PartColor.RED,
             beak = BeakStyle.MEDIUM,
             beakColor = PartColor.HORN,
@@ -555,3 +644,139 @@ fun deriveAppearanceFromBreed(breed: String?, gender: String?, ageWeeks: Int): B
         )
     }
 }
+
+// ==================== ASEEL BASE TEMPLATE ====================
+
+/**
+ * Base Aseel template — all Aseel sub-breeds share these core traits:
+ * pea comb, short beak, tight wings, short tail, heavy joints, spurred legs, curved nails.
+ * Sub-breeds override colors and sizes.
+ */
+private fun aseelBase(isMale: Boolean, isAdolescent: Boolean): BirdAppearance {
+    return BirdAppearance(
+        comb = if (isAdolescent) CombStyle.STRAWBERRY else CombStyle.PEA,
+        combColor = PartColor.RED,
+        beak = BeakStyle.SHORT,
+        beakColor = PartColor.HORN,
+        chest = PlumagePattern.SOLID,
+        chestColor = if (isMale) PartColor.RED else PartColor.BROWN,
+        back = BackStyle.SMOOTH,
+        backColor = if (isMale) PartColor.DARK_RED else PartColor.BROWN,
+        crown = CrownStyle.CLEAN,
+        wings = WingStyle.TIGHT,
+        wingColor = if (isMale) PartColor.RED else PartColor.BROWN,
+        tail = if (isAdolescent) TailStyle.NONE else TailStyle.SHORT,
+        tailColor = PartColor.BLACK,
+        legs = LegStyle.SPURRED,
+        legColor = PartColor.YELLOW,
+        joints = JointStyle.HEAVY,
+        nails = if (isMale && !isAdolescent) NailStyle.CURVED else NailStyle.SHORT,
+        nailColor = PartColor.HORN,
+        eye = EyeColor.RED,
+        wattle = if (isAdolescent) WattleStyle.NONE else WattleStyle.SMALL,
+        wattleColor = PartColor.RED,
+        earLobe = EarLobeColor.RED,
+        bodySize = if (isAdolescent) BodySize.MEDIUM else BodySize.LARGE,
+        isMale = isMale
+    )
+}
+
+// ==================== JSON SERIALIZATION (for persistence) ====================
+
+/**
+ * Serialize BirdAppearance to a JSON string for storage in FarmAssetEntity.metadataJson
+ */
+fun BirdAppearance.toAppearanceJson(): String {
+    val parts = mutableListOf<String>()
+    parts.add("\"comb\":\"${comb.name}\"")
+    parts.add("\"combColor\":\"${combColor.name}\"")
+    parts.add("\"beak\":\"${beak.name}\"")
+    parts.add("\"beakColor\":\"${beakColor.name}\"")
+    parts.add("\"chest\":\"${chest.name}\"")
+    parts.add("\"chestColor\":\"${chestColor.name}\"")
+    parts.add("\"back\":\"${back.name}\"")
+    parts.add("\"backColor\":\"${backColor.name}\"")
+    parts.add("\"crown\":\"${crown.name}\"")
+    parts.add("\"crownColor\":\"${crownColor.name}\"")
+    parts.add("\"wings\":\"${wings.name}\"")
+    parts.add("\"wingColor\":\"${wingColor.name}\"")
+    parts.add("\"wingPattern\":\"${wingPattern.name}\"")
+    parts.add("\"tail\":\"${tail.name}\"")
+    parts.add("\"tailColor\":\"${tailColor.name}\"")
+    parts.add("\"legs\":\"${legs.name}\"")
+    parts.add("\"legColor\":\"${legColor.name}\"")
+    parts.add("\"joints\":\"${joints.name}\"")
+    parts.add("\"nails\":\"${nails.name}\"")
+    parts.add("\"nailColor\":\"${nailColor.name}\"")
+    parts.add("\"eye\":\"${eye.name}\"")
+    parts.add("\"wattle\":\"${wattle.name}\"")
+    parts.add("\"wattleColor\":\"${wattleColor.name}\"")
+    parts.add("\"earLobe\":\"${earLobe.name}\"")
+    parts.add("\"bodySize\":\"${bodySize.name}\"")
+    parts.add("\"isMale\":$isMale")
+    return "{\"birdAppearance\":{${parts.joinToString(",")}}}"
+}
+
+/**
+ * Deserialize BirdAppearance from JSON string.
+ * Returns null if no appearance data found.
+ */
+fun parseAppearanceFromJson(json: String): BirdAppearance? {
+    if (!json.contains("birdAppearance")) return null
+    return try {
+        fun extractValue(key: String): String? {
+            val pattern = "\"$key\":\"([^\"]+)\""
+            val regex = Regex(pattern)
+            return regex.find(json)?.groupValues?.get(1)
+        }
+        BirdAppearance(
+            comb = extractValue("comb")?.let { runCatching { CombStyle.valueOf(it) }.getOrNull() } ?: CombStyle.SINGLE,
+            combColor = extractValue("combColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.RED,
+            beak = extractValue("beak")?.let { runCatching { BeakStyle.valueOf(it) }.getOrNull() } ?: BeakStyle.MEDIUM,
+            beakColor = extractValue("beakColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.HORN,
+            chest = extractValue("chest")?.let { runCatching { PlumagePattern.valueOf(it) }.getOrNull() } ?: PlumagePattern.SOLID,
+            chestColor = extractValue("chestColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.WHITE,
+            back = extractValue("back")?.let { runCatching { BackStyle.valueOf(it) }.getOrNull() } ?: BackStyle.SMOOTH,
+            backColor = extractValue("backColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.WHITE,
+            crown = extractValue("crown")?.let { runCatching { CrownStyle.valueOf(it) }.getOrNull() } ?: CrownStyle.CLEAN,
+            crownColor = extractValue("crownColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.WHITE,
+            wings = extractValue("wings")?.let { runCatching { WingStyle.valueOf(it) }.getOrNull() } ?: WingStyle.FOLDED,
+            wingColor = extractValue("wingColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.WHITE,
+            wingPattern = extractValue("wingPattern")?.let { runCatching { PlumagePattern.valueOf(it) }.getOrNull() } ?: PlumagePattern.SOLID,
+            tail = extractValue("tail")?.let { runCatching { TailStyle.valueOf(it) }.getOrNull() } ?: TailStyle.SHORT,
+            tailColor = extractValue("tailColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.BLACK,
+            legs = extractValue("legs")?.let { runCatching { LegStyle.valueOf(it) }.getOrNull() } ?: LegStyle.CLEAN,
+            legColor = extractValue("legColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.YELLOW,
+            joints = extractValue("joints")?.let { runCatching { JointStyle.valueOf(it) }.getOrNull() } ?: JointStyle.STANDARD,
+            nails = extractValue("nails")?.let { runCatching { NailStyle.valueOf(it) }.getOrNull() } ?: NailStyle.SHORT,
+            nailColor = extractValue("nailColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.HORN,
+            eye = extractValue("eye")?.let { runCatching { EyeColor.valueOf(it) }.getOrNull() } ?: EyeColor.ORANGE,
+            wattle = extractValue("wattle")?.let { runCatching { WattleStyle.valueOf(it) }.getOrNull() } ?: WattleStyle.MEDIUM,
+            wattleColor = extractValue("wattleColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.RED,
+            earLobe = extractValue("earLobe")?.let { runCatching { EarLobeColor.valueOf(it) }.getOrNull() } ?: EarLobeColor.RED,
+            bodySize = extractValue("bodySize")?.let { runCatching { BodySize.valueOf(it) }.getOrNull() } ?: BodySize.MEDIUM,
+            isMale = json.contains("\"isMale\":true")
+        )
+    } catch (e: Exception) {
+        null
+    }
+}
+
+// ==================== DISPLAY NAME HELPERS ====================
+
+/** Human-readable label for UI display */
+fun CombStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", "-")
+fun BeakStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun PlumagePattern.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun BackStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun CrownStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun WingStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun TailStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun LegStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun JointStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun NailStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun EyeColor.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun WattleStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun EarLobeColor.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun BodySize.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun PartColor.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")

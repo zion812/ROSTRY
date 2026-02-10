@@ -329,6 +329,10 @@ object Routes {
         // Bird Comparison Tool (Phase 9 Gap Fix)
         const val BIRD_COMPARISON = "enthusiast/bird_comparison"
 
+        // Bird Studio - BGMI-style customization
+        const val BIRD_STUDIO = "enthusiast/bird_studio/{productId}"
+        fun birdStudio(productId: String) = "enthusiast/bird_studio/$productId"
+
         // Builder functions
         fun pedigree(productId: String) = "enthusiast/pedigree/$productId"
         fun pedigreeExport(birdId: String) = "enthusiast/pedigree/$birdId/export"
