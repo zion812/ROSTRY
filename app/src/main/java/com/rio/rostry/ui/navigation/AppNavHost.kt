@@ -2486,6 +2486,7 @@ private fun RoleNavGraph(
             } else {
                 com.rio.rostry.ui.monitoring.FCRCalculatorScreen(
                     assetId = assetId,
+                    isPremium = true,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
