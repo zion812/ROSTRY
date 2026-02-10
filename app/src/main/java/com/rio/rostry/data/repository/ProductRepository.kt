@@ -16,6 +16,12 @@ interface ProductRepository {
 
     fun getProductById(productId: String): Flow<Resource<ProductEntity?>>
 
+    /**
+     * Get a product by ID (direct suspend call).
+     * Used by PedigreeManager for efficient genealogy traversal.
+     */
+    suspend fun getById(productId: String): ProductEntity?
+
     fun getProductsBySeller(sellerId: String): Flow<Resource<List<ProductEntity>>>
 
     fun getProductsByCategory(category: String): Flow<Resource<List<ProductEntity>>>
@@ -148,6 +154,24 @@ interface ProductRepository {
     suspend fun seedStarterKits()
 
     suspend fun updateStage(productId: String, stage: com.rio.rostry.domain.model.LifecycleStage, transitionAt: Long)
+
+    /**
+     * Gets all birds (products) that have a birth date for lifecycle processing.
+     * Used by LifecycleUpdateWorker for batch stage updates.
+     */
+    suspend fun getAllBirdsWithBirthDate(): List<ProductEntity>
+
+    /**
+     * Batch updates lifecycle fields for multiple birds.
+     * Used by LifecycleUpdateWorker after recalculating stages.
+     */
+    suspend fun updateBirdsLifecycle(birds: List<ProductEntity>)
+
+    /**
+     * Gets all direct offspring for a bird (where it is either the sire or dam).
+     * Used by PedigreeManager for descendant queries.
+     */
+    suspend fun getOffspring(parentId: String): List<ProductEntity>
 
     // ==================== Data Integrity Helpers ====================
 

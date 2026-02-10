@@ -142,9 +142,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Transactions (Phase 7)
         com.rio.rostry.data.database.entity.TransactionEntity::class,
         // Expense Tracking (Phase 17)
-        ExpenseEntity::class
+        ExpenseEntity::class,
+        // Medical Events (Phase 12 - Health Records)
+        MedicalEventEntity::class,
+        // Breeding System (Phase 12 - Clutch Tracking)
+        ClutchEntity::class
     ],
-    version = 74, // 73 -> 74 (Added ExpenseEntity)
+    version = 76, // 75 -> 76 (Added ClutchEntity for breeding/hatching)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -286,6 +290,12 @@ abstract class AppDatabase : RoomDatabase() {
     // Glass Box Farm Profile DAOs
     abstract fun farmProfileDao(): FarmProfileDao
     abstract fun farmTimelineEventDao(): FarmTimelineEventDao
+
+    // Medical Events DAO (Phase 12 - Health Records)
+    abstract fun medicalEventDao(): MedicalEventDao
+
+    // Clutch DAO (Phase 12 - Breeding System)
+    abstract fun clutchDao(): ClutchDao
 
     object Converters {
         @TypeConverter

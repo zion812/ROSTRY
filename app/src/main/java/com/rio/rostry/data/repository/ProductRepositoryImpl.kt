@@ -33,6 +33,10 @@ class ProductRepositoryImpl @Inject constructor(
         return productDao.getProductById(productId).map { Resource.Success(it) }
     }
 
+    override suspend fun getById(productId: String): ProductEntity? {
+        return productDao.findById(productId)
+    }
+
     override fun getProductsBySeller(sellerId: String): Flow<Resource<List<ProductEntity>>> {
         return productDao.getProductsBySeller(sellerId).map { Resource.Success(it) }
     }
@@ -177,5 +181,26 @@ class ProductRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error("Failed to lock records: ${e.message}")
         }
+    }
+
+    override suspend fun getAllBirdsWithBirthDate(): List<ProductEntity> {
+        return productDao.getAllBirdsWithBirthDate()
+    }
+
+    override suspend fun updateBirdsLifecycle(birds: List<ProductEntity>) {
+        birds.forEach { bird ->
+            productDao.updateLifecycleFields(
+                productId = bird.productId,
+                stage = bird.stage,
+                lifecycleStatus = bird.lifecycleStatus,
+                ageWeeks = bird.ageWeeks,
+                lastStageTransitionAt = bird.lastStageTransitionAt,
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+    }
+
+    override suspend fun getOffspring(parentId: String): List<ProductEntity> {
+        return productDao.getOffspring(parentId)
     }
 }

@@ -202,6 +202,35 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL) AND birthDate IS NOT NULL")
     suspend fun getActiveWithBirth(): List<ProductEntity>
 
+    /**
+     * Alias for getActiveWithBirth() used by LifecycleUpdateWorker.
+     */
+    @Query("SELECT * FROM products WHERE birthDate IS NOT NULL AND isDeleted = 0")
+    suspend fun getAllBirdsWithBirthDate(): List<ProductEntity>
+
+    /**
+     * Batch update lifecycle fields for a single bird.
+     * Used by LifecycleUpdateWorker for daily stage recalculation.
+     */
+    @Query("""
+        UPDATE products 
+        SET stage = :stage, 
+            lifecycleStatus = :lifecycleStatus, 
+            ageWeeks = :ageWeeks, 
+            lastStageTransitionAt = :lastStageTransitionAt, 
+            updatedAt = :updatedAt, 
+            dirty = 1 
+        WHERE productId = :productId
+    """)
+    suspend fun updateLifecycleFields(
+        productId: String,
+        stage: LifecycleStage?,
+        lifecycleStatus: String?,
+        ageWeeks: Int?,
+        lastStageTransitionAt: Long?,
+        updatedAt: Long
+    )
+
     @Query("UPDATE products SET qrCodeUrl = :url, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
     suspend fun updateQrCodeUrl(productId: String, url: String?, updatedAt: Long)
 
