@@ -164,8 +164,8 @@ fun DigitalFarmScreen(
                     )
                 }
                 else -> {
-                    // Main Farm Canvas with new renderer
-                    EnhancedFarmCanvas(
+                    // Main Farm Canvas - 3D Isometric with zoom/pan
+                    IsometricFarmCanvas(
                         uiState = uiState,
                         animationTime = animationTime,
                         selectedBirdId = selectedBird?.productId,
