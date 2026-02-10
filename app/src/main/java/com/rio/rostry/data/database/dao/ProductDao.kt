@@ -357,6 +357,81 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE adminFlagged = 1 ORDER BY createdAt DESC")
     fun getFlaggedProducts(): Flow<List<ProductEntity>>
+
+    // ============ Location-Based Discovery (Nearby Farmers) ============
+
+    /**
+     * Find products within approximate radius using bounding box.
+     * Uses Haversine-approximate lat/lon filtering for "farmers near me" discovery.
+     * 
+     * @param minLat south bound
+     * @param maxLat north bound
+     * @param minLon west bound
+     * @param maxLon east bound
+     */
+    @Query("""
+        SELECT * FROM products 
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+        AND latitude BETWEEN :minLat AND :maxLat
+        AND longitude BETWEEN :minLon AND :maxLon
+        AND status != 'private'
+        AND isDeleted = 0
+        ORDER BY updatedAt DESC
+    """)
+    fun getProductsInBoundingBox(
+        minLat: Double, maxLat: Double,
+        minLon: Double, maxLon: Double
+    ): Flow<List<ProductEntity>>
+
+    /**
+     * Find distinct sellers (farmers) with active listings in a geographic area.
+     */
+    @Query("""
+        SELECT DISTINCT sellerId FROM products 
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+        AND latitude BETWEEN :minLat AND :maxLat
+        AND longitude BETWEEN :minLon AND :maxLon
+        AND status != 'private'
+        AND isDeleted = 0
+    """)
+    suspend fun getNearbySellers(
+        minLat: Double, maxLat: Double,
+        minLon: Double, maxLon: Double
+    ): List<String>
+
+    // ============ Purpose-Based Filtering ============
+
+    /**
+     * Get products filtered by raising purpose (MEAT, ADOPTION, BREEDING, EGG_PRODUCTION).
+     */
+    @Query("""
+        SELECT * FROM products 
+        WHERE raisingPurpose = :purpose
+        AND status != 'private'
+        AND isDeleted = 0
+        ORDER BY updatedAt DESC
+    """)
+    fun getProductsByPurpose(purpose: String): Flow<List<ProductEntity>>
+
+    /**
+     * Get nearby products filtered by purpose — the core discovery query.
+     * "Show me adoption birds near me" or "Show me meat birds near me"
+     */
+    @Query("""
+        SELECT * FROM products 
+        WHERE raisingPurpose = :purpose
+        AND latitude IS NOT NULL AND longitude IS NOT NULL
+        AND latitude BETWEEN :minLat AND :maxLat
+        AND longitude BETWEEN :minLon AND :maxLon
+        AND status != 'private'
+        AND isDeleted = 0
+        ORDER BY updatedAt DESC
+    """)
+    fun getNearbyProductsByPurpose(
+        purpose: String,
+        minLat: Double, maxLat: Double,
+        minLon: Double, maxLon: Double
+    ): Flow<List<ProductEntity>>
 }
 
 data class StageCount(

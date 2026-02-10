@@ -148,7 +148,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Breeding System (Phase 12 - Clutch Tracking)
         ClutchEntity::class
     ],
-    version = 76, // 75 -> 76 (Added ClutchEntity for breeding/hatching)
+    version = 77, // 76 -> 77 (Added raisingPurpose to ProductEntity/FarmAssetEntity, acquisition fields to FarmAssetEntity)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)

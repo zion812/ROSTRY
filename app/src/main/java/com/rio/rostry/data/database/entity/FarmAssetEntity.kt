@@ -54,6 +54,7 @@ data class FarmAssetEntity(
     val gender: String? = null, // MALE, FEMALE, MIXED
     val color: String? = null,
     val healthStatus: String = "HEALTHY", // HEALTHY, SICK, INJURED, RECOVERING
+    val raisingPurpose: String? = null, // BirdPurpose: MEAT, ADOPTION, BREEDING, EGG_PRODUCTION
     
     // Detail & Media
     val description: String = "",
@@ -66,6 +67,14 @@ data class FarmAssetEntity(
     val batchId: String? = null, // If this animal belongs to a batch
     val origin: String? = null, // "HATCHED_ON_FARM", "PURCHASED", etc.
     val birdCode: String? = null, // Unique identifier (if individual)
+    
+    // Acquisition Tracking (when bird is purchased/adopted)
+    val acquisitionPrice: Double? = null,      // What was paid for this bird
+    val acquisitionDate: Long? = null,          // When it was acquired
+    val acquisitionSource: String? = null,      // Seller name/farm or "Market"
+    val acquisitionSourceId: String? = null,    // Seller's userId if from ROSTRY transfer
+    val acquisitionNotes: String? = null,       // "Healthy bird, good lineage"
+    val estimatedValue: Double? = null,         // Current market value estimate
     
     // Records
     val lastVaccinationDate: Long? = null,

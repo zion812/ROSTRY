@@ -57,6 +57,7 @@ data class ProductEntity(
     val gender: String? = null, // male, female, unknown
     val color: String? = null,
     val breed: String? = null,
+    val raisingPurpose: String? = null, // BirdPurpose: MEAT, ADOPTION, BREEDING, EGG_PRODUCTION
     val healthStatus: String? = null, // "OK", "Sick", etc.
 
     /**
