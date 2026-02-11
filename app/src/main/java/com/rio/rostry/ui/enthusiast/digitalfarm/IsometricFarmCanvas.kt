@@ -206,6 +206,8 @@ fun IsometricFarmCanvas(
     onNurseryTapped: (NurseryGroup) -> Unit,
     onBreedingHutTapped: (BreedingUnit) -> Unit,
     onMarketStandTapped: () -> Unit,
+    highlightedBirdIds: Set<String> = emptySet(),
+    isSearchActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Zoom & pan state (Google Maps-like)
@@ -368,8 +370,10 @@ fun IsometricFarmCanvas(
                             BodySize.XLARGE -> 1.4f
                         }
                         val shadowSize = 14f * shadowScale
+                        val isHighlighted = !isSearchActive || highlightedBirdIds.contains(p.bird.productId)
+                        val shadowAlpha = if (isHighlighted) 1f else 0.2f
                         drawOval(
-                            color = IsoColors.birdShadow,
+                            color = IsoColors.birdShadow.copy(alpha = shadowAlpha),
                             topLeft = Offset(iso.x - shadowSize, iso.y + shadowSize * 0.3f),
                             size = Size(shadowSize * 2f, shadowSize * 0.8f)
                         )
@@ -379,9 +383,28 @@ fun IsometricFarmCanvas(
                     sortedPlacements.forEach { p ->
                         val iso = worldToIso(p.worldX, p.worldY, tileW, tileH)
                         val isSelected = p.bird.productId == selectedBirdId
+                        val isHighlighted = !isSearchActive || highlightedBirdIds.contains(p.bird.productId)
                         val bobOffset = if (animationTime > 0) {
                             sin((animationTime * 3f + p.worldX * 7f + p.worldY * 11f).toDouble()).toFloat() * 2f
                         } else 0f
+
+                        // Dim non-matching birds during search
+                        if (!isHighlighted) {
+                            drawContext.canvas.saveLayer(
+                                Rect(iso.x - 40f, iso.y - 60f, iso.x + 40f, iso.y + 20f),
+                                Paint().apply { alpha = 0.25f }
+                            )
+                        }
+
+                        // Glow ring for search-matched birds
+                        if (isSearchActive && isHighlighted) {
+                            val glowPulse = sin((animationTime * 5f).toDouble()).toFloat() * 0.3f + 0.7f
+                            drawCircle(
+                                color = Color(0xFF00E5FF).copy(alpha = glowPulse * 0.4f),
+                                radius = 22f,
+                                center = Offset(iso.x, iso.y - 10f)
+                            )
+                        }
 
                         drawBirdFromAppearance(
                             x = iso.x,
@@ -391,7 +414,49 @@ fun IsometricFarmCanvas(
                             animTime = animationTime,
                             bobOffset = bobOffset
                         )
+
+                        if (!isHighlighted) {
+                            drawContext.canvas.restore()
+                        }
                     }
+
+                    // ============ BIRD CODE ID TAGS (zoom-dependent, > 1.8x) ============
+                    if (scale > 1.8f) {
+                        sortedPlacements.forEach { p ->
+                            val iso = worldToIso(p.worldX, p.worldY, tileW, tileH)
+                            val isHighlighted = !isSearchActive || highlightedBirdIds.contains(p.bird.productId)
+                            if (isHighlighted) {
+                                val idText = p.bird.birdCode ?: p.bird.name.take(8)
+                                val idResult = textMeasurer.measure(
+                                    AnnotatedString(idText),
+                                    style = TextStyle(
+                                        fontSize = (7f / scale).sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                )
+                                val tagW = idResult.size.width + 8f
+                                val tagH = idResult.size.height + 4f
+                                val tagX = iso.x - tagW / 2f
+                                val tagY = iso.y + 12f
+
+                                // Tag background — dark pill
+                                drawRoundRect(
+                                    color = Color(0xCC1B5E20),
+                                    topLeft = Offset(tagX, tagY),
+                                    size = Size(tagW, tagH),
+                                    cornerRadius = CornerRadius(4f, 4f)
+                                )
+                                drawText(
+                                    idResult,
+                                    topLeft = Offset(tagX + 4f, tagY + 2f)
+                                )
+                            }
+                        }
+                    }
+
+                    // ============ ZONE LABELS ============
+                    drawZoneLabels(uiState, tileW, tileH, textMeasurer, scale)
 
                     // ============ BIRD INFO BUBBLES (zoom-dependent) ============
                     if (scale > 1.5f) {
@@ -1048,4 +1113,80 @@ private fun DrawScope.drawIsoTree(x: Float, y: Float, s: Float, animTime: Float)
         close()
     }
     drawPath(foliage3, IsoColors.treeGreen.copy(alpha = 0.9f))
+}
+
+// ==================== ZONE LABELS ====================
+
+/**
+ * Draw zone labels with bird counts on the isometric farm.
+ * Each zone gets a distinct colored banner with emoji + name + count.
+ */
+private fun DrawScope.drawZoneLabels(
+    state: DigitalFarmState,
+    tileW: Float,
+    tileH: Float,
+    textMeasurer: TextMeasurer,
+    scale: Float
+) {
+    // Zone label data: (zone, worldX, worldY, emoji, name, color)
+    data class ZoneLabel(
+        val zone: DigitalFarmZone,
+        val wx: Float, val wy: Float,
+        val emoji: String, val name: String,
+        val bgColor: Color
+    )
+
+    val labels = listOf(
+        ZoneLabel(DigitalFarmZone.NURSERY, 1.5f, 0.2f, "🐣", "Nursery", Color(0xCC4CAF50)),
+        ZoneLabel(DigitalFarmZone.MAIN_COOP, 4f, 0.2f, "🏠", "Main Coop", Color(0xCC795548)),
+        ZoneLabel(DigitalFarmZone.BREEDING_UNIT, 6.5f, 0.2f, "💕", "Breeding", Color(0xCCE91E63)),
+        ZoneLabel(DigitalFarmZone.FREE_RANGE, 2f, 3.5f, "🌿", "Free Range", Color(0xCC43A047)),
+        ZoneLabel(DigitalFarmZone.QUARANTINE, 6.5f, 3.5f, "⚠️", "Quarantine", Color(0xCCFF5722)),
+        ZoneLabel(DigitalFarmZone.GROW_OUT, 2f, 6f, "📈", "Grow Out", Color(0xCC1565C0)),
+        ZoneLabel(DigitalFarmZone.MARKET_STAND, 6f, 6f, "🏪", "Market", Color(0xCCFF9800)),
+        ZoneLabel(DigitalFarmZone.READY_DISPLAY, 6.5f, 1.5f, "⭐", "Ready", Color(0xCCFFC107))
+    )
+
+    labels.forEach { label ->
+        val count = state.countForZone(label.zone)
+        if (count > 0 || label.zone == DigitalFarmZone.FREE_RANGE) {
+            val iso = worldToIso(label.wx, label.wy, tileW, tileH)
+            val labelText = "${label.emoji} ${label.name} ($count)"
+            val result = textMeasurer.measure(
+                AnnotatedString(labelText),
+                style = TextStyle(
+                    fontSize = (9f / scale).sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+            val padH = 6f
+            val padW = 10f
+            val bgW = result.size.width + padW * 2
+            val bgH = result.size.height + padH * 2
+            val bgX = iso.x - bgW / 2f
+            val bgY = iso.y - bgH / 2f
+
+            // Label background pill
+            drawRoundRect(
+                color = label.bgColor,
+                topLeft = Offset(bgX, bgY),
+                size = Size(bgW, bgH),
+                cornerRadius = CornerRadius(8f, 8f)
+            )
+            // Label border
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.4f),
+                topLeft = Offset(bgX, bgY),
+                size = Size(bgW, bgH),
+                cornerRadius = CornerRadius(8f, 8f),
+                style = Stroke(width = 1f)
+            )
+            // Label text
+            drawText(
+                result,
+                topLeft = Offset(bgX + padW, bgY + padH)
+            )
+        }
+    }
 }

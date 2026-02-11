@@ -51,6 +51,72 @@ class DigitalFarmViewModel @Inject constructor(
     // Persona-specific configuration (determines which zones/overlays/actions are visible)
     private val _config = MutableStateFlow(DigitalFarmConfig.ENTHUSIAST)
     val config: StateFlow<DigitalFarmConfig> = _config.asStateFlow()
+
+    // ==================== SEARCH & FILTER ====================
+    
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    
+    private val _activeZoneFilter = MutableStateFlow<DigitalFarmZone?>(null)
+    val activeZoneFilter: StateFlow<DigitalFarmZone?> = _activeZoneFilter.asStateFlow()
+
+    /** Bird IDs that match the current search/filter. Empty = show all (no search active). */
+    private val _highlightedBirdIds = MutableStateFlow<Set<String>>(emptySet())
+    val highlightedBirdIds: StateFlow<Set<String>> = _highlightedBirdIds.asStateFlow()
+
+    /** True when a search is actively filtering results */
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        applySearchFilter()
+    }
+
+    fun setZoneFilter(zone: DigitalFarmZone?) {
+        _activeZoneFilter.value = zone
+        applySearchFilter()
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+        _activeZoneFilter.value = null
+        _highlightedBirdIds.value = emptySet()
+        _isSearchActive.value = false
+    }
+
+    private fun applySearchFilter() {
+        val query = _searchQuery.value.trim().lowercase()
+        val zoneFilter = _activeZoneFilter.value
+        val state = _uiState.value
+
+        if (query.isBlank() && zoneFilter == null) {
+            _highlightedBirdIds.value = emptySet()
+            _isSearchActive.value = false
+            return
+        }
+
+        _isSearchActive.value = true
+        val allBirds = state.allBirds
+
+        val matched = allBirds.filter { bird ->
+            val matchesQuery = query.isBlank() || listOfNotNull(
+                bird.name.lowercase(),
+                bird.breed?.lowercase(),
+                bird.color?.lowercase(),
+                bird.productId.lowercase(),
+                bird.gender?.lowercase(),
+                bird.ageText.lowercase(),
+                bird.weightText?.lowercase()
+            ).any { it.contains(query) }
+
+            val matchesZone = zoneFilter == null || bird.zone == zoneFilter
+
+            matchesQuery && matchesZone
+        }
+
+        _highlightedBirdIds.value = matched.map { it.productId }.toSet()
+    }
     
     /**
      * Set the farm mode (called from UI based on user's role)
@@ -460,7 +526,8 @@ class DigitalFarmViewModel @Inject constructor(
             zone = zone,
             statusIndicator = statusIndicator,
             isQuarantined = this.healthStatus?.lowercase() in listOf("quarantined", "sick", "isolated"),
-            metadataJson = metadata
+            metadataJson = metadata,
+            birdCode = this.birdCode
         )
     }
 

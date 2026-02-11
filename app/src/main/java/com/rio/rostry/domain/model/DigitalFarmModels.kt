@@ -95,7 +95,8 @@ data class VisualBird(
     val isReadyForSale: Boolean = false,
     val isListed: Boolean = false,
     val isQuarantined: Boolean = false, // Visual Quarantine: shows warning overlay
-    val metadataJson: String? = null // Bird Studio custom appearance data
+    val metadataJson: String? = null, // Bird Studio custom appearance data
+    val birdCode: String? = null // Physical ID for on-canvas display (e.g. BLK-RIR-001)
 ) {
     val ageText: String
         get() = when {
@@ -174,6 +175,24 @@ data class DigitalFarmState(
     
     val hasEggsToLog: Boolean
         get() = breedingUnits.any { it.showGhostEggs }
+
+    /** Flat list of every bird across all zones — used for search/filter */
+    val allBirds: List<VisualBird>
+        get() = nurseries.flatMap { listOf(it.mother) + it.chicks } +
+                breedingUnits.flatMap { listOfNotNull(it.rooster) + it.hens } +
+                freeRange + growOut + readyDisplay + marketReady + quarantine + mainCoop
+
+    /** Bird count per zone for zone labels */
+    fun countForZone(zone: DigitalFarmZone): Int = when (zone) {
+        DigitalFarmZone.NURSERY -> nurseries.sumOf { it.chicksCount + 1 }
+        DigitalFarmZone.BREEDING_UNIT -> breedingUnits.sumOf { (if (it.rooster != null) 1 else 0) + it.hensCount }
+        DigitalFarmZone.FREE_RANGE -> freeRange.size
+        DigitalFarmZone.GROW_OUT -> growOut.size
+        DigitalFarmZone.READY_DISPLAY -> readyDisplay.size
+        DigitalFarmZone.MARKET_STAND -> marketReady.size
+        DigitalFarmZone.QUARANTINE -> quarantine.size
+        DigitalFarmZone.MAIN_COOP -> mainCoop.size
+    }
 }
 
 /**

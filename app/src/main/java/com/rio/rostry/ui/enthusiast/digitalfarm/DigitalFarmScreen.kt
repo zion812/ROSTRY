@@ -5,7 +5,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,6 +59,13 @@ fun DigitalFarmScreen(
     val farmStats by viewModel.farmStats.collectAsState()
     val selectedBird by viewModel.selectedBird.collectAsState()
     val config by viewModel.config.collectAsState()
+
+    // Search & Filter state
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val highlightedBirdIds by viewModel.highlightedBirdIds.collectAsState()
+    val isSearchActive by viewModel.isSearchActive.collectAsState()
+    val activeZoneFilter by viewModel.activeZoneFilter.collectAsState()
+    var isSearchBarVisible by remember { mutableStateOf(false) }
     
     // Initialize config for Enthusiast on launch
     LaunchedEffect(Unit) {
@@ -115,6 +124,16 @@ fun DigitalFarmScreen(
                     }
                 },
                 actions = {
+                    // Search toggle
+                    IconButton(onClick = {
+                        isSearchBarVisible = !isSearchBarVisible
+                        if (!isSearchBarVisible) viewModel.clearSearch()
+                    }) {
+                        Icon(
+                            if (isSearchActive) Icons.Default.SearchOff else Icons.Default.Search,
+                            contentDescription = "Search Birds"
+                        )
+                    }
                     // Time-lapse button
                     IconButton(onClick = { 
                         android.widget.Toast.makeText(context, "Time-lapse feature coming soon!", android.widget.Toast.LENGTH_SHORT).show()
@@ -175,6 +194,8 @@ fun DigitalFarmScreen(
                         onNurseryTapped = { viewModel.onNurseryTapped(it) },
                         onBreedingHutTapped = { viewModel.onBreedingHutTapped(it) },
                         onMarketStandTapped = { viewModel.onMarketStandTapped() },
+                        highlightedBirdIds = highlightedBirdIds,
+                        isSearchActive = isSearchActive,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -189,6 +210,120 @@ fun DigitalFarmScreen(
                         .align(Alignment.TopCenter)
                         .padding(top = 12.dp)
                 )
+            }
+
+            // ============ SEARCH BAR + ZONE FILTER CHIPS ============
+            AnimatedVisibility(
+                visible = isSearchBarVisible && !uiState.isLoading && uiState.error == null,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 56.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Search TextField
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.updateSearchQuery(it) },
+                        placeholder = { Text("Search by ID, name, breed, color...", fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.White)
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color(0xFF00E5FF),
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.4f),
+                            focusedContainerColor = Color(0x80000000),
+                            unfocusedContainerColor = Color(0x60000000),
+                            focusedPlaceholderColor = Color.White.copy(alpha = 0.5f),
+                            unfocusedPlaceholderColor = Color.White.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    )
+
+                    // Zone filter chips (horizontally scrollable)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // "All" chip
+                        FilterChip(
+                            selected = activeZoneFilter == null,
+                            onClick = { viewModel.setZoneFilter(null) },
+                            label = { Text("All", fontSize = 11.sp) },
+                            leadingIcon = { Text("🌐", fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1E88E5),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0x60000000),
+                                labelColor = Color.White
+                            ),
+                            modifier = Modifier.height(30.dp)
+                        )
+
+                        // Zone chips
+                        val zones = listOf(
+                            Triple(DigitalFarmZone.NURSERY, "🐣", "Nursery"),
+                            Triple(DigitalFarmZone.FREE_RANGE, "🌿", "Free Range"),
+                            Triple(DigitalFarmZone.GROW_OUT, "📈", "Grow Out"),
+                            Triple(DigitalFarmZone.MAIN_COOP, "🏠", "Coop"),
+                            Triple(DigitalFarmZone.BREEDING_UNIT, "💕", "Breeding"),
+                            Triple(DigitalFarmZone.MARKET_STAND, "🏪", "Market"),
+                            Triple(DigitalFarmZone.QUARANTINE, "⚠️", "Quarantine"),
+                            Triple(DigitalFarmZone.READY_DISPLAY, "⭐", "Ready")
+                        )
+                        zones.forEach { (zone, emoji, name) ->
+                            val count = uiState.countForZone(zone)
+                            FilterChip(
+                                selected = activeZoneFilter == zone,
+                                onClick = {
+                                    viewModel.setZoneFilter(
+                                        if (activeZoneFilter == zone) null else zone
+                                    )
+                                },
+                                label = { Text("$name ($count)", fontSize = 11.sp) },
+                                leadingIcon = { Text(emoji, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFF1E88E5),
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color(0x60000000),
+                                    labelColor = Color.White
+                                ),
+                                modifier = Modifier.height(30.dp)
+                            )
+                        }
+                    }
+
+                    // Search results count
+                    if (isSearchActive) {
+                        Text(
+                            text = "${highlightedBirdIds.size} birds found",
+                            color = Color(0xFF00E5FF),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
             }
 
             // Ghost Eggs Reminder
@@ -639,7 +774,17 @@ private fun BirdStatsBubble(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🐔", fontSize = 32.sp)
+                Column {
+                    Text("🐔", fontSize = 32.sp)
+                    bird.birdCode?.let { code ->
+                        Text(
+                            code,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
@@ -655,6 +800,14 @@ private fun BirdStatsBubble(
                     )
                 }
             }
+
+            // Bird name
+            Text(
+                bird.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
             
             // Stats
             Text(
