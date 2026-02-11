@@ -35,7 +35,14 @@ data class BirdAppearance(
     val wattleColor: PartColor = PartColor.RED,
     val earLobe: EarLobeColor = EarLobeColor.RED,
     val bodySize: BodySize = BodySize.MEDIUM,
-    val isMale: Boolean = true
+    val isMale: Boolean = true,
+    // === NEW V2 PROPERTIES ===
+    val stance: Stance = Stance.NORMAL,
+    val sheen: Sheen = Sheen.MATTE,
+    val neck: NeckStyle = NeckStyle.MEDIUM,
+    val breast: BreastShape = BreastShape.ROUND,
+    val skin: SkinColor = SkinColor.YELLOW,
+    val headShape: HeadShape = HeadShape.ROUND
 )
 
 // ==================== COMB ====================
@@ -186,6 +193,69 @@ enum class BodySize {
     MEDIUM,     // Standard breeds (RIR, Plymouth Rock)
     LARGE,      // Heavy breeds (Brahma, Cochin)
     XLARGE      // Giant breeds (Jersey Giant)
+}
+
+// ==================== STANCE / POSTURE ====================
+
+enum class Stance {
+    UPRIGHT,       // Tall, vertical posture (Malay, Modern Game, Shamo)
+    NORMAL,        // Standard balanced posture (most breeds)
+    LOW,           // Low to ground, compact (Cornish, Japanese Bantam)
+    GAME_READY,    // Alert fighter stance, chest forward (Aseel)
+    CROUCHING,     // Defensive crouch
+    DISPLAY        // Tail up, chest puffed (show pose)
+}
+
+// ==================== FEATHER SHEEN ====================
+
+enum class Sheen {
+    MATTE,         // No sheen, flat appearance (most breeds)
+    SATIN,         // Subtle soft glow (Cochin, Orpington)
+    GLOSSY,        // Clear sheen (Plymouth Rock, RIR)
+    METALLIC,      // Strong metallic reflections (Black Sumatra, Ayam Cemani)
+    IRIDESCENT,    // Color-shifting green/purple (Green-black breeds)
+    SILKY          // Silkie-like furry sheen
+}
+
+// ==================== NECK STYLE ====================
+
+enum class NeckStyle {
+    SHORT,         // Compact, close to body (Cornish)
+    MEDIUM,        // Standard proportions
+    LONG,          // Elongated (Malay, Modern Game)
+    ARCHED,        // Swan-like curve (Old English Game)
+    MUSCULAR,      // Thick, powerful (Aseel, Shamo)
+    HACKLE_HEAVY   // Abundant hackle feathers (Cochin rooster)
+}
+
+// ==================== BREAST SHAPE ====================
+
+enum class BreastShape {
+    FLAT,          // Narrow, flat-chested (Malay)
+    ROUND,         // Standard rounded chest (most breeds)
+    BROAD,         // Wide, meaty chest (Cornish, Brahma)
+    DEEP,          // Deep-keeled chest (Aseel)
+    PUFFED         // Full, puffy breast (Cochin, Orpington)
+}
+
+// ==================== SKIN COLOR ====================
+
+enum class SkinColor {
+    WHITE,         // Pink-white skin (Orpington, Cornish)
+    YELLOW,        // Yellow skin (RIR, Plymouth Rock, Leghorn)
+    SLATE,         // Blue-gray skin (Silkie)
+    DARK,          // Very dark / melanistic (Ayam Cemani)
+    GYPSY          // Dark face, slate body (Old English Game)
+}
+
+// ==================== HEAD SHAPE ====================
+
+enum class HeadShape {
+    ROUND,         // Standard round (most breeds)
+    ELONGATED,     // Long skull (Malay, Aseel)
+    BROAD,         // Wide flat skull (Brahma)
+    SERPENTINE,    // Snake-like narrow (Shamo)
+    COMPACT        // Small neat head (Bantams)
 }
 
 // ==================== PART COLORS ====================
@@ -714,6 +784,13 @@ fun BirdAppearance.toAppearanceJson(): String {
     parts.add("\"earLobe\":\"${earLobe.name}\"")
     parts.add("\"bodySize\":\"${bodySize.name}\"")
     parts.add("\"isMale\":$isMale")
+    // V2 fields
+    parts.add("\"stance\":\"${stance.name}\"")
+    parts.add("\"sheen\":\"${sheen.name}\"")
+    parts.add("\"neck\":\"${neck.name}\"")
+    parts.add("\"breast\":\"${breast.name}\"")
+    parts.add("\"skin\":\"${skin.name}\"")
+    parts.add("\"headShape\":\"${headShape.name}\"")
     return "{\"birdAppearance\":{${parts.joinToString(",")}}}"
 }
 
@@ -755,7 +832,14 @@ fun parseAppearanceFromJson(json: String): BirdAppearance? {
             wattleColor = extractValue("wattleColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.RED,
             earLobe = extractValue("earLobe")?.let { runCatching { EarLobeColor.valueOf(it) }.getOrNull() } ?: EarLobeColor.RED,
             bodySize = extractValue("bodySize")?.let { runCatching { BodySize.valueOf(it) }.getOrNull() } ?: BodySize.MEDIUM,
-            isMale = json.contains("\"isMale\":true")
+            isMale = json.contains("\"isMale\":true"),
+            // V2 fields — backward compatible (defaults if missing)
+            stance = extractValue("stance")?.let { runCatching { Stance.valueOf(it) }.getOrNull() } ?: Stance.NORMAL,
+            sheen = extractValue("sheen")?.let { runCatching { Sheen.valueOf(it) }.getOrNull() } ?: Sheen.MATTE,
+            neck = extractValue("neck")?.let { runCatching { NeckStyle.valueOf(it) }.getOrNull() } ?: NeckStyle.MEDIUM,
+            breast = extractValue("breast")?.let { runCatching { BreastShape.valueOf(it) }.getOrNull() } ?: BreastShape.ROUND,
+            skin = extractValue("skin")?.let { runCatching { SkinColor.valueOf(it) }.getOrNull() } ?: SkinColor.YELLOW,
+            headShape = extractValue("headShape")?.let { runCatching { HeadShape.valueOf(it) }.getOrNull() } ?: HeadShape.ROUND
         )
     } catch (e: Exception) {
         null
@@ -780,3 +864,9 @@ fun WattleStyle.displayName(): String = name.lowercase().replaceFirstChar { it.u
 fun EarLobeColor.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
 fun BodySize.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
 fun PartColor.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun Stance.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun Sheen.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun NeckStyle.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.replace("_", " ")
+fun BreastShape.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun SkinColor.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+fun HeadShape.displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }

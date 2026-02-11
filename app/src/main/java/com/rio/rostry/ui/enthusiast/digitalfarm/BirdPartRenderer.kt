@@ -50,7 +50,18 @@ object BirdPartRenderer {
         }
 
         val s = sizeMultiplier
-        val by = y - bobOffset // Apply bobbing
+
+        // === STANCE affects vertical offset (posture) ===
+        val stanceYShift = when (appearance.stance) {
+            Stance.UPRIGHT -> -4f * s      // Taller, head higher
+            Stance.LOW -> 3f * s            // Lower to ground
+            Stance.GAME_READY -> -2f * s    // Slightly elevated, alert
+            Stance.CROUCHING -> 5f * s      // Very low
+            Stance.DISPLAY -> -3f * s       // Show pose, puffed up
+            Stance.NORMAL -> 0f
+        }
+
+        val by = y - bobOffset + stanceYShift // Apply bobbing + stance
 
         // Selection glow
         if (isSelected) {
@@ -68,10 +79,15 @@ object BirdPartRenderer {
         }
 
         // ==================== 1. SHADOW ====================
+        val shadowWidth = when (appearance.stance) {
+            Stance.DISPLAY -> 32f * s  // Wider shadow for display pose
+            Stance.CROUCHING -> 22f * s
+            else -> 28f * s
+        }
         drawOval(
             color = Color(0x30000000),
-            topLeft = Offset(x - 14f * s, y - 2f),
-            size = Size(28f * s, 8f * s)
+            topLeft = Offset(x - shadowWidth / 2f, y - 2f),
+            size = Size(shadowWidth, 8f * s)
         )
 
         // ==================== 2. TAIL ====================
@@ -86,6 +102,9 @@ object BirdPartRenderer {
         // ==================== 5. CHEST / FRONT PLUMAGE ====================
         drawChest(x, by, s, appearance)
 
+        // ==================== 5.5 NECK ====================
+        drawNeck(x, by, s, appearance)
+
         // ==================== 6. LEGS + JOINTS + NAILS ====================
         drawLegs(x, by, y, s, appearance)
 
@@ -97,6 +116,9 @@ object BirdPartRenderer {
 
         // ==================== 9. WATTLE + EAR LOBE ====================
         drawWattle(x, by, s, appearance)
+
+        // ==================== 10. SHEEN OVERLAY ====================
+        drawSheen(x, by, s, appearance)
     }
 
     // ==================== BODY ====================
@@ -106,17 +128,44 @@ object BirdPartRenderer {
         val bodyH = 12f * s
         val bodyColor = a.backColor.color
 
+        // Breast shape affects body proportions
+        val widthMod = when (a.breast) {
+            BreastShape.FLAT -> 0.85f
+            BreastShape.BROAD -> 1.15f
+            BreastShape.DEEP -> 1.05f
+            BreastShape.PUFFED -> 1.2f
+            BreastShape.ROUND -> 1.0f
+        }
+        val heightMod = when (a.breast) {
+            BreastShape.DEEP -> 1.15f
+            BreastShape.PUFFED -> 1.1f
+            else -> 1.0f
+        }
+
         // Main body ellipse
         drawOval(
             color = bodyColor,
-            topLeft = Offset(x - bodyW, y - bodyH * 1.4f),
-            size = Size(bodyW * 2f, bodyH * 1.6f)
+            topLeft = Offset(x - bodyW * widthMod, y - bodyH * 1.4f * heightMod),
+            size = Size(bodyW * 2f * widthMod, bodyH * 1.6f * heightMod)
         )
+
+        // Skin color tint (visible on face/wattle area when slate or dark)
+        if (a.skin == SkinColor.DARK || a.skin == SkinColor.SLATE) {
+            val skinTint = when (a.skin) {
+                SkinColor.DARK -> Color(0x20000000)
+                SkinColor.SLATE -> Color(0x15607D8B)
+                else -> Color.Transparent
+            }
+            drawOval(
+                color = skinTint,
+                topLeft = Offset(x - bodyW * widthMod, y - bodyH * 1.4f * heightMod),
+                size = Size(bodyW * 2f * widthMod, bodyH * 1.6f * heightMod)
+            )
+        }
 
         // Back style overlay
         when (a.back) {
             BackStyle.HACKLE -> {
-                // Flowing hackle feather lines
                 for (i in 0..3) {
                     val px = x - bodyW * 0.3f + i * bodyW * 0.2f
                     drawLine(
@@ -129,7 +178,6 @@ object BirdPartRenderer {
                 }
             }
             BackStyle.SADDLE -> {
-                // Prominent saddle feathers (rooster)
                 val saddle = Path().apply {
                     moveTo(x - bodyW * 0.5f, y - bodyH * 0.8f)
                     quadraticBezierTo(x - bodyW * 0.8f, y - bodyH * 0.2f, x - bodyW * 0.3f, y - bodyH * 0.1f)
@@ -140,7 +188,6 @@ object BirdPartRenderer {
                 drawPath(saddle, bodyColor.copy(alpha = 0.6f))
             }
             BackStyle.CUSHION -> {
-                // Extra rounded puff
                 drawOval(
                     color = bodyColor.copy(alpha = 0.4f),
                     topLeft = Offset(x - bodyW * 0.8f, y - bodyH * 1.6f),
@@ -350,8 +397,36 @@ object BirdPartRenderer {
         val headR = bodyW * 0.42f
         val headColor = a.chestColor.color // Head matches chest
 
-        // Head circle
-        drawCircle(color = headColor, radius = headR, center = Offset(x + bodyW * 0.4f, headY))
+        // Head shape affects proportions
+        when (a.headShape) {
+            HeadShape.ROUND -> {
+                drawCircle(color = headColor, radius = headR, center = Offset(x + bodyW * 0.4f, headY))
+            }
+            HeadShape.ELONGATED -> {
+                drawOval(
+                    color = headColor,
+                    topLeft = Offset(x + bodyW * 0.4f - headR * 1.2f, headY - headR * 0.85f),
+                    size = Size(headR * 2.4f, headR * 1.7f)
+                )
+            }
+            HeadShape.BROAD -> {
+                drawOval(
+                    color = headColor,
+                    topLeft = Offset(x + bodyW * 0.4f - headR * 1.1f, headY - headR * 0.8f),
+                    size = Size(headR * 2.2f, headR * 1.6f)
+                )
+            }
+            HeadShape.SERPENTINE -> {
+                drawOval(
+                    color = headColor,
+                    topLeft = Offset(x + bodyW * 0.4f - headR * 0.7f, headY - headR * 1.1f),
+                    size = Size(headR * 1.4f, headR * 2.2f)
+                )
+            }
+            HeadShape.COMPACT -> {
+                drawCircle(color = headColor, radius = headR * 0.85f, center = Offset(x + bodyW * 0.4f, headY))
+            }
+        }
 
         // Crown style
         when (a.crown) {
@@ -963,6 +1038,162 @@ object BirdPartRenderer {
                 }
             }
             else -> { /* SOLID, BUFF: no pattern overlay */ }
+        }
+    }
+
+    // ==================== NECK ====================
+
+    private fun DrawScope.drawNeck(x: Float, y: Float, s: Float, a: BirdAppearance) {
+        val bodyW = 16f * s
+        val bodyH = 12f * s
+        val headY = y - bodyH * 1.8f
+        val neckColor = a.chestColor.color
+
+        val neckThickness = when (a.neck) {
+            NeckStyle.SHORT -> 5f * s
+            NeckStyle.MEDIUM -> 4f * s
+            NeckStyle.LONG -> 3.5f * s
+            NeckStyle.ARCHED -> 3.5f * s
+            NeckStyle.MUSCULAR -> 6f * s
+            NeckStyle.HACKLE_HEAVY -> 5.5f * s
+        }
+        val neckTopY = headY + bodyW * 0.42f * 0.5f
+        val neckBottomY = y - bodyH * 1.0f
+
+        when (a.neck) {
+            NeckStyle.ARCHED -> {
+                val neckPath = Path().apply {
+                    moveTo(x + bodyW * 0.35f - neckThickness / 2f, neckTopY)
+                    cubicTo(
+                        x + bodyW * 0.5f, neckTopY + (neckBottomY - neckTopY) * 0.3f,
+                        x + bodyW * 0.3f, neckTopY + (neckBottomY - neckTopY) * 0.7f,
+                        x + bodyW * 0.15f, neckBottomY
+                    )
+                    lineTo(x + bodyW * 0.15f + neckThickness, neckBottomY)
+                    cubicTo(
+                        x + bodyW * 0.3f + neckThickness, neckTopY + (neckBottomY - neckTopY) * 0.7f,
+                        x + bodyW * 0.5f + neckThickness / 2f, neckTopY + (neckBottomY - neckTopY) * 0.3f,
+                        x + bodyW * 0.35f + neckThickness / 2f, neckTopY
+                    )
+                    close()
+                }
+                drawPath(neckPath, neckColor.copy(alpha = 0.85f))
+            }
+            NeckStyle.HACKLE_HEAVY -> {
+                drawOval(
+                    color = neckColor.copy(alpha = 0.8f),
+                    topLeft = Offset(x + bodyW * 0.15f, neckTopY),
+                    size = Size(neckThickness * 1.5f, neckBottomY - neckTopY)
+                )
+                for (i in 0..4) {
+                    val lineY = neckTopY + (neckBottomY - neckTopY) * (i * 0.2f)
+                    drawLine(
+                        color = neckColor.copy(alpha = 0.4f),
+                        start = Offset(x + bodyW * 0.25f, lineY),
+                        end = Offset(x + bodyW * 0.15f - 2f * s, lineY + 5f * s),
+                        strokeWidth = 1f * s,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+            NeckStyle.MUSCULAR -> {
+                drawOval(
+                    color = neckColor.copy(alpha = 0.85f),
+                    topLeft = Offset(x + bodyW * 0.1f, neckTopY),
+                    size = Size(neckThickness * 1.8f, neckBottomY - neckTopY)
+                )
+            }
+            else -> {
+                val length = when (a.neck) {
+                    NeckStyle.LONG -> 1.3f
+                    NeckStyle.SHORT -> 0.6f
+                    else -> 1.0f
+                }
+                if (length > 0.3f) {
+                    val adjustedTopY = neckBottomY - (neckBottomY - neckTopY) * length
+                    drawOval(
+                        color = neckColor.copy(alpha = 0.75f),
+                        topLeft = Offset(x + bodyW * 0.2f, adjustedTopY),
+                        size = Size(neckThickness * 1.2f, neckBottomY - adjustedTopY)
+                    )
+                }
+            }
+        }
+    }
+
+    // ==================== SHEEN OVERLAY ====================
+
+    private fun DrawScope.drawSheen(x: Float, y: Float, s: Float, a: BirdAppearance) {
+        val bodyW = 16f * s
+        val bodyH = 12f * s
+
+        when (a.sheen) {
+            Sheen.SATIN -> {
+                drawOval(
+                    brush = Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.12f), Color.Transparent),
+                        center = Offset(x + bodyW * 0.1f, y - bodyH * 0.8f),
+                        radius = bodyW * 0.8f
+                    ),
+                    topLeft = Offset(x - bodyW * 0.5f, y - bodyH * 1.6f),
+                    size = Size(bodyW * 1.5f, bodyH * 1.8f)
+                )
+            }
+            Sheen.GLOSSY -> {
+                drawOval(
+                    brush = Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.2f), Color.Transparent),
+                        center = Offset(x - bodyW * 0.1f, y - bodyH * 1.2f),
+                        radius = bodyW * 0.5f
+                    ),
+                    topLeft = Offset(x - bodyW * 0.6f, y - bodyH * 1.5f),
+                    size = Size(bodyW * 1f, bodyH * 0.8f)
+                )
+            }
+            Sheen.METALLIC -> {
+                drawOval(
+                    brush = Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.3f), Color.Transparent),
+                        center = Offset(x - bodyW * 0.2f, y - bodyH * 1.3f),
+                        radius = bodyW * 0.4f
+                    ),
+                    topLeft = Offset(x - bodyW * 0.6f, y - bodyH * 1.5f),
+                    size = Size(bodyW * 0.8f, bodyH * 0.6f)
+                )
+                drawOval(
+                    brush = Brush.radialGradient(
+                        listOf(Color.White.copy(alpha = 0.15f), Color.Transparent),
+                        center = Offset(x + bodyW * 0.3f, y - bodyH * 0.6f),
+                        radius = bodyW * 0.3f
+                    ),
+                    topLeft = Offset(x + bodyW * 0.1f, y - bodyH * 0.8f),
+                    size = Size(bodyW * 0.5f, bodyH * 0.4f)
+                )
+            }
+            Sheen.IRIDESCENT -> {
+                drawOval(
+                    brush = Brush.radialGradient(
+                        listOf(Color(0x251B5E20), Color(0x15673AB7), Color.Transparent),
+                        center = Offset(x, y - bodyH * 1f),
+                        radius = bodyW * 0.9f
+                    ),
+                    topLeft = Offset(x - bodyW * 0.8f, y - bodyH * 1.6f),
+                    size = Size(bodyW * 1.8f, bodyH * 1.8f)
+                )
+            }
+            Sheen.SILKY -> {
+                val random = java.util.Random(42L)
+                for (i in 0..8) {
+                    val dotX = x - bodyW * 0.5f + random.nextFloat() * bodyW * 1.5f
+                    val dotY = y - bodyH * 1.5f + random.nextFloat() * bodyH * 1.5f
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.08f),
+                        radius = (2f + random.nextFloat() * 3f) * s,
+                        center = Offset(dotX, dotY)
+                    )
+                }
+            }
+            Sheen.MATTE -> { /* No sheen overlay */ }
         }
     }
 }

@@ -42,6 +42,7 @@ private enum class StudioCategory(val icon: String, val label: String) {
     HEAD("👑", "Head"),
     LEGS("🦵", "Legs"),
     PLUMAGE("🪶", "Plumage"),
+    BUILD("💪", "Build"),
     COLORS("🎨", "Colors")
 }
 
@@ -59,6 +60,7 @@ private enum class StudioSubPart(val label: String, val category: StudioCategory
     EYE_COLOR("Eye", StudioCategory.HEAD),
     WATTLE_STYLE("Wattle", StudioCategory.HEAD),
     EAR_LOBE("Ear Lobe", StudioCategory.HEAD),
+    HEAD_SHAPE("Head Shape", StudioCategory.HEAD),
 
     // Legs
     LEG_STYLE("Legs", StudioCategory.LEGS),
@@ -68,6 +70,13 @@ private enum class StudioSubPart(val label: String, val category: StudioCategory
     // Plumage
     CHEST_PATTERN("Chest Pattern", StudioCategory.PLUMAGE),
     WING_PATTERN("Wing Pattern", StudioCategory.PLUMAGE),
+    SHEEN("Sheen", StudioCategory.PLUMAGE),
+
+    // Build
+    STANCE("Stance", StudioCategory.BUILD),
+    NECK_STYLE("Neck", StudioCategory.BUILD),
+    BREAST_SHAPE("Breast", StudioCategory.BUILD),
+    SKIN_COLOR("Skin", StudioCategory.BUILD),
 
     // Colors
     CHEST_COLOR("Chest", StudioCategory.COLORS),
@@ -101,6 +110,24 @@ private val ASEEL_PRESETS = listOf(
     BreedPreset("Kilmora", "kilmora aseel", "🏆"),
     BreedPreset("Java", "java aseel", "💪"),
     BreedPreset("Generic", "aseel", "🐔"),
+)
+
+private val COMMON_BREED_PRESETS = listOf(
+    BreedPreset("RIR", "Rhode Island Red", "🟤"),
+    BreedPreset("Leghorn", "Leghorn", "⚪"),
+    BreedPreset("Brahma", "Brahma", "🦅"),
+    BreedPreset("Plymouth", "Plymouth Rock", "🪨"),
+    BreedPreset("Silkie", "Silkie", "☁️"),
+    BreedPreset("Cochin", "Cochin", "🧸"),
+    BreedPreset("Orpington", "Buff Orpington", "🟡"),
+    BreedPreset("Wyandotte", "Wyandotte", "💠"),
+    BreedPreset("Sussex", "Speckled Sussex", "🌈"),
+    BreedPreset("Malay", "Malay", "🗼"),
+    BreedPreset("Shamo", "Shamo", "⚔️"),
+    BreedPreset("Cemani", "Ayam Cemani", "🖤"),
+    BreedPreset("Cornish", "Cornish", "💎"),
+    BreedPreset("Marans", "Marans", "🥚"),
+    BreedPreset("Ameraucana", "Ameraucana", "💙"),
 )
 
 // ==================== MAIN SCREEN ====================
@@ -352,13 +379,16 @@ fun BirdStudioScreen(
                 )
             }
 
-            // ==================== ASEEL PRESETS BAR ====================
-            if (birdBreed?.lowercase()?.contains("aseel") == true || birdBreed?.lowercase() == "asil") {
-                Surface(
-                    color = Color(0xFF2A1A4E),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
+            // ==================== BREED PRESETS BAR (Universal) ====================
+            Surface(
+                color = Color(0xFF2A1A4E),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    val isAseel = birdBreed?.lowercase()?.let { it.contains("aseel") || it == "asil" } == true
+                    
+                    // Aseel-specific presets
+                    if (isAseel) {
                         Text(
                             "  🐔 Aseel Presets",
                             color = Color(0xFFCE93D8),
@@ -367,7 +397,7 @@ fun BirdStudioScreen(
                             modifier = Modifier.padding(start = 8.dp, top = 6.dp)
                         )
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             items(ASEEL_PRESETS) { preset ->
@@ -394,6 +424,94 @@ fun BirdStudioScreen(
                                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Common breed presets (always visible)
+                    Text(
+                        "  🌍 Breed Presets",
+                        color = Color(0xFF90CAF9),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 8.dp, top = if (isAseel) 2.dp else 6.dp)
+                    )
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Randomize chip
+                        item {
+                            Surface(
+                                onClick = {
+                                    appearance = BirdAppearance(
+                                        comb = CombStyle.entries.random(),
+                                        combColor = PartColor.entries.random(),
+                                        beak = BeakStyle.entries.random(),
+                                        beakColor = listOf(PartColor.HORN, PartColor.DARK_HORN, PartColor.YELLOW, PartColor.BLACK).random(),
+                                        chest = PlumagePattern.entries.random(),
+                                        chestColor = PartColor.entries.random(),
+                                        back = BackStyle.entries.random(),
+                                        backColor = PartColor.entries.random(),
+                                        crown = CrownStyle.entries.random(),
+                                        crownColor = PartColor.entries.random(),
+                                        wings = WingStyle.entries.random(),
+                                        wingColor = PartColor.entries.random(),
+                                        wingPattern = PlumagePattern.entries.random(),
+                                        tail = TailStyle.entries.random(),
+                                        tailColor = PartColor.entries.random(),
+                                        legs = LegStyle.entries.random(),
+                                        legColor = listOf(PartColor.YELLOW, PartColor.SLATE, PartColor.WILLOW, PartColor.WHITE_PINK, PartColor.BLACK).random(),
+                                        joints = JointStyle.entries.random(),
+                                        nails = NailStyle.entries.random(),
+                                        nailColor = listOf(PartColor.HORN, PartColor.DARK_HORN, PartColor.BLACK).random(),
+                                        eye = EyeColor.entries.random(),
+                                        wattle = WattleStyle.entries.random(),
+                                        wattleColor = PartColor.RED,
+                                        earLobe = EarLobeColor.entries.random(),
+                                        bodySize = BodySize.entries.random(),
+                                        isMale = appearance.isMale,
+                                        stance = Stance.entries.random(),
+                                        sheen = Sheen.entries.random(),
+                                        neck = NeckStyle.entries.random(),
+                                        breast = BreastShape.entries.random(),
+                                        skin = SkinColor.entries.random(),
+                                        headShape = HeadShape.entries.random()
+                                    )
+                                    hasChanges = true
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF4A148C),
+                                border = BorderStroke(1.dp, Color(0xFFE040FB))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🎲", fontSize = 14.sp)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Random", color = Color(0xFFE040FB), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        
+                        items(COMMON_BREED_PRESETS) { preset ->
+                            Surface(
+                                onClick = {
+                                    appearance = deriveAppearanceFromBreed(preset.breed, birdGender, birdAgeWeeks)
+                                    hasChanges = true
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF1A3A5E)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(preset.emoji, fontSize = 14.sp)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(preset.name, color = Color.White, fontSize = 11.sp)
                                 }
                             }
                         }
@@ -632,6 +750,68 @@ fun BirdStudioScreen(
                             selected = appearance.wingPattern.displayName(),
                             onSelect = { name ->
                                 appearance = appearance.copy(wingPattern = PlumagePattern.entries.first { it.displayName() == name })
+                                hasChanges = true
+                            }
+                        )
+                    }
+                    StudioSubPart.SHEEN -> {
+                        OptionGrid(
+                            items = Sheen.entries.map { it.displayName() },
+                            selected = appearance.sheen.displayName(),
+                            onSelect = { name ->
+                                appearance = appearance.copy(sheen = Sheen.entries.first { it.displayName() == name })
+                                hasChanges = true
+                            }
+                        )
+                    }
+
+                    // ---- BUILD ----
+                    StudioSubPart.STANCE -> {
+                        OptionGrid(
+                            items = Stance.entries.map { it.displayName() },
+                            selected = appearance.stance.displayName(),
+                            onSelect = { name ->
+                                appearance = appearance.copy(stance = Stance.entries.first { it.displayName() == name })
+                                hasChanges = true
+                            }
+                        )
+                    }
+                    StudioSubPart.NECK_STYLE -> {
+                        OptionGrid(
+                            items = NeckStyle.entries.map { it.displayName() },
+                            selected = appearance.neck.displayName(),
+                            onSelect = { name ->
+                                appearance = appearance.copy(neck = NeckStyle.entries.first { it.displayName() == name })
+                                hasChanges = true
+                            }
+                        )
+                    }
+                    StudioSubPart.BREAST_SHAPE -> {
+                        OptionGrid(
+                            items = BreastShape.entries.map { it.displayName() },
+                            selected = appearance.breast.displayName(),
+                            onSelect = { name ->
+                                appearance = appearance.copy(breast = BreastShape.entries.first { it.displayName() == name })
+                                hasChanges = true
+                            }
+                        )
+                    }
+                    StudioSubPart.SKIN_COLOR -> {
+                        OptionGrid(
+                            items = SkinColor.entries.map { it.displayName() },
+                            selected = appearance.skin.displayName(),
+                            onSelect = { name ->
+                                appearance = appearance.copy(skin = SkinColor.entries.first { it.displayName() == name })
+                                hasChanges = true
+                            }
+                        )
+                    }
+                    StudioSubPart.HEAD_SHAPE -> {
+                        OptionGrid(
+                            items = HeadShape.entries.map { it.displayName() },
+                            selected = appearance.headShape.displayName(),
+                            onSelect = { name ->
+                                appearance = appearance.copy(headShape = HeadShape.entries.first { it.displayName() == name })
                                 hasChanges = true
                             }
                         )
