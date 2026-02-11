@@ -288,8 +288,10 @@ fun IsometricFarmCanvas(
             val h = size.height
 
             // Center the isometric grid in the canvas
+            // Adjust centerY to account for the grid's center being at y = G*H/2
+            val gridCenterYOffset = gridSize * tileH / 2f
             val centerX = w / 2f + offsetX
-            val centerY = h * 0.35f + offsetY
+            val centerY = h * 0.35f + offsetY - gridCenterYOffset
 
             // ============ SKY GRADIENT ============
             drawRect(
@@ -531,45 +533,61 @@ fun IsometricFarmCanvas(
 private fun DrawScope.drawIsoTerrain(gridSize: Int, tileW: Float, tileH: Float) {
     val depthHeight = 40f
 
+    // Vertices based on world coordinates
+    val top = worldToIso(0f, 0f, tileW, tileH)
+    val right = worldToIso(gridSize.toFloat(), 0f, tileW, tileH)
+    val bottom = worldToIso(gridSize.toFloat(), gridSize.toFloat(), tileW, tileH)
+    val left = worldToIso(0f, gridSize.toFloat(), tileW, tileH)
+
     // Top face (grass)
     val topPath = Path().apply {
-        moveTo(0f, -gridSize * tileH / 2f) // top
-        lineTo(gridSize * tileW / 2f, 0f)   // right
-        lineTo(0f, gridSize * tileH / 2f)   // bottom
-        lineTo(-gridSize * tileW / 2f, 0f)  // left
+        moveTo(top.x, top.y)
+        lineTo(right.x, right.y)
+        lineTo(bottom.x, bottom.y)
+        lineTo(left.x, left.y)
         close()
     }
     drawPath(topPath, IsoColors.grassTop)
 
-    // Add grass texture stripes
+    // Grid lines (sod strips)
     for (i in 1 until gridSize) {
-        val y1 = -gridSize * tileH / 2f + i * tileH
-        val x1 = -i * tileW / 2f
-        val x2 = (gridSize - i) * tileW / 2f
+        // Horizontal grid lines (world Y fixed)
+        val hStart = worldToIso(0f, i.toFloat(), tileW, tileH)
+        val hEnd = worldToIso(gridSize.toFloat(), i.toFloat(), tileW, tileH)
         drawLine(
             color = IsoColors.grassLight.copy(alpha = 0.3f),
-            start = Offset(x1, y1 - tileH / 2f),
-            end = Offset(x2, y1 + (gridSize - i) * tileH / 2f - i * tileH / 2f),
+            start = Offset(hStart.x, hStart.y),
+            end = Offset(hEnd.x, hEnd.y),
+            strokeWidth = 1f
+        )
+        
+        // Vertical grid lines (world X fixed)
+        val vStart = worldToIso(i.toFloat(), 0f, tileW, tileH)
+        val vEnd = worldToIso(i.toFloat(), gridSize.toFloat(), tileW, tileH)
+        drawLine(
+            color = IsoColors.grassLight.copy(alpha = 0.3f),
+            start = Offset(vStart.x, vStart.y),
+            end = Offset(vEnd.x, vEnd.y),
             strokeWidth = 1f
         )
     }
 
-    // Right side face (dirt)
+    // Right side face (visible front-right)
     val rightPath = Path().apply {
-        moveTo(gridSize * tileW / 2f, 0f)           // top-right
-        lineTo(0f, gridSize * tileH / 2f)            // bottom-center
-        lineTo(0f, gridSize * tileH / 2f + depthHeight)  // bottom-center-depth
-        lineTo(gridSize * tileW / 2f, depthHeight)    // right-depth
+        moveTo(right.x, right.y)
+        lineTo(bottom.x, bottom.y)
+        lineTo(bottom.x, bottom.y + depthHeight)
+        lineTo(right.x, right.y + depthHeight)
         close()
     }
     drawPath(rightPath, IsoColors.dirtSide)
 
-    // Left side face (darker dirt)
+    // Left side face (visible front-left)
     val leftPath = Path().apply {
-        moveTo(-gridSize * tileW / 2f, 0f)            // top-left
-        lineTo(0f, gridSize * tileH / 2f)              // bottom-center
-        lineTo(0f, gridSize * tileH / 2f + depthHeight)    // bottom-center-depth
-        lineTo(-gridSize * tileW / 2f, depthHeight)    // left-depth
+        moveTo(left.x, left.y)
+        lineTo(bottom.x, bottom.y)
+        lineTo(bottom.x, bottom.y + depthHeight)
+        lineTo(left.x, left.y + depthHeight)
         close()
     }
     drawPath(leftPath, IsoColors.dirtFront)
@@ -577,14 +595,14 @@ private fun DrawScope.drawIsoTerrain(gridSize: Int, tileW: Float, tileH: Float) 
     // Bottom edge highlight
     drawLine(
         color = IsoColors.dirtDark,
-        start = Offset(-gridSize * tileW / 2f, depthHeight),
-        end = Offset(0f, gridSize * tileH / 2f + depthHeight),
+        start = Offset(left.x, left.y + depthHeight),
+        end = Offset(bottom.x, bottom.y + depthHeight),
         strokeWidth = 2f
     )
     drawLine(
         color = IsoColors.dirtDark,
-        start = Offset(gridSize * tileW / 2f, depthHeight),
-        end = Offset(0f, gridSize * tileH / 2f + depthHeight),
+        start = Offset(bottom.x, bottom.y + depthHeight),
+        end = Offset(right.x, right.y + depthHeight),
         strokeWidth = 2f
     )
 }
