@@ -23,12 +23,12 @@ import com.rio.rostry.ui.components.MediaItem
     indices = [Index("productId"), Index("week"), Index("farmerId"), Index("createdAt")]
 )
 data class GrowthRecordEntity(
-    @PrimaryKey val recordId: String,
-    val productId: String,
-    val farmerId: String,
-    val week: Int,
-    val weightGrams: Double?,
-    val heightCm: Double?,
+    @PrimaryKey val recordId: String = "",
+    val productId: String = "",
+    val farmerId: String = "",
+    val week: Int = 0,
+    val weightGrams: Double? = null,
+    val heightCm: Double? = null,
     val photoUrl: String? = null,         // Legacy: single photo URL
     val mediaItemsJson: String? = null,   // Structured: JSON array of MediaItem
     val healthStatus: String? = null, // OK, WATCH, SICK
@@ -73,10 +73,10 @@ data class GrowthRecordEntity(
     indices = [Index("productId"), Index("status"), Index("farmerId"), Index("startedAt")]
 )
 data class QuarantineRecordEntity(
-    @PrimaryKey val quarantineId: String,
-    val productId: String,
-    val farmerId: String,
-    val reason: String,
+    @PrimaryKey val quarantineId: String = "",
+    val productId: String = "",
+    val farmerId: String = "",
+    val reason: String = "",
     val protocol: String? = null,
     val medicationScheduleJson: String? = null,
     val statusHistoryJson: String? = null,
@@ -98,10 +98,10 @@ data class QuarantineRecordEntity(
     indices = [Index("productId"), Index("causeCategory"), Index("farmerId"), Index("occurredAt")]
 )
 data class MortalityRecordEntity(
-    @PrimaryKey val deathId: String,
-    val productId: String?,
-    val farmerId: String,
-    val causeCategory: String, // ILLNESS, PREDATOR, ACCIDENT, OTHER
+    @PrimaryKey val deathId: String = "",
+    val productId: String? = null,
+    val farmerId: String = "",
+    val causeCategory: String = "", // ILLNESS, PREDATOR, ACCIDENT, OTHER
     val circumstances: String? = null,
     val ageWeeks: Int? = null,
     val disposalMethod: String? = null,
@@ -146,14 +146,14 @@ data class MortalityRecordEntity(
     indices = [Index("productId"), Index("vaccineType"), Index("scheduledAt"), Index("farmerId")]
 )
 data class VaccinationRecordEntity(
-    @PrimaryKey val vaccinationId: String,
-    val productId: String,
-    val farmerId: String,
-    val vaccineType: String,
+    @PrimaryKey val vaccinationId: String = "",
+    val productId: String = "",
+    val farmerId: String = "",
+    val vaccineType: String = "",
     val supplier: String? = null,
     val batchCode: String? = null,
     val doseMl: Double? = null,
-    val scheduledAt: Long, // reminder scheduling anchor
+    val scheduledAt: Long = 0L, // reminder scheduling anchor
     val administeredAt: Long? = null,
     val efficacyNotes: String? = null,
     val costInr: Double? = null,
@@ -189,9 +189,9 @@ data class VaccinationRecordEntity(
     indices = [Index("name"), Index("farmerId"), Index("expectedHatchAt")]
 )
 data class HatchingBatchEntity(
-    @PrimaryKey val batchId: String,
-    val name: String,
-    val farmerId: String,
+    @PrimaryKey val batchId: String = "",
+    val name: String = "",
+    val farmerId: String = "",
     val startedAt: Long = System.currentTimeMillis(),
     val expectedHatchAt: Long? = null,
     val temperatureC: Double? = null,
@@ -225,11 +225,11 @@ data class HatchingBatchEntity(
     indices = [Index("batchId"), Index("productId"), Index("farmerId"), Index("createdAt")]
 )
 data class HatchingLogEntity(
-    @PrimaryKey val logId: String,
-    val batchId: String,
-    val farmerId: String,
-    val productId: String?, // chick record, if available
-    val eventType: String, // EGG_COLLECTED, SET, CANDLED, HATCHED
+    @PrimaryKey val logId: String = "",
+    val batchId: String = "",
+    val farmerId: String = "",
+    val productId: String? = null, // chick record, if available
+    val eventType: String = "", // EGG_COLLECTED, SET, CANDLED, HATCHED
     val qualityScore: Int? = null,
     val temperatureC: Double? = null,
     val humidityPct: Double? = null,
