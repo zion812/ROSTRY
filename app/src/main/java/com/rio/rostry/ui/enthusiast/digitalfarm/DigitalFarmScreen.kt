@@ -49,6 +49,7 @@ fun DigitalFarmScreen(
     onNavigateToListProduct: (String) -> Unit,
     onNavigateToLogEggs: (String) -> Unit,
     onNavigateToAddBird: () -> Unit,
+    onNavigateToBirdStudio: (String) -> Unit = {},
     viewModel: DigitalFarmViewModel = hiltViewModel()
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -217,7 +218,8 @@ fun DigitalFarmScreen(
                         bird = bird,
                         onDismiss = { viewModel.clearSelection() },
                         onViewDetails = { onNavigateToProduct(bird.productId) },
-                        onListForSale = { onNavigateToListProduct(bird.productId) }
+                        onListForSale = { onNavigateToListProduct(bird.productId) },
+                        onCustomize = { onNavigateToBirdStudio(bird.productId) }
                     )
                 }
             }
@@ -614,6 +616,7 @@ private fun BirdStatsBubble(
     onDismiss: () -> Unit,
     onViewDetails: () -> Unit,
     onListForSale: () -> Unit,
+    onCustomize: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -687,7 +690,7 @@ private fun BirdStatsBubble(
             
             // Actions
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
                     onClick = onViewDetails,
@@ -703,18 +706,31 @@ private fun BirdStatsBubble(
                     Spacer(Modifier.width(4.dp))
                     Text("Details")
                 }
-                
+
                 Button(
-                    onClick = onListForSale,
+                    onClick = onCustomize,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFD700)
+                        containerColor = Color(0xFF673AB7)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.Sell, contentDescription = null, tint = Color(0xFF3E2723), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Palette, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("List for Sale", color = Color(0xFF3E2723), fontWeight = FontWeight.Bold)
+                    Text("Studio", color = Color.White, fontWeight = FontWeight.Bold)
                 }
+            }
+            
+            Button(
+                onClick = onListForSale,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFFD700)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Sell, contentDescription = null, tint = Color(0xFF3E2723), modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("List for Sale", color = Color(0xFF3E2723), fontWeight = FontWeight.Bold)
             }
         }
     }

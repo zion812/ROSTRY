@@ -94,7 +94,8 @@ data class VisualBird(
     val batchId: String? = null,  // For breeding unit grouping
     val isReadyForSale: Boolean = false,
     val isListed: Boolean = false,
-    val isQuarantined: Boolean = false // Visual Quarantine: shows warning overlay
+    val isQuarantined: Boolean = false, // Visual Quarantine: shows warning overlay
+    val metadataJson: String? = null // Bird Studio custom appearance data
 ) {
     val ageText: String
         get() = when {

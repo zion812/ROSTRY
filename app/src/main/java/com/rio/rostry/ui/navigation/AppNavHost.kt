@@ -1612,6 +1612,9 @@ private fun RoleNavGraph(
                 },
                 onNavigateToAddBird = { 
                      navController.navigate(Routes.Onboarding.FARM_BIRD)
+                },
+                onNavigateToBirdStudio = { productId ->
+                    navController.navigate(Routes.EnthusiastNav.birdStudio(productId))
                 }
             )
         }

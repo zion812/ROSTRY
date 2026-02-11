@@ -116,7 +116,9 @@ private data class IsoBirdPlacement(
     val worldX: Float,
     val worldY: Float,
     val facing: Float = 0f, // angle in degrees
-    val appearance: BirdAppearance = deriveAppearanceFromBreed(bird.breed, bird.gender, bird.ageWeeks)
+    val appearance: BirdAppearance = bird.metadataJson?.let { json ->
+        if (json.isNotBlank()) parseAppearanceFromJson(json) else null
+    } ?: deriveAppearanceFromBreed(bird.breed, bird.gender, bird.ageWeeks)
 )
 
 /**
