@@ -1,7 +1,7 @@
 # ROSTRY Enthusiast Core Blueprint — The Champion's Arena
 
-**Version**: 1.0
-**Date**: 2026-01-04
+**Version**: 1.1
+**Date**: 2026-02-11
 **Status**: Active Analysis & Implementation
 
 ---
@@ -97,6 +97,18 @@
     *   **Escrow Status**: Status flow for shipped birds.
     *   **Dispute Resolution**: "Report Issue" flow with photo evidence.
 
+### 🎨 6. Bird Studio V2 (Appearance Customization)
+*   **Asset**: `BirdStudioScreen.kt`, `BirdPartRenderer.kt`
+*   **Purpose**: Deep bird appearance customization for enthusiasts — the "dress up" screen for roosters.
+*   **Key Components**:
+    *   **6 Appearance Dimensions**: Stance (6 postures), Sheen (6 finishes), NeckStyle (6 shapes), BreastShape (5 types), SkinColor (5 tones), HeadShape (5 forms)
+    *   **Category Tabs**: Body, Head, Legs, Plumage, BUILD (💪), Colors — 20+ sub-parts total
+    *   **Universal Breed Presets**: 15 common breed presets (RIR, Leghorn, Brahma, Silkie, etc.) + Aseel breed-specific presets
+    *   **Randomize Button**: One-tap random appearance generation
+    *   **Live Canvas Preview**: Real-time rendering of all customization changes
+    *   **Rendering**: Stance offset, sheen overlay, neck shapes (arched/muscular/hackle), breast proportions, head shape variants, skin tints
+    *   **Persistence**: JSON serialization with backward-compatible deserialization
+
 ---
 
 ## 🧬 Data Structure Improvements
@@ -113,6 +125,10 @@
 *   **`ProductEntity` / `FarmAssetEntity`**:
     *   Add `customAttributes`: JSON blob for "Eye Color," "Shank Color," "Comb Type" (crucial for enthusiasts).
     *   Add `achievements`: List of tournament wins.
+*   **`BirdAppearance` (V2)**:
+    *   6 new enums: `Stance`, `Sheen`, `NeckStyle`, `BreastShape`, `SkinColor`, `HeadShape`
+    *   Backward-compatible JSON serialization via `toAppearanceJson()` / `parseAppearanceFromJson()`
+    *   `displayName()` extension functions for all enums
 
 ---
 

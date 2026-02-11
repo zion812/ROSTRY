@@ -12,6 +12,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+#### Bird Studio V2 — Advanced Appearance Customization (2026-02-11)
+- **6 New Appearance Enums**: `Stance` (Normal, Upright, Low, Game Ready, Crouching, Display), `Sheen` (Matte, Satin, Glossy, Metallic, Iridescent, Silky), `NeckStyle` (Short, Medium, Long, Arched, Muscular, Hackle Heavy), `BreastShape` (Round, Flat, Broad, Deep, Puffed), `SkinColor` (Yellow, White, Slate, Dark, Pink), `HeadShape` (Round, Elongated, Broad, Serpentine, Compact)
+- **BirdAppearance Data Class**: Integrated 6 new fields with backward-compatible defaults
+- **JSON Serialization**: Updated `toAppearanceJson()` and `parseAppearanceFromJson()` with fallback defaults for older data
+- **Display Name Helpers**: Added `displayName()` extension functions for all new enums
+- **Studio UI Categories**: Added `BUILD` category (💪) with Stance/Neck/Breast/Skin sub-parts; added Sheen to Plumage; Head Shape to Head
+- **Universal Breed Presets**: 15 common breed presets (RIR, Leghorn, Brahma, Plymouth Rock, Silkie, Cochin, Orpington, Wyandotte, Sussex, Malay, Shamo, Ayam Cemani, Cornish, Marans, Ameraucana) available for all birds
+- **Randomize Button**: One-tap random appearance generation chip in presets bar
+- **Rendering Enhancements** (`BirdPartRenderer.kt`):
+  - Stance: Vertical body offset (upright = taller, crouching = lower) with shadow width adjustment
+  - Sheen: Post-render shimmer overlays (radial gradients for metallic/glossy, iridescent color-shift, silky fur dots)
+  - Neck: Style-specific shapes via `drawNeck()` (arched cubic Bezier curve, muscular thick pipe, hackle feather lines)
+  - Breast: Body ellipse width/height proportion modifiers
+  - Head Shape: Circle-to-oval variants via `when(headShape)` in `drawHead()`
+  - Skin Color: Dark/slate tint overlay on body
+- **Files Modified**: `BirdAppearance.kt` (+120 lines), `BirdStudioScreen.kt` (+340 lines), `BirdPartRenderer.kt` (+190 lines)
+
+#### Digital Farm V2 — Search, Zone Labels, Bird IDs (2026-02-11)
+- **Zone Labels**: `drawZoneLabels()` renders colored banners on isometric canvas with emoji + name + bird count per zone; auto-hides empty zones
+- **Bird Physical ID**: `birdCode` tags displayed below birds when zoom > 1.8x; dark green pill with white text
+- **Search Highlighting**: Matched birds get cyan glow ring (pulsing animation); non-matched birds dimmed to 25% opacity via `saveLayer`
+- **Enhanced Bird Popup**: Shows `birdCode` under emoji in header with bird name as title
+
 - **Documentation Audit & Update (2025-12-29)**:
   - Standardized metadata blocks across all 60+ core documentation files.
   - Updated technical counts: 26 background workers, 47+ repositories, 120+ database tables (v59).

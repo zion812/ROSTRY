@@ -1,6 +1,6 @@
 ---
 Version: 2.0
-Last Updated: 2026-02-05
+Last Updated: 2026-02-11
 Audience: Developers, Architects, Product Managers
 Status: Active
 Related_Docs: [architecture.md, CODEBASE_STRUCTURE.md, developer-onboarding.md]
@@ -430,6 +430,9 @@ match /products/{productId} {
 - **Leaderboards**: Ranked entries with gold/silver/bronze indicators
 - **Farm Sharing**: Public showcase with reactions (Like, Love, Wow, Follow) and visitor tracking
 - **Offline Mode**: Cached snapshots with 24-hour expiry for offline viewing
+- **Search & Filtering (V2)**: Text search with zone filter, matched birds highlighted with cyan glow ring, non-matched dimmed to 25%
+- **Zone Labels (V2)**: Colored banners on canvas with emoji + name + bird count per zone
+- **Bird Physical IDs (V2)**: `birdCode` tags displayed below each bird when zoom > 1.8x; dark green pill with white text
 
 ### 4.12 Enthusiast Features
 - **Breeding Calculator**: Advanced breeding prediction algorithms
@@ -444,6 +447,7 @@ match /products/{productId} {
 - **Show Log**: Detailed show records
 - **Pedigree Management**: Advanced lineage tracking
 - **Digital Coop Features**: Specialized enthusiast features
+- **Bird Studio V2**: Advanced appearance customization with 6 new dimensions (Stance, Sheen, NeckStyle, BreastShape, SkinColor, HeadShape), universal breed presets for 15+ breeds, randomize function, and real-time canvas rendering of all properties
 
 ### 4.13 Farm Asset Management
 - **Farm Asset List**: "My Farm" tab destination for asset management

@@ -61,18 +61,27 @@ The Enthusiast role in ROSTRY is tailored for poultry breeding hobbyists and spe
 - **Coop Management**: Tools for managing digital coop environments
 - **Coop Analytics**: Performance metrics for coop operations
 
-### 11. Transfers & Verification
+### 11. Bird Studio V2 — Advanced Appearance Customization
+- **6 Appearance Dimensions**: Stance (6 postures), Sheen (6 finishes), NeckStyle (6 shapes), BreastShape (5 types), SkinColor (5 tones), HeadShape (5 forms)
+- **BirdAppearance Data Class**: 6 new fields integrated with backward-compatible JSON serialization
+- **Studio UI Categories**: BUILD category (💪) for Stance/Neck/Breast/Skin; Sheen in Plumage; Head Shape in Head
+- **Universal Breed Presets**: 15 common breed presets (RIR, Leghorn, Brahma, Plymouth Rock, Silkie, Cochin, Orpington, Wyandotte, Sussex, Malay, Shamo, Ayam Cemani, Cornish, Marans, Ameraucana)
+- **Randomize Button**: One-tap random appearance generation
+- **Canvas Rendering**: Real-time rendering of stance offset, sheen overlays, neck shapes (arched/muscular/hackle), breast proportions, head shape variants, and skin tints
+- **Key Files**: `BirdAppearance.kt`, `BirdStudioScreen.kt`, `BirdPartRenderer.kt`
+
+### 12. Transfers & Verification
 - **Initiate Transfers**: Specify buyer, amount, and optional photos/GPS.
 - **Verify Transfers**: Seller uploads before/after photos with EXIF metadata. Buyer confirms GPS (within 100m radius or explain). Identity doc via digital signature.
 - **Timeline & Audit Trail**: View all verification steps and audit logs. Disputes can be raised and resolved.
 - **GPS Proximity Badge**: Visual indicator if buyer GPS is outside 100m of seller location; explanation required.
 
-### 12. Family Tree & Traceability
+### 13. Family Tree & Traceability
 - **Interactive Tree**: Pan/zoom family tree with Canvas drawing. Navigate to node details.
 - **Lineage Audits**: `LifecycleWorker` verifies parent/partner existence and detects cycles; alerts created on inconsistencies.
 - **Trait Milestones**: High-value traits (champion bloodline, rare color) trigger notifications at 6/12/24 months.
 
-### 13. Explore Tabs
+### 14. Explore Tabs
 - **Nearby Farmers Tab**: Discover local farmers via horizontal scrolling cards or interactive map view.
   - **Map View**: Visualize farmer distribution geographically. Tap pins to preview and navigate to profiles.
   - **Profiles**: Direct navigation to full profile from avatars or map markers.
@@ -81,33 +90,33 @@ The Enthusiast role in ROSTRY is tailored for poultry breeding hobbyists and spe
 - **Events Tab**: Stream upcoming events. RSVP (Going/Maybe/Not Going). Exhibitor FAB to create events. View attendees and discussion.
 - **Showcase Tab**: Stream showcase posts (PRODUCT_SHOWCASE, BREEDING_ACHIEVEMENT). Like, comment, share. Create showcase posts with media.
 
-### 14. Social Features
+### 15. Social Features
 - **Community Hub**: Engage with other enthusiasts
 - **Leaderboards**: Competitive rankings
 - **Live Broadcasting**: Real-time community events
 - **Messaging**: Direct communication with other enthusiasts
 - **Social Feed**: Community content and updates
 
-### 15. Gamification
+### 16. Gamification
 - **Achievements**: Goal-based rewards
 - **Badges**: Visual recognition system
 - **Reputation Scoring**: Community trust metrics
 - **Hall of Fame**: Top performers recognition
 - **Competitions**: 6 competition types (Best Breeder, Top Seller, Healthiest Flock, Egg Champion, Fastest Growth, Showcase)
 
-### 16. Analytics & Reporting
+### 17. Analytics & Reporting
 - **Performance Dashboards**: Role-specific analytics views
 - **Breeding Insights**: Genetic performance analysis
 - **AI-Powered Recommendations**: Predictive insights
 - **Export Functionality**: CSV, PDF report generation
 - **Data Visualization**: Charts and graphs for trends
 
-### 17. Offline-First Behavior
+### 18. Offline-First Behavior
 - **Dirty Flag**: All entities support `dirty` and `syncedAt` fields. Created/updated records are marked dirty.
 - **Sync on Reconnect**: On network reconnect, sync worker uploads dirty records to backend and clears flags.
 - **Local-first**: All CRUD operations work offline; UI reflects local state immediately.
 
-### 18. Background Automation
+### 19. Background Automation
 - **LifecycleWorker**: Runs daily. Computes lifecycle stages, generates milestones (vaccination, growth, breeder eligibility). Audits lineage and emits trait milestone notifications.
 - **EnthusiastPerformanceWorker**: Runs weekly. Aggregates KPIs (hatch rate, breeder success, pairs to mate, top bloodlines) and persists snapshot with dirty flag.
 - **Notifications**: `EnthusiastNotifier` sends alerts for pairs to mate, eggs due, hatching due, breeder eligibility, lineage inconsistencies, and trait milestones.

@@ -1,7 +1,7 @@
 # ROSTRY R&D Quick Reference
 
-**Version:** 1.0.1
-**Date:** 2025-12-29
+**Version:** 1.0.2
+**Date:** 2026-02-11
 
 ---
 
@@ -18,6 +18,10 @@
 | **Domain Logic** | `app/src/main/java/com/rio/rostry/domain/` |
 | **DI Modules** | `app/src/main/java/com/rio/rostry/di/` |
 | **Workers** | `app/src/main/java/com/rio/rostry/workers/` |
+| **Bird Appearance** | `app/.../domain/model/BirdAppearance.kt` |
+| **Bird Studio** | `app/.../ui/enthusiast/studio/BirdStudioScreen.kt` |
+| **Bird Renderer** | `app/.../ui/enthusiast/digitalfarm/BirdPartRenderer.kt` |
+
 
 ---
 

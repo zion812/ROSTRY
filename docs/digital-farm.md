@@ -1,6 +1,6 @@
 ---
-Version: 2.2
-Last Updated: 2026-01-04
+Version: 2.3
+Last Updated: 2026-02-11
 Audience: Developers, Product Owners
 Status: Active
 ---
@@ -8,10 +8,10 @@ Status: Active
 # Digital Farm Feature Guide
 
 **Document Type**: Feature Documentation  
-**Version**: 2.2  
-**Last Updated**: 2026-01-04  
+**Version**: 2.3  
+**Last Updated**: 2026-02-11  
 **Feature Owner**: Enthusiast Domain + Farmer Domain (Lite Mode)  
-**Status**: ✅ Fully Implemented (8 Phases Complete)
+**Status**: ✅ Fully Implemented (10 Phases Complete)
 
 ---
 
@@ -110,6 +110,43 @@ Performance-optimized rendering mode for Farmer persona on low-end devices ($100
 - [FarmCanvasRenderer.kt](../app/src/main/java/com/rio/rostry/ui/enthusiast/digitalfarm/FarmCanvasRenderer.kt) - Conditional rendering
 - [FARMER_LITE_DIGITAL_FARM_STRATEGY.md](./FARMER_LITE_DIGITAL_FARM_STRATEGY.md) - Full strategy
 
+### Phase 9: Search, Zone Labels & Bird IDs (2026-02-11)
+
+Search and identification system for finding and tracking individual birds on the canvas.
+
+**New Components:**
+- `drawZoneLabels()`: Renders colored banners per zone with emoji + name + bird count
+- `birdCode` field on `VisualBird`: Canvas shows physical ID tags below birds when zoom > 1.8x
+- **Search Highlighting**: Matched birds get pulsing cyan glow ring; non-matched dimmed to 25% opacity via `saveLayer`
+- **Zone Filter**: Combined text search + zone filter for precise bird location
+- **Enhanced Bird Popup**: Shows `birdCode` under emoji in header
+
+### Phase 10: Bird Studio V2 — Advanced Appearance Customization (2026-02-11)
+
+Comprehensive expansion of the Bird Studio with 6 new appearance dimensions and visual rendering.
+
+| Feature | Description |
+|---------|-------------|
+| **Stance** | Normal, Upright, Low, Game Ready, Crouching, Display — affects body Y-offset |
+| **Sheen** | Matte, Satin, Glossy, Metallic, Iridescent, Silky — post-render shimmer overlays |
+| **NeckStyle** | Short, Medium, Long, Arched, Muscular, Hackle Heavy — `drawNeck()` shapes |
+| **BreastShape** | Round, Flat, Broad, Deep, Puffed — body ellipse proportion modifiers |
+| **SkinColor** | Yellow, White, Slate, Dark, Pink — body tint overlay |
+| **HeadShape** | Round, Elongated, Broad, Serpentine, Compact — head circle/oval variants |
+
+**New Components:**
+- `drawNeck()`: Renders neck between body and head with style-specific visuals (arched Bezier, muscular pipe, hackle feather lines)
+- `drawSheen()`: Post-render shimmer overlays (radial gradients for metallic/glossy, iridescent green-purple shift, silky fur dots)
+- **HeadShape rendering**: Updated `drawHead()` to use `when(headShape)` for circle-to-oval variants
+- **Universal Breed Presets**: 15 common breed presets (RIR, Leghorn, Brahma, Silkie, etc.)
+- **Randomize Button**: One-tap random appearance generation
+- **BUILD Category**: New Studio category (💪) with Stance/Neck/Breast/Skin sub-parts
+
+**Files:**
+- [BirdAppearance.kt](../app/src/main/java/com/rio/rostry/domain/model/BirdAppearance.kt) - 6 new enums + data class fields + JSON serialization
+- [BirdStudioScreen.kt](../app/src/main/java/com/rio/rostry/ui/enthusiast/studio/BirdStudioScreen.kt) - Studio UI with new categories and presets
+- [BirdPartRenderer.kt](../app/src/main/java/com/rio/rostry/ui/enthusiast/digitalfarm/BirdPartRenderer.kt) - Canvas rendering for all new properties
+
 ---
 
 ## Architecture
@@ -144,10 +181,15 @@ ui/enthusiast/digitalfarm/
 ├── DigitalFarmScreen.kt        # Main Composable (entry point)
 ├── DigitalFarmViewModel.kt     # State management, grouping logic
 ├── FarmCanvasRenderer.kt       # Canvas drawing engine (~2000 lines)
+├── BirdPartRenderer.kt         # Bird appearance renderer (~1200 lines) — Stance, Sheen, Neck, HeadShape
 ├── IsometricProjection.kt      # Coordinate transformation utilities
 ├── DepthSorting.kt             # Z-ordering algorithms
 ├── AnimationController.kt      # Animation management
 └── ParticleSystem.kt           # Weather and effect particles
+
+ui/enthusiast/studio/
+├── BirdStudioScreen.kt         # Bird Studio V2 UI (~1060 lines) — Categories, Presets, Options
+└── BirdStudioViewModel.kt      # Studio state and persistence
 ```
 
 ### Domain Models
@@ -260,6 +302,12 @@ The `FarmCanvasRenderer` draws in this order:
 | `drawLeaderboardEntry()` | Rankings display |
 | `drawCompetitionCard()` | Challenge cards |
 | `drawOfflineIndicator()` | Offline status badge |
+| `drawZoneLabels()` | Zone banners with emoji + name + count |
+| `drawBirdCode()` | Physical ID tags below birds |
+| `drawSearchHighlight()` | Cyan glow ring for matched birds |
+| `drawNeck()` | Neck between body and head (style-specific) |
+| `drawSheen()` | Post-render shimmer overlays |
+| `drawHead()` (updated) | HeadShape-aware circle/oval rendering |
 
 ---
 

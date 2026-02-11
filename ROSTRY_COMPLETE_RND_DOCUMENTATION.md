@@ -1,7 +1,7 @@
 # ROSTRY Complete System Documentation for R&D Team
 
-**Version:** 1.2.2
-**Date:** 2026-01-13
+**Version:** 1.2.3
+**Date:** 2026-02-11
 **Security Level:** INTERNAL USE ONLY
 **Status:** VALIDATED
 
@@ -210,6 +210,9 @@ A 10-state workflow ensures trust:
 -   **Leaderboards**: Ranked entries with gold/silver/bronze indicators.
 -   **Farm Sharing**: Public showcase with reactions (Like, Love, Wow, Follow) and visitor tracking.
 -   **Offline Mode**: Cached snapshots with 24-hour expiry for offline viewing.
+-   **Search & Filtering (V2)**: Text search + zone filter, matched birds highlighted with cyan glow ring, non-matched dimmed to 25%.
+-   **Zone Labels (V2)**: Colored banners on canvas with emoji + name + bird count per zone.
+-   **Bird Physical IDs (V2)**: `birdCode` tags displayed below each bird when zoom > 1.8x.
 
 ### 5.7 Farm Asset Management
 -   **Farm Asset List**: "My Farm" tab destination for asset management.
@@ -269,6 +272,7 @@ A 10-state workflow ensures trust:
 -   **Show Log**: Detailed show records.
 -   **Pedigree Management**: Advanced lineage tracking.
 -   **Digital Coop Features**: Specialized enthusiast features.
+-   **Bird Studio V2**: Advanced appearance customization with 6 new enums (`Stance`, `Sheen`, `NeckStyle`, `BreastShape`, `SkinColor`, `HeadShape`), universal breed presets for 15+ breeds, randomize function, and real-time canvas rendering of stance offset, sheen overlay, neck drawing, breast proportions, head shape variants, and skin tints.
 
 ---
 
