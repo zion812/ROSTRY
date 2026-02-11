@@ -224,9 +224,8 @@ fun IsometricFarmCanvas(
     // Tile dimensions
     val tileW = 100f
     val tileH = 50f
-
-    // Farm grid size
     val gridSize = 8
+    val gridCenterYOffset = gridSize * tileH / 2f
 
     Box(modifier = modifier.background(Color(0xFF81C784))) {
         Canvas(
@@ -237,10 +236,16 @@ fun IsometricFarmCanvas(
                     detectTransformGestures { centroid, pan, zoom, _ ->
                         val newScale = (scale * zoom).coerceIn(0.5f, 3.5f)
                         
-                        // Adjust offset so zoom centers on the pinch point
+                        // Calculate canvas center points (matching rendering logic)
+                        val cx = size.width / 2f
+                        val cy = size.height * 0.35f - gridCenterYOffset
+
+                        // Adjust offset so zoom centers on the pinch point relative to canvas center
                         val scaleChange = newScale / scale
-                        offsetX = (offsetX - centroid.x) * scaleChange + centroid.x + pan.x
-                        offsetY = (offsetY - centroid.y) * scaleChange + centroid.y + pan.y
+                        
+                        // Formula: NewOffset = OldOffset * Ratio + (Centroid - Basis) * (1 - Ratio) + Pan
+                        offsetX = offsetX * scaleChange + (centroid.x - cx) * (1 - scaleChange) + pan.x
+                        offsetY = offsetY * scaleChange + (centroid.y - cy) * (1 - scaleChange) + pan.y
                         
                         scale = newScale
                     }
@@ -250,8 +255,16 @@ fun IsometricFarmCanvas(
                     detectTapGestures(
                         onTap = { tapOffset ->
                             // Transform tap from screen space to canvas space
-                            val canvasTapX = (tapOffset.x - offsetX - size.width / 2f) / scale
-                            val canvasTapY = (tapOffset.y - offsetY - size.height * 0.35f) / scale
+                            // Must match rendering: centerY = h * 0.35f + offsetY - gridCenterYOffset
+                            val cx = size.width / 2f + offsetX
+                            val cy = size.height * 0.35f + offsetY - gridCenterYOffset
+                            
+                            // Inverse transform of: translate(cx, cy) -> scale(scale)
+                            // screen = center + scale * local
+                            // local = (screen - center) / scale
+                            
+                            val canvasTapX = (tapOffset.x - cx) / scale
+                            val canvasTapY = (tapOffset.y - cy) / scale
 
                             // Convert to world coords
                             val worldPos = isoToWorld(canvasTapX, canvasTapY, tileW, tileH)
@@ -289,7 +302,6 @@ fun IsometricFarmCanvas(
 
             // Center the isometric grid in the canvas
             // Adjust centerY to account for the grid's center being at y = G*H/2
-            val gridCenterYOffset = gridSize * tileH / 2f
             val centerX = w / 2f + offsetX
             val centerY = h * 0.35f + offsetY - gridCenterYOffset
 
