@@ -301,23 +301,28 @@ fun IsometricFarmCanvas(
                 size = size
             )
 
-            // ============ CLOUDS ============
-            val cloudY1 = h * 0.08f
-            val cloudY2 = h * 0.14f
-            drawIsoCloud(centerX - 180f * scale + animationTime * 8f % (w + 400) - 200, cloudY1, scale * 0.8f)
-            drawIsoCloud(centerX + 100f * scale + animationTime * 5f % (w + 400) - 200, cloudY2, scale * 0.6f)
-            drawIsoCloud(centerX - 50f * scale + animationTime * 6.5f % (w + 400) - 300, cloudY1 + 30f, scale * 0.7f)
-
-            // ============ BACKGROUND TREES ============
-            val treeBaseY = centerY - gridSize * tileH / 2f * scale - 20f * scale
-            for (i in 0..5) {
-                val tx = centerX + (i - 3) * 120f * scale + (i * 37 % 60 - 30) * scale
-                drawIsoTree(tx, treeBaseY + (i % 3) * 15f * scale, scale * (0.7f + (i % 3) * 0.15f), animationTime)
-            }
-
-            // Apply zoom + pan transformation
+            // Apply zoom + pan transformation for THE ENTIRE SCENE
             translate(left = centerX, top = centerY) {
                 scale(scale = scale) {
+
+                    // ============ CLOUDS ============
+                    // Drawn in world space relative to center, so they zoom with the map
+                    val cloudBaseY = -h * 0.25f // Adjusted for new coordinate system (0,0 is map center)
+                    
+                    // Note: Removed 'centerX' and '* scale' factors as transformation handles them
+                    drawIsoCloud(-180f + animationTime * 8f % 1000f - 500f, cloudBaseY, 0.8f)
+                    drawIsoCloud(100f + animationTime * 5f % 1000f - 500f, cloudBaseY + 30f, 0.6f)
+                    drawIsoCloud(-50f + animationTime * 6.5f % 1000f - 500f, cloudBaseY + 60f, 0.7f)
+
+                    // ============ BACKGROUND TREES ============
+                    // Trees spaced relative to the grid
+                    val treeBaseY = -gridSize * tileH / 2f - 40f
+                    for (i in 0..5) {
+                        val treeX = (i - 3) * 120f + (i * 37 % 60 - 30)
+                        val treeY = treeBaseY + (i % 3) * 15f
+                        // Tree scale is relative to world now
+                        drawIsoTree(treeX, treeY, 0.7f + (i % 3) * 0.15f, animationTime)
+                    }
 
                     // ============ TERRAIN: Elevated isometric island ============
                     drawIsoTerrain(gridSize, tileW, tileH)
@@ -490,7 +495,7 @@ fun IsometricFarmCanvas(
                 }
             }
 
-            // ============ ZOOM INDICATOR ============
+            // ============ ZOOM INDICATOR (Outside transform to stay fixed) ============
             val zoomPercent = ((scale / 1.2f) * 100).toInt()
             val zoomText = "${zoomPercent}%"
             val zoomResult = textMeasurer.measure(
