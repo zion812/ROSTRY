@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.CoinLedgerDao
+import com.rio.rostry.data.database.dao.FarmAssetDao
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.domain.model.*
@@ -31,7 +32,8 @@ import kotlin.random.Random
 class DigitalFarmViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val currentUserProvider: CurrentUserProvider,
-    private val coinLedgerDao: CoinLedgerDao
+    private val coinLedgerDao: CoinLedgerDao,
+    private val farmAssetDao: FarmAssetDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DigitalFarmState(isLoading = true))
@@ -171,18 +173,18 @@ class DigitalFarmViewModel @Inject constructor(
      * Core grouping logic - THE SCALABILITY SECRET
      * Instead of rendering 500 individual birds, we group them into zones.
      */
-    private fun groupProductsByLifecycle(products: List<ProductEntity>, queryTime: Long): DigitalFarmState {
+    private suspend fun groupProductsByLifecycle(products: List<ProductEntity>, queryTime: Long): DigitalFarmState {
+        // Pre-load appearance metadata for all birds that have a linked FarmAssetEntity
+        val appearanceMap = loadAppearanceMap(products)
+
         // Convert all products to VisualBirds with zone assignment
         val allBirds = products
             .filter { !it.isDeleted && it.category.lowercase() in listOf("poultry", "bird", "chicken", "fowl") }
             // Timelapse Filter: Only show birds that existed at queryTime
             .filter { it.createdAt <= queryTime }
-            // Timelapse Filter: Hide birds that were sold/deleted before queryTime (approximation)
-            // Note: We don't have deletion time in simple ProductEntity, so we assume current list
-            // is valid history. Ideally we'd check `soldAt` if it existed.
             .map { entity -> 
                 val zone = determineZone(entity, queryTime)
-                entity.toVisualBird(zone, queryTime) 
+                entity.toVisualBird(zone, queryTime, appearanceMap) 
             }
 
         // Group 1: Nurseries (chicks with mothers)
@@ -427,7 +429,11 @@ class DigitalFarmViewModel @Inject constructor(
     }
 
     // Extension to convert ProductEntity to VisualBird
-    private fun ProductEntity.toVisualBird(zone: DigitalFarmZone, queryTime: Long): VisualBird {
+    private fun ProductEntity.toVisualBird(
+        zone: DigitalFarmZone, 
+        queryTime: Long,
+        appearanceMap: Map<String, String> = emptyMap()
+    ): VisualBird {
         val ageWeeks = calculateAgeWeeksAtTime(this.birthDate, queryTime)
         
         val statusIndicator = when {
@@ -438,6 +444,10 @@ class DigitalFarmViewModel @Inject constructor(
             // Add more status checks as needed
             else -> BirdStatusIndicator.NONE
         }
+
+        // Look up custom appearance from FarmAssetEntity metadataJson
+        val metadata = this.sourceAssetId?.let { appearanceMap[it] }
+            ?: appearanceMap[this.productId]
         
         return VisualBird(
             productId = this.productId,
@@ -445,11 +455,40 @@ class DigitalFarmViewModel @Inject constructor(
             breed = this.breed,
             gender = this.gender,
             ageWeeks = ageWeeks,
-            weightGrams = this.weightGrams, // In a real timeline, we'd interpolate weight. For now, use current.
+            weightGrams = this.weightGrams,
             color = this.color,
             zone = zone,
             statusIndicator = statusIndicator,
-            isQuarantined = this.healthStatus?.lowercase() in listOf("quarantined", "sick", "isolated")
+            isQuarantined = this.healthStatus?.lowercase() in listOf("quarantined", "sick", "isolated"),
+            metadataJson = metadata
         )
+    }
+
+    /**
+     * Pre-loads metadataJson from FarmAssetEntity for all products that have 
+     * a sourceAssetId link or direct metadataJson. This is used to render
+     * custom Bird Studio appearances on the 3D farm.
+     */
+    private suspend fun loadAppearanceMap(products: List<ProductEntity>): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        try {
+            // Collect all sourceAssetIds and productIds to look up
+            val idsToLookup = products.mapNotNull { it.sourceAssetId }.distinct() +
+                              products.map { it.productId }.distinct()
+            
+            for (id in idsToLookup) {
+                try {
+                    val asset = farmAssetDao.findById(id)
+                    if (asset != null && asset.metadataJson.isNotBlank() && asset.metadataJson != "{}") {
+                        map[id] = asset.metadataJson
+                    }
+                } catch (e: Exception) {
+                    // Skip failed lookups silently
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to load appearance map")
+        }
+        return map
     }
 }
