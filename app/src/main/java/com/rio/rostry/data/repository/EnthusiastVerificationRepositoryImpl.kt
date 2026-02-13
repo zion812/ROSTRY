@@ -18,8 +18,7 @@ import java.util.Date
 class EnthusiastVerificationRepositoryImpl @Inject constructor(
     private val verificationDao: EnthusiastVerificationDao,
     private val userDao: UserDao,
-    private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val firestore: FirebaseFirestore
 ) : EnthusiastVerificationRepository {
 
     override fun getVerificationStatus(userId: String): Flow<EnthusiastVerificationEntity?> {
@@ -37,18 +36,10 @@ class EnthusiastVerificationRepositoryImpl @Inject constructor(
         profilePhotoUri: String?,
         farmPhotoUris: List<String>
     ): Result<Unit> = runCatching {
-        // 1. Upload documents
-        val uploadedDocUrls = documentUris.map { uriString ->
-            uploadFile(uriString, "verifications/enthusiast/$userId/docs")
-        }
-        
-        val uploadedProfilePhoto = profilePhotoUri?.let { 
-            uploadFile(it, "verifications/enthusiast/$userId/profile")
-        }
-        
-        val uploadedFarmPhotos = farmPhotoUris.map { uriString ->
-            uploadFile(uriString, "verifications/enthusiast/$userId/farm")
-        }
+        // 1. Upload documents - SKIPPED as per user request (No Storage)
+        val uploadedDocUrls = emptyList<String>()
+        val uploadedProfilePhoto: String? = null
+        val uploadedFarmPhotos = emptyList<String>()
 
         // 2. Create Entity
         val verificationId = UUID.randomUUID().toString()
@@ -192,14 +183,5 @@ class EnthusiastVerificationRepositoryImpl @Inject constructor(
         }
     }
     
-    private suspend fun uploadFile(uriString: String, path: String): String {
-        return if (uriString.startsWith("http")) {
-            uriString
-        } else {
-            val uri = Uri.parse(uriString)
-            val ref = storage.reference.child("$path/${UUID.randomUUID()}")
-            ref.putFile(uri).await()
-            ref.downloadUrl.await().toString()
-        }
-    }
+
 }

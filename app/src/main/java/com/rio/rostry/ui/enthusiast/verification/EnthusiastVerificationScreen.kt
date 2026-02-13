@@ -1,8 +1,6 @@
 package com.rio.rostry.ui.enthusiast.verification
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -144,58 +142,11 @@ fun EnthusiastVerificationScreen(
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
-                Text("Verification Documents", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Upload ID proof, farm photos, or certificates", style = MaterialTheme.typography.bodySmall)
 
-                val docLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-                    uri?.let { viewModel.onDocumentAdded(it) }
-                }
 
-                uiState.documentUris.forEach { uri ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(uri.takeLast(25), modifier = Modifier.weight(1f), maxLines = 1)
-                        IconButton(onClick = { viewModel.onDocumentRemoved(uri) }) {
-                            Icon(Icons.Default.Delete, "Remove")
-                        }
-                    }
-                }
-                
-                Button(onClick = { docLauncher.launch("image/*") }) {
-                    Icon(Icons.Default.Add, null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add Document")
-                }
 
-                Spacer(Modifier.height(8.dp))
-                Text("Farm/Collection Photos (Optional)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                
-                val farmPhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-                    uri?.let { viewModel.onFarmPhotoAdded(it) }
-                }
-                
-                uiState.farmPhotoUris.forEach { uri ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(uri.takeLast(25), modifier = Modifier.weight(1f), maxLines = 1)
-                        IconButton(onClick = { viewModel.onFarmPhotoRemoved(uri) }) {
-                            Icon(Icons.Default.Delete, "Remove")
-                        }
-                    }
-                }
-                
-                OutlinedButton(onClick = { farmPhotoLauncher.launch("image/*") }) {
-                    Icon(Icons.Default.Add, null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add Farm Photo")
-                }
+
+
 
                 if (uiState.error != null) {
                     Spacer(Modifier.height(8.dp))

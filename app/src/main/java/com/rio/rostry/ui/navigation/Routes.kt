@@ -512,6 +512,7 @@ object Routes {
             // Farm asset pedigree and showcase card views
             EnthusiastNav.PEDIGREE,
             EnthusiastNav.SHOWCASE_CARD,
+            EnthusiastNav.BIRD_STUDIO,
             // Glass Box Farm Profile
             FarmerNav.PUBLIC_PROFILE_PREVIEW,
             FarmerNav.EDIT_PROFILE,
@@ -637,6 +638,8 @@ object Routes {
             EnthusiastNav.BREEDING_CALENDAR,
             // Bird Comparison Tool
             EnthusiastNav.BIRD_COMPARISON,
+            // Bird Studio
+            EnthusiastNav.BIRD_STUDIO,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features - Farm Management

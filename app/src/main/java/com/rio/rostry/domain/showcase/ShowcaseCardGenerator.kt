@@ -211,12 +211,19 @@ class ShowcaseCardGenerator @Inject constructor(
         
         return try {
             withContext(Dispatchers.IO) {
-                val url = URL(imageUrl)
-                val connection = url.openConnection()
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-                val input = connection.getInputStream()
-                BitmapFactory.decodeStream(input)
+                if (imageUrl.startsWith("content://") || imageUrl.startsWith("file://")) {
+                    val uri = Uri.parse(imageUrl)
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        BitmapFactory.decodeStream(input)
+                    }
+                } else {
+                    val url = URL(imageUrl)
+                    val connection = url.openConnection()
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    val input = connection.getInputStream()
+                    BitmapFactory.decodeStream(input)
+                }
             }
         } catch (e: Exception) {
             Timber.w(e, "Failed to load bird photo: $imageUrl")

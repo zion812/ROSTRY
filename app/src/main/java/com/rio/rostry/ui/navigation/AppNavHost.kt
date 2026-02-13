@@ -2257,14 +2257,14 @@ private fun RoleNavGraph(
             )
         }
 
-        // Bird Studio - BGMI-style customization
+        // Bird Studio - BGMI-style customization / Showcase Card Generator
         composable(
             route = Routes.EnthusiastNav.BIRD_STUDIO,
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            com.rio.rostry.ui.enthusiast.studio.BirdStudioScreen(
-                productId = productId,
+            com.rio.rostry.ui.enthusiast.creation.ShowcaseCardGeneratorScreen(
+                birdId = productId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

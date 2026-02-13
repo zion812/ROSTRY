@@ -193,16 +193,25 @@ fun OnboardFarmBatchScreen(
                             Text(d)
                         }
                         if (showDate.value) {
-                            val now = java.util.Calendar.getInstance()
-                            android.app.DatePickerDialog(
-                                androidx.compose.ui.platform.LocalContext.current,
-                                { _, y, m, day ->
-                                    val cal = java.util.Calendar.getInstance(); cal.set(y, m, day, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-                                    vm.updateBatchDetails { bd -> bd.copy(hatchDate = cal.timeInMillis) }
-                                    showDate.value = false
+                            val datePickerState = androidx.compose.material3.rememberDatePickerState(
+                                initialSelectedDateMillis = state.batchDetails.hatchDate ?: System.currentTimeMillis()
+                            )
+                            androidx.compose.material3.DatePickerDialog(
+                                onDismissRequest = { showDate.value = false },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        datePickerState.selectedDateMillis?.let { millis ->
+                                            vm.updateBatchDetails { bd -> bd.copy(hatchDate = millis) }
+                                        }
+                                        showDate.value = false
+                                    }) { Text("OK") }
                                 },
-                                now.get(java.util.Calendar.YEAR), now.get(java.util.Calendar.MONTH), now.get(java.util.Calendar.DAY_OF_MONTH)
-                            ).show()
+                                dismissButton = {
+                                    TextButton(onClick = { showDate.value = false }) { Text("Cancel") }
+                                }
+                            ) {
+                                androidx.compose.material3.DatePicker(state = datePickerState)
+                            }
                         }
                     }
                     currentErrors["hatchDate"]?.let { Text(it) }

@@ -2,9 +2,9 @@ package com.rio.rostry.ui.enthusiast.creation
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,56 +28,35 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.ui.enthusiast.components.RoosterWweCard
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.rio.rostry.domain.showcase.ShowcaseCard
 import java.io.File
-import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShowcaseCardGeneratorScreen(
-    birdId: String,
-    onNavigateBack: () -> Unit
+    birdId: String, // Kept for navigation consistency, though VM uses SavedStateHandle
+    onNavigateBack: () -> Unit,
+    viewModel: ShowcaseCardGeneratorViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsState()
     
-    // Mock Data (In real app, fetch from ViewModel based on birdId)
-    val name = "King Slayer" // Placeholder
-    val breed = "Kelso"
+    // Stats state (Still local as they are potentially user-customizable for the card)
     var aggression by remember { mutableFloatStateOf(0.8f) }
     var stamina by remember { mutableFloatStateOf(0.7f) }
     var power by remember { mutableFloatStateOf(0.9f) }
-    
-    // Capture state
-    // Note: Reliable Composable capture usually requires a library like 'capturable' 
-    // or wrapping the content in a View to draw it. 
-    // For this MVP, we will use a simplified approach: The user will take a screenshot 
-    // or we simulate the share intent sharing text/link until the bitmap logic is perfect,
-    // OR we use the View-based capture tick if feasible.
-    
-    // Strategy: We will render the card inside a ComposeView that we can reference?
-    // Actually, let's keep it simple for MVP Phase 3:
-    // Just show the card and allow editing stats. The 'Share' button will currently just
-    // toast/log "Image generation requires 'capturable' lib or View hook".
-    // ... WAIT, I want to deliver value. I can use the View.drawToBitmap approach on the compose root view?
-    // No, that captures whole screen.
-    
-    // Let's implement the UI first so the user can interact.
     
     Scaffold(
         topBar = {
@@ -89,7 +69,9 @@ fun ShowcaseCardGeneratorScreen(
                 },
                 actions = {
                     IconButton(onClick = { 
-                        // Placeholder Share
+                        viewModel.generateCard { card ->
+                            shareCardFile(context, card)
+                        }
                     }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
                     }
@@ -97,64 +79,104 @@ fun ShowcaseCardGeneratorScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Preview
-            Text("Preview", style = MaterialTheme.typography.titleMedium)
-            
-            // The Card to Capture
-            RoosterWweCard(
-                name = name,
-                breed = breed,
-                imageUrl = null, // TODO: Pass real image
-                wins = 12, draws = 1, losses = 0,
-                aggression = aggression,
-                stamina = stamina,
-                power = power,
-                modifier = Modifier.fillMaxWidth() // Let it fill width, aspect ratio handled internally
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Controls
-            Text("Adjust Stats", style = MaterialTheme.typography.titleMedium)
-            
-            StatSlider("Aggression", aggression) { aggression = it }
-            StatSlider("Stamina", stamina) { stamina = it }
-            StatSlider("Power", power) { power = it }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Button(
-                onClick = { 
-                    // MVP: Just share text description until bitmap capture is rigorous
-                    val shareText = "Check out $name ($breed) on ROSTRY! 🏆 Wins: 12 | Power: ${(power*100).toInt()}"
-                    val sendIntent: Intent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, shareText)
-                        type = "text/plain"
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Preview
+                    Text("Preview", style = MaterialTheme.typography.titleMedium)
+                    
+                    val product = uiState.product
+                    val name = product?.name ?: "Loading..."
+                    val breed = product?.breed ?: "Unknown Breed"
+                    val imageUrl = product?.imageUrls?.firstOrNull()
+
+                    // The Card to Capture
+                    RoosterWweCard(
+                        name = name,
+                        breed = breed,
+                        imageUrl = imageUrl, 
+                        wins = 12, draws = 1, losses = 0, // Placeholder stats until we fetch real ones
+                        aggression = aggression,
+                        stamina = stamina,
+                        power = power,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Controls
+                    Text("Adjust Stats", style = MaterialTheme.typography.titleMedium)
+                    
+                    StatSlider("Aggression", aggression) { aggression = it }
+                    StatSlider("Stamina", stamina) { stamina = it }
+                    StatSlider("Power", power) { power = it }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Button(
+                        onClick = { 
+                           viewModel.generateCard { card ->
+                               shareCardFile(context, card)
+                           }
+                        },
+                        enabled = !uiState.isGenerating,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (uiState.isGenerating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(end = 8.dp).height(20.dp), 
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Text("Generating...")
+                        } else {
+                            Icon(Icons.Default.Share, contentDescription = null)
+                            Text("Share Card", modifier = Modifier.padding(start = 8.dp))
+                        }
                     }
-                    val shareIntent = Intent.createChooser(sendIntent, null)
-                    context.startActivity(shareIntent)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Share, contentDescription = null)
-                Text("Share Card (Text for Phase 3 MVP)", modifier = Modifier.padding(start = 8.dp))
+                    
+                    if (uiState.error != null) {
+                        Text(
+                            text = "Error: ${uiState.error}",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
-            Text(
-                "Note: Image generation coming in next update.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
+}
+
+private fun shareCardFile(context: Context, card: ShowcaseCard) {
+    val uri: Uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        card.file
+    )
+    
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "image/png"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_TEXT, """
+            🐔 Meet ${card.bird.name}!
+            ${card.bird.breed ?: ""}
+            
+            Registered on ROSTRY
+            #ROSTRY #Poultry #${card.bird.breed?.replace(" ", "") ?: "Birds"}
+        """.trimIndent())
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    
+    context.startActivity(Intent.createChooser(shareIntent, "Share Showcase Card"))
 }
 
 @Composable

@@ -1,6 +1,5 @@
 package com.rio.rostry.ui.enthusiast.verification
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.EnthusiastVerificationRepository
@@ -88,41 +87,7 @@ class EnthusiastVerificationViewModel @Inject constructor(
         }
     }
 
-    fun onDocumentAdded(uri: Uri) {
-        _uiState.update { 
-            val newDocs = it.documentUris.toMutableList()
-            newDocs.add(uri.toString())
-            it.copy(documentUris = newDocs) 
-        }
-    }
 
-    fun onDocumentRemoved(uriString: String) {
-        _uiState.update { 
-            val newDocs = it.documentUris.toMutableList()
-            newDocs.remove(uriString)
-            it.copy(documentUris = newDocs) 
-        }
-    }
-
-    fun onProfilePhotoSelected(uri: Uri) {
-        _uiState.update { it.copy(profilePhotoUri = uri.toString()) }
-    }
-
-    fun onFarmPhotoAdded(uri: Uri) {
-        _uiState.update { 
-            val newPhotos = it.farmPhotoUris.toMutableList()
-            newPhotos.add(uri.toString())
-            it.copy(farmPhotoUris = newPhotos) 
-        }
-    }
-
-    fun onFarmPhotoRemoved(uriString: String) {
-        _uiState.update { 
-            val newPhotos = it.farmPhotoUris.toMutableList()
-            newPhotos.remove(uriString)
-            it.copy(farmPhotoUris = newPhotos) 
-        }
-    }
 
     fun submitVerification() {
         viewModelScope.launch {
@@ -146,9 +111,9 @@ class EnthusiastVerificationViewModel @Inject constructor(
                 specializations = state.specializations,
                 achievementsDescription = state.achievementsDescription,
                 referenceContacts = state.referenceContacts,
-                documentUris = state.documentUris,
-                profilePhotoUri = state.profilePhotoUri,
-                farmPhotoUris = state.farmPhotoUris
+                documentUris = emptyList(),
+                profilePhotoUri = null,
+                farmPhotoUris = emptyList()
             )
 
             if (result.isSuccess) {
@@ -166,7 +131,7 @@ class EnthusiastVerificationViewModel @Inject constructor(
         if (s.experienceYears < 1) errors.add("Experience years required")
         if (s.birdCount < 1) errors.add("Bird count required")
         if (s.specializations.isEmpty()) errors.add("Select at least one specialization")
-        if (s.documentUris.isEmpty()) errors.add("Upload at least one verification document")
+
         
         if (errors.isNotEmpty()) {
             _uiState.update { it.copy(error = errors.joinToString(". ")) }
@@ -183,9 +148,7 @@ data class EnthusiastVerificationUiState(
     val specializations: List<String> = emptyList(),
     val achievementsDescription: String = "",
     val referenceContacts: List<String> = emptyList(),
-    val documentUris: List<String> = emptyList(),
-    val profilePhotoUri: String? = null,
-    val farmPhotoUris: List<String> = emptyList(),
+
     val isLoading: Boolean = false,
     val isSubmitted: Boolean = false,
     val error: String? = null,
