@@ -112,6 +112,7 @@ class EnthusiastExploreViewModel @Inject constructor(
             try {
                 // TODO: Call backend API when available
                 // repo.respectBird(birdId)
+                repo.respectBird(birdId)
                 
                 // Update local state optimistically
                 _featuredItems.value = _featuredItems.value.map { bird ->
@@ -181,8 +182,8 @@ class EnthusiastExploreViewModel @Inject constructor(
             breed = breed ?: "Unknown",
             location = location.ifBlank { "Philippines" },
             description = description,
-            respectCount = (1..200).random(), // Mock until backend supports
-            commentCount = (0..50).random(),
+            respectCount = (productId.hashCode().and(0xFF)) % 200, // Deterministic until social backend
+            commentCount = (productId.hashCode().ushr(8).and(0x3F)) % 50,
             isRespected = false,
             isVerified = forceVerified || status.equals("verified", ignoreCase = true)
         )

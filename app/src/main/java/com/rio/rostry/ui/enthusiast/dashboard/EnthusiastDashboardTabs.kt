@@ -174,6 +174,13 @@ private fun BreedingTab(navController: NavHostController) {
                 OutlinedButton(onClick = { navController.navigate(Routes.MONITORING_HATCHING) }) { Text("Open Hatching") }
             }
         } }
+        ElevatedCard { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Productivity & ROI")
+            Text("View flock analytics, leaderboards, breed benchmarks, and per-bird ROI.")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { navController.navigate(Routes.EnthusiastNav.FLOCK_ANALYTICS) }) { Text("📊 Flock Analytics") }
+            }
+        } }
     }
 }
 

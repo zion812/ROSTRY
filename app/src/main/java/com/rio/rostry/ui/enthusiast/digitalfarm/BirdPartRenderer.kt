@@ -13,6 +13,9 @@ import kotlin.math.sin
  * Renders each body part of a bird independently using low-poly
  * isometric drawing primitives. Each part style maps to a different
  * visual shape drawn on the Canvas.
+ * 
+ * V2 Upgrade: Includes 'resolveColor' for 3-channel custom system
+ * and float scalar morphing.
  *
  * Render order (back to front):
  * 1. Shadow
@@ -40,6 +43,9 @@ object BirdPartRenderer {
         animTime: Float = 0f,
         bobOffset: Float = 0f
     ) {
+        // Morph adjustments to base size
+        val morphScale = 0.8f + (appearance.bodyWidth * 0.4f) // 0.8x to 1.2x width
+        
         val sizeMultiplier = when (appearance.bodySize) {
             BodySize.TINY -> 0.4f
             BodySize.BANTAM -> 0.55f
@@ -124,9 +130,15 @@ object BirdPartRenderer {
     // ==================== BODY ====================
 
     private fun DrawScope.drawBody(x: Float, y: Float, s: Float, a: BirdAppearance) {
-        val bodyW = 16f * s
-        val bodyH = 12f * s
-        val bodyColor = a.backColor.color
+        // Morph: Body Width & Roundness
+        val widthScale = 0.8f + a.bodyWidth * 0.4f
+        val roundScale = 0.9f + a.bodyRoundness * 0.2f
+        
+        val bodyW = 16f * s * widthScale
+        val bodyH = 12f * s * roundScale
+        
+        // Color: Custom Primary overrides Back Color
+        val bodyColor = resolveColor(a.backColor.color, a.customPrimaryColor)
 
         // Breast shape affects body proportions
         val widthMod = when (a.breast) {
@@ -204,9 +216,12 @@ object BirdPartRenderer {
     // ==================== CHEST ====================
 
     private fun DrawScope.drawChest(x: Float, y: Float, s: Float, a: BirdAppearance) {
-        val bodyW = 16f * s
-        val bodyH = 12f * s
-        val chestColor = a.chestColor.color
+        val widthScale = 0.8f + a.bodyWidth * 0.4f
+        val bodyW = 16f * s * widthScale
+        val bodyH = 12f * s // Height less affected by width morph
+        
+        // Color: Custom Secondary overrides Chest Color
+        val chestColor = resolveColor(a.chestColor.color, a.customSecondaryColor)
 
         // Chest area (front of body)
         val chestPath = Path().apply {
@@ -225,9 +240,12 @@ object BirdPartRenderer {
     // ==================== WING ====================
 
     private fun DrawScope.drawWing(x: Float, y: Float, s: Float, a: BirdAppearance, animTime: Float) {
-        val bodyW = 16f * s
+        val widthScale = 0.8f + a.bodyWidth * 0.4f
+        val bodyW = 16f * s * widthScale
         val bodyH = 12f * s
-        val wingColor = a.wingColor.color
+        
+        // Color: Custom Primary overrides Wing Color
+        val wingColor = resolveColor(a.wingColor.color, a.customPrimaryColor)
 
         when (a.wings) {
             WingStyle.FOLDED -> {
@@ -303,7 +321,15 @@ object BirdPartRenderer {
     private fun DrawScope.drawTail(x: Float, y: Float, s: Float, a: BirdAppearance) {
         val bodyW = 16f * s
         val bodyH = 12f * s
-        val tailColor = a.tailColor.color
+        
+        // Color: Custom Primary overrides Tail Color
+        val tailColor = resolveColor(a.tailColor.color, a.customPrimaryColor)
+        
+        // Morph: Tail Length & Angle
+        val lenMod = 0.5f + a.tailLength // 0.5x to 1.5x length
+        val angleMod = (a.tailAngle - 0.5f) * 40f // -20 to +20 degrees tilt
+        
+        rotate(degrees = angleMod, pivot = Offset(x - bodyW * 0.5f, y - bodyH * 0.8f)) {
 
         when (a.tail) {
             TailStyle.SHORT -> {
@@ -386,6 +412,7 @@ object BirdPartRenderer {
             }
             TailStyle.NONE -> { /* Rumpless - no tail */ }
         }
+        } // End rotate
     }
 
     // ==================== HEAD ====================
@@ -508,13 +535,16 @@ object BirdPartRenderer {
 
     private fun DrawScope.drawBeak(x: Float, headY: Float, s: Float, bodyW: Float, headR: Float, a: BirdAppearance) {
         val beakColor = a.beakColor.color
-        val beakLen = when (a.beak) {
+        val scaleMod = 0.5f + a.beakScale // 0.5x to 1.5x
+        val curveMod = a.beakCurvature // 0.0 to 1.0
+        
+        val beakLen = (when (a.beak) {
             BeakStyle.SHORT -> bodyW * 0.35f
             BeakStyle.MEDIUM -> bodyW * 0.5f
             BeakStyle.LONG -> bodyW * 0.7f
             BeakStyle.HOOKED -> bodyW * 0.55f
             BeakStyle.CURVED -> bodyW * 0.5f
-        }
+        }) * scaleMod
 
         when (a.beak) {
             BeakStyle.HOOKED -> {
@@ -562,14 +592,15 @@ object BirdPartRenderer {
         val bodyH = 12f * s
         val headY = y - bodyH * 1.8f
         val headR = bodyW * 0.42f
-        val combColor = a.combColor.color
+        // Color: Custom Accent overrides Comb Color
+        val combColor = resolveColor(a.combColor.color, a.customAccentColor)
         val combScale = if (a.isMale) 1.2f else 0.7f
 
         when (a.comb) {
             CombStyle.SINGLE -> {
                 // Upright serrated comb
                 val points = if (a.isMale) 5 else 3
-                val combH = 8f * s * combScale
+                val combH = 8f * s * combScale * (0.5f + a.combSize) // Morph: Comb Size
                 val combPath = Path().apply {
                     moveTo(x + bodyW * 0.15f, headY - headR)
                     for (i in 0 until points) {
@@ -695,7 +726,8 @@ object BirdPartRenderer {
         val bodyH = 12f * s
         val headY = y - bodyH * 1.8f
         val headR = bodyW * 0.42f
-        val wattleColor = a.wattleColor.color
+        // Color: Custom Accent overrides Wattle Color
+        val wattleColor = resolveColor(a.wattleColor.color, a.customAccentColor)
 
         when (a.wattle) {
             WattleStyle.SMALL -> {
@@ -750,13 +782,13 @@ object BirdPartRenderer {
             JointStyle.LONG -> 2f * s
             JointStyle.SHORT -> 2.5f * s
             JointStyle.STANDARD -> 2f * s
-        }
+        } * (0.5f + a.legThickness) // Morph: Thickness
 
-        val legLength = when (a.joints) {
+        val legLength = (when (a.joints) {
             JointStyle.LONG -> 1.4f
             JointStyle.SHORT -> 0.7f
             else -> 1f
-        }
+        }) * (0.5f + a.legLength) // Morph: Length
 
         val legTopY = bodyY - 2f * s
         val legBottomY = feetY + 2f * s * legLength
@@ -1195,5 +1227,11 @@ object BirdPartRenderer {
             }
             Sheen.MATTE -> { /* No sheen overlay */ }
         }
+    }
+
+    // ==================== HELPERS ====================
+
+    private fun resolveColor(default: Color, override: Long?): Color {
+        return override?.let { Color(it.toULong()) } ?: default
     }
 }

@@ -10,6 +10,7 @@ import com.rio.rostry.data.database.dao.HatchingBatchDao
 import com.rio.rostry.data.database.dao.GrowthRecordDao
 import com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao
 import com.rio.rostry.data.database.dao.FarmAssetDao
+import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.data.repository.EnthusiastBreedingRepository
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -53,6 +55,7 @@ class EnthusiastHomeViewModel @Inject constructor(
     private val breedingPairDao: BreedingPairDao,
     private val hatchingBatchDao: HatchingBatchDao,
     private val farmAssetDao: FarmAssetDao,
+    private val showRecordDao: ShowRecordDao,
     currentUserProvider: CurrentUserProvider,
     private val syncManager: SyncManager,
     private val analytics: EnthusiastAnalyticsTracker,
@@ -267,15 +270,19 @@ class EnthusiastHomeViewModel @Inject constructor(
      * Top champion bird computed from showcase assets.
      * Uses showcase designation as proxy for "champion" status.
      */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val topChampion: StateFlow<ChampionData?> = if (uid != null) {
-        farmAssetDao.getShowcaseAssets(uid).map { assets ->
+        farmAssetDao.getShowcaseAssets(uid).mapLatest { assets ->
             assets.firstOrNull()?.let { asset ->
+                val wins = showRecordDao.countWins(asset.assetId)
+                val total = showRecordDao.countTotal(asset.assetId)
+                val winRate = if (total > 0) wins.toFloat() / total else 0f
                 ChampionData(
                     id = asset.assetId,
                     name = asset.name.ifBlank { asset.birdCode ?: "Champion" },
                     imageUrl = asset.imageUrls.firstOrNull(),
-                    winRate = 0.85f, // Placeholder - would compute from showRecordDao
-                    totalFights = 0,
+                    winRate = winRate,
+                    totalFights = total,
                     breed = asset.breed ?: ""
                 )
             }
@@ -286,15 +293,19 @@ class EnthusiastHomeViewModel @Inject constructor(
      * List of top champions for the HeroChampionBanner carousel.
      * Uses showcase assets as premium birds.
      */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val topChampions: StateFlow<List<ChampionData>> = if (uid != null) {
-        farmAssetDao.getShowcaseAssets(uid).map { assets ->
+        farmAssetDao.getShowcaseAssets(uid).mapLatest { assets ->
             assets.take(5).map { asset ->
+                val wins = showRecordDao.countWins(asset.assetId)
+                val total = showRecordDao.countTotal(asset.assetId)
+                val winRate = if (total > 0) wins.toFloat() / total else 0f
                 ChampionData(
                     id = asset.assetId,
                     name = asset.name.ifBlank { asset.birdCode ?: "Champion" },
                     imageUrl = asset.imageUrls.firstOrNull(),
-                    winRate = 0.80f, // Placeholder
-                    totalFights = 0,
+                    winRate = winRate,
+                    totalFights = total,
                     breed = asset.breed ?: ""
                 )
             }

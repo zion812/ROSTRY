@@ -42,7 +42,24 @@ data class BirdAppearance(
     val neck: NeckStyle = NeckStyle.MEDIUM,
     val breast: BreastShape = BreastShape.ROUND,
     val skin: SkinColor = SkinColor.YELLOW,
-    val headShape: HeadShape = HeadShape.ROUND
+    val headShape: HeadShape = HeadShape.ROUND,
+    
+    // === V3 MORPH TARGETS (0.0 - 1.0, Default 0.5) ===
+    val beakScale: Float = 0.5f,
+    val beakCurvature: Float = 0.5f,
+    val tailAngle: Float = 0.5f,
+    val tailLength: Float = 0.5f,
+    val tailSpread: Float = 0.5f,
+    val bodyWidth: Float = 0.5f,
+    val bodyRoundness: Float = 0.5f,
+    val legThickness: Float = 0.5f,
+    val legLength: Float = 0.5f,
+    val combSize: Float = 0.5f,
+
+    // === V3 CUSTOM COLORS (Overrides PartColor if not null) ===
+    val customPrimaryColor: Long? = null,   // ARGB Hex
+    val customSecondaryColor: Long? = null, // ARGB Hex
+    val customAccentColor: Long? = null     // ARGB Hex
 )
 
 // ==================== COMB ====================
@@ -791,6 +808,20 @@ fun BirdAppearance.toAppearanceJson(): String {
     parts.add("\"breast\":\"${breast.name}\"")
     parts.add("\"skin\":\"${skin.name}\"")
     parts.add("\"headShape\":\"${headShape.name}\"")
+    // V3 fields
+    parts.add("\"beakScale\":$beakScale")
+    parts.add("\"beakCurvature\":$beakCurvature")
+    parts.add("\"tailAngle\":$tailAngle")
+    parts.add("\"tailLength\":$tailLength")
+    parts.add("\"tailSpread\":$tailSpread")
+    parts.add("\"bodyWidth\":$bodyWidth")
+    parts.add("\"bodyRoundness\":$bodyRoundness")
+    parts.add("\"legThickness\":$legThickness")
+    parts.add("\"legLength\":$legLength")
+    parts.add("\"combSize\":$combSize")
+    customPrimaryColor?.let { parts.add("\"customPrimaryColor\":$it") }
+    customSecondaryColor?.let { parts.add("\"customSecondaryColor\":$it") }
+    customAccentColor?.let { parts.add("\"customAccentColor\":$it") }
     return "{\"birdAppearance\":{${parts.joinToString(",")}}}"
 }
 
@@ -834,16 +865,38 @@ fun parseAppearanceFromJson(json: String): BirdAppearance? {
             bodySize = extractValue("bodySize")?.let { runCatching { BodySize.valueOf(it) }.getOrNull() } ?: BodySize.MEDIUM,
             isMale = json.contains("\"isMale\":true"),
             // V2 fields — backward compatible (defaults if missing)
+            // starch = extractValue("stance")?.let { runCatching { Stance.valueOf(it) }.getOrNull() } ?: Stance.NORMAL, 
             stance = extractValue("stance")?.let { runCatching { Stance.valueOf(it) }.getOrNull() } ?: Stance.NORMAL,
             sheen = extractValue("sheen")?.let { runCatching { Sheen.valueOf(it) }.getOrNull() } ?: Sheen.MATTE,
             neck = extractValue("neck")?.let { runCatching { NeckStyle.valueOf(it) }.getOrNull() } ?: NeckStyle.MEDIUM,
             breast = extractValue("breast")?.let { runCatching { BreastShape.valueOf(it) }.getOrNull() } ?: BreastShape.ROUND,
             skin = extractValue("skin")?.let { runCatching { SkinColor.valueOf(it) }.getOrNull() } ?: SkinColor.YELLOW,
-            headShape = extractValue("headShape")?.let { runCatching { HeadShape.valueOf(it) }.getOrNull() } ?: HeadShape.ROUND
+            headShape = extractValue("headShape")?.let { runCatching { HeadShape.valueOf(it) }.getOrNull() } ?: HeadShape.ROUND,
+            
+            // V3 fields
+            beakScale = extractNumber(json, "beakScale")?.toFloatOrNull() ?: 0.5f,
+            beakCurvature = extractNumber(json, "beakCurvature")?.toFloatOrNull() ?: 0.5f,
+            tailAngle = extractNumber(json, "tailAngle")?.toFloatOrNull() ?: 0.5f,
+            tailLength = extractNumber(json, "tailLength")?.toFloatOrNull() ?: 0.5f,
+            tailSpread = extractNumber(json, "tailSpread")?.toFloatOrNull() ?: 0.5f,
+            bodyWidth = extractNumber(json, "bodyWidth")?.toFloatOrNull() ?: 0.5f,
+            bodyRoundness = extractNumber(json, "bodyRoundness")?.toFloatOrNull() ?: 0.5f,
+            legThickness = extractNumber(json, "legThickness")?.toFloatOrNull() ?: 0.5f,
+            legLength = extractNumber(json, "legLength")?.toFloatOrNull() ?: 0.5f,
+            combSize = extractNumber(json, "combSize")?.toFloatOrNull() ?: 0.5f,
+            customPrimaryColor = extractNumber(json, "customPrimaryColor")?.toLongOrNull(),
+            customSecondaryColor = extractNumber(json, "customSecondaryColor")?.toLongOrNull(),
+            customAccentColor = extractNumber(json, "customAccentColor")?.toLongOrNull()
         )
     } catch (e: Exception) {
         null
     }
+}
+
+fun extractNumber(json: String, key: String): String? {
+    val pattern = "\"$key\":([0-9.-]+)"
+    val regex = Regex(pattern)
+    return regex.find(json)?.groupValues?.get(1)
 }
 
 // ==================== DISPLAY NAME HELPERS ====================

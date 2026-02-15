@@ -51,28 +51,20 @@ class GroupDetailViewModel @Inject constructor() : ViewModel() {
     fun loadGroup(groupId: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, groupId = groupId) }
-            delay(500)
+            delay(300)
             
-            // Mock data - would come from repository
+            // TODO: Replace with real repository call when community backend is available
+            // For now, show empty state instead of fake data
             _state.update { it.copy(
                 isLoading = false,
-                groupName = "Kadaknath Breeders India",
-                description = "A community for Kadaknath chicken breeders to share tips, discuss genetics, and connect with fellow enthusiasts.",
-                memberCount = 256,
-                postCount = 1847,
-                category = "Breed Specific",
+                groupName = "Community Group",
+                description = "This group's details will load from the community backend once available.",
+                memberCount = 0,
+                postCount = 0,
+                category = "General",
                 isJoined = false,
-                members = listOf(
-                    GroupMember("Rajesh Sharma", "Admin", 'R'),
-                    GroupMember("Priya Patel", "Moderator", 'P'),
-                    GroupMember("Amit Kumar", "Member", 'A'),
-                    GroupMember("Sunita Devi", "Member", 'S')
-                ),
-                recentPosts = listOf(
-                    GroupPost("Rajesh Sharma", "Just hatched my first batch of pure Kadaknath! 85% hatch rate 🎉", Date(), 24),
-                    GroupPost("Amit Kumar", "What's the ideal temperature for Kadaknath brooding?", Date(System.currentTimeMillis() - 3600000), 12),
-                    GroupPost("Priya Patel", "Sharing my feeding schedule that improved egg production by 20%", Date(System.currentTimeMillis() - 86400000), 45)
-                )
+                members = emptyList(),
+                recentPosts = emptyList()
             ) }
         }
     }

@@ -1,5 +1,9 @@
 package com.rio.rostry.ui.enthusiast
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -86,6 +90,7 @@ fun EnthusiastExploreTabs(
     val featuredItems by exploreViewModel.featuredItems.collectAsState()
     val selectedCategory by exploreViewModel.selectedCategory.collectAsState()
     val isLoadingFeatured by exploreViewModel.isLoadingFeatured.collectAsState()
+    val exploreUiState by exploreViewModel.ui.collectAsState()
     
     // Bottom sheet for legacy filters
     var showFiltersSheet by remember { mutableStateOf(false) }
@@ -127,6 +132,8 @@ fun EnthusiastExploreTabs(
             sheetState = sheetState
         ) {
             AdvancedFiltersSheet(
+                uiState = exploreUiState,
+                onUpdate = { k, v -> exploreViewModel.update(k, v) },
                 onApply = {
                     scope.launch { sheetState.hide() }
                     showFiltersSheet = false
@@ -308,29 +315,72 @@ private fun SkeletonSwipeCard() {
 /**
  * Advanced filters bottom sheet (Comment 1).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AdvancedFiltersSheet(
+    uiState: com.rio.rostry.ui.enthusiast.EnthusiastExploreViewModel.UiState,
+    onUpdate: (String, String) -> Unit,
     onApply: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var breed by rememberSaveable { mutableStateOf(uiState.breed) }
+    var priceRange by rememberSaveable { mutableStateOf(uiState.priceRange) }
+    var sort by rememberSaveable { mutableStateOf(uiState.sort) }
+    
+    // Sync local state updates back to ViewModel immediately? 
+    // Or wait for Apply? The VM architecture seems to rely on individual field updates via onUpdate.
+    // However, onUpdate triggers refresh. So better to batch? 
+    // For now, we'll update VM on "Apply" or live. 
+    // The current VM implementation schedules refresh on ANY update. 
+    // So if we use live updates, it will refresh while typing.
+    // Let's use local state and then batch update on Apply.
+    
+    // actually, let's keep it simple and reuse onUpdate for now but maybe we need a batch update function in VM?
+    // The VM has `update(field, value)` which triggers refresh.
+    // We should probably just update on Apply.
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            "Advanced Filters",
-            style = MaterialTheme.typography.titleMedium
+        Text("Advanced Filters", style = MaterialTheme.typography.titleMedium)
+        
+        OutlinedTextField(
+            value = breed,
+            onValueChange = { breed = it },
+            label = { Text("Breed") },
+            modifier = Modifier.fillMaxWidth()
         )
         
-        // Filter options would go here
-        Text(
-            "Filter options coming soon...",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        OutlinedTextField(
+            value = priceRange,
+            onValueChange = { priceRange = it },
+            label = { Text("Price Range (e.g. 100-500)") },
+            placeholder = { Text("Min - Max") },
+            modifier = Modifier.fillMaxWidth()
         )
         
+        Text("Sort By", style = MaterialTheme.typography.labelMedium)
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            com.rio.rostry.ui.enthusiast.EnthusiastExploreViewModel.SortOption.values().forEach { option ->
+                androidx.compose.material3.FilterChip(
+                    selected = sort == option,
+                    onClick = { sort = option },
+                    label = { 
+                        Text(option.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }) 
+                    }
+                )
+            }
+        }
+        
+        Spacer(Modifier.padding(8.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -341,7 +391,12 @@ private fun AdvancedFiltersSheet(
             ) { Text("Cancel") }
             
             Button(
-                onClick = onApply,
+                onClick = {
+                    onUpdate("breed", breed)
+                    onUpdate("priceRange", priceRange)
+                    onUpdate("sort", sort.name)
+                    onApply()
+                },
                 modifier = Modifier.weight(1f)
             ) { Text("Apply") }
         }

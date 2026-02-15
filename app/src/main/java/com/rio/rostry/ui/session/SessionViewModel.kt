@@ -217,11 +217,9 @@ class SessionViewModel @Inject constructor(
                             rolePreferences.persist(role)
                             val navConfig = startDestinationProvider.configFor(role)
                             
-                            // Admin check logic...
-                            val isHardcodedAdmin = resource.data?.email == "zionjuvvanapudi@gmail.com" ||
-                                          resource.data?.email == "rowdyzion@gmail.com" ||
-                                          resource.data?.phoneNumber == "+918106312656" ||
-                                          resource.data?.phoneNumber == "8106312656"
+                            // Admin check: uses centralized ADMIN_IDENTIFIERS list
+                            val isHardcodedAdmin = ADMIN_EMAILS.contains(resource.data?.email) ||
+                                          ADMIN_PHONES.contains(resource.data?.phoneNumber)
                             
                             val finalRole = if (isHardcodedAdmin) UserType.ADMIN else role
                             val isAdmin = isHardcodedAdmin || finalRole == UserType.ADMIN
@@ -415,5 +413,17 @@ class SessionViewModel @Inject constructor(
             clearPendingDeepLink()
         }
         return link
+    }
+
+    companion object {
+        /** Centralized admin identifiers. Move to RemoteConfig or Firestore for production. */
+        val ADMIN_EMAILS = setOf(
+            "zionjuvvanapudi@gmail.com",
+            "rowdyzion@gmail.com"
+        )
+        val ADMIN_PHONES = setOf(
+            "+918106312656",
+            "8106312656"
+        )
     }
 }

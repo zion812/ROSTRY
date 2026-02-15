@@ -714,4 +714,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideTransactionDao(db: AppDatabase): com.rio.rostry.data.database.dao.TransactionDao = db.transactionDao()
+
+    // Enthusiast Premium Toolset DAOs
+    @Provides
+    @Singleton
+    fun provideBirdTraitRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.BirdTraitRecordDao = db.birdTraitRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideMedicalEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.MedicalEventDao = db.medicalEventDao()
 }

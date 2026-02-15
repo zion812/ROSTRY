@@ -35,6 +35,8 @@ interface ProductRepository {
 
     suspend fun updateProduct(product: ProductEntity): Resource<Unit>
 
+    suspend fun updateProductMetadata(productId: String, metadataJson: String): Resource<Unit>
+
     suspend fun deleteProduct(productId: String): Resource<Unit>
 
     suspend fun syncProductsFromRemote(): Resource<Unit> // For offline-first

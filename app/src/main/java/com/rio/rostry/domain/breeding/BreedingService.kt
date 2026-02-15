@@ -1,5 +1,7 @@
 package com.rio.rostry.domain.breeding
 
+import com.rio.rostry.data.database.dao.BirdTraitRecordDao
+import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.pedigree.PedigreeRepository
 import com.rio.rostry.domain.pedigree.PedigreeTree
@@ -28,10 +30,31 @@ data class TraitPrediction(
     val estimatedQuality: String // "Show", "Breeder", "Pet"
 )
 
+/** Enhanced prediction using real trait record data */
+data class EnhancedTraitPrediction(
+    val colorPrediction: Map<String, Double>,
+    val breedType: String,
+    val predictedTraits: Map<String, TraitRange>,   // traitName -> predicted range
+    val showPotential: String,                       // "Elite", "Competitive", "Moderate", "Unknown"
+    val combinedParentBvi: Float,                    // average of parents
+    val predictedQuality: String,                    // "Show Quality", "Breeder Quality", "Pet Quality"
+    val traitHighlights: List<String>,               // Notable observations
+    val dataConfidence: String                       // "High", "Medium", "Low"
+)
+
+data class TraitRange(
+    val predicted: Float,   // Mid-parent value
+    val low: Float,         // Conservative estimate
+    val high: Float,        // Optimistic estimate
+    val unit: String?
+)
+
 @Singleton
 class BreedingService @Inject constructor(
     private val pedigreeRepository: PedigreeRepository,
-    private val geneticPotentialService: com.rio.rostry.domain.service.GeneticPotentialService
+    private val geneticPotentialService: com.rio.rostry.domain.service.GeneticPotentialService,
+    private val traitRecordDao: BirdTraitRecordDao,
+    private val showRecordDao: ShowRecordDao
 ) {
 
     /**
@@ -46,8 +69,6 @@ class BreedingService @Inject constructor(
             return@flow
         }
 
-        // Fetch full pedigrees
-        // We use emit to suspend and fetch
         val sirePedigreeResult = pedigreeRepository.getFullPedigree(sire.productId, 3)
         val damPedigreeResult = pedigreeRepository.getFullPedigree(dam.productId, 3)
 
@@ -59,14 +80,12 @@ class BreedingService @Inject constructor(
         val sireTree = sirePedigreeResult.data ?: return@flow emit(Resource.Error("Sire pedigree data missing"))
         val damTree = damPedigreeResult.data ?: return@flow emit(Resource.Error("Dam pedigree data missing"))
 
-        // Flatten trees to find common ancestors by Bird ID (Product ID)
         val sireAncestors = flattenAncestors(sireTree).map { it.bird.id }.toSet()
         val damAncestors = flattenAncestors(damTree).map { it.bird.id }.toSet()
 
         val commonAncestors = sireAncestors.intersect(damAncestors)
         val commonCount = commonAncestors.size
         
-        // Direct sibling check: if parents match
         val sameSire = sire.parentMaleId != null && sire.parentMaleId == dam.parentMaleId
         val sameDam = sire.parentFemaleId != null && sire.parentFemaleId == dam.parentFemaleId
         
@@ -74,20 +93,18 @@ class BreedingService @Inject constructor(
         val warnings = mutableListOf<String>()
 
         if (sameSire && sameDam) {
-            inbreedingRisk = 0.25 // Full siblings
+            inbreedingRisk = 0.25
             warnings.add("Full Siblings: Very High risk of genetic defects")
         } else if (sameSire || sameDam) {
-            inbreedingRisk = 0.125 // Half siblings
+            inbreedingRisk = 0.125
             warnings.add("Half Siblings: Moderate risk")
         } else if (commonCount > 0) {
-            // Rough estimate for linebreeding based on shared ancestors in 3 gens
             inbreedingRisk = (commonCount.toDouble() / 14.0) * 0.1 
             warnings.add("Linebreeding: Common ancestors detected ($commonCount)")
         }
 
-        // Calculate Score (100 - penalty)
         var score = 100
-        score -= (inbreedingRisk * 200).toInt() // Significant penalty for inbreeding
+        score -= (inbreedingRisk * 200).toInt()
 
         val riskLevel = when {
             inbreedingRisk >= 0.25 -> RiskLevel.CRITICAL
@@ -96,7 +113,6 @@ class BreedingService @Inject constructor(
             else -> RiskLevel.LOW
         }
         
-        // Cap score
         score = score.coerceIn(0, 100)
 
         val recommendations = mutableListOf<String>()
@@ -129,10 +145,9 @@ class BreedingService @Inject constructor(
     }
 
     /**
-     * Probabilistic trait prediction based on basic Mendelian inheritance (simplified)
+     * Legacy trait prediction (kept for backward compatibility)
      */
     fun predictOffspring(sire: ProductEntity, dam: ProductEntity): TraitPrediction {
-        // Color Prediction
         val possibleColors = mutableMapOf<String, Double>()
         val sireColor = sire.color ?: "Unknown"
         val damColor = dam.color ?: "Unknown"
@@ -145,7 +160,6 @@ class BreedingService @Inject constructor(
             possibleColors[damColor] = 0.5
         }
 
-        // Breed Prediction
         val possibleBreeds = mutableMapOf<String, Double>()
         val sireBreed = sire.breed ?: "Unknown"
         val damBreed = dam.breed ?: "Unknown"
@@ -159,7 +173,6 @@ class BreedingService @Inject constructor(
             possibleBreeds[damBreed] = 0.05
         }
         
-        // Quality Estimation
         val estimatedQuality = if (sireBreed == damBreed) "Breeder Quality" else "Pet Quality"
 
         return TraitPrediction(
@@ -170,16 +183,142 @@ class BreedingService @Inject constructor(
     }
 
     /**
+     * Enhanced offspring prediction using real trait records from both parents.
+     * Uses mid-parent regression with environmental variance estimation.
+     */
+    suspend fun predictOffspringEnhanced(
+        sire: ProductEntity,
+        dam: ProductEntity
+    ): EnhancedTraitPrediction {
+        // 1. Color/breed prediction (same as legacy)
+        val colorPrediction = mutableMapOf<String, Double>()
+        val sireColor = sire.color ?: "Unknown"
+        val damColor = dam.color ?: "Unknown"
+        if (sireColor == damColor) {
+            colorPrediction[sireColor] = 0.75
+            colorPrediction["Other/Recessive"] = 0.25
+        } else {
+            colorPrediction[sireColor] = 0.5
+            colorPrediction[damColor] = 0.5
+        }
+
+        val sireBreed = sire.breed ?: "Unknown"
+        val damBreed = dam.breed ?: "Unknown"
+        val breedType = if (sireBreed.equals(damBreed, true)) sireBreed else "$sireBreed × $damBreed"
+
+        // 2. Trait prediction from real data
+        val sireTraits = traitRecordDao.getByBird(sire.productId)
+        val damTraits = traitRecordDao.getByBird(dam.productId)
+
+        val sireLatest = sireTraits.groupBy { it.traitName }
+            .mapValues { (_, recs) -> recs.maxByOrNull { it.recordedAt }!! }
+        val damLatest = damTraits.groupBy { it.traitName }
+            .mapValues { (_, recs) -> recs.maxByOrNull { it.recordedAt }!! }
+
+        val allTraitNames = (sireLatest.keys + damLatest.keys).distinct()
+        val predictedTraits = mutableMapOf<String, TraitRange>()
+        val highlights = mutableListOf<String>()
+
+        for (traitName in allTraitNames) {
+            val sireRec = sireLatest[traitName]
+            val damRec = damLatest[traitName]
+            val sireVal = sireRec?.traitValue?.toFloatOrNull()
+            val damVal = damRec?.traitValue?.toFloatOrNull()
+
+            if (sireVal != null && damVal != null) {
+                // Mid-parent value with regression to mean (heritability ~0.3-0.5 for most poultry traits)
+                val heritability = 0.4f
+                val midParent = (sireVal + damVal) / 2f
+                val populationMean = 5f // Assume normalized 0-10 scale
+                val predicted = populationMean + heritability * (midParent - populationMean)
+                val variance = 1.5f // Environmental noise
+
+                predictedTraits[traitName] = TraitRange(
+                    predicted = predicted,
+                    low = (predicted - variance).coerceAtLeast(0f),
+                    high = (predicted + variance).coerceAtMost(10f),
+                    unit = sireRec.traitUnit ?: damRec.traitUnit
+                )
+
+                // Highlights
+                if (sireVal >= 8f && damVal >= 8f) {
+                    val name = traitName.replace("_", " ").replaceFirstChar { it.uppercase() }
+                    highlights.add("Both parents excel at $name → strong inheritance likely")
+                } else if (kotlin.math.abs(sireVal - damVal) >= 4f) {
+                    val name = traitName.replace("_", " ").replaceFirstChar { it.uppercase() }
+                    highlights.add("$name shows high variation between parents — offspring may vary")
+                }
+            } else {
+                // Only one parent has data
+                val value = sireVal ?: damVal ?: continue
+                val unit = sireRec?.traitUnit ?: damRec?.traitUnit
+                predictedTraits[traitName] = TraitRange(
+                    predicted = value * 0.7f, // Regress more toward mean (less confident)
+                    low = (value * 0.5f).coerceAtLeast(0f),
+                    high = (value * 0.9f).coerceAtMost(10f),
+                    unit = unit
+                )
+            }
+        }
+
+        // 3. Show potential from parents
+        val sireWins = showRecordDao.countWins(sire.productId)
+        val sireShows = showRecordDao.countTotal(sire.productId)
+        val damWins = showRecordDao.countWins(dam.productId)
+        val damShows = showRecordDao.countTotal(dam.productId)
+        val totalWins = sireWins + damWins
+        val totalShows = sireShows + damShows
+
+        val showPotential = when {
+            totalShows == 0 -> "Unknown"
+            totalWins.toFloat() / totalShows >= 0.4f -> "Elite"
+            totalWins.toFloat() / totalShows >= 0.2f -> "Competitive"
+            else -> "Moderate"
+        }
+
+        if (totalWins > 0) {
+            highlights.add("Parents have $totalWins wins across $totalShows shows")
+        }
+
+        // 4. Data confidence
+        val dataPoints = sireTraits.size + damTraits.size
+        val dataConfidence = when {
+            dataPoints >= 20 && allTraitNames.size >= 6 -> "High"
+            dataPoints >= 8 && allTraitNames.size >= 3 -> "Medium"
+            else -> "Low"
+        }
+
+        // 5. Quality prediction from combined metrics
+        val predictedQuality = when {
+            showPotential == "Elite" && sireBreed.equals(damBreed, true) -> "Show Quality"
+            showPotential != "Unknown" && predictedTraits.values.any { it.predicted >= 7f } -> "Breeder Quality"
+            sireBreed.equals(damBreed, true) -> "Breeder Quality"
+            else -> "Pet Quality"
+        }
+
+        val combinedBvi = 0f // Will be filled by caller if needed
+
+        return EnhancedTraitPrediction(
+            colorPrediction = colorPrediction,
+            breedType = breedType,
+            predictedTraits = predictedTraits,
+            showPotential = showPotential,
+            combinedParentBvi = combinedBvi,
+            predictedQuality = predictedQuality,
+            traitHighlights = highlights.take(5),
+            dataConfidence = dataConfidence
+        )
+    }
+
+    /**
      * Advanced genetic analysis using potential service.
      */
     suspend fun analyzePairingPotential(sire: ProductEntity, dam: ProductEntity): com.rio.rostry.domain.service.GeneticPotentialResult {
-        // Simplified: Averaging the potential of both parents
         val sirePotential = geneticPotentialService.analyzeLineage(sire.productId)
         val damPotential = geneticPotentialService.analyzeLineage(dam.productId)
         
         val newStrength = (sirePotential.lineageStrength + damPotential.lineageStrength) / 2
         
-        // Merge traits
         val newTraits = mutableMapOf<String, Float>()
         sirePotential.traitPotential.forEach { (trait, score) ->
             newTraits[trait] = (score + (damPotential.traitPotential[trait] ?: 0f)) / 2
@@ -188,7 +327,8 @@ class BreedingService @Inject constructor(
         return com.rio.rostry.domain.service.GeneticPotentialResult(
             lineageStrength = newStrength,
             traitPotential = newTraits,
-            notableAncestors = sirePotential.notableAncestors + damPotential.notableAncestors
+            notableAncestors = sirePotential.notableAncestors + damPotential.notableAncestors,
+            dataQuality = "Projected"
         )
     }
 }

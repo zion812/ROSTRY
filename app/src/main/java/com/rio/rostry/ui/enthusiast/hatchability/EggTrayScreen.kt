@@ -18,30 +18,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * Egg Tray Visual Grid - Shows eggs in a tray layout with fertility/hatch status.
+ * Now backed by [EggTrayViewModel] which loads real data from EggCollectionDao.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EggTrayScreen(
     collectionId: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: EggTrayViewModel = hiltViewModel()
 ) {
-    // Mock eggs data with status
-    val eggs = remember {
-        List(30) { index ->
-            EggStatus(
-                position = index + 1,
-                status = when {
-                    index < 20 -> EggState.HATCHED
-                    index < 25 -> EggState.FERTILE
-                    index < 28 -> EggState.INFERTILE
-                    else -> EggState.PENDING
-                }
-            )
-        }
-    }
+    val state by viewModel.state.collectAsState()
     
     Scaffold(
         topBar = {
@@ -55,59 +45,86 @@ fun EggTrayScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            // Summary stats
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
+        when {
+            state.isLoading -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            state.error != null -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("⚠️ ${state.error}", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = onNavigateBack) { Text("Go Back") }
+                    }
+                }
+            }
+            state.eggs.isEmpty() -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🥚", style = MaterialTheme.typography.displayMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Text("No eggs in this collection", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+            else -> {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp)
                 ) {
-                    StatItem(count = 20, label = "Hatched", color = Color(0xFF4CAF50))
-                    StatItem(count = 5, label = "Fertile", color = Color(0xFF2196F3))
-                    StatItem(count = 3, label = "Infertile", color = Color(0xFFF44336))
-                    StatItem(count = 2, label = "Pending", color = Color(0xFF9E9E9E))
+                    // Summary stats
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatItem(count = state.hatchedCount, label = "Hatched", color = Color(0xFF4CAF50))
+                            StatItem(count = state.fertileCount, label = "Fertile", color = Color(0xFF2196F3))
+                            StatItem(count = state.infertileCount, label = "Infertile", color = Color(0xFFF44336))
+                            StatItem(count = state.pendingCount, label = "Pending", color = Color(0xFF9E9E9E))
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    Text(
+                        "Collection: ${state.collectionId.take(8)}… • ${state.totalEggs} eggs",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    // Egg Grid (6 columns like a real egg tray)
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(6),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        items(state.eggs) { egg ->
+                            EggCell(egg)
+                        }
+                    }
+                    
+                    // Legend
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        LegendItem(color = Color(0xFF4CAF50), label = "Hatched")
+                        LegendItem(color = Color(0xFF2196F3), label = "Fertile")
+                        LegendItem(color = Color(0xFFF44336), label = "Infertile")
+                        LegendItem(color = Color(0xFF9E9E9E), label = "Pending")
+                    }
                 }
-            }
-            
-            Spacer(Modifier.height(16.dp))
-            
-            Text(
-                "Collection: ${collectionId.take(8)}...",
-                style = MaterialTheme.typography.titleMedium
-            )
-            
-            Spacer(Modifier.height(16.dp))
-            
-            // Egg Grid (6 columns like a real egg tray)
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(6),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(eggs) { egg ->
-                    EggCell(egg)
-                }
-            }
-            
-            // Legend
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                LegendItem(color = Color(0xFF4CAF50), label = "Hatched")
-                LegendItem(color = Color(0xFF2196F3), label = "Fertile")
-                LegendItem(color = Color(0xFFF44336), label = "Infertile")
-                LegendItem(color = Color(0xFF9E9E9E), label = "Pending")
             }
         }
     }
@@ -173,12 +190,12 @@ private fun LegendItem(color: Color, label: String) {
     }
 }
 
-private data class EggStatus(
+data class EggStatus(
     val position: Int,
     val status: EggState
 )
 
-private enum class EggState {
+enum class EggState {
     HATCHED,
     FERTILE,
     INFERTILE,

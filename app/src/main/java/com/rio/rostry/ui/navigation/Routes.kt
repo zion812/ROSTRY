@@ -343,6 +343,25 @@ object Routes {
         fun showEntry(productId: String) = "enthusiast/show_entry/$productId"
 
         fun competitionDetail(competitionId: String) = "enthusiast/virtual_arena/$competitionId"
+
+        // Enthusiast Premium Toolset - Phase A
+        const val TRAIT_RECORDING = "enthusiast/trait_recording/{productId}"
+        const val BIRD_PROFILE = "enthusiast/bird_profile/{productId}"
+        const val HEALTH_LOG = "enthusiast/health_log/{productId}"
+        fun traitRecording(productId: String) = "enthusiast/trait_recording/$productId"
+        fun birdProfile(productId: String) = "enthusiast/bird_profile/$productId"
+        fun healthLog(productId: String) = "enthusiast/health_log/$productId"
+
+        // Enthusiast Premium Toolset - Phase B
+        const val LINEAGE_EXPLORER = "enthusiast/lineage_explorer/{productId}"
+        fun lineageExplorer(productId: String) = "enthusiast/lineage_explorer/$productId"
+
+        // Enthusiast Premium Toolset - Phase C
+        const val MATE_FINDER = "enthusiast/mate_finder/{productId}"
+        fun mateFinder(productId: String) = "enthusiast/mate_finder/$productId"
+
+        // Enthusiast Premium Toolset - Phase D
+        const val FLOCK_ANALYTICS = "enthusiast/flock_analytics"
     }
     
     // NEW: Enhanced Egg Log and Hatchability Routes
@@ -640,6 +659,13 @@ object Routes {
             EnthusiastNav.BIRD_COMPARISON,
             // Bird Studio
             EnthusiastNav.BIRD_STUDIO,
+            // Enthusiast Premium Toolset
+            EnthusiastNav.TRAIT_RECORDING,
+            EnthusiastNav.BIRD_PROFILE,
+            EnthusiastNav.HEALTH_LOG,
+            EnthusiastNav.LINEAGE_EXPLORER,
+            EnthusiastNav.MATE_FINDER,
+            EnthusiastNav.FLOCK_ANALYTICS,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features - Farm Management

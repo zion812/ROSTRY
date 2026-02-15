@@ -62,6 +62,15 @@ class ProductRepositoryImpl @Inject constructor(
         return Resource.Success(Unit)
     }
 
+    override suspend fun updateProductMetadata(productId: String, metadataJson: String): Resource<Unit> {
+        return try {
+            productDao.updateMetadata(productId, metadataJson, System.currentTimeMillis())
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to update metadata")
+        }
+    }
+
     override suspend fun deleteProduct(productId: String): Resource<Unit> {
         productDao.deleteProduct(productId)
         return Resource.Success(Unit)

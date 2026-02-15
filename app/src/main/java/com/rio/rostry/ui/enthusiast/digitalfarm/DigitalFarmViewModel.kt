@@ -33,7 +33,8 @@ class DigitalFarmViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val currentUserProvider: CurrentUserProvider,
     private val coinLedgerDao: CoinLedgerDao,
-    private val farmAssetDao: FarmAssetDao
+    private val farmAssetDao: FarmAssetDao,
+    private val breedingRepository: com.rio.rostry.data.repository.EnthusiastBreedingRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DigitalFarmState(isLoading = true))
@@ -47,6 +48,29 @@ class DigitalFarmViewModel @Inject constructor(
 
     private val _tapResult = MutableSharedFlow<FarmTapResult>()
     val tapResult: SharedFlow<FarmTapResult> = _tapResult.asSharedFlow()
+    
+    fun logEggsForUnit(unitId: String, eggCount: Int) {
+        viewModelScope.launch {
+            val result = breedingRepository.collectEggs(
+                pairId = unitId,
+                count = eggCount,
+                grade = "A", // Default grade
+                weight = null // Optional
+            )
+            when (result) {
+                is com.rio.rostry.utils.Resource.Success -> {
+                    Timber.d("Logged $eggCount eggs for unit $unitId")
+                    // Refresh data to show updated stats
+                    loadFarmData()
+                }
+                is com.rio.rostry.utils.Resource.Error -> {
+                    Timber.e("Failed to log eggs: ${result.message}")
+                    _uiState.value = _uiState.value.copy(error = "Failed to log eggs: ${result.message}")
+                }
+                else -> {}
+            }
+        }
+    }
     
     // Persona-specific configuration (determines which zones/overlays/actions are visible)
     private val _config = MutableStateFlow(DigitalFarmConfig.ENTHUSIAST)
@@ -487,12 +511,7 @@ class DigitalFarmViewModel @Inject constructor(
         _selectedBird.value = null
     }
 
-    fun logEggsForUnit(unitId: String, eggCount: Int) {
-        viewModelScope.launch {
-            // TODO: Update database and refresh
-            Timber.d("Logging $eggCount eggs for breeding unit $unitId")
-        }
-    }
+
 
     // Extension to convert ProductEntity to VisualBird
     private fun ProductEntity.toVisualBird(

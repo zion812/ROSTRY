@@ -116,4 +116,20 @@
     <!-- Role Upgrade -->
     <string name="become_a_farmer">Become a Farmer</string>
     
+    <!-- Listing Creation -->
+    <string name="list_item_for_sale">List Item for Sale</string>
+    <string name="source_asset">Source Asset: %1$s</string>
+    <string name="available_quantity">Available Quantity: %1$d %2$s</string>
+    <string name="listing_title">Listing Title</string>
+    <string name="quantity_to_sell">Quantity to Sell</string>
+    <string name="max_quantity_hint">Max: %1$d</string>
+    <string name="price_per_unit">Price per unit</string>
+    <string name="description">Description</string>
+    <string name="publish_listing">Publish Listing</string>
+    
+    <!-- Journal -->
+    <string name="log_attachment">Log attachment</string>
+    <string name="date_format_pattern">dd MMM yyyy</string>
+    <string name="back">Back</string>
+    <string name="asset_not_found">Asset not found</string>
 </resources>

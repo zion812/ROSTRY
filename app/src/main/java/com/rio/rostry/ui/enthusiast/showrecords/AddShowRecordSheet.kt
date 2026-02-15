@@ -3,10 +3,13 @@ package com.rio.rostry.ui.enthusiast.showrecords
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -237,10 +241,38 @@ fun AddShowRecordSheet(
             // Media
             Text("Photos & Awards", style = MaterialTheme.typography.titleMedium)
             
+            // Gallery Dialog state
+            var selectedGalleryIndex by remember { mutableStateOf<Int?>(null) }
+
+            if (selectedGalleryIndex != null && photos.isNotEmpty()) {
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = { selectedGalleryIndex = null },
+                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)
+                    ) {
+                        coil.compose.AsyncImage(
+                            model = photos[selectedGalleryIndex!!],
+                            contentDescription = "Full Record Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                        )
+                        IconButton(
+                            onClick = { selectedGalleryIndex = null },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                        ) {
+                            Icon(Icons.Default.Close, "Close", tint = androidx.compose.ui.graphics.Color.White)
+                        }
+                    }
+                }
+            }
+
             if (photos.isNotEmpty()) {
                 MediaThumbnailRow(
                     urls = photos,
-                    onViewGallery = { /* TODO: Implement Open Gallery if needed */ },
+                    onViewGallery = { /* Legacy callback, unused */ },
+                    onViewGalleryIndexed = { index -> selectedGalleryIndex = index },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

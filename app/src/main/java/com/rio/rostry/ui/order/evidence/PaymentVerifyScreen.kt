@@ -39,6 +39,7 @@ fun PaymentVerifyScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     var showRejectDialog by remember { mutableStateOf(false) }
     var rejectionReason by remember { mutableStateOf("") }
@@ -46,12 +47,17 @@ fun PaymentVerifyScreen(
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
 
-    // Mock payment data - in real app, fetch from repository
-    val paymentAmount = 5000.0
-    val paymentPhase = "ADVANCE"
-    val transactionRef = "UPI123456789"
-    val proofImageUri: String? = null // Would come from payment entity
-    val submittedAt = System.currentTimeMillis() - 3600000 // 1 hour ago
+    // Load real payment data from DB
+    val payment = uiState.currentPayment
+    val paymentAmount = payment?.amount ?: 0.0
+    val paymentPhase = payment?.paymentPhase ?: "PENDING"
+    val transactionRef = payment?.transactionRef ?: "—"
+    val proofImageUri: String? = null // Would require evidence lookup
+    val submittedAt = payment?.updatedAt ?: System.currentTimeMillis()
+
+    LaunchedEffect(paymentId) {
+        viewModel.loadPayment(paymentId)
+    }
 
     LaunchedEffect(successMessage) {
         if (successMessage?.contains("verified") == true || successMessage?.contains("rejected") == true) {

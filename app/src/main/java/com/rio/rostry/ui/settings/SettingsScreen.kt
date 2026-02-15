@@ -15,19 +15,25 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,10 +44,12 @@ fun SettingsScreen(
     onNavigateToBackupRestore: () -> Unit = {},
     lastSelectedAddressJson: String? = null,
     isAdmin: Boolean = false,
-    pendingCount: Int = 0
+    pendingCount: Int = 0,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val notifications = remember { mutableStateOf(true) }
-    val lowDataMode = remember { mutableStateOf(false) }
+    val state by viewModel.state.collectAsState()
+    var showThemeMenu by remember { mutableStateOf(false) }
+    var showLangMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -83,14 +91,14 @@ fun SettingsScreen(
                     },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f))
                 )
-                androidx.compose.material3.Divider(modifier = Modifier.padding(vertical = 8.dp))
+                androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
 
             Text("Preferences", style = MaterialTheme.typography.titleMedium)
             ListItem(
                 headlineContent = { Text("Notifications") },
                 trailingContent = {
-                    Switch(checked = notifications.value, onCheckedChange = { notifications.value = it })
+                    Switch(checked = state.notificationsEnabled, onCheckedChange = { viewModel.setNotifications(it) })
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
             )
@@ -98,7 +106,56 @@ fun SettingsScreen(
                 headlineContent = { Text("Low data mode") },
                 supportingContent = { Text("Reduce media previews and background data usage") },
                 trailingContent = {
-                    Switch(checked = lowDataMode.value, onCheckedChange = { lowDataMode.value = it })
+                    Switch(checked = state.lowDataMode, onCheckedChange = { viewModel.setLowDataMode(it) })
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+
+            Text("Appearance", style = MaterialTheme.typography.titleMedium)
+            ListItem(
+                headlineContent = { Text("Theme") },
+                supportingContent = { Text(state.theme.replaceFirstChar { it.uppercase() }) },
+                leadingContent = { Icon(Icons.Filled.DarkMode, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                trailingContent = {
+                    TextButton(onClick = { showThemeMenu = true }) { Text("Change") }
+                    DropdownMenu(expanded = showThemeMenu, onDismissRequest = { showThemeMenu = false }) {
+                        listOf("system", "light", "dark").forEach { theme ->
+                            DropdownMenuItem(
+                                text = { Text(theme.replaceFirstChar { it.uppercase() }) },
+                                onClick = {
+                                    viewModel.setTheme(theme)
+                                    showThemeMenu = false
+                                }
+                            )
+                        }
+                    }
+                },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+            ListItem(
+                headlineContent = { Text("Language") },
+                supportingContent = {
+                    val label = when (state.language) {
+                        "hi" -> "हिन्दी"
+                        "te" -> "తెలుగు"
+                        else -> "English"
+                    }
+                    Text(label)
+                },
+                leadingContent = { Icon(Icons.Filled.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                trailingContent = {
+                    TextButton(onClick = { showLangMenu = true }) { Text("Change") }
+                    DropdownMenu(expanded = showLangMenu, onDismissRequest = { showLangMenu = false }) {
+                        listOf("en" to "English", "hi" to "हिन्दी", "te" to "తెలుగు").forEach { (code, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    viewModel.setLanguage(code)
+                                    showLangMenu = false
+                                }
+                            )
+                        }
+                    }
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
             )

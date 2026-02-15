@@ -2,6 +2,8 @@ package com.rio.rostry.ui.enthusiast.breeding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rio.rostry.data.database.dao.MatingLogDao
+import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.data.database.entity.HatchingBatchEntity
 import com.rio.rostry.data.repository.EnthusiastBreedingRepository
 import com.rio.rostry.session.CurrentUserProvider
@@ -11,14 +13,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import timber.log.Timber
 import java.util.*
 import javax.inject.Inject
 
 @HiltViewModel
 class BreedingCalendarViewModel @Inject constructor(
     private val breedingRepository: EnthusiastBreedingRepository,
-    private val currentUserProvider: CurrentUserProvider
+    private val currentUserProvider: CurrentUserProvider,
+    private val matingLogDao: MatingLogDao,
+    private val vaccinationRecordDao: VaccinationRecordDao
 ) : ViewModel() {
 
     data class BreedingEvent(
@@ -54,7 +58,7 @@ class BreedingCalendarViewModel @Inject constructor(
             val userId = currentUserProvider.userIdOrNull() ?: return@launch
 
             // Gather events from various sources
-            // 1. Hatching Due Dates
+            // 1. Hatching Due Dates (already uses real data)
             breedingRepository.observeHatchingDue(userId, 30).collect { batches ->
                 val hatchEvents = batches.map { batch ->
                     BreedingEvent(
@@ -62,15 +66,15 @@ class BreedingCalendarViewModel @Inject constructor(
                         title = "Hatch Due: ${batch.name}",
                         date = batch.expectedHatchAt ?: 0L,
                         type = EventType.HATCH_DUE,
-                        description = "Eggs from ${batch.sourceCollectionId}"
+                        description = "Eggs from ${batch.sourceCollectionId ?: "unknown"}"
                     )
                 }
 
-                // 2. Mating Reminders (Mock logic for now, could be real recurrent schedules)
-                val matingEvents = mockMatingEvents()
+                // 2. Mating events from MatingLogDao (recent matings for context)
+                val matingEvents = loadMatingEvents(userId)
 
-                // 3. Vaccination (Mock for now)
-                val vaxEvents = mockVaccinationEvents()
+                // 3. Vaccination events from VaccinationRecordDao (upcoming/overdue)
+                val vaxEvents = loadVaccinationEvents(userId)
 
                 val allEvents = (hatchEvents + matingEvents + vaxEvents).sortedBy { it.date }
                 
@@ -82,35 +86,53 @@ class BreedingCalendarViewModel @Inject constructor(
         }
     }
 
-    // Mock data generators for demo purposes
-    private fun mockMatingEvents(): List<BreedingEvent> {
-        val events = mutableListOf<BreedingEvent>()
-        val cal = Calendar.getInstance()
-        for (i in 1..3) {
-            cal.add(Calendar.DAY_OF_YEAR, 2)
-            events.add(BreedingEvent(
-                id = "mating_$i",
-                title = "Planned Mating",
-                date = cal.timeInMillis,
-                type = EventType.MATING,
-                description = "Pair $i scheduled"
-            ))
+    /**
+     * Load real mating events from MatingLogDao.
+     * Shows recent matings per pair as calendar events.
+     */
+    private suspend fun loadMatingEvents(userId: String): List<BreedingEvent> {
+        return try {
+            val recentMatings = matingLogDao.getRecentByFarmer(userId, 10)
+            recentMatings.map { log ->
+                BreedingEvent(
+                    id = log.logId,
+                    title = "Mating: ${log.pairId.take(8)}…",
+                    date = log.matedAt,
+                    type = EventType.MATING,
+                    description = log.observedBehavior ?: log.notes ?: "Mating recorded"
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load mating events")
+            emptyList()
         }
-        return events
     }
 
-    private fun mockVaccinationEvents(): List<BreedingEvent> {
-        val events = mutableListOf<BreedingEvent>()
-        val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, 5)
-        events.add(BreedingEvent(
-            id = "vax_1",
-            title = "Mareks Vax",
-            date = cal.timeInMillis,
-            type = EventType.VACCINATION,
-            description = "Batch #102 chicks"
-        ))
-        return events
+    /**
+     * Load real vaccination events from VaccinationRecordDao.
+     * Shows upcoming scheduled vaccinations that haven't been administered yet.
+     */
+    private suspend fun loadVaccinationEvents(userId: String): List<BreedingEvent> {
+        return try {
+            val now = System.currentTimeMillis()
+            // Get overdue + upcoming vaccinations
+            val overdue = vaccinationRecordDao.getOverdueForFarmer(userId, now)
+            val upcoming = vaccinationRecordDao.dueReminders(now + 30L * 24 * 60 * 60 * 1000)
+            
+            (overdue + upcoming).distinctBy { it.vaccinationId }.map { vax ->
+                val isOverdue = vax.scheduledAt < now
+                BreedingEvent(
+                    id = vax.vaccinationId,
+                    title = "${if (isOverdue) "⚠️ OVERDUE: " else ""}${vax.vaccineType}",
+                    date = vax.scheduledAt,
+                    type = EventType.VACCINATION,
+                    description = "For bird: ${vax.productId.take(8)}…"
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load vaccination events")
+            emptyList()
+        }
     }
 
     fun selectDate(date: Long) {

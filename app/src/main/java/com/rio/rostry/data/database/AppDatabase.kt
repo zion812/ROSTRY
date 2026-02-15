@@ -146,9 +146,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Medical Events (Phase 12 - Health Records)
         MedicalEventEntity::class,
         // Breeding System (Phase 12 - Clutch Tracking)
-        ClutchEntity::class
+        ClutchEntity::class,
+        // Enthusiast Premium Toolset - Bird Trait Records
+        BirdTraitRecordEntity::class
     ],
-    version = 77, // 76 -> 77 (Added raisingPurpose to ProductEntity/FarmAssetEntity, acquisition fields to FarmAssetEntity)
+    version = 79, // 78 -> 79 (Added BirdTraitRecordEntity for Enthusiast trait system)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -296,6 +298,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Clutch DAO (Phase 12 - Breeding System)
     abstract fun clutchDao(): ClutchDao
+
+    // Bird Trait Records DAO (Enthusiast Premium Toolset)
+    abstract fun birdTraitRecordDao(): BirdTraitRecordDao
 
     object Converters {
         @TypeConverter
@@ -2614,6 +2619,12 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_assetId` ON `expenses` (`assetId`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_category` ON `expenses` (`category`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_expenses_expenseDate` ON `expenses` (`expenseDate`)")
+            }
+        }
+        // Bird Studio Metadata (77 -> 78)
+        val MIGRATION_77_78 = object : Migration(77, 78) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `metadataJson` TEXT NOT NULL DEFAULT '{}'")
             }
         }
     }

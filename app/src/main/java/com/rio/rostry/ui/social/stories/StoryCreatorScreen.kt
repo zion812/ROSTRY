@@ -16,28 +16,31 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.session.CurrentUserProvider
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class StoryCreatorViewModel @Inject constructor(
-    private val socialRepository: SocialRepository
+    private val socialRepository: SocialRepository,
+    private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
     fun createStory(uri: Uri, onComplete: () -> Unit) {
         viewModelScope.launch {
-            // Mock: In real app, upload to storage first
-            // For now, we just pass the local URI string or a placeholder
-            // Since we can't upload easily in this environment without backend setup
-            // We'll assume the repo handles it (it does have upload logic)
             try {
-                // Hardcoded authorId for now, should come from session
-                socialRepository.createStory("current_user", uri, false)
+                val userId = currentUserProvider.userIdOrNull()
+                if (userId == null) {
+                    Timber.e("StoryCreator: Cannot create story, user not logged in")
+                    return@launch
+                }
+                socialRepository.createStory(userId, uri, false)
                 onComplete()
             } catch (e: Exception) {
-                // Handle error
+                Timber.e(e, "StoryCreator: Failed to create story")
             }
         }
     }

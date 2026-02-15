@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.enthusiast.journal
 
-import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.rio.rostry.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -175,12 +177,12 @@ fun LogEntryCard(log: DailyBirdLogEntity, onDelete: () -> Unit) {
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(log.date)),
+                    SimpleDateFormat(stringResource(R.string.date_format_pattern), Locale.getDefault()).format(Date(log.date)),
                     style = MaterialTheme.typography.labelMedium
                 )
                 Icon(
                     Icons.Filled.Delete, 
-                    contentDescription = "Delete", 
+                    contentDescription = stringResource(R.string.delete), 
                     modifier = Modifier.clickable { onDelete() },
                     tint = MaterialTheme.colorScheme.error 
                 )
@@ -193,9 +195,15 @@ fun LogEntryCard(log: DailyBirdLogEntity, onDelete: () -> Unit) {
             
             // Render attached images if any
             if (!log.mediaUrlsJson.isNullOrBlank()) {
-                // Simple parsing for now - assuming single URL or comma separated for prototype
-                val url = log.mediaUrlsJson.trim().replace("\"", "").replace("[", "").replace("]", "")
-                if (url.isNotBlank()) {
+                val urls = try {
+                    val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                    com.google.gson.Gson().fromJson<List<String>>(log.mediaUrlsJson, type) ?: emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                val url = urls.firstOrNull()
+                if (!url.isNullOrBlank()) {
                     Spacer(Modifier.height(8.dp))
                     coil.compose.AsyncImage(
                         model = url,

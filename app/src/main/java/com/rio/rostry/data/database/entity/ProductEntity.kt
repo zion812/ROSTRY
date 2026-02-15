@@ -158,7 +158,8 @@ data class ProductEntity(
 
     // Moderation
     val adminFlagged: Boolean = false,
-    val moderationNote: String? = null
+    val moderationNote: String? = null,
+    val metadataJson: String = "{}" // For BirdStudio customization
 ) {
     /**
      * Returns true if this product is a public market listing (requires verification to create).

@@ -24,12 +24,17 @@ data class ShowRecordsUiState(
     val winRate: Int = 0,
     // Add Sheet State
     val isAddSheetOpen: Boolean = false,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    // Gallery State
+    val isGalleryOpen: Boolean = false,
+    val galleryPhotos: List<String> = emptyList(),
+    val selectedProtoIndex: Int = -1
 )
 
 @HiltViewModel
 class ShowRecordsViewModel @Inject constructor(
-    private val repository: ShowRecordRepository
+    private val repository: ShowRecordRepository,
+    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ShowRecordsUiState())
@@ -112,12 +117,13 @@ class ShowRecordsViewModel @Inject constructor(
 
         _uiState.value = _uiState.value.copy(isSaving = true)
 
-        val photosJson = JSONArray(_inputPhotos.value).toString()
+        val photosJson = com.google.gson.Gson().toJson(_inputPhotos.value)
+        val userId = currentUserProvider.userIdOrNull() ?: "current_user"
 
         val record = ShowRecordEntity(
             recordId = UUID.randomUUID().toString(),
             productId = birdId,
-            ownerId = "current_user", // Should be injected or fetched
+            ownerId = userId,
             recordType = type,
             eventName = eventName,
             eventDate = eventDate,
@@ -154,6 +160,19 @@ class ShowRecordsViewModel @Inject constructor(
         viewModelScope.launch {
             repository.deleteRecord(recordId)
         }
+    }
+
+
+    fun openGallery(photos: List<String>, index: Int) {
+        _uiState.value = _uiState.value.copy(
+            isGalleryOpen = true,
+            galleryPhotos = photos,
+            selectedProtoIndex = index
+        )
+    }
+
+    fun closeGallery() {
+        _uiState.value = _uiState.value.copy(isGalleryOpen = false)
     }
     
     fun clearError() {

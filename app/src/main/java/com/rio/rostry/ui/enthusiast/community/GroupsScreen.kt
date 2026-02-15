@@ -1,6 +1,9 @@
 package com.rio.rostry.ui.enthusiast.community
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Group
@@ -10,15 +13,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+/**
+ * GroupsScreen - Community group discovery.
+ * Shows suggested community groups that users can navigate into.
+ * Groups are populated from a local seed list until the community backend arrives.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToGroup: (String) -> Unit = {}
 ) {
+    val suggestedGroups = listOf(
+        SuggestedGroup("breed_aseel", "Aseel Enthusiasts", "Discuss Aseel breeding, shows, and care", "Breed Specific"),
+        SuggestedGroup("breed_kadaknath", "Kadaknath Breeders India", "Share Kadaknath genetics and husbandry tips", "Breed Specific"),
+        SuggestedGroup("region_ap", "AP/TS Poultry Hub", "Andhra Pradesh & Telangana breeders network", "Regional"),
+        SuggestedGroup("tips_nutrition", "Nutrition & Feed Science", "Optimize feed conversion and bird health", "Knowledge"),
+        SuggestedGroup("show_circuit", "Show Circuit India", "Exhibition schedules, results, and judge insights", "Shows & Events"),
+        SuggestedGroup("beginners", "New Breeders Welcome", "Ask questions, share your journey", "General")
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -36,43 +52,88 @@ fun GroupsScreen(
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Filled.Group,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            )
-            
-            Spacer(Modifier.height(24.dp))
-            
-            Text(
-                "Groups Coming Soon",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Spacer(Modifier.height(8.dp))
-            
-            Text(
-                "Connect with breeds, regions, and special interests. Join communities to share knowledge and show off your flock.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Spacer(Modifier.height(32.dp))
-            
-            Button(onClick = onNavigateBack) {
-                Text("Return to Feed")
+            item {
+                Text(
+                    "Suggested Groups",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    "Discover communities that match your interests",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            items(suggestedGroups) { group ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToGroup(group.id) },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Group,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                group.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                group.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            AssistChip(
+                                onClick = {},
+                                label = { Text(group.category, style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "More groups will appear as the community grows",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
     }
 }
+
+private data class SuggestedGroup(
+    val id: String,
+    val name: String,
+    val description: String,
+    val category: String
+)

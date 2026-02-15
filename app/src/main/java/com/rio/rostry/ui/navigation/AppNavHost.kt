@@ -94,6 +94,7 @@ import com.rio.rostry.ui.farmer.asset.FarmAssetListScreen
 import com.rio.rostry.ui.farmer.asset.FarmAssetDetailScreen
 import com.rio.rostry.ui.farmer.FarmerMarketViewModel
 import com.rio.rostry.ui.farmer.listing.CreateListingScreen
+import com.rio.rostry.ui.farmer.listing.CreateListingFromAssetScreen
 import com.rio.rostry.ui.screens.HomeGeneralScreen
 import com.rio.rostry.ui.screens.PlaceholderScreen
 import com.rio.rostry.ui.community.GroupDetailScreen
@@ -2144,6 +2145,23 @@ private fun RoleNavGraph(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        // Farmer Create Listing From Asset
+        composable(
+            route = Routes.FarmerNav.CREATE_LISTING_FROM_ASSET,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
+            if (assetId.isBlank()) {
+                ErrorScreen(message = "Invalid asset ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.farmer.listing.CreateListingFromAssetScreen(
+                    assetId = assetId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onListingCreated = { navController.popBackStack() }
+                )
+            }
+        }
         
         // ============ Enthusiast Core Routes ============
         
@@ -2171,6 +2189,120 @@ private fun RoleNavGraph(
             )
         }
         
+        // Enthusiast Digital Farm (SimCity style)
+        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
+            com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onNavigateToListProduct = { productId -> 
+                    // Navigate to sell flow/market create
+                    navController.navigate(Routes.FarmerNav.CREATE) // Or pre-fill
+                },
+                onNavigateToLogEggs = { unitId -> 
+                    // Navigate to egg logging
+                    navController.navigate(Routes.Monitoring.FARM_LOG)
+                },
+                onNavigateToAddBird = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
+                onNavigateToBirdStudio = { birdId -> 
+                     navController.navigate(Routes.EnthusiastNav.birdStudio(birdId))
+                }
+            )
+        }
+
+        // Bird Studio (Visual Customization)
+        composable(
+            route = Routes.EnthusiastNav.BIRD_STUDIO,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.digitalfarm.studio.BirdStudioScreen(
+                birdId = productId,
+                onBack = { navController.popBackStack() },
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+
+        // ===== Enthusiast Premium Toolset — Phase A =====
+
+        // Bird Profile (Single-Bird Dashboard)
+        composable(
+            route = Routes.EnthusiastNav.BIRD_PROFILE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.lineage.BirdProfileScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToTraitRecording = { navController.navigate(Routes.EnthusiastNav.traitRecording(it)) },
+                onNavigateToHealthLog = { navController.navigate(Routes.EnthusiastNav.healthLog(it)) },
+                onNavigateToPedigree = { navController.navigate(Routes.EnthusiastNav.pedigree(it)) },
+                onNavigateToLineageExplorer = { navController.navigate(Routes.EnthusiastNav.lineageExplorer(it)) },
+                onNavigateToMateFinder = { navController.navigate(Routes.EnthusiastNav.mateFinder(it)) }
+            )
+        }
+
+        // Trait Recording
+        composable(
+            route = Routes.EnthusiastNav.TRAIT_RECORDING,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.lineage.TraitRecordingScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Health Log
+        composable(
+            route = Routes.EnthusiastNav.HEALTH_LOG,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.lineage.HealthLogScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ===== Enthusiast Premium Toolset — Phase B =====
+
+        // Lineage Explorer (Interactive Tree)
+        composable(
+            route = Routes.EnthusiastNav.LINEAGE_EXPLORER,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.lineage.LineageExplorerScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBirdProfile = { navController.navigate(Routes.EnthusiastNav.birdProfile(it)) }
+            )
+        }
+
+        // ===== Enthusiast Premium Toolset — Phase C =====
+
+        // Mate Finder (Mate Recommendation Engine)
+        composable(
+            route = Routes.EnthusiastNav.MATE_FINDER,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.breeding.MateFinderScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBirdProfile = { navController.navigate(Routes.EnthusiastNav.birdProfile(it)) }
+            )
+        }
+
+        // Flock Analytics Dashboard (Phase D)
+        composable(route = Routes.EnthusiastNav.FLOCK_ANALYTICS) {
+            com.rio.rostry.ui.enthusiast.analytics.FlockAnalyticsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBirdProfile = { navController.navigate(Routes.EnthusiastNav.birdProfile(it)) }
+            )
+        }
+
         // Enthusiast Explore Screen
         composable(Routes.EnthusiastNav.EXPLORE) {
             com.rio.rostry.ui.enthusiast.EnthusiastExploreScreen(
@@ -2263,9 +2395,10 @@ private fun RoleNavGraph(
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            com.rio.rostry.ui.enthusiast.creation.ShowcaseCardGeneratorScreen(
+            com.rio.rostry.ui.enthusiast.digitalfarm.studio.BirdStudioScreen(
                 birdId = productId,
-                onNavigateBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateUp = { navController.navigateUp() }
             )
         }
         

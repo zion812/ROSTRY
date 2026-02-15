@@ -25,8 +25,16 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rio.rostry.domain.model.DigitalFarmMode
+import com.rio.rostry.domain.model.VisualBird
 import com.rio.rostry.domain.model.*
+import com.rio.rostry.domain.model.UserType
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import kotlinx.coroutines.delay
 
 /**
@@ -71,6 +79,8 @@ fun DigitalFarmScreen(
     LaunchedEffect(Unit) {
         viewModel.setConfigForRole(UserType.ENTHUSIAST)
     }
+
+    var showListView by remember { mutableStateOf(false) }
 
     // Animation time for idle animations - GATED on RenderRate.DYNAMIC for future config support
     val isDynamicMode = config.renderRate == RenderRate.DYNAMIC
@@ -359,16 +369,26 @@ fun DigitalFarmScreen(
                 }
             }
 
-            // Quick Actions FAB
             if (!uiState.isEmpty && uiState.error == null && !uiState.isLoading) {
                 QuickActionsFab(
                     onAddBird = onNavigateToAddBird,
-                    onViewAll = { /* TODO: Show list view */ },
+                    onViewAll = { showListView = true },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp)
                 )
             }
+        }
+
+        if (showListView) {
+            ViewAllBirdsSheet(
+                birds = uiState.allBirds,
+                onDismiss = { showListView = false },
+                onBirdClick = { bird ->
+                    showListView = false
+                    viewModel.onBirdTapped(bird)
+                }
+            )
         }
     }
 }
@@ -978,7 +998,7 @@ private fun QuickActionsFab(
                 }
             }
         }
-        
+
         FloatingActionButton(
             onClick = { expanded = !expanded },
             containerColor = if (expanded) Color(0xFFE53935) else Color(0xFF4CAF50)
@@ -988,6 +1008,63 @@ private fun QuickActionsFab(
                 contentDescription = if (expanded) "Close" else "Actions",
                 tint = Color.White
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ViewAllBirdsSheet(
+    birds: List<VisualBird>,
+    onDismiss: () -> Unit,
+    onBirdClick: (VisualBird) -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                "All Birds (${birds.size})",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp)
+            )
+            
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(birds) { bird ->
+                    Card(
+                        onClick = { onBirdClick(bird) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    bird.name,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "${bird.breed ?: "Unknown"} • ${bird.ageText}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            StatusBadge(bird.statusIndicator)
+                        }
+                    }
+                }
+            }
         }
     }
 }

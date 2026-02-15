@@ -52,6 +52,7 @@ fun PaymentProofScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var transactionRef by remember { mutableStateOf("") }
@@ -65,9 +66,14 @@ fun PaymentProofScreen(
 
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
 
-    // Mock payment data - in real app, fetch from repository
-    val paymentAmount = 5000.0
-    val paymentPhase = "ADVANCE"
+    // Load real payment data from DB
+    val payment = uiState.currentPayment
+    val paymentAmount = payment?.amount ?: 0.0
+    val paymentPhase = payment?.paymentPhase ?: "PENDING"
+
+    LaunchedEffect(paymentId) {
+        viewModel.loadPayment(paymentId)
+    }
 
     LaunchedEffect(successMessage) {
         if (successMessage?.contains("Payment proof submitted") == true) {

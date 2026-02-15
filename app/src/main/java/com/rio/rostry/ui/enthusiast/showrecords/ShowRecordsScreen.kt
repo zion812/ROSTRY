@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -136,7 +137,10 @@ fun ShowRecordsScreen(
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         items(state.records) { record ->
-                            ShowRecordCard(record)
+                            ShowRecordCard(
+                                record = record,
+                                onViewGallery = { photos, index -> viewModel.openGallery(photos, index) }
+                            )
                         }
                     }
                 }
@@ -153,6 +157,26 @@ fun ShowRecordsScreen(
                 photos = inputPhotos,
                 onRemovePhoto = { index -> viewModel.removePhoto(index) }
             )
+        }
+        
+        // Gallery Dialog
+        if (state.isGalleryOpen && state.selectedProtoIndex != -1 && state.galleryPhotos.isNotEmpty()) {
+             androidx.compose.ui.window.Dialog(onDismissRequest = { viewModel.closeGallery() }) {
+                 Box(
+                     modifier = Modifier
+                         .fillMaxSize()
+                         .background(Color.Black)
+                         .clickable { viewModel.closeGallery() },
+                     contentAlignment = Alignment.Center
+                 ) {
+                     coil.compose.AsyncImage(
+                         model = state.galleryPhotos.getOrNull(state.selectedProtoIndex),
+                         contentDescription = "Full Screen Image",
+                         modifier = Modifier.fillMaxWidth(),
+                         contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                     )
+                 }
+             }
         }
     }
 }
@@ -211,7 +235,10 @@ fun StatCard(
 }
 
 @Composable
-fun ShowRecordCard(record: ShowRecordEntity) {
+fun ShowRecordCard(
+    record: ShowRecordEntity,
+    onViewGallery: (List<String>, Int) -> Unit
+) {
     Card(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -281,23 +308,22 @@ fun ShowRecordCard(record: ShowRecordEntity) {
             
             // Photos
              val photoList = try {
-                 val jsonArray = JSONArray(record.photoUrls)
-                 val list = mutableListOf<String>()
-                 for (i in 0 until jsonArray.length()) {
-                     list.add(jsonArray.getString(i))
-                 }
-                 list
+                 val type = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                 com.google.gson.Gson().fromJson<List<String>>(record.photoUrls, type) ?: emptyList()
              } catch (e: Exception) {
                  emptyList()
              }
              
              if (photoList.isNotEmpty()) {
                  Spacer(Modifier.height(8.dp))
-                 MediaThumbnailRow(
-                     urls = photoList,
-                     onViewGallery = { /* TODO: Implement Gallery View */ },
-                     modifier = Modifier.fillMaxWidth()
-                 )
+                  MediaThumbnailRow(
+                      urls = photoList,
+                      onViewGallery = {}, // Unused in favor of indexed
+                      onViewGalleryIndexed = { index -> 
+                          onViewGallery(photoList, index)
+                      },
+                      modifier = Modifier.fillMaxWidth()
+                  )
              }
         }
     }

@@ -109,9 +109,8 @@ class UserRepositoryImpl @Inject constructor(
                 // Support both phone auth AND Google Sign-In (email-only) users
                 val hasPhoneOrEmail = firebaseUser.phoneNumber != null || firebaseUser.email != null
                 if (hasPhoneOrEmail) {
-                    // Check if this is a hardcoded admin email
-                    val isHardcodedAdmin = firebaseUser.email == "zionjuvvanapudi@gmail.com" ||
-                                           firebaseUser.email == "rowdyzion@gmail.com"
+                    // Check if this is a known admin email
+                    val isHardcodedAdmin = com.rio.rostry.ui.session.SessionViewModel.ADMIN_EMAILS.contains(firebaseUser.email)
                     
                     val initialRole = if (isHardcodedAdmin) UserType.ADMIN else UserType.GENERAL
                     

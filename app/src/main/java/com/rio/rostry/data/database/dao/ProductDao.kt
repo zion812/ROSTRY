@@ -231,6 +231,9 @@ interface ProductDao {
         updatedAt: Long
     )
 
+    @Query("UPDATE products SET metadataJson = :metadataJson, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
+    suspend fun updateMetadata(productId: String, metadataJson: String, updatedAt: Long)
+
     @Query("UPDATE products SET qrCodeUrl = :url, updatedAt = :updatedAt, dirty = 1 WHERE productId = :productId")
     suspend fun updateQrCodeUrl(productId: String, url: String?, updatedAt: Long)
 

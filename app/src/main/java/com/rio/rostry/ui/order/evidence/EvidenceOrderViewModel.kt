@@ -3,6 +3,7 @@ package com.rio.rostry.ui.order.evidence
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rio.rostry.data.database.dao.OrderPaymentDao
 import com.rio.rostry.data.database.entity.*
 import com.rio.rostry.data.repository.EvidenceOrderRepository
 import com.rio.rostry.data.repository.ProductRepository
@@ -23,7 +24,8 @@ class EvidenceOrderViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val evidenceOrderRepository: EvidenceOrderRepository,
     private val productRepository: ProductRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val paymentDao: OrderPaymentDao
 ) : ViewModel() {
 
     // Current user
@@ -610,6 +612,19 @@ class EvidenceOrderViewModel @Inject constructor(
 
     // ==================== UTILS ====================
 
+    fun loadPayment(paymentId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val payment = paymentDao.findById(paymentId)
+                _uiState.update { it.copy(currentPayment = payment) }
+            } catch (e: Exception) {
+                _error.value = "Could not load payment details"
+            }
+            _isLoading.value = false
+        }
+    }
+
     fun clearMessages() {
         _error.value = null
         _successMessage.value = null
@@ -626,6 +641,7 @@ data class EvidenceOrderUiState(
     val enquiryForm: EnquiryFormState = EnquiryFormState(),
     val quoteForm: QuoteFormState = QuoteFormState(),
     val currentQuote: OrderQuoteEntity? = null,
+    val currentPayment: OrderPaymentEntity? = null,
     val deliveryOtp: String? = null
 )
 

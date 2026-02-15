@@ -84,19 +84,8 @@ class CreateListingViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Check verification status before proceeding
-            val canList = rbac.canListProduct()
-            timber.log.Timber.d("submitListing: RBAC check result: $canList")
-            
-            if (!canList) {
-                _uiState.update { 
-                    it.copy(
-                        error = "Complete KYC verification to list products. Go to Profile → Verification.",
-                        verificationRequired = true
-                    ) 
-                }
-                return@launch
-            }
+            // Verification check removed as per system overhaul
+            // val canList = rbac.canListProduct() ...
 
             _uiState.update { it.copy(isSubmitting = true, error = null) }
             

@@ -29,6 +29,7 @@ interface ProductMarketplaceRepository {
     suspend fun filterByBoundingBox(minLat: Double?, maxLat: Double?, minLng: Double?, maxLng: Double?, limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
     suspend fun filterVerified(limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
     suspend fun filterByDateRange(startDate: Long?, endDate: Long?, limit: Int = 50, offset: Int = 0): Resource<List<ProductEntity>>
+    suspend fun respectBird(birdId: String): Resource<Unit>
 }
 
 @Singleton
@@ -197,5 +198,10 @@ class ProductMarketplaceRepositoryImpl @Inject constructor(
         // Enforce comprehensive marketplace rules using ProductValidator with lineage checks when applicable
         val result = productValidator.validateWithTraceability(product)
         require(result.valid) { result.reasons.joinToString(separator = "; ") }
+    }
+
+    override suspend fun respectBird(birdId: String): Resource<Unit> {
+        // TODO: Implement backend call. For now, just return success to support optimistic UI updates.
+        return Resource.Success(Unit)
     }
 }

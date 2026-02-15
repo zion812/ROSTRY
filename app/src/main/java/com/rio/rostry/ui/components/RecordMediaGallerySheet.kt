@@ -267,6 +267,7 @@ fun MediaThumbnailRow(
     urls: List<String>,
     maxVisible: Int = 4,
     onViewGallery: () -> Unit,
+    onViewGalleryIndexed: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (urls.isEmpty()) return
@@ -283,7 +284,13 @@ fun MediaThumbnailRow(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onViewGallery() }
+                    .clickable { 
+                        if (onViewGalleryIndexed != null) {
+                            onViewGalleryIndexed(index)
+                        } else {
+                            onViewGallery()
+                        }
+                    }
             ) {
                 AsyncImage(
                     model = url,
