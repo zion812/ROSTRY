@@ -4,6 +4,8 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.pedigree.PedigreeRepository
 import com.rio.rostry.domain.pedigree.PedigreeTree
 import com.rio.rostry.domain.pedigree.PedigreeBird
+import com.rio.rostry.data.database.dao.BirdTraitRecordDao
+import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.utils.Resource
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -18,11 +20,13 @@ class BreedingServiceTest {
 
     private val pedigreeRepository = mockk<PedigreeRepository>()
     private val geneticPotentialService = mockk<com.rio.rostry.domain.service.GeneticPotentialService>()
+    private val traitRecordDao = mockk<BirdTraitRecordDao>(relaxed = true)
+    private val showRecordDao = mockk<ShowRecordDao>(relaxed = true)
     private lateinit var breedingService: BreedingService
 
     @Before
     fun setup() {
-        breedingService = BreedingService(pedigreeRepository, geneticPotentialService)
+        breedingService = BreedingService(pedigreeRepository, geneticPotentialService, traitRecordDao, showRecordDao)
     }
 
     @Test
