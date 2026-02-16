@@ -2733,6 +2733,24 @@ private fun RoleNavGraph(
             }
         }
         
+
+        // Bird Studio (Phase E/F)
+        composable(
+            route = Routes.EnthusiastNav.BIRD_STUDIO,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
+            if (productId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid product ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.digitalfarm.studio.BirdStudioScreen(
+                    birdId = productId,
+                    onBack = { navController.popBackStack() },
+                    onNavigateUp = { navController.popBackStack() }
+                )
+            }
+        }
+
         // ============ END: Missing Screen Registrations ============
         
         composable(Routes.VERIFY_ENTHUSIAST_KYC) {
@@ -2746,6 +2764,27 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.enthusiast.verification.EnthusiastVerificationScreen(
                 onNavigateUp = { navController.popBackStack() }
             )
+        }
+
+
+        // Digital Farm Dashboard (Enthusiast)
+        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
+             com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
+                 onNavigateBack = { navController.popBackStack() },
+                 onNavigateToProduct = { birdId -> navController.navigate(Routes.Builders.productDetails(birdId)) },
+                 onNavigateToListProduct = { birdId -> 
+                     // TODO: Enthusiast selling flow
+                     navController.navigate(Routes.Builders.productDetails(birdId)) 
+                 },
+                 onNavigateToLogEggs = { unitId -> 
+                     // Navigate to Egg Collection or Hatchability
+                     navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION)
+                 },
+                 onNavigateToAddBird = { navController.navigate(Routes.EnthusiastNav.CREATE) },
+                 onNavigateToBirdStudio = { birdId -> 
+                     navController.navigate(Routes.EnthusiastNav.birdStudio(birdId)) 
+                 }
+             )
         }
 
         // Note: Admin routes are consolidated at the end of RoleNavGraph (lines 3031+)

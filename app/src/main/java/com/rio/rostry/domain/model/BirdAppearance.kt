@@ -59,8 +59,18 @@ data class BirdAppearance(
     // === V3 CUSTOM COLORS (Overrides PartColor if not null) ===
     val customPrimaryColor: Long? = null,   // ARGB Hex
     val customSecondaryColor: Long? = null, // ARGB Hex
-    val customAccentColor: Long? = null     // ARGB Hex
+    val customAccentColor: Long? = null,    // ARGB Hex
+    
+    // === V3 ENVIRONMENT ===
+    val background: StudioBackground = StudioBackground.STUDIO
 )
+
+enum class StudioBackground {
+    STUDIO,     // Neutral gradient
+    BARN,       // Wooden barn interior
+    OUTDOORS,   // Green field/nature
+    STAGE       // Spotlight / Show stage
+}
 
 // ==================== COMB ====================
 
@@ -822,6 +832,8 @@ fun BirdAppearance.toAppearanceJson(): String {
     customPrimaryColor?.let { parts.add("\"customPrimaryColor\":$it") }
     customSecondaryColor?.let { parts.add("\"customSecondaryColor\":$it") }
     customAccentColor?.let { parts.add("\"customAccentColor\":$it") }
+    // V3 Environment
+    parts.add("\"background\":\"${background.name}\"")
     return "{\"birdAppearance\":{${parts.joinToString(",")}}}"
 }
 
@@ -886,7 +898,8 @@ fun parseAppearanceFromJson(json: String): BirdAppearance? {
             combSize = extractNumber(json, "combSize")?.toFloatOrNull() ?: 0.5f,
             customPrimaryColor = extractNumber(json, "customPrimaryColor")?.toLongOrNull(),
             customSecondaryColor = extractNumber(json, "customSecondaryColor")?.toLongOrNull(),
-            customAccentColor = extractNumber(json, "customAccentColor")?.toLongOrNull()
+            customAccentColor = extractNumber(json, "customAccentColor")?.toLongOrNull(),
+            background = extractValue("background")?.let { runCatching { StudioBackground.valueOf(it) }.getOrNull() } ?: StudioBackground.STUDIO
         )
     } catch (e: Exception) {
         null
