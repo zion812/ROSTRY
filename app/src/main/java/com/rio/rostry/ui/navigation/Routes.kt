@@ -343,6 +343,9 @@ object Routes {
         fun showEntry(productId: String) = "enthusiast/show_entry/$productId"
 
         fun competitionDetail(competitionId: String) = "enthusiast/virtual_arena/$competitionId"
+        
+        const val JUDGING_MODE = "enthusiast/virtual_arena/{competitionId}/judge"
+        fun judgingMode(competitionId: String) = "enthusiast/virtual_arena/$competitionId/judge"
 
         // Enthusiast Premium Toolset - Phase A
         const val TRAIT_RECORDING = "enthusiast/trait_recording/{productId}"
@@ -358,6 +361,7 @@ object Routes {
 
         // Enthusiast Premium Toolset - Phase C
         const val MATE_FINDER = "enthusiast/mate_finder/{productId}"
+        const val BREEDING_SIMULATOR = "enthusiast/breeding_simulator"
         fun mateFinder(productId: String) = "enthusiast/mate_finder/$productId"
 
         // Enthusiast Premium Toolset - Phase D

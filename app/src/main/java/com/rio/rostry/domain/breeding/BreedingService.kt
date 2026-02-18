@@ -311,6 +311,76 @@ class BreedingService @Inject constructor(
     }
 
     /**
+     * Simulates a clutch of eggs by "rolling the dice" against the enhanced prediction probabilities.
+     */
+    suspend fun simulateClutch(sire: ProductEntity, dam: ProductEntity, clutchSize: Int = 3): List<SimulatedOffspring> {
+        val prediction = predictOffspringEnhanced(sire, dam)
+        val offspringList = mutableListOf<SimulatedOffspring>()
+
+        repeat(clutchSize) {
+            // 1. Roll Gender (50/50 approx, maybe slight skew in reality but 50/50 here)
+            val gender = if (Math.random() < 0.5) "Male" else "Female"
+
+            // 2. Roll Color
+            val colorRoll = Math.random()
+            var cumulativeProb = 0.0
+            var selectedColor = prediction.colorPrediction.keys.firstOrNull() ?: "Unknown"
+            
+            for ((color, prob) in prediction.colorPrediction) {
+                cumulativeProb += prob
+                if (colorRoll <= cumulativeProb) {
+                    selectedColor = color
+                    break
+                }
+            }
+
+            // 3. Roll Traits (Gaussian sample around predicted mean)
+            val traits = mutableMapOf<String, Float>()
+            var totalScore = 0f
+            var traitCount = 0
+            
+            prediction.predictedTraits.forEach { (name, range) ->
+                // Simple Box-Muller transform for normal distribution
+                // Mean = predicted, StdDev ≈ (high - low) / 4 (assuming range covers ~95% or +/- 2SD)
+                val stdDev = (range.high - range.low) / 4f
+                val u1 = Math.random()
+                val u2 = Math.random()
+                val z = kotlin.math.sqrt(-2.0 * kotlin.math.ln(u1)) * kotlin.math.cos(2.0 * kotlin.math.PI * u2)
+                
+                val sampledValue = (range.predicted + z * stdDev).toFloat()
+                    .coerceIn(0f, 10f) // Clamp to 0-10 scale
+                
+                traits[name] = sampledValue
+                totalScore += sampledValue
+                traitCount++
+            }
+            
+            // 4. Calculate simulated BVI (simplified average for now)
+            val bvi = if (traitCount > 0) (totalScore / traitCount) / 10f else 0.5f
+
+            // 5. Determine Quality based on BVI and Show Potential
+            val quality = when {
+                bvi >= 0.8f && prediction.showPotential == "Elite" -> "Show Quality"
+                bvi >= 0.7f -> "Breeder Quality"
+                else -> "Pet Quality"
+            }
+
+            offspringList.add(
+                SimulatedOffspring(
+                    gender = gender,
+                    color = selectedColor,
+                    breed = prediction.breedType,
+                    traits = traits,
+                    bvi = bvi,
+                    quality = quality
+                )
+            )
+        }
+        
+        return offspringList
+    }
+
+    /**
      * Advanced genetic analysis using potential service.
      */
     suspend fun analyzePairingPotential(sire: ProductEntity, dam: ProductEntity): com.rio.rostry.domain.service.GeneticPotentialResult {

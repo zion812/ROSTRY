@@ -15,11 +15,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +40,8 @@ import com.rio.rostry.domain.model.CompetitionStatus
 fun CompetitionDetailScreen(
     competitionId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToEntry: () -> Unit,
+    onNavigateToJudging: () -> Unit,
     viewModel: VirtualArenaViewModel = hiltViewModel()
 ) {
     // In a real app, this would be collected from a specific ID flow
@@ -54,6 +56,13 @@ fun CompetitionDetailScreen(
     // Tabs
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Overview", "Bracket", "Leaderboard", "Gallery")
+    
+    // Entry State
+    var showEntrySheet by remember { mutableStateOf(false) }
+    val eligibleBirds by viewModel.eligibleBirds.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState()
 
     Scaffold(
         topBar = {
@@ -65,6 +74,32 @@ fun CompetitionDetailScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            if (competition?.status == CompetitionStatus.UPCOMING || competition?.status == CompetitionStatus.LIVE) {
+                Column(horizontalAlignment = Alignment.End) {
+                    // Judging Button (only if live/judging phase)
+                    if (competition.status == CompetitionStatus.LIVE) {
+                        ExtendedFloatingActionButton(
+                            onClick = onNavigateToJudging,
+                            icon = { Icon(Icons.Default.EmojiEvents, "Judge") },
+                            text = { Text("Judge Competition") },
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+                    
+                    ExtendedFloatingActionButton(
+                        onClick = { 
+                            viewModel.loadEligibleBirds()
+                            showEntrySheet = true 
+                        },
+                        icon = { Icon(Icons.Default.Add, "Enter") },
+                        text = { Text("Enter Competition") },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
@@ -101,6 +136,105 @@ fun CompetitionDetailScreen(
                  Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                      CircularProgressIndicator()
                  }
+            }
+        }
+        
+        if (showEntrySheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showEntrySheet = false },
+                sheetState = sheetState
+            ) {
+                EntrySheet(
+                    eligibleBirds = eligibleBirds,
+                    isLoading = isLoading,
+                    onDismiss = { showEntrySheet = false },
+                    onEnter = { bird ->
+                        viewModel.enterCompetition(competitionId, bird)
+                        showEntrySheet = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EntrySheet(
+    eligibleBirds: List<com.rio.rostry.data.database.entity.ProductEntity>,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onEnter: (com.rio.rostry.data.database.entity.ProductEntity) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            "Select a Bird to Enter",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        
+        if (isLoading) {
+            Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (eligibleBirds.isEmpty()) {
+            Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                Text("No eligible birds found for this competition.", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(eligibleBirds) { bird ->
+                    BirdEntryCard(bird = bird, onClick = { onEnter(bird) })
+                }
+            }
+        }
+        
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun BirdEntryCard(bird: com.rio.rostry.data.database.entity.ProductEntity, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar
+            Surface(
+                modifier = Modifier.size(50.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                if (!bird.imageUrls.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = bird.imageUrls.first(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(bird.name.take(1), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            
+            Spacer(Modifier.width(16.dp))
+            
+            Column {
+                Text(bird.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(bird.breed ?: "Unknown Breed", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             }
         }
     }

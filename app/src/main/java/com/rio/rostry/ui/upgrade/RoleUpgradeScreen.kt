@@ -45,7 +45,8 @@ import com.rio.rostry.domain.model.UserType
 @Composable
 fun RoleUpgradeScreen(
     targetRole: UserType,
-    onNavigateBack: () -> Unit,
+    onBack: () -> Unit,
+    onNavigateUp: () -> Unit,
     onUpgradeComplete: () -> Unit,
     onNavigateToVerification: (com.rio.rostry.domain.model.UpgradeType) -> Unit,
     onNavigateToProfileEdit: (String) -> Unit,
@@ -322,7 +323,7 @@ fun RoleUpgradeScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     if (uiState.currentStep == RoleUpgradeViewModel.WizardStep.CURRENT_ROLE) {
-                        onNavigateBack()
+                        onBack()
                     } else {
                         viewModel.previousStep()
                     }

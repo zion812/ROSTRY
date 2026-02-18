@@ -131,7 +131,39 @@ class VirtualArenaViewModel @Inject constructor(
         loadCompetitions()
     }
     
+    
     fun clearError() {
         _error.value = null
+    }
+
+    // --- Entry Logic ---
+    
+    private val _eligibleBirds = MutableStateFlow<List<com.rio.rostry.data.database.entity.ProductEntity>>(emptyList())
+    val eligibleBirds = _eligibleBirds.asStateFlow()
+    
+    fun loadEligibleBirds() {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            try {
+                _eligibleBirds.value = repository.getEligibleBirds(userId)
+            } catch (e: Exception) {
+                // handle error
+            }
+        }
+    }
+    
+    fun enterCompetition(competitionId: String, bird: com.rio.rostry.data.database.entity.ProductEntity) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                 val userId = firebaseAuth.currentUser?.uid ?: return@launch
+                 repository.enterCompetition(competitionId, bird, userId)
+                 // Refresh or notify success
+            } catch (e: Exception) {
+                _error.value = "Failed to enter competition: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 }

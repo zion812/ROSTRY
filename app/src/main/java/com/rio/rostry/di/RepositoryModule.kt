@@ -229,6 +229,10 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindEnthusiastBreedingRepository(impl: EnthusiastBreedingRepositoryImpl): EnthusiastBreedingRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindBreedingPlanRepository(impl: com.rio.rostry.data.repository.BreedingPlanRepositoryImpl): com.rio.rostry.data.repository.BreedingPlanRepository
+
     // Sprint 1 repositories
     @Binds
     @Singleton

@@ -21,6 +21,11 @@ object AppCheckModule {
         
         // For now, we will still use the dynamic one but I'll add a placeholder 
         // that you can replace to make it permanent.
-        return DebugAppCheckProviderFactory.getInstance()
+        val provider = DebugAppCheckProviderFactory.getInstance()
+        // Log instructions for the developer to easily find this in Logcat
+        timber.log.Timber.e("!!! APP CHECK DEBUG TOKEN !!!")
+        timber.log.Timber.e("If you are running on a physical device, filter Logcat for 'Firebase App Check'.")
+        timber.log.Timber.e("Copy the token and add it to Firebase Console -> App Check -> Apps -> Manage debug tokens.")
+        return provider
     }
 }

@@ -49,7 +49,37 @@ fun parseAppearanceFromJson(json: String): BirdAppearance? {
             neck = obj.safeEnum("neck", NeckStyle.MEDIUM),
             breast = obj.safeEnum("breast", BreastShape.ROUND),
             skin = obj.safeEnum("skin", SkinColor.YELLOW),
-            headShape = obj.safeEnum("headShape", HeadShape.ROUND)
+            headShape = obj.safeEnum("headShape", HeadShape.ROUND),
+            
+            // Phase N: Digital Twin Profile
+            digitalTwinProfile = if (obj.has("digitalTwinProfile")) {
+                val dtObj = obj.getJSONObject("digitalTwinProfile")
+                com.rio.rostry.domain.digitaltwin.DigitalTwinProfile(
+                    structure = com.rio.rostry.domain.digitaltwin.StructureProfile(
+                        neckLength = dtObj.optDouble("neckLength", 0.5).toFloat(),
+                        legLength = dtObj.optDouble("legLength", 0.5).toFloat(),
+                        boneThickness = dtObj.optDouble("boneThickness", 0.5).toFloat(),
+                        chestDepth = dtObj.optDouble("chestDepth", 0.5).toFloat(),
+                        featherTightness = dtObj.optDouble("featherTightness", 0.5).toFloat(),
+                        tailCarriage = dtObj.optDouble("tailCarriage", 0.5).toFloat(),
+                        postureAngle = dtObj.optDouble("postureAngle", 0.5).toFloat(),
+                        bodyWidth = dtObj.optDouble("bodyWidth", 0.5).toFloat()
+                    ),
+                    color = com.rio.rostry.domain.digitaltwin.ColorProfile(
+                        baseType = dtObj.safeEnum("baseColorType", com.rio.rostry.domain.digitaltwin.BaseColorType.MIXED),
+                        distribution = dtObj.safeEnum("distributionMap", com.rio.rostry.domain.digitaltwin.DistributionMap.MULTI_PATCH),
+                        sheen = dtObj.safeEnum("sheenLevel", com.rio.rostry.domain.digitaltwin.SheenLevel.GLOSS),
+                        primaryColorHex = dtObj.optLong("primaryColorHex", 0xFF212121),
+                        secondaryColorHex = dtObj.optLong("secondaryColorHex", 0xFFB71C1C),
+                        accentColorHex = dtObj.optLong("accentColorHex", 0xFF1B5E20)
+                    ),
+                    ageStage = dtObj.safeEnum("ageStage", com.rio.rostry.domain.digitaltwin.AgeStage.ADULT),
+                    asiScore = com.rio.rostry.domain.digitaltwin.AseelStructuralIndex(
+                        score = dtObj.optInt("asiScore", 0),
+                        validationWarnings = emptyList()
+                    )
+                )
+            } else null
         )
     } catch (e: Exception) {
         e.printStackTrace()

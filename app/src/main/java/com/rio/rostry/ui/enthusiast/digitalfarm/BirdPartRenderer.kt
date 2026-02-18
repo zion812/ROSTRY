@@ -173,12 +173,16 @@ object BirdPartRenderer {
         }
 
         // Main body with Procedural Feathers
+        // Secondary color for patterns (usually chest/black is the contrast)
+        val patternColor = resolveColor(a.chestColor.color, a.customSecondaryColor)
+        
         drawFeatheredOval(
             centerX = x,
             centerY = y - bodyH * 0.6f * heightMod, // approximations based on original logic
             width = bodyW * 2f * widthMod,
             height = bodyH * 1.6f * heightMod,
             color = bodyColor,
+            secondaryColor = patternColor,
             s = s,
             pattern = a.wingPattern
         )
@@ -230,7 +234,7 @@ object BirdPartRenderer {
     private fun DrawScope.drawFeatheredOval(
         centerX: Float, centerY: Float,
         width: Float, height: Float,
-        color: Color, s: Float,
+        color: Color, secondaryColor: Color, s: Float,
         pattern: PlumagePattern?
     ) {
         // 1. Draw solid base (slightly smaller) to prevent gaps
@@ -275,6 +279,7 @@ object BirdPartRenderer {
                         y = rowY + randY, 
                         size = featherSize, 
                         color = color, 
+                        secondaryColor = secondaryColor,
                         pattern = pattern, 
                         s = s
                     )
@@ -286,7 +291,8 @@ object BirdPartRenderer {
     private fun DrawScope.drawIndividualFeather(
         x: Float, y: Float, 
         size: Float, 
-        color: Color, 
+        color: Color,
+        secondaryColor: Color, 
         pattern: PlumagePattern?,
         s: Float
     ) {
@@ -302,7 +308,6 @@ object BirdPartRenderer {
         drawPath(fPath, color)
         
         // Simple shading (lighter top, darker bottom)
-        // This gives distinct "feather" look vs solid block
         val gradient = Brush.verticalGradient(
             colors = listOf(Color.White.copy(alpha=0.15f), Color.Transparent, Color.Black.copy(alpha=0.05f)),
             startY = y,
@@ -310,28 +315,79 @@ object BirdPartRenderer {
         )
         drawPath(fPath, gradient)
 
-        // Pattern logic (Miniaturized for single feather)
+        // Pattern logic (Real Layering)
         if (pattern != null) {
             when (pattern) {
                 PlumagePattern.LACED -> {
-                    // Dark rim
-                    drawPath(fPath, Color.Black.copy(alpha=0.3f), style = Stroke(width = 1.5f * s))
+                    // Dark rim around the feather
+                    drawPath(fPath, secondaryColor, style = Stroke(width = 1.5f * s))
+                }
+                PlumagePattern.DOUBLE_LACED -> {
+                    // Outer rim
+                    drawPath(fPath, secondaryColor, style = Stroke(width = 1.5f * s))
+                    // Inner rim
+                    val innerPath = Path().apply {
+                        moveTo(x, y + size * 0.3f)
+                        quadraticBezierTo(x + size * 0.3f, y + size * 0.7f, x, y + size * 1.0f)
+                        quadraticBezierTo(x - size * 0.3f, y + size * 0.7f, x, y + size * 0.3f)
+                        close()
+                    }
+                    drawPath(innerPath, secondaryColor, style = Stroke(width = 1.2f * s))
                 }
                 PlumagePattern.BARRED -> {
-                    // Stripe across feather
-                    drawLine(
-                        color = Color.White.copy(alpha=0.3f),
-                        start = Offset(x - size*0.3f, y + size*0.5f),
-                        end = Offset(x + size*0.3f, y + size*0.5f),
-                        strokeWidth = 2f * s
-                    )
+                    // Stripes across feather (Cuckoo)
+                    // Clip to feather shape
+                    clipPath(fPath) {
+                        for (i in 1..3) {
+                            val barY = y + size * (0.3f + i * 0.2f)
+                            drawLine(
+                                color = secondaryColor.copy(alpha=0.8f),
+                                start = Offset(x - size, barY),
+                                end = Offset(x + size, barY),
+                                strokeWidth = 2.5f * s,
+                                cap = StrokeCap.Round // Slightly curved bars?
+                            )
+                        }
+                    }
                 }
                 PlumagePattern.MOTTLED -> {
-                    // Dark Tip
-                     drawCircle(Color.Black.copy(alpha=0.4f), radius = size*0.2f, center = Offset(x, y + size*0.8f))
+                    // Tip is secondary color (usually White or Black)
+                    clipPath(fPath) {
+                        drawCircle(secondaryColor, radius = size * 0.25f, center = Offset(x, y + size * 1.1f))
+                    }
                 }
                 PlumagePattern.SPECKLED -> {
-                    drawCircle(Color.White.copy(alpha=0.4f), radius = size*0.15f, center = Offset(x, y + size*0.4f))
+                    // Random dots
+                    clipPath(fPath) {
+                        drawCircle(secondaryColor, radius = size * 0.1f, center = Offset(x - size*0.2f, y + size*0.5f))
+                        drawCircle(secondaryColor, radius = size * 0.12f, center = Offset(x + size*0.15f, y + size*0.7f))
+                    }
+                }
+                PlumagePattern.PENCILED -> {
+                    // Fine concentric lines
+                    clipPath(fPath) {
+                         for (i in 1..3) {
+                             drawCircle(
+                                 color = secondaryColor,
+                                 radius = size * (0.9f - i * 0.2f),
+                                 center = Offset(x, y + size * 0.4f), // Offset center slightly up
+                                 style = Stroke(width = 0.8f * s)
+                             )
+                         }
+                    }
+                }
+                PlumagePattern.SPANGLED -> {
+                     // Large spot at tip
+                     clipPath(fPath) {
+                        drawCircle(secondaryColor, radius = size * 0.3f, center = Offset(x, y + size * 1.0f))
+                     }
+                }
+                PlumagePattern.SPLASH -> {
+                    // Messy random splashes
+                    clipPath(fPath) {
+                        drawLine(secondaryColor, Offset(x, y+size*0.2f), Offset(x+size*0.2f, y+size*0.8f), strokeWidth=2f*s)
+                        drawLine(secondaryColor, Offset(x-size*0.1f, y+size*0.4f), Offset(x+size*0.1f, y+size*0.9f), strokeWidth=1.5f*s)
+                    }
                 }
                 else -> {}
             }
@@ -363,10 +419,11 @@ object BirdPartRenderer {
             drawRect(chestColor, topLeft = Offset(x, y - bodyH * 1.2f), size = Size(bodyW, bodyH * 1.2f))
             
             // Draw feathers
+            val patternColor = resolveColor(a.backColor.color, a.customPrimaryColor) // Chest pattern uses Back color usually
             drawFeatheredRect(
                 left = x, top = y - bodyH * 1.2f,
                 width = bodyW, height = bodyH * 1.2f,
-                color = chestColor, s = s, pattern = a.chest
+                color = chestColor, secondaryColor = patternColor, s = s, pattern = a.chest
             )
         }
     }
@@ -409,10 +466,11 @@ object BirdPartRenderer {
                      // Draw solid base
                      drawRect(wingColor, topLeft = Offset(x - bodyW, y - bodyH * 2), size = Size(bodyW*2, bodyH*2))
                      
+                     val patternColor = resolveColor(a.chestColor.color, a.customSecondaryColor)
                      drawFeatheredRect(
                         left = x - bodyW * 0.4f, top = y - bodyH * 1.1f,
                         width = bodyW * 1.3f, height = bodyH * 1f,
-                        color = wingColor, s = s, pattern = a.wingPattern
+                        color = wingColor, secondaryColor = patternColor, s = s, pattern = a.wingPattern
                      )
                 }
                 
@@ -435,10 +493,11 @@ object BirdPartRenderer {
                 }
                 clipPath(wingPath) {
                     drawRect(wingColor.copy(alpha=0.85f), topLeft = Offset(x-bodyW*2, y-bodyH*2), size = Size(bodyW*3, bodyH*3))
+                    val patternColor = resolveColor(a.chestColor.color, a.customSecondaryColor)
                     drawFeatheredRect(
                         left = x - bodyW * 2f, top = y - bodyH * 2f,
                         width = bodyW * 3f, height = bodyH * 3f,
-                        color = wingColor, s = s, pattern = a.wingPattern
+                        color = wingColor, secondaryColor = patternColor, s = s, pattern = a.wingPattern
                     )
                 }
             }
@@ -931,7 +990,7 @@ object BirdPartRenderer {
 
     private fun DrawScope.drawFeatheredRect(
         left: Float, top: Float, width: Float, height: Float,
-        color: Color, s: Float, pattern: PlumagePattern?
+        color: Color, secondaryColor: Color, s: Float, pattern: PlumagePattern?
     ) {
          // Similar loop but simpler width logic (constant width)
          val featherSize = 10f * s
@@ -957,6 +1016,7 @@ object BirdPartRenderer {
                     y = rowY + randY, 
                     size = featherSize, 
                     color = color, 
+                    secondaryColor = secondaryColor,
                     pattern = pattern, 
                     s = s
                  )

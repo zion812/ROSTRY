@@ -17,4 +17,12 @@ class UserSessionManager @Inject constructor(private val firebaseAuth: FirebaseA
         firebaseAuth.addAuthStateListener(authStateListener)
         awaitClose { firebaseAuth.removeAuthStateListener(authStateListener) }
     }
+
+    val currentUser: Flow<com.google.firebase.auth.FirebaseUser?> = callbackFlow {
+        val authStateListener = FirebaseAuth.AuthStateListener { auth ->
+            trySend(auth.currentUser)
+        }
+        firebaseAuth.addAuthStateListener(authStateListener)
+        awaitClose { firebaseAuth.removeAuthStateListener(authStateListener) }
+    }
 }

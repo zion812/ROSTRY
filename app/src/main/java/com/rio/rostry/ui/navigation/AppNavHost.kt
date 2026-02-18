@@ -133,6 +133,10 @@ import com.rio.rostry.ui.social.profile.SocialProfileScreen
 import com.rio.rostry.ui.social.stories.StoryViewerScreen
 import com.rio.rostry.ui.social.stories.StoryCreatorScreen
 import com.rio.rostry.ui.social.discussion.DiscussionDetailScreen
+import com.rio.rostry.ui.enthusiast.breeding.simulator.BreedingSimulatorScreen
+import com.rio.rostry.ui.enthusiast.arena.VirtualArenaScreen
+import com.rio.rostry.ui.enthusiast.arena.CompetitionDetailScreen
+import com.rio.rostry.ui.enthusiast.digitalfarm.studio.BirdStudioScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -1498,6 +1502,22 @@ private fun RoleNavGraph(
         }
 
         composable(
+            route = Routes.EnthusiastNav.BIRD_COMPARISON,
+            arguments = listOf(navArgument("birdIds") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val birdIds = backStackEntry.arguments?.getString("birdIds") ?: ""
+            com.rio.rostry.ui.enthusiast.comparison.BirdComparisonScreen(
+                // birdIds passed via ViewModel or separate logic if needed, but here filtered list is just for logging? 
+                // Wait, BirdComparisonScreen signature doesn't take birdIds either! 
+                // It takes only viewModel and onNavigateBack.
+                // The prompt showed line 1510: birdIds = birdIds.split... 
+                // But the actual file BirdComparisonScreen.kt doesn't have birdIds param.
+                // I should remove birdIds too.
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
             route = Routes.EnthusiastNav.ROOSTER_CARD,
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -2364,7 +2384,11 @@ private fun RoleNavGraph(
             val competitionId = backStackEntry.arguments?.getString("competitionId") ?: ""
             com.rio.rostry.ui.enthusiast.arena.CompetitionDetailScreen(
                 competitionId = competitionId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEntry = { /* TODO: Implement entry flow if separated */ },
+                onNavigateToJudging = { 
+                    navController.navigate(Routes.EnthusiastNav.judgingMode(competitionId))
+                }
             )
         }
         
@@ -2480,6 +2504,62 @@ private fun RoleNavGraph(
             )
         }
         
+        // Virtual Arena
+        composable(Routes.EnthusiastNav.VIRTUAL_ARENA) {
+            VirtualArenaScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToStatus = { competitionId -> 
+                    navController.navigate(Routes.EnthusiastNav.competitionDetail(competitionId)) 
+                }
+            )
+        }
+        
+        composable(
+            route = Routes.EnthusiastNav.COMPETITION_DETAIL,
+            arguments = listOf(navArgument("competitionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val competitionId = backStackEntry.arguments?.getString("competitionId") ?: ""
+            CompetitionDetailScreen(
+                competitionId = competitionId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEntry = { /* TODO: Implement entry flow if separated */ },
+                onNavigateToJudging = { 
+                    navController.navigate(Routes.EnthusiastNav.judgingMode(competitionId))
+                }
+            )
+        }
+
+        composable(
+            route = Routes.EnthusiastNav.JUDGING_MODE,
+            arguments = listOf(navArgument("competitionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val competitionId = backStackEntry.arguments?.getString("competitionId") ?: ""
+            com.rio.rostry.ui.enthusiast.arena.JudgingScreen(
+                competitionId = competitionId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Breeding Simulator
+        composable(Routes.EnthusiastNav.BREEDING_SIMULATOR) {
+            BreedingSimulatorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Bird Studio
+        composable(
+            route = Routes.EnthusiastNav.BIRD_STUDIO,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            BirdStudioScreen(
+                birdId = productId,
+                onBack = { navController.popBackStack() },
+                onNavigateUp = { navController.navigateUp() }
+            )
+        }
+        
         // ============ END: Missing Enthusiast Routes ============
 
         composable(Routes.PROFILE) {
@@ -2520,7 +2600,8 @@ private fun RoleNavGraph(
             } else {
                 com.rio.rostry.ui.upgrade.RoleUpgradeScreen(
                     targetRole = targetRole,
-                    onNavigateBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
+                    onNavigateUp = { navController.navigateUp() },
                     onUpgradeComplete = {
                         navController.navigate(Routes.Builders.upgradePostOnboarding(targetRole)) {
                             popUpTo(Routes.UPGRADE_WIZARD) { inclusive = true }
@@ -2703,7 +2784,11 @@ private fun RoleNavGraph(
             val competitionId = backStackEntry.arguments?.getString("competitionId") ?: return@composable
             com.rio.rostry.ui.enthusiast.arena.CompetitionDetailScreen(
                 competitionId = competitionId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEntry = { /* TODO: Implement entry flow if separated */ },
+                onNavigateToJudging = { 
+                    navController.navigate(Routes.EnthusiastNav.judgingMode(competitionId))
+                }
             )
         }
 
@@ -2749,6 +2834,120 @@ private fun RoleNavGraph(
                     onNavigateUp = { navController.popBackStack() }
                 )
             }
+        }
+
+        // Show Records Screen
+        composable(
+            route = Routes.EnthusiastNav.SHOW_RECORDS,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.show.ShowRecordsScreen(
+                birdId = productId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // --- Enthusiast Premium Toolset Routes ---
+
+        // Bird Profile (Passport View)
+        composable(
+            route = Routes.EnthusiastNav.BIRD_PROFILE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.lineage.BirdProfileScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToTraitRecording = { id -> navController.navigate(Routes.EnthusiastNav.traitRecording(id)) },
+                onNavigateToHealthLog = { id -> navController.navigate(Routes.EnthusiastNav.healthLog(id)) },
+                onNavigateToPedigree = { id -> navController.navigate(Routes.EnthusiastNav.pedigree(id)) },
+                onNavigateToLineageExplorer = { id -> navController.navigate(Routes.EnthusiastNav.lineageExplorer(id)) },
+                onNavigateToMateFinder = { id -> navController.navigate(Routes.EnthusiastNav.mateFinder(id)) },
+                onNavigateToShowRecords = { id -> navController.navigate(Routes.EnthusiastNav.showRecords(id)) }
+            )
+        }
+
+        // Trait Recording
+        composable(
+            route = Routes.EnthusiastNav.TRAIT_RECORDING,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.lineage.TraitRecordingScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Health Log
+        composable(
+            route = Routes.EnthusiastNav.HEALTH_LOG,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.lineage.HealthLogScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Pedigree View
+        composable(
+            route = Routes.EnthusiastNav.PEDIGREE,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.pedigree.PedigreeScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onBirdClick = { id -> navController.navigate(Routes.EnthusiastNav.pedigree(id)) },
+                onNavigateToExport = { id -> navController.navigate(Routes.EnthusiastNav.pedigreeExport(id)) },
+                onNavigateToShowRecords = { id -> navController.navigate(Routes.EnthusiastNav.showRecords(id)) }
+            )
+        }
+
+        // Pedigree Export
+        composable(
+            route = Routes.EnthusiastNav.PEDIGREE_EXPORT,
+            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            // ViewModel gets birdId from SavedStateHandle
+            com.rio.rostry.ui.enthusiast.pedigree.export.PedigreeExportScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Lineage Explorer
+        composable(
+            route = Routes.EnthusiastNav.LINEAGE_EXPLORER,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.lineage.LineageExplorerScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBirdProfile = { id -> navController.navigate(Routes.EnthusiastNav.birdProfile(id)) }
+            )
+        }
+
+        // Mate Finder
+        composable(
+            route = Routes.EnthusiastNav.MATE_FINDER,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            com.rio.rostry.ui.enthusiast.breeding.MateFinderScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBirdProfile = { id -> navController.navigate(Routes.EnthusiastNav.birdProfile(id)) }
+            )
+        }
+
+        // Breeding Simulator
+        composable(route = Routes.EnthusiastNav.BREEDING_SIMULATOR) {
+            com.rio.rostry.ui.enthusiast.breeding.simulator.BreedingSimulatorScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         // ============ END: Missing Screen Registrations ============
@@ -3484,6 +3683,55 @@ private fun RoleNavGraph(
         }
         composable(Routes.ONBOARD_ENTHUSIAST) {
             com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.ENTHUSIAST, onComplete = { navController.popBackStack() })
+        }
+
+        // Digital Farm - Evolutionary Visuals
+        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
+            com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onNavigateToListProduct = { productId -> navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId)) }, // Reusing farmer flow for now
+                onNavigateToLogEggs = { unitId -> navController.navigate(Routes.Monitoring.DAILY_LOG) }, // Placeholder
+                onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird()) },
+                onNavigateToBirdStudio = { productId -> navController.navigate(Routes.EnthusiastNav.birdStudio(productId)) }
+            )
+        }
+
+        // Bird Studio - Appearance Editor
+        composable(
+            route = Routes.EnthusiastNav.BIRD_STUDIO,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.digitalfarm.studio.BirdStudioScreen(
+                birdId = productId,
+                onBack = { navController.popBackStack() },
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+
+        // Show Records
+        composable(
+            route = Routes.EnthusiastNav.SHOW_RECORDS,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.showrecords.ShowRecordsScreen(
+                birdId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Show Entry Stub
+        composable(
+            route = Routes.EnthusiastNav.SHOW_ENTRY,
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            com.rio.rostry.ui.enthusiast.show.ShowEntryScreen(
+                productId = productId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
 

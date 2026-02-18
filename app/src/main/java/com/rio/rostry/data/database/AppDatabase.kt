@@ -148,9 +148,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Breeding System (Phase 12 - Clutch Tracking)
         ClutchEntity::class,
         // Enthusiast Premium Toolset - Bird Trait Records
-        BirdTraitRecordEntity::class
+        BirdTraitRecordEntity::class,
+        // Breeding Plans (Phase M)
+        BreedingPlanEntity::class,
+        // Virtual Arena (Phase L)
+        ArenaParticipantEntity::class
     ],
-    version = 79, // 78 -> 79 (Added BirdTraitRecordEntity for Enthusiast trait system)
+    version = 81, // 80 -> 81 (Added ArenaParticipantEntity)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -301,6 +305,12 @@ abstract class AppDatabase : RoomDatabase() {
 
     // Bird Trait Records DAO (Enthusiast Premium Toolset)
     abstract fun birdTraitRecordDao(): BirdTraitRecordDao
+    
+    // Breeding Plan DAO (Phase M)
+    abstract fun breedingPlanDao(): BreedingPlanDao
+    
+    // Virtual Arena Participant DAO (Phase L)
+    abstract fun arenaParticipantDao(): ArenaParticipantDao
 
     object Converters {
         @TypeConverter
@@ -686,6 +696,59 @@ abstract class AppDatabase : RoomDatabase() {
 
         // 66 -> 67
         // val MIGRATION_66_67 defined in companion object directly
+
+        // Add BreedingPlanEntity (79 -> 80)
+        val MIGRATION_79_80 = object : Migration(79, 80) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `breeding_plans` (
+                        `planId` TEXT NOT NULL,
+                        `farmerId` TEXT NOT NULL,
+                        `sireId` TEXT,
+                        `sireName` TEXT,
+                        `damId` TEXT,
+                        `damName` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `note` TEXT,
+                        `simulatedOffspringJson` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `priority` INTEGER NOT NULL,
+                        PRIMARY KEY(`planId`),
+                        FOREIGN KEY(`sireId`) REFERENCES `products`(`productId`) ON DELETE SET NULL,
+                        FOREIGN KEY(`damId`) REFERENCES `products`(`productId`) ON DELETE SET NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_plans_sireId` ON `breeding_plans` (`sireId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_plans_damId` ON `breeding_plans` (`damId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_breeding_plans_farmerId` ON `breeding_plans` (`farmerId`)")
+            }
+        }
+
+        // Add ArenaParticipantEntity for Virtual Arena (80 -> 81)
+        val MIGRATION_80_81 = object : Migration(80, 81) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `arena_participants` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `competitionId` TEXT NOT NULL,
+                        `birdId` TEXT NOT NULL,
+                        `ownerId` TEXT NOT NULL,
+                        `birdName` TEXT NOT NULL,
+                        `birdImageUrl` TEXT,
+                        `breed` TEXT NOT NULL,
+                        `entryTime` INTEGER NOT NULL,
+                        `totalVotes` INTEGER NOT NULL DEFAULT 0,
+                        `averageScore` REAL NOT NULL DEFAULT 0.0,
+                        `rank` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`birdId`) REFERENCES `products`(`productId`) ON DELETE CASCADE,
+                        FOREIGN KEY(`competitionId`) REFERENCES `competitions`(`competitionId`) ON DELETE CASCADE
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_arena_participants_birdId` ON `arena_participants` (`birdId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_arena_participants_competitionId` ON `arena_participants` (`competitionId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_arena_participants_ownerId` ON `arena_participants` (`ownerId`)")
+            }
+        }
 
 
         

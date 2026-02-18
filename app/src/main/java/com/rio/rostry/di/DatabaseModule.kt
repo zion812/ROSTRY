@@ -723,4 +723,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideMedicalEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.MedicalEventDao = db.medicalEventDao()
+
+    @Provides
+    @Singleton
+    fun provideBreedingPlanDao(db: AppDatabase): com.rio.rostry.data.database.dao.BreedingPlanDao = db.breedingPlanDao()
+
+    @Provides
+    @Singleton
+    fun provideArenaParticipantDao(db: AppDatabase): com.rio.rostry.data.database.dao.ArenaParticipantDao = db.arenaParticipantDao()
 }

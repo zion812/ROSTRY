@@ -43,6 +43,7 @@ data class BirdAppearance(
     val breast: BreastShape = BreastShape.ROUND,
     val skin: SkinColor = SkinColor.YELLOW,
     val headShape: HeadShape = HeadShape.ROUND,
+    val neckLength: Float? = null, // V3 Morph Target for Neck Length (0.0 - 1.0)
     
     // === V3 MORPH TARGETS (0.0 - 1.0, Default 0.5) ===
     val beakScale: Float = 0.5f,
@@ -62,7 +63,13 @@ data class BirdAppearance(
     val customAccentColor: Long? = null,    // ARGB Hex
     
     // === V3 ENVIRONMENT ===
-    val background: StudioBackground = StudioBackground.STUDIO
+    val background: StudioBackground = StudioBackground.STUDIO,
+
+    // === PHASE H: LOCAL CLASSIFICATION ===
+    val localType: LocalBirdType? = null, // Auto-classified or manually overridden
+    
+    // === PHASE N: ASEEL DIGITAL TWIN 2.0 ===
+    val digitalTwinProfile: com.rio.rostry.domain.digitaltwin.DigitalTwinProfile? = null
 )
 
 enum class StudioBackground {
@@ -107,7 +114,8 @@ enum class PlumagePattern {
     COLUMBIAN,  // White body, dark neck/tail (Light Brahma)
     SPLASH,     // Random blue-gray splashes (Blue Cochin)
     BUFF,       // Golden-tan solid (Buff Orpington)
-    DOUBLE_LACED // Double ring pattern (Barnevelder)
+    DOUBLE_LACED, // Double ring pattern (Barnevelder)
+    SPANGLED    // Large white/black spot at tip (Hamburg)
 }
 
 // ==================== BACK ====================
@@ -819,6 +827,7 @@ fun BirdAppearance.toAppearanceJson(): String {
     parts.add("\"skin\":\"${skin.name}\"")
     parts.add("\"headShape\":\"${headShape.name}\"")
     // V3 fields
+    parts.add("\"neckLength\":${neckLength ?: 0.5f}")
     parts.add("\"beakScale\":$beakScale")
     parts.add("\"beakCurvature\":$beakCurvature")
     parts.add("\"tailAngle\":$tailAngle")
@@ -834,6 +843,36 @@ fun BirdAppearance.toAppearanceJson(): String {
     customAccentColor?.let { parts.add("\"customAccentColor\":$it") }
     // V3 Environment
     parts.add("\"background\":\"${background.name}\"")
+    
+    // Phase N: Digital Twin Profile
+    digitalTwinProfile?.let { dt ->
+        val dtParts = mutableListOf<String>()
+        // Structure
+        dtParts.add("\"neckLength\":${dt.structure.neckLength}")
+        dtParts.add("\"legLength\":${dt.structure.legLength}")
+        dtParts.add("\"boneThickness\":${dt.structure.boneThickness}")
+        dtParts.add("\"chestDepth\":${dt.structure.chestDepth}")
+        dtParts.add("\"featherTightness\":${dt.structure.featherTightness}")
+        dtParts.add("\"tailCarriage\":${dt.structure.tailCarriage}")
+        dtParts.add("\"postureAngle\":${dt.structure.postureAngle}")
+        dtParts.add("\"bodyWidth\":${dt.structure.bodyWidth}")
+        
+        // Color DNA
+        dtParts.add("\"baseColorType\":\"${dt.color.baseType.name}\"")
+        dtParts.add("\"distributionMap\":\"${dt.color.distribution.name}\"")
+        dtParts.add("\"sheenLevel\":\"${dt.color.sheen.name}\"")
+        dtParts.add("\"primaryColorHex\":${dt.color.primaryColorHex}")
+        dtParts.add("\"secondaryColorHex\":${dt.color.secondaryColorHex}")
+        dtParts.add("\"accentColorHex\":${dt.color.accentColorHex}")
+        
+        // Age & ASI
+        dtParts.add("\"ageStage\":\"${dt.ageStage.name}\"")
+        dtParts.add("\"asiScore\":${dt.asiScore.score}")
+        // We don't serialize validationWarnings as they are computed
+        
+        parts.add("\"digitalTwinProfile\":{${dtParts.joinToString(",")}}")
+    }
+
     return "{\"birdAppearance\":{${parts.joinToString(",")}}}"
 }
 
@@ -844,11 +883,7 @@ fun BirdAppearance.toAppearanceJson(): String {
 fun parseAppearanceFromJson(json: String): BirdAppearance? {
     if (!json.contains("birdAppearance")) return null
     return try {
-        fun extractValue(key: String): String? {
-            val pattern = "\"$key\":\"([^\"]+)\""
-            val regex = Regex(pattern)
-            return regex.find(json)?.groupValues?.get(1)
-        }
+        fun extractValue(key: String): String? = com.rio.rostry.domain.model.extractValue(json, key)
         BirdAppearance(
             comb = extractValue("comb")?.let { runCatching { CombStyle.valueOf(it) }.getOrNull() } ?: CombStyle.SINGLE,
             combColor = extractValue("combColor")?.let { runCatching { PartColor.valueOf(it) }.getOrNull() } ?: PartColor.RED,
@@ -885,7 +920,9 @@ fun parseAppearanceFromJson(json: String): BirdAppearance? {
             skin = extractValue("skin")?.let { runCatching { SkinColor.valueOf(it) }.getOrNull() } ?: SkinColor.YELLOW,
             headShape = extractValue("headShape")?.let { runCatching { HeadShape.valueOf(it) }.getOrNull() } ?: HeadShape.ROUND,
             
+            
             // V3 fields
+            neckLength = extractNumber(json, "neckLength")?.toFloatOrNull(),
             beakScale = extractNumber(json, "beakScale")?.toFloatOrNull() ?: 0.5f,
             beakCurvature = extractNumber(json, "beakCurvature")?.toFloatOrNull() ?: 0.5f,
             tailAngle = extractNumber(json, "tailAngle")?.toFloatOrNull() ?: 0.5f,
@@ -896,18 +933,54 @@ fun parseAppearanceFromJson(json: String): BirdAppearance? {
             legThickness = extractNumber(json, "legThickness")?.toFloatOrNull() ?: 0.5f,
             legLength = extractNumber(json, "legLength")?.toFloatOrNull() ?: 0.5f,
             combSize = extractNumber(json, "combSize")?.toFloatOrNull() ?: 0.5f,
-            customPrimaryColor = extractNumber(json, "customPrimaryColor")?.toLongOrNull(),
             customSecondaryColor = extractNumber(json, "customSecondaryColor")?.toLongOrNull(),
             customAccentColor = extractNumber(json, "customAccentColor")?.toLongOrNull(),
-            background = extractValue("background")?.let { runCatching { StudioBackground.valueOf(it) }.getOrNull() } ?: StudioBackground.STUDIO
+            background = extractValue("background")?.let { runCatching { StudioBackground.valueOf(it) }.getOrNull() } ?: StudioBackground.STUDIO,
+            
+            // Phase N: Digital Twin Profile
+            digitalTwinProfile = if (json.contains("digitalTwinProfile")) {
+                val dtJson = json.substringAfter("\"digitalTwinProfile\":{").substringBefore("}")
+                com.rio.rostry.domain.digitaltwin.DigitalTwinProfile(
+                    structure = com.rio.rostry.domain.digitaltwin.StructureProfile(
+                        neckLength = extractNumber(dtJson, "neckLength")?.toFloatOrNull() ?: 0.5f,
+                        legLength = extractNumber(dtJson, "legLength")?.toFloatOrNull() ?: 0.5f,
+                        boneThickness = extractNumber(dtJson, "boneThickness")?.toFloatOrNull() ?: 0.5f,
+                        chestDepth = extractNumber(dtJson, "chestDepth")?.toFloatOrNull() ?: 0.5f,
+                        featherTightness = extractNumber(dtJson, "featherTightness")?.toFloatOrNull() ?: 0.5f,
+                        tailCarriage = extractNumber(dtJson, "tailCarriage")?.toFloatOrNull() ?: 0.5f,
+                        postureAngle = extractNumber(dtJson, "postureAngle")?.toFloatOrNull() ?: 0.5f,
+                        bodyWidth = extractNumber(dtJson, "bodyWidth")?.toFloatOrNull() ?: 0.5f
+                    ),
+                    color = com.rio.rostry.domain.digitaltwin.ColorProfile(
+                        baseType = extractValue(dtJson, "baseColorType")?.let { runCatching { com.rio.rostry.domain.digitaltwin.BaseColorType.valueOf(it) }.getOrNull() } ?: com.rio.rostry.domain.digitaltwin.BaseColorType.MIXED,
+                        distribution = extractValue(dtJson, "distributionMap")?.let { runCatching { com.rio.rostry.domain.digitaltwin.DistributionMap.valueOf(it) }.getOrNull() } ?: com.rio.rostry.domain.digitaltwin.DistributionMap.MULTI_PATCH,
+                        sheen = extractValue(dtJson, "sheenLevel")?.let { runCatching { com.rio.rostry.domain.digitaltwin.SheenLevel.valueOf(it) }.getOrNull() } ?: com.rio.rostry.domain.digitaltwin.SheenLevel.GLOSS,
+                        primaryColorHex = extractNumber(dtJson, "primaryColorHex")?.toLongOrNull() ?: 0xFF212121,
+                        secondaryColorHex = extractNumber(dtJson, "secondaryColorHex")?.toLongOrNull() ?: 0xFFB71C1C,
+                        accentColorHex = extractNumber(dtJson, "accentColorHex")?.toLongOrNull() ?: 0xFF1B5E20
+                    ),
+                    ageStage = extractValue(dtJson, "ageStage")?.let { runCatching { com.rio.rostry.domain.digitaltwin.AgeStage.valueOf(it) }.getOrNull() } ?: com.rio.rostry.domain.digitaltwin.AgeStage.ADULT,
+                    asiScore = com.rio.rostry.domain.digitaltwin.AseelStructuralIndex(
+                        score = extractNumber(dtJson, "asiScore")?.toIntOrNull() ?: 0,
+                        validationWarnings = emptyList() // Re-validate on load if needed
+                    )
+                )
+            } else null
         )
     } catch (e: Exception) {
         null
     }
 }
 
+// Helper to extract values from substring
+fun extractValue(json: String, key: String): String? {
+    val pattern = "\"$key\"\\s*:\\s*\"([^\"]+)\""
+    val regex = Regex(pattern)
+    return regex.find(json)?.groupValues?.get(1)
+}
+
 fun extractNumber(json: String, key: String): String? {
-    val pattern = "\"$key\":([0-9.-]+)"
+    val pattern = "\"$key\"\\s*:\\s*([0-9.-]+)"
     val regex = Regex(pattern)
     return regex.find(json)?.groupValues?.get(1)
 }

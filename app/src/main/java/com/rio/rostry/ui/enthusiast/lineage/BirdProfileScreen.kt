@@ -53,6 +53,7 @@ fun BirdProfileScreen(
     onNavigateToPedigree: (String) -> Unit,
     onNavigateToLineageExplorer: (String) -> Unit = {},
     onNavigateToMateFinder: (String) -> Unit = {},
+    onNavigateToShowRecords: (String) -> Unit = {},
     viewModel: BirdProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -113,7 +114,8 @@ fun BirdProfileScreen(
                         onHealthLog = onNavigateToHealthLog,
                         onPedigree = onNavigateToPedigree,
                         onLineageExplorer = onNavigateToLineageExplorer,
-                        onMateFinder = onNavigateToMateFinder
+                        onMateFinder = onNavigateToMateFinder,
+                        onShowRecords = onNavigateToShowRecords
                     )
                 }
 
@@ -290,7 +292,8 @@ private fun QuickActionsRow(
     onHealthLog: (String) -> Unit,
     onPedigree: (String) -> Unit,
     onLineageExplorer: (String) -> Unit,
-    onMateFinder: (String) -> Unit
+    onMateFinder: (String) -> Unit,
+    onShowRecords: (String) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -337,7 +340,14 @@ private fun QuickActionsRow(
             modifier = Modifier.weight(1f),
             onClick = { onMateFinder(productId) }
         )
-        Spacer(modifier = Modifier.weight(3f))
+        QuickActionButton(
+            icon = Icons.Filled.EmojiEvents,
+            label = "Show\nRecords",
+            color = GoldAccent,
+            modifier = Modifier.weight(1f),
+            onClick = { onShowRecords(productId) }
+        )
+        Spacer(modifier = Modifier.weight(2f))
     }
 }
 
