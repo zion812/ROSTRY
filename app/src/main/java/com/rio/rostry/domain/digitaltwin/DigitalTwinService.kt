@@ -387,6 +387,67 @@ class DigitalTwinService @Inject constructor(
         )
     }
 
+    // ==================== MANUAL GRADING ====================
+
+    /**
+     * Submit manual morphology grades for a bird (replaces AI analysis).
+     * Updates the twin's metadata and re-runs valuation.
+     */
+    suspend fun submitManualGrading(birdId: String, grades: ManualMorphologyGrades) {
+        val twin = twinDao.getByBirdId(birdId) ?: return
+
+        // 1. Serialize grades into metadataJson
+        val currentMeta = try {
+            org.json.JSONObject(twin.metadataJson)
+        } catch (e: Exception) {
+            org.json.JSONObject()
+        }
+
+        val gradesJson = serializeManualGrades(grades)
+        currentMeta.put("manualGrades", gradesJson)
+
+        val updatedTwin = twin.copy(
+            metadataJson = currentMeta.toString(),
+            updatedAt = System.currentTimeMillis()
+        )
+
+        // 2. Re-compute valuation (now using manual grades)
+        val gradedTwin = valuationEngine.computeFullValuation(updatedTwin)
+
+        // 3. Persist
+        twinDao.insertOrReplace(gradedTwin)
+
+        // 4. Log event
+        val event = BirdEventEntity(
+            eventId = UUID.randomUUID().toString(),
+            birdId = birdId,
+            ownerId = twin.ownerId,
+            eventType = "MORPHOLOGY_GRADING", // Custom event type
+            eventTitle = "Manual Grading Completed",
+            eventDescription = "Expert grading submitted. Score: ${gradedTwin.morphologyScore}/100",
+            eventDate = System.currentTimeMillis(),
+            ageDaysAtEvent = twin.ageDays,
+            lifecycleStageAtEvent = twin.lifecycleStage,
+            numericValue = gradedTwin.morphologyScore?.toDouble()
+        )
+        eventDao.insert(event)
+    }
+
+    private fun serializeManualGrades(grades: ManualMorphologyGrades): org.json.JSONObject {
+        return org.json.JSONObject().apply {
+            put("beakType", grades.beakType)
+            put("eyeColor", grades.eyeColor)
+            put("legColor", grades.legColor)
+            put("tailCarry", grades.tailCarry)
+            put("bodyStructureScore", grades.bodyStructureScore)
+            put("plumageQualityScore", grades.plumageQualityScore)
+            put("stanceScore", grades.stanceScore)
+            put("hasWryTail", grades.hasWryTail)
+            put("hasSplitWing", grades.hasSplitWing)
+            put("hasCrookedToes", grades.hasCrookedToes)
+        }
+    }
+
     // ==================== QUERIES ====================
 
     /**

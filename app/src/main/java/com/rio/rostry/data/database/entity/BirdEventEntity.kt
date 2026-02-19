@@ -141,6 +141,7 @@ data class BirdEventEntity(
         const val TYPE_INJURY = "INJURY"
         const val TYPE_RECOVERY = "RECOVERY"
         const val TYPE_DEWORMING = "DEWORMING"
+        const val TYPE_MORPHOLOGY_GRADING = "MORPHOLOGY_GRADING"
 
         // Performance
         const val TYPE_FIGHT_WIN = "FIGHT_WIN"

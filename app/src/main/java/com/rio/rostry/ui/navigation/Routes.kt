@@ -370,8 +370,10 @@ object Routes {
         // Digital Twin Dashboard & Growth Tracker
         const val DIGITAL_TWIN_DASHBOARD = "enthusiast/digital_twin/{birdId}"
         const val GROWTH_TRACKER = "enthusiast/growth_tracker/{birdId}"
+        const val MORPHOLOGY_GRADING = "enthusiast/grading/{birdId}"
         fun digitalTwinDashboard(birdId: String) = "enthusiast/digital_twin/$birdId"
         fun growthTracker(birdId: String) = "enthusiast/growth_tracker/$birdId"
+        fun morphologyGrading(birdId: String) = "enthusiast/grading/$birdId"
     }
     
     // NEW: Enhanced Egg Log and Hatchability Routes
@@ -679,6 +681,7 @@ object Routes {
             // Digital Twin Dashboard & Growth Tracker
             EnthusiastNav.DIGITAL_TWIN_DASHBOARD,
             EnthusiastNav.GROWTH_TRACKER,
+            EnthusiastNav.MORPHOLOGY_GRADING,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features - Farm Management

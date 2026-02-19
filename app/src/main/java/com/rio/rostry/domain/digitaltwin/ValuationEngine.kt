@@ -194,9 +194,27 @@ class ValuationEngine @Inject constructor(
 
     /**
      * Morphology Score (0-100)
-     * Based on: weight, height, bone density, body type assessment, breed standard comparison
+     * Based on: weight, height, bone density, body type assessment, breed standard comparison.
+     * NOW INCLUDES: Manual grading inputs if available.
      */
     private fun computeMorphologyScore(twin: DigitalTwinEntity): Int {
+        // 1. Check for Manual Grading first (High precision)
+        val manualGrades = try {
+            if (twin.metadataJson.contains("manualGrades")) {
+                val json = org.json.JSONObject(twin.metadataJson)
+                if (json.has("manualGrades")) {
+                    parseManualGrades(json.getJSONObject("manualGrades"))
+                } else null
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+
+        if (manualGrades != null) {
+            return computeScoreFromGrades(manualGrades, twin)
+        }
+
+        // 2. Fallback to Auto-Calculation (Low precision) if no manual grading
         var score = 50 // Base score (average)
 
         // Weight contribution (0-25 pts)
@@ -233,6 +251,70 @@ class ValuationEngine @Inject constructor(
         }
 
         return score.coerceIn(0, 100)
+    }
+
+    /**
+     * Compute morphology score using detailed manual grades.
+     * This replaces the AI analysis path.
+     */
+    private fun computeScoreFromGrades(grades: ManualMorphologyGrades, twin: DigitalTwinEntity): Int {
+        var totalScore = 0.0
+        
+        // Head & Face (Max 20)
+        totalScore += when (grades.beakType) {
+            "PARROT" -> 10.0 // Preferred
+            "MEDIUM" -> 7.0
+            else -> 4.0
+        }
+        totalScore += when (grades.eyeColor) {
+            "PEARL", "WHITE" -> 10.0 // Preferred
+            "YELLOW" -> 7.0
+            else -> 4.0
+        }
+        
+        // Structure (Max 30)
+        totalScore += grades.bodyStructureScore * 0.3 // 0-10 input -> max 30 pts
+
+        // Plumage & Condition (Max 20)
+        totalScore += grades.plumageQualityScore * 2.0 // 0-10 input -> max 20 pts
+
+        // Legs & Stance (Max 20)
+        totalScore += when (grades.legColor) {
+            "WHITE", "IVORY" -> 10.0
+            "YELLOW" -> 8.0
+            else -> 5.0
+        }
+        totalScore += grades.stanceScore // 0-10 input
+
+        // Tail (Max 10)
+        totalScore += when (grades.tailCarry) {
+            "LOW", "DROOPING" -> 10.0
+            "LEVEL" -> 7.0
+            "HIGH", "SQUIRREL" -> 2.0 // Fault
+            else -> 5.0
+        }
+
+        // Bonus/Penalty implementation from checklist
+        if (grades.hasWryTail) totalScore -= 10
+        if (grades.hasSplitWing) totalScore -= 5
+        if (grades.hasCrookedToes) totalScore -= 5
+
+        return totalScore.toInt().coerceIn(0, 100)
+    }
+
+    private fun parseManualGrades(json: org.json.JSONObject): ManualMorphologyGrades {
+        return ManualMorphologyGrades(
+            beakType = json.optString("beakType", "STRAIGHT"),
+            eyeColor = json.optString("eyeColor", "RED"),
+            legColor = json.optString("legColor", "YELLOW"),
+            tailCarry = json.optString("tailCarry", "HIGH"),
+            bodyStructureScore = json.optInt("bodyStructureScore", 5),
+            plumageQualityScore = json.optInt("plumageQualityScore", 5),
+            stanceScore = json.optInt("stanceScore", 5),
+            hasWryTail = json.optBoolean("hasWryTail", false),
+            hasSplitWing = json.optBoolean("hasSplitWing", false),
+            hasCrookedToes = json.optBoolean("hasCrookedToes", false)
+        )
     }
 
     /**
@@ -446,3 +528,20 @@ class ValuationEngine @Inject constructor(
         const val WEIGHT_HEALTH = 0.1
     }
 }
+
+/**
+ * Data class for manual morphology grading inputs.
+ * Substitutes AI visual analysis with expert human input.
+ */
+data class ManualMorphologyGrades(
+    val beakType: String,       // PARROT, MEDIUM, STRAIGHT
+    val eyeColor: String,       // PEARL, WHITE, YELLOW, RED
+    val legColor: String,       // WHITE, IVORY, YELLOW, DARK
+    val tailCarry: String,      // LOW, DROOPING, LEVEL, HIGH
+    val bodyStructureScore: Int,// 1-10
+    val plumageQualityScore: Int,// 1-10
+    val stanceScore: Int,       // 1-10
+    val hasWryTail: Boolean,
+    val hasSplitWing: Boolean,
+    val hasCrookedToes: Boolean
+)

@@ -59,6 +59,7 @@ fun DigitalTwinDashboardScreen(
     onBack: () -> Unit,
     onNavigateToGrowthTracker: (String) -> Unit,
     onNavigateToBirdStudio: (String) -> Unit,
+    onNavigateToGrading: (String) -> Unit,
     viewModel: DigitalTwinDashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -140,6 +141,7 @@ fun DigitalTwinDashboardScreen(
                         twin = twin,
                         onGrowthTracker = { onNavigateToGrowthTracker(twin.birdId) },
                         onBirdStudio = { onNavigateToBirdStudio(twin.birdId) },
+                        onMorphologyGrading = { onNavigateToGrading(twin.birdId) },
                         canMorphology = state.canMeasureMorphology,
                         canPerformance = state.canMeasurePerformance,
                         isBreedingEligible = state.isBreedingEligible,
@@ -509,6 +511,7 @@ private fun QuickActionsRow(
     twin: DigitalTwinEntity,
     onGrowthTracker: () -> Unit,
     onBirdStudio: () -> Unit,
+    onMorphologyGrading: () -> Unit,
     canMorphology: Boolean,
     canPerformance: Boolean,
     isBreedingEligible: Boolean,
@@ -535,7 +538,12 @@ private fun QuickActionsRow(
         }
         if (canMorphology) {
             item {
-                QuickActionChip(icon = "📐", label = "Morphology\nMeasure", color = TwinSecondary, onClick = {})
+                QuickActionChip(
+                    icon = "📐", 
+                    label = "Morphology\nMeasure", 
+                    color = TwinSecondary, 
+                    onClick = onMorphologyGrading
+                )
             }
         }
         if (canPerformance) {
