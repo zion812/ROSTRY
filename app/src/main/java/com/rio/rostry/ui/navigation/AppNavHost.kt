@@ -2456,6 +2456,30 @@ private fun RoleNavGraph(
                 onBack = { navController.popBackStack() }
             )
         }
+
+        // Morphology Grading
+        composable(
+            route = Routes.EnthusiastNav.MORPHOLOGY_GRADING,
+            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val birdId = backStackEntry.arguments?.getString("birdId") ?: ""
+            com.rio.rostry.ui.enthusiast.digitalfarm.grading.MorphologyGradingScreen(
+                birdId = birdId,
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+        
+        // Digital Farm - Evolutionary Visuals
+        composable(Routes.EnthusiastNav.DIGITAL_FARM) {
+            com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
+                onNavigateToListProduct = { productId -> /* TODO: Navigate to sell flow */ },
+                onNavigateToLogEggs = { unitId -> navController.navigate(Routes.EnthusiastNav.EGG_COLLECTION) },
+                onNavigateToAddBird = { navController.navigate(Routes.EnthusiastNav.CREATE) },
+                onNavigateToBirdStudio = { productId -> navController.navigate(Routes.EnthusiastNav.birdStudio(productId)) }
+            )
+        }
         
         // Pedigree Screen (Phase 10 Audit Fix)
         composable(
@@ -3765,42 +3789,7 @@ private fun RoleNavGraph(
             )
         }
 
-        // Digital Twin Dashboard
-        composable(
-            route = Routes.EnthusiastNav.DIGITAL_TWIN_DASHBOARD,
-            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val birdId = backStackEntry.arguments?.getString("birdId") ?: ""
-            com.rio.rostry.ui.enthusiast.digitaltwin.DigitalTwinDashboardScreen(
-                onBack = { navController.popBackStack() },
-                onNavigateToGrowthTracker = { id -> navController.navigate(Routes.EnthusiastNav.growthTracker(id)) },
-                onNavigateToBirdStudio = { id -> navController.navigate(Routes.EnthusiastNav.birdStudio(id)) },
-                onNavigateToGrading = { id -> navController.navigate(Routes.EnthusiastNav.morphologyGrading(id)) }
-            )
-        }
 
-        // Growth Tracker
-        composable(
-            route = Routes.EnthusiastNav.GROWTH_TRACKER,
-            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val birdId = backStackEntry.arguments?.getString("birdId") ?: ""
-            com.rio.rostry.ui.enthusiast.digitaltwin.GrowthTrackerScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        // Morphology Grading
-        composable(
-            route = Routes.EnthusiastNav.MORPHOLOGY_GRADING,
-            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val birdId = backStackEntry.arguments?.getString("birdId") ?: ""
-            com.rio.rostry.ui.enthusiast.digitalfarm.grading.MorphologyGradingScreen(
-                birdId = birdId,
-                onNavigateUp = { navController.popBackStack() }
-            )
-        }
 
 
 
