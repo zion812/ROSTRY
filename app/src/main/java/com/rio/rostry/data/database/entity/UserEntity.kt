@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.PropertyName
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
 import java.util.Date
@@ -55,6 +56,7 @@ data class UserEntity(
     val updatedAt: Date? = null,
     val customClaimsUpdatedAt: Date? = null,
     // Suspension Logic
+    @get:PropertyName("suspended")
     val isSuspended: Boolean = false,
     val suspensionReason: String? = null,
     val suspensionEndsAt: Long? = null

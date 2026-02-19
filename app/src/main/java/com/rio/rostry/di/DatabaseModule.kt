@@ -269,7 +269,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_70_71,
             AppDatabase.MIGRATION_71_72,
             AppDatabase.MIGRATION_72_73,
-            AppDatabase.MIGRATION_73_74
+            AppDatabase.MIGRATION_73_74,
+            AppDatabase.MIGRATION_81_82
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -731,4 +732,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideArenaParticipantDao(db: AppDatabase): com.rio.rostry.data.database.dao.ArenaParticipantDao = db.arenaParticipantDao()
+
+    // Digital Bird Twin Foundation DAOs (Phase T1)
+    @Provides
+    @Singleton
+    fun provideDigitalTwinDao(db: AppDatabase): com.rio.rostry.data.database.dao.DigitalTwinDao = db.digitalTwinDao()
+
+    @Provides
+    @Singleton
+    fun provideBirdEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.BirdEventDao = db.birdEventDao()
 }

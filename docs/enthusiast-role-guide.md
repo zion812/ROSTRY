@@ -168,3 +168,11 @@ For detailed API docs, see `docs/api/`.
 ---
 
 *Last updated: Sprint completion*
+
+### 20. Digital Twin & Growth Analytics
+- **Live Digital Twin**: Real-time 3D/2.5D representation of your bird based on genetics and age.
+- **Lifecycle Engine**: 7-stage Aseel-specific lifecycle tracking (Egg -> Hatchling -> Chick -> Grower -> Sub-Adult -> Adult -> Mature Adult).
+- **Growth Tracker**: Log weight and compare against breed-standard growth curves.
+- **Morph Analysis**: Track physical development (spur growth, plumage, hackles) over time.
+- **Valuation Radar**: 5-point score system (Morphology, Genetics, Performance, Health, Market Value).
+- **Event Timeline**: Unified history of all bird events (vaccinations, fights, weight logs).

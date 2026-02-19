@@ -9,8 +9,8 @@ import com.rio.rostry.domain.model.deriveAppearanceFromBreed
 import com.rio.rostry.domain.model.toAppearanceJson
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.ui.enthusiast.digitalfarm.parseAppearanceFromJson
-// import com.rio.rostry.ui.enthusiast.digitalfarm.DigitalFarmState // Remove DigitalFarmState, use BirdStudioState
 import com.rio.rostry.domain.logic.BirdColorClassifier
+import com.rio.rostry.domain.digitaltwin.lifecycle.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +29,16 @@ data class BirdStudioState(
     val isSaving: Boolean = false,
     val error: String? = null,
     val success: Boolean = false,
-    val config: DigitalFarmConfig = DigitalFarmConfig.ENTHUSIAST // For preview settings
+    val config: DigitalFarmConfig = DigitalFarmConfig.ENTHUSIAST, // For preview settings
+
+    // === PMLE — Lifecycle Evolution State ===
+    val ageProfile: AgeProfile = AgeProfile.fromWeeks(12, true),
+    val currentConstraints: StageMorphConstraints? = null,
+    val growthTimeline: List<GrowthSnapshot> = emptyList(),
+    val morphSummary: MorphSummary? = null,
+    val eggProfile: EggProfile? = null,            // Non-null only if stage == EGG
+    val weightExpectation: WeightExpectation? = null,
+    val isLifecycleEnabled: Boolean = true          // Toggle PMLE on/off
 )
 
 @HiltViewModel
@@ -49,12 +58,21 @@ class BirdStudioViewModel @Inject constructor(
         } else {
             // New creation mode - default to Aseel Male
             val defaultAppearance = deriveAppearanceFromBreed("Aseel", "Male", 20)
+            val ageProfile = AgeProfile.fromWeeks(20, isMale = true)
+            val evolved = LifecycleMorphEngine.evolve(defaultAppearance, ageProfile)
+            val constraints = LifecycleMorphEngine.getConstraints(ageProfile)
+
             _uiState.update { it.copy(
                 birdId = null,
                 breed = "Aseel",
                 gender = "Male",
-                currentAppearance = defaultAppearance,
-                originalAppearance = defaultAppearance
+                ageWeeks = 20,
+                currentAppearance = evolved,
+                originalAppearance = evolved,
+                ageProfile = ageProfile,
+                currentConstraints = constraints,
+                morphSummary = generateMorphSummary(ageProfile),
+                weightExpectation = GrowthCurve.expectedWeight(ageProfile.ageInDays, true)
             ) }
         }
     }
@@ -62,34 +80,43 @@ class BirdStudioViewModel @Inject constructor(
     private fun loadBird(id: String) {
         viewModelScope.launch {
             try {
-                // Timber.d("Loading bird: $id")
                 productRepository.getProductById(id).collect { resource ->
                     if (resource is com.rio.rostry.utils.Resource.Success) {
                         resource.data?.let { b ->
-                            // Timber.d("Bird loaded from DB. Metadata present: ${b.metadataJson != null}")
+                            val isMale = (b.gender ?: "Male").equals("Male", true)
+                            val ageWeeks = b.ageWeeks ?: 0
+                            val ageProfile = AgeProfile.fromWeeks(ageWeeks, isMale)
+
                             val appearance = b.metadataJson?.let { json ->
-                                val parsed = parseAppearanceFromJson(json)
-                                if (parsed == null) {
-                                    // Timber.e("Failed to parse appearance JSON: $json")
-                                }
-                                parsed
-                            } ?: deriveAppearanceFromBreed(b.breed ?: "Unknown", b.gender ?: "Unknown", b.ageWeeks ?: 0)
-                            
-                            // Classify on load
-                            val classified = BirdColorClassifier.classify(appearance)
-                            val finalAppearance = appearance.copy(localType = classified.type)
+                                parseAppearanceFromJson(json)
+                            } ?: deriveAppearanceFromBreed(b.breed ?: "Unknown", b.gender ?: "Unknown", ageWeeks)
+
+                            // Apply lifecycle evolution if enabled
+                            val evolved = if (_uiState.value.isLifecycleEnabled) {
+                                LifecycleMorphEngine.evolve(appearance, ageProfile)
+                            } else appearance
+
+                            // Classify color
+                            val classified = BirdColorClassifier.classify(evolved)
+                            val finalAppearance = evolved.copy(localType = classified.type)
+
+                            val constraints = LifecycleMorphEngine.getConstraints(ageProfile)
 
                             _uiState.update { it.copy(
                                 birdId = id,
                                 breed = b.breed ?: "Unknown",
                                 gender = b.gender ?: "Unknown",
-                                ageWeeks = b.ageWeeks ?: 0,
+                                ageWeeks = ageWeeks,
                                 currentAppearance = finalAppearance,
-                                originalAppearance = finalAppearance
+                                originalAppearance = finalAppearance,
+                                ageProfile = ageProfile,
+                                currentConstraints = constraints,
+                                morphSummary = generateMorphSummary(ageProfile),
+                                weightExpectation = GrowthCurve.expectedWeight(ageProfile.ageInDays, isMale)
                             ) }
                         }
                     } else if (resource is com.rio.rostry.utils.Resource.Error) {
-                         _uiState.update { it.copy(error = "Error loading bird: ${resource.message}") }
+                        _uiState.update { it.copy(error = "Error loading bird: ${resource.message}") }
                     }
                 }
             } catch (e: Exception) {
@@ -98,27 +125,167 @@ class BirdStudioViewModel @Inject constructor(
         }
     }
 
+    // ==================== APPEARANCE UPDATES ====================
+
     fun updateAppearance(newAppearance: BirdAppearance) {
-        // 1. Auto-classify Color
-        val classified = BirdColorClassifier.classify(newAppearance)
-        
-        // 2. Calculate ASI from Digital Twin Profile (if exists) or map from Appearance
-        // For now, let's assume we map legacy appearance to structure profile dynamically
-        val structure = mapAppearanceToStructure(newAppearance)
+        val state = _uiState.value
+
+        // 1. Apply lifecycle constraints (clamp to valid range for current stage)
+        val constrained = if (state.isLifecycleEnabled) {
+            LifecycleMorphEngine.constrainToStage(newAppearance, state.ageProfile)
+        } else newAppearance
+
+        // 2. Auto-classify Color
+        val classified = BirdColorClassifier.classify(constrained)
+
+        // 3. Calculate ASI from Digital Twin Profile
+        val structure = mapAppearanceToStructure(constrained)
         val asi = com.rio.rostry.domain.digitaltwin.StructuralEngine.calculateASI(structure)
-        
-        // 3. Update State
-        val finalAppearance = newAppearance.copy(
+
+        // 4. Derive AgeStage from PMLE BiologicalStage
+        val ageStage = com.rio.rostry.domain.digitaltwin.AgeStage.fromBiologicalStage(state.ageProfile.stage)
+
+        // 5. Update State with full Digital Twin profile
+        val finalAppearance = constrained.copy(
             localType = classified.type,
             digitalTwinProfile = com.rio.rostry.domain.digitaltwin.DigitalTwinProfile(
                 structure = structure,
-                ageStage = com.rio.rostry.domain.digitaltwin.AgeStage.ADULT, // TODO: Derive from ageWeeks
+                ageStage = ageStage,
                 asiScore = asi
             )
         )
-        
+
         _uiState.update { item -> item.copy(currentAppearance = finalAppearance) }
     }
+
+    // ==================== LIFECYCLE CONTROLS ====================
+
+    /**
+     * Change the bird's age — triggers full lifecycle evolution.
+     * This is the key PMLE entry point for age changes.
+     */
+    fun setAge(ageWeeks: Int) {
+        val state = _uiState.value
+        val isMale = state.gender.equals("Male", true)
+        val newAgeProfile = AgeProfile.fromWeeks(ageWeeks, isMale).copy(growthMode = state.ageProfile.growthMode)
+
+        val oldStage = state.ageProfile.stage
+        val newStage = newAgeProfile.stage
+
+        // Evolve appearance based on new age
+        val baseAppearance = state.originalAppearance ?: state.currentAppearance
+        val evolved = if (state.isLifecycleEnabled) {
+            LifecycleMorphEngine.evolve(baseAppearance, newAgeProfile)
+        } else baseAppearance
+
+        val constraints = LifecycleMorphEngine.getConstraints(newAgeProfile)
+
+        // Check for stage transition
+        val changes = if (oldStage != newStage) {
+            LifecycleMorphEngine.getTransitionChanges(
+                state.ageProfile.ageInDays,
+                newAgeProfile.ageInDays,
+                isMale
+            )
+        } else emptyList()
+
+        _uiState.update { it.copy(
+            ageWeeks = ageWeeks,
+            ageProfile = newAgeProfile,
+            currentConstraints = constraints,
+            morphSummary = generateMorphSummary(newAgeProfile),
+            weightExpectation = GrowthCurve.expectedWeight(newAgeProfile.ageInDays, isMale),
+            eggProfile = if (newAgeProfile.stage == BiologicalStage.EGG) EggProfile() else null
+        ) }
+
+        // Re-apply appearance through the normal update path
+        updateAppearance(evolved)
+    }
+
+    /**
+     * Set age in days for more precise control.
+     */
+    fun setAgeDays(ageDays: Int) {
+        setAge(ageDays / 7)
+    }
+
+    /**
+     * Switch growth mode: Auto Biological / Manual Stage / Manual Free
+     */
+    fun setGrowthMode(mode: GrowthMode) {
+        val state = _uiState.value
+        val newAgeProfile = state.ageProfile.copy(growthMode = mode)
+
+        _uiState.update { it.copy(ageProfile = newAgeProfile) }
+
+        // Re-evolve with new mode
+        if (mode == GrowthMode.AUTO_BIOLOGICAL) {
+            val base = state.originalAppearance ?: state.currentAppearance
+            val evolved = LifecycleMorphEngine.evolve(base, newAgeProfile)
+            updateAppearance(evolved)
+        }
+    }
+
+    /**
+     * Toggle PMLE on/off. When off, behaves like the original free-edit Bird Studio.
+     */
+    fun toggleLifecycle(enabled: Boolean) {
+        _uiState.update { it.copy(isLifecycleEnabled = enabled) }
+
+        if (enabled) {
+            // Re-evolve with current age
+            val state = _uiState.value
+            val base = state.originalAppearance ?: state.currentAppearance
+            val evolved = LifecycleMorphEngine.evolve(base, state.ageProfile)
+            updateAppearance(evolved)
+        }
+    }
+
+    /**
+     * Generate the full growth timeline for visualization.
+     */
+    fun loadGrowthTimeline() {
+        val state = _uiState.value
+        val base = state.originalAppearance ?: state.currentAppearance
+        val isMale = state.gender.equals("Male", true)
+
+        viewModelScope.launch {
+            val timeline = LifecycleMorphEngine.generateGrowthTimeline(base, isMale)
+            _uiState.update { it.copy(growthTimeline = timeline) }
+        }
+    }
+
+    /**
+     * Preview what the bird will look like at a specific age.
+     */
+    fun previewAtAge(ageDays: Int): BirdAppearance {
+        val state = _uiState.value
+        val base = state.originalAppearance ?: state.currentAppearance
+        val isMale = state.gender.equals("Male", true)
+        return LifecycleMorphEngine.previewAtAge(base, ageDays, isMale)
+    }
+
+    /**
+     * Update gender — triggers re-evolution since gender affects morphology.
+     */
+    fun setGender(gender: String) {
+        val state = _uiState.value
+        val isMale = gender.equals("Male", true)
+        val newAgeProfile = state.ageProfile.copy(isMale = isMale)
+
+        _uiState.update { it.copy(
+            gender = gender,
+            ageProfile = newAgeProfile,
+            currentConstraints = LifecycleMorphEngine.getConstraints(newAgeProfile)
+        ) }
+
+        // Re-evolve
+        val base = state.originalAppearance ?: state.currentAppearance
+        val evolved = LifecycleMorphEngine.evolve(base.copy(isMale = isMale), newAgeProfile)
+        updateAppearance(evolved)
+    }
+
+    // ==================== HELPERS ====================
 
     // Helper to bridge Legacy -> Structure Profile
     private fun mapAppearanceToStructure(a: BirdAppearance): com.rio.rostry.domain.digitaltwin.StructureProfile {
@@ -133,6 +300,29 @@ class BirdStudioViewModel @Inject constructor(
             bodyWidth = a.bodyWidth
         )
     }
+
+    private fun generateMorphSummary(ageProfile: AgeProfile): MorphSummary {
+        val stage = ageProfile.stage
+        val constraints = MorphConstraints.forStage(stage, ageProfile.isMale)
+        return MorphSummary(
+            stageName = stage.displayName,
+            stageEmoji = stage.emoji,
+            featherTexture = constraints.defaultFeatherTexture,
+            keyFeatures = buildList {
+                if (stage.hasHackles && ageProfile.isMale) add("Hackle feathers visible")
+                if (stage.hasSpurs && ageProfile.isMale) add("Spurs developing")
+                if (stage.hasSickleFeathers && ageProfile.isMale) add("Sickle tail feathers")
+                if (stage.hasFullPlumage) add("Full plumage achieved")
+                if (stage == BiologicalStage.HATCHLING) add("Down-covered, oversized head")
+                if (stage == BiologicalStage.CHICK) add("First feathers emerging")
+                if (stage == BiologicalStage.GROWER) add("Rapid leg growth, patchy feathers")
+                if (stage == BiologicalStage.SENIOR) add("Peak bone thickness, slight feather dulling")
+            },
+            maturityPercent = (ageProfile.maturityIndex * 100).toInt().coerceIn(0, 100)
+        )
+    }
+
+    // ==================== PRESETS ====================
 
     // FIELD MODE PRESETS
     fun applyFieldPreset(presetName: String) {
@@ -169,41 +359,41 @@ class BirdStudioViewModel @Inject constructor(
         val state = _uiState.value
         // Regenerate standard appearance based on current breed/gender/age
         val standard = deriveAppearanceFromBreed(state.breed, state.gender, state.ageWeeks)
-        
-        // We use updateAppearance to ensure ASI and Digital Twin profile are recalculated
-        updateAppearance(standard)
+
+        // Evolve using lifecycle if enabled
+        if (state.isLifecycleEnabled) {
+            val evolved = LifecycleMorphEngine.evolve(standard, state.ageProfile)
+            updateAppearance(evolved)
+        } else {
+            updateAppearance(standard)
+        }
     }
 
     fun saveAppearance() {
         val state = _uiState.value
         val birdId = state.birdId
-        
+
         if (birdId == null) {
             _uiState.update { it.copy(error = "Cannot save: No bird ID") }
             return
         }
-        
+
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
-            
+
             try {
                 // Serialize current appearance to JSON
-                // Timber.d("Saving appearance for bird $birdId")
                 val json = state.currentAppearance.toAppearanceJson()
-                // Timber.d("Generated JSON length: ${json.length}")
-                
+
                 // Save to repository (metadata field)
                 val result = productRepository.updateProductMetadata(birdId, json)
-                
+
                 if (result is com.rio.rostry.utils.Resource.Success) {
-                    // Timber.d("Save successful")
                     _uiState.update { it.copy(isSaving = false, success = true) }
                 } else {
-                    // Timber.e("Save failed: ${result.message}")
                     _uiState.update { it.copy(isSaving = false, error = result.message ?: "Failed to save") }
                 }
             } catch (e: Exception) {
-                // Timber.e(e, "Exception during save")
                 _uiState.update { it.copy(isSaving = false, error = e.message ?: "Unknown error") }
             }
         }

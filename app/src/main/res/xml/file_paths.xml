@@ -9,4 +9,7 @@
     <cache-path name="exports" path="exports/" />
     <!-- Cache path for showcase cards -->
     <cache-path name="showcase_cards" path="showcase_cards/" />
+
+    <!-- Persistent app files for reports saved to filesDir/reports -->
+    <files-path name="reports" path="reports/" />
 </paths>

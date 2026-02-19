@@ -366,6 +366,12 @@ object Routes {
 
         // Enthusiast Premium Toolset - Phase D
         const val FLOCK_ANALYTICS = "enthusiast/flock_analytics"
+
+        // Digital Twin Dashboard & Growth Tracker
+        const val DIGITAL_TWIN_DASHBOARD = "enthusiast/digital_twin/{birdId}"
+        const val GROWTH_TRACKER = "enthusiast/growth_tracker/{birdId}"
+        fun digitalTwinDashboard(birdId: String) = "enthusiast/digital_twin/$birdId"
+        fun growthTracker(birdId: String) = "enthusiast/growth_tracker/$birdId"
     }
     
     // NEW: Enhanced Egg Log and Hatchability Routes
@@ -670,6 +676,9 @@ object Routes {
             EnthusiastNav.LINEAGE_EXPLORER,
             EnthusiastNav.MATE_FINDER,
             EnthusiastNav.FLOCK_ANALYTICS,
+            // Digital Twin Dashboard & Growth Tracker
+            EnthusiastNav.DIGITAL_TWIN_DASHBOARD,
+            EnthusiastNav.GROWTH_TRACKER,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features - Farm Management

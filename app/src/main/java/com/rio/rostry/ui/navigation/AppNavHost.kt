@@ -2425,6 +2425,34 @@ private fun RoleNavGraph(
                 onNavigateUp = { navController.navigateUp() }
             )
         }
+
+        // Digital Twin Dashboard - Lifecycle, Scores, Analytics
+        composable(
+            route = Routes.EnthusiastNav.DIGITAL_TWIN_DASHBOARD,
+            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val birdId = backStackEntry.arguments?.getString("birdId") ?: ""
+            com.rio.rostry.ui.enthusiast.digitaltwin.DigitalTwinDashboardScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToGrowthTracker = { id ->
+                    navController.navigate(Routes.EnthusiastNav.growthTracker(id))
+                },
+                onNavigateToBirdStudio = { id ->
+                    navController.navigate(Routes.EnthusiastNav.birdStudio(id))
+                }
+            )
+        }
+
+        // Growth Tracker - Weight logging, growth curve comparison
+        composable(
+            route = Routes.EnthusiastNav.GROWTH_TRACKER,
+            arguments = listOf(navArgument("birdId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val birdId = backStackEntry.arguments?.getString("birdId") ?: ""
+            com.rio.rostry.ui.enthusiast.digitaltwin.GrowthTrackerScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
         
         // Pedigree Screen (Phase 10 Audit Fix)
         composable(

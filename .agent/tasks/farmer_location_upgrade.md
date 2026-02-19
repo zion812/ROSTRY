@@ -8,37 +8,29 @@ Fix the "abnormal" gap in the General-to-Farmer upgrade flow where the "Farm Loc
 - **ViewModel (`GeneralProfileViewModel`)**: `upgradeToFarmer` function does not accept or process coordinates.
 - **Database (`UserEntity`)**: Has fields `farmLocationLat`, `farmLocationLng`, `locationVerified`, but they remain unused during upgrade.
 
-## Proposed "Reliable & Scalable" Flow
-1. **User Action**: User opens "Become a Farmer" sheet.
-2. **Location Capture**:
-    - User types address (for display).
-    - User clicks "Verify Location" / "Use Current Location".
-    - App requests `ACCESS_FINE_LOCATION`.
-    - App captures current High-Accuracy GPS coordinates.
-    - App displays "Location Captured: [Lat, Lng]" or a green checkmark.
-3. **Submission**:
-    - App sends Address Text + Lat + Lng to ViewModel.
-4. **Processing**:
-    - ViewModel saves all fields to `UserEntity`.
-    - `locationVerified` flag can be set to `true` (since we captured it via GPS) or `false` (pending admin check), but initially capturing it is the critical step.
+## Status: COMPLETE
 
-## Implementation Steps
+## Completed Work
+1. **ViewModel (`GeneralProfileViewModel`)**:
+   - `upgradeToFarmer` function updated to accept `farmLat: Double?` and `farmLng: Double?`.
+   - `UserEntity` update logic modified to persist `farmLocationLat`, `farmLocationLng` and set `locationVerified` to true if coordinates are provided.
+   - Comprehensive error handling and logging added.
 
-### Step 1: Update Logic (ViewModel)
-- Modify `GeneralProfileViewModel.upgradeToFarmer` signature to accept `farmLat: Double?` and `farmLng: Double?`.
-- Update the `UserEntity` copy mechanism to include these values.
+2. **UI (`UpgradeFarmerSheet`)**:
+   - Implemented `FusedLocationProviderClient` integration.
+   - Added permission request for `ACCESS_FINE_LOCATION`.
+   - Added UI controls (Icon Button) to capture current location.
+   - Displays captured coordinates or "Tap to verify" prompt.
+   - Validates form and passes coordinates to `onUpgrade`.
 
-### Step 2: Update UI (UpgradeFarmerSheet)
-- Add State for `lat`, `lng`.
-- Add Permission Launcher for Location.
-- Add "Get Location" Button (using `FusedLocationProviderClient`).
-- Pass new values to `onUpgrade`.
+3. **Navigation (`GeneralProfileRoute`)**:
+   - Updated `UpgradeFarmerSheet` callback signature to include `lat` and `lng`.
+   - Passes coordinates correctly from UI to ViewModel.
 
-### Step 3: Verification
-- Verify `UserEntity` updates in Firestore/Room via logging.
+4. **Dependencies & Permissions**:
+   - Verified `play-services-location` dependency in `build.gradle.kts`.
+   - Verified `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` permissions in `AndroidManifest.xml`.
 
-## Scalability Note
-This establishes a "Truth" for the farm's location, enabling features like:
-- "Nearby Farms" for consumers.
-- Geofencing for logistics.
-- "Verified Location" badges.
+## Verification check
+- `./gradlew assembleDebug` passed successfully.
+- Code review confirms logical flow from UI -> ViewModel -> Repository -> Database.

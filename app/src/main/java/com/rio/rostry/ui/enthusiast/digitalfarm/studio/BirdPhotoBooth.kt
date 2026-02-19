@@ -81,9 +81,9 @@ object BirdPhotoBooth {
             // Let's assume standard bird height is ~300-400 units.
             // We want it to fill ~80% of 2048px.
             
-            val scaleFactor = 6.0f // Adjust based on visual testing
+            val scaleFactor = 10.0f // Match viewport zoom for consistent look
             val cx = PHOTO_WIDTH / 2f
-            val cy = PHOTO_HEIGHT / 2f
+            val cy = PHOTO_HEIGHT * 0.55f // Slightly below center so bird body fills frame
             
             translate(cx, cy) {
                 scale(scaleFactor) {

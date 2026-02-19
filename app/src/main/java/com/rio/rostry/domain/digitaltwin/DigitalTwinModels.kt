@@ -66,13 +66,33 @@ enum class SheenLevel {
 
 /**
  * Maturity Engine: Defines the biological stage of the bird.
+ * Maps to the more granular [lifecycle.BiologicalStage] for PMLE.
  */
 enum class AgeStage {
-    CHICK,       // 0-4 weeks: Round, fuzzy, no comb
-    GROWER,      // 1-4 months: Lanky, thin feathers, developing
+    EGG,         // Incubation (0-21 days)
+    HATCHLING,   // 0-7 days post-hatch
+    CHICK,       // 1-6 weeks: Round, fuzzy, no comb
+    GROWER,      // 6-16 weeks: Lanky, thin feathers, developing
     SUB_ADULT,   // 4-8 months: Frame filling out, hackles starting
-    ADULT,       // 8-18 months: Prime structure, full plumage
-    MATURE_ADULT // 18+ months: Heavy bone, thick neck, spurs
+    ADULT,       // 8-12 months: Prime structure, full plumage
+    MATURE_ADULT,// 12+ months: Heavy bone, thick neck, spurs
+    SENIOR;      // 2+ years: Peak spurs, slight feather dulling
+
+    companion object {
+        /** Convert from the detailed lifecycle.BiologicalStage */
+        fun fromBiologicalStage(stage: com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage): AgeStage {
+            return when (stage) {
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.EGG -> EGG
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.HATCHLING -> HATCHLING
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.CHICK -> CHICK
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.GROWER -> GROWER
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.SUB_ADULT -> SUB_ADULT
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.ADULT -> ADULT
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.MATURE_ADULT -> MATURE_ADULT
+                com.rio.rostry.domain.digitaltwin.lifecycle.BiologicalStage.SENIOR -> SENIOR
+            }
+        }
+    }
 }
 
 /**

@@ -152,9 +152,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Breeding Plans (Phase M)
         BreedingPlanEntity::class,
         // Virtual Arena (Phase L)
-        ArenaParticipantEntity::class
+        ArenaParticipantEntity::class,
+        // Digital Bird Twin Foundation (Phase T1)
+        DigitalTwinEntity::class,
+        BirdEventEntity::class
     ],
-    version = 81, // 80 -> 81 (Added ArenaParticipantEntity)
+    version = 82, // 81 -> 82 (Added DigitalTwinEntity, BirdEventEntity)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -311,6 +314,10 @@ abstract class AppDatabase : RoomDatabase() {
     
     // Virtual Arena Participant DAO (Phase L)
     abstract fun arenaParticipantDao(): ArenaParticipantDao
+
+    // Digital Bird Twin Foundation DAOs (Phase T1)
+    abstract fun digitalTwinDao(): DigitalTwinDao
+    abstract fun birdEventDao(): BirdEventDao
 
     object Converters {
         @TypeConverter
@@ -750,6 +757,131 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Digital Bird Twin Foundation tables (81 -> 82)
+        val MIGRATION_81_82 = object : Migration(81, 82) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create digital_twins table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `digital_twins` (
+                        `twinId` TEXT NOT NULL PRIMARY KEY,
+                        `birdId` TEXT NOT NULL,
+                        `registryId` TEXT,
+                        `ownerId` TEXT NOT NULL,
+                        `birdName` TEXT,
+                        `baseBreed` TEXT NOT NULL DEFAULT 'Aseel',
+                        `strainType` TEXT,
+                        `localStrainName` TEXT,
+                        `geneticPurityScore` INTEGER,
+                        `bodyType` TEXT,
+                        `boneDensityScore` INTEGER,
+                        `heightCm` REAL,
+                        `weightKg` REAL,
+                        `beakType` TEXT,
+                        `combType` TEXT,
+                        `skinColor` TEXT,
+                        `legColor` TEXT,
+                        `spurType` TEXT,
+                        `morphologyScore` INTEGER,
+                        `primaryBodyColor` INTEGER,
+                        `neckHackleColor` INTEGER,
+                        `wingHighlightColor` INTEGER,
+                        `tailColor` INTEGER,
+                        `tailIridescent` INTEGER NOT NULL DEFAULT 0,
+                        `plumagePattern` TEXT,
+                        `localColorCode` TEXT,
+                        `colorCategoryCode` TEXT,
+                        `lifecycleStage` TEXT NOT NULL DEFAULT 'CHICK',
+                        `ageDays` INTEGER,
+                        `maturityScore` INTEGER,
+                        `breedingStatus` TEXT NOT NULL DEFAULT 'NONE',
+                        `gender` TEXT,
+                        `birthDate` INTEGER,
+                        `sireId` TEXT,
+                        `damId` TEXT,
+                        `generationDepth` INTEGER NOT NULL DEFAULT 0,
+                        `inbreedingCoefficient` REAL,
+                        `geneticsJson` TEXT,
+                        `geneticsScore` INTEGER,
+                        `vaccinationCount` INTEGER NOT NULL DEFAULT 0,
+                        `injuryCount` INTEGER NOT NULL DEFAULT 0,
+                        `staminaScore` INTEGER,
+                        `healthScore` INTEGER,
+                        `currentHealthStatus` TEXT NOT NULL DEFAULT 'HEALTHY',
+                        `aggressionIndex` INTEGER,
+                        `enduranceScore` INTEGER,
+                        `intelligenceScore` INTEGER,
+                        `totalFights` INTEGER NOT NULL DEFAULT 0,
+                        `fightWins` INTEGER NOT NULL DEFAULT 0,
+                        `performanceScore` INTEGER,
+                        `valuationScore` INTEGER,
+                        `verifiedStatus` INTEGER NOT NULL DEFAULT 0,
+                        `certificationLevel` TEXT NOT NULL DEFAULT 'NONE',
+                        `estimatedValueInr` REAL,
+                        `totalShows` INTEGER NOT NULL DEFAULT 0,
+                        `showWins` INTEGER NOT NULL DEFAULT 0,
+                        `bestPlacement` INTEGER,
+                        `totalBreedingAttempts` INTEGER NOT NULL DEFAULT 0,
+                        `successfulBreedings` INTEGER NOT NULL DEFAULT 0,
+                        `totalOffspring` INTEGER NOT NULL DEFAULT 0,
+                        `appearanceJson` TEXT,
+                        `metadataJson` TEXT NOT NULL DEFAULT '{}',
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1,
+                        `syncedAt` INTEGER,
+                        `isDeleted` INTEGER NOT NULL DEFAULT 0,
+                        `deletedAt` INTEGER,
+                        FOREIGN KEY(`birdId`) REFERENCES `products`(`productId`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_digital_twins_birdId` ON `digital_twins` (`birdId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_digital_twins_ownerId` ON `digital_twins` (`ownerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_digital_twins_baseBreed` ON `digital_twins` (`baseBreed`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_digital_twins_strainType` ON `digital_twins` (`strainType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_digital_twins_lifecycleStage` ON `digital_twins` (`lifecycleStage`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_digital_twins_certificationLevel` ON `digital_twins` (`certificationLevel`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_digital_twins_dirty` ON `digital_twins` (`dirty`)")
+
+                // Create bird_events table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `bird_events` (
+                        `eventId` TEXT NOT NULL PRIMARY KEY,
+                        `birdId` TEXT NOT NULL,
+                        `ownerId` TEXT NOT NULL,
+                        `eventType` TEXT NOT NULL,
+                        `eventTitle` TEXT NOT NULL,
+                        `eventDescription` TEXT,
+                        `eventDate` INTEGER NOT NULL,
+                        `ageDaysAtEvent` INTEGER,
+                        `lifecycleStageAtEvent` TEXT,
+                        `numericValue` REAL,
+                        `numericValue2` REAL,
+                        `stringValue` TEXT,
+                        `dataJson` TEXT,
+                        `morphologyScoreDelta` INTEGER,
+                        `geneticsScoreDelta` INTEGER,
+                        `performanceScoreDelta` INTEGER,
+                        `healthScoreDelta` INTEGER,
+                        `marketScoreDelta` INTEGER,
+                        `recordedBy` TEXT,
+                        `isVerified` INTEGER NOT NULL DEFAULT 0,
+                        `verifiedBy` TEXT,
+                        `mediaUrlsJson` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL DEFAULT 1,
+                        `syncedAt` INTEGER,
+                        FOREIGN KEY(`birdId`) REFERENCES `products`(`productId`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_birdId` ON `bird_events` (`birdId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_ownerId` ON `bird_events` (`ownerId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_eventType` ON `bird_events` (`eventType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_eventDate` ON `bird_events` (`eventDate`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_birdId_eventType` ON `bird_events` (`birdId`, `eventType`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_birdId_eventDate` ON `bird_events` (`birdId`, `eventDate`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_bird_events_dirty` ON `bird_events` (`dirty`)")
+            }
+        }
 
         
 

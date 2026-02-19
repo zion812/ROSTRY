@@ -228,14 +228,14 @@ fun StudioViewport(
     )
 
     // Camera Targets based on Tab
-    // Tabs: 0=General, 1=Head, 2=Body, 3=Plumage, 4=Legs
+    // Higher zoom = closer to bird, offsets are in bird-local space (pre-scale)
     val targetCamera = remember(selectedTab) {
         when (selectedTab) {
-            1 -> CameraState(zoom = 6f, offsetX = 0f, offsetY = 150f) // Head Focus
-            2 -> CameraState(zoom = 4f, offsetX = 0f, offsetY = 0f)   // Body Focus
-            3 -> CameraState(zoom = 3.2f, offsetX = -50f, offsetY = 0f) // Plumage/Tail Focus
-            4 -> CameraState(zoom = 5f, offsetX = 0f, offsetY = -200f) // Legs Focus
-            else -> CameraState(zoom = 3.5f, offsetX = 0f, offsetY = 0f) // General/Full
+            1 -> CameraState(zoom = 14f, offsetX = -5f, offsetY = 25f)  // Head Focus
+            2 -> CameraState(zoom = 10f, offsetX = 0f, offsetY = 10f)   // Body Focus
+            3 -> CameraState(zoom = 8f, offsetX = 10f, offsetY = 10f)   // Plumage/Tail Focus
+            4 -> CameraState(zoom = 12f, offsetX = 0f, offsetY = -5f)   // Legs Focus
+            else -> CameraState(zoom = 8f, offsetX = 0f, offsetY = 12f) // General/Full bird view
         }
     }
 
@@ -272,9 +272,10 @@ fun StudioViewport(
                     val currentScale = zoom * manualZoom
                     
                     // Intelligent Pan/Rotate
-                    // If zoomed in (scale > 5.0), Drag X pans the camera
-                    // If zoomed out (scale <= 5.0), Drag X rotates the bird (Turntable)
-                    if (currentScale > 5.0f) {
+                    // If zoomed in (scale > 12.0), Drag X pans the camera
+                    // If zoomed out (scale <= 12.0), Drag X rotates the bird (Turntable)
+                    if (currentScale > 12.0f) {
+                        // Pan in bird-local space (divide by scale for consistent feel)
                         manualOffsetX += pan.x / currentScale
                     } else {
                         // Turntable rotation
@@ -282,75 +283,82 @@ fun StudioViewport(
                         birdRotation = birdRotation.coerceIn(-1.2f, 1.2f)
                     }
                     
-                    // Pan Y always moves camera
-                    // Invert pan Y relative to scale for natural tracking
+                    // Pan Y always moves camera (in bird-local space)
                     manualOffsetY += pan.y / currentScale
                 }
             }
     ) {
-        val cx = size.width / 2
-        val cy = size.height / 2
+        val cx = size.width / 2f
+        val cy = size.height / 2f
         
         // Final Camera Transform
-        val finalZoom = (zoom * manualZoom).coerceIn(1f, 15f) // Increased max zoom
-        val finalY = camY + manualOffsetY
-        val finalX = camX + manualOffsetX
+        val finalZoom = (zoom * manualZoom).coerceIn(2f, 30f)
+        // Camera offset in bird-local space (NOT multiplied by zoom)
+        val finalOffX = camX + manualOffsetX
+        val finalOffY = camY + manualOffsetY
         
-        translate(cx + finalX * finalZoom, cy + finalY * finalZoom) {
-            // Pivot at (0,0) which is center of screen + offset
+        // Step 1: Translate canvas origin to screen center
+        // Step 2: Scale around screen center (pivot = Zero after translate)
+        // Step 3: Apply camera pan offset INSIDE scaled space
+        // This ensures zoom always centers on the bird, not on a corner
+        translate(cx, cy) {
             scale(finalZoom, pivot = androidx.compose.ui.geometry.Offset.Zero) {
-                // Background Render
-                val bgBrush = when (appearance.background) {
-                    StudioBackground.STUDIO -> androidx.compose.ui.graphics.Brush.radialGradient(
-                        colors = listOf(Color(0xFFE0E0E0), Color(0xFFB0B0B0)),
-                        center = androidx.compose.ui.geometry.Offset(0f, 0f),
-                        radius = 400f
-                    )
-                    StudioBackground.BARN -> androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(Color.DarkGray, Color(0xFF3E2723), Color(0xFF5D4037)),
-                        startY = -300f,
-                        endY = 300f
-                    )
-                    StudioBackground.OUTDOORS -> androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(Color(0xFF81D4FA), Color(0xFF81C784)), // Sky to Grass
-                        startY = -200f,
-                        endY = 200f
-                    )
-                    StudioBackground.STAGE -> androidx.compose.ui.graphics.Brush.radialGradient(
-                        colors = listOf(Color(0xFFFFF9C4).copy(alpha = 0.6f), Color.Black),
-                        center = androidx.compose.ui.geometry.Offset(0f, -100f),
-                        radius = 300f
-                    )
-                }
+                // Apply camera offset in bird-local coordinates (pre-scaled)
+                translate(finalOffX, finalOffY) {
 
-                drawCircle(
-                    brush = bgBrush,
-                    radius = 500f, // Large backdrop
-                    center = androidx.compose.ui.geometry.Offset(0f, 0f)
-                )
+                    // Background Render — sized to match bird proportions
+                    val bgRadius = 60f // Proportional to bird (~40px tall)
+                    val bgBrush = when (appearance.background) {
+                        StudioBackground.STUDIO -> androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(Color(0xFFE0E0E0), Color(0xFFB0B0B0)),
+                            center = androidx.compose.ui.geometry.Offset(0f, -15f),
+                            radius = bgRadius
+                        )
+                        StudioBackground.BARN -> androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.DarkGray, Color(0xFF3E2723), Color(0xFF5D4037)),
+                            startY = -bgRadius,
+                            endY = bgRadius
+                        )
+                        StudioBackground.OUTDOORS -> androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color(0xFF81D4FA), Color(0xFF81C784)),
+                            startY = -bgRadius,
+                            endY = bgRadius
+                        )
+                        StudioBackground.STAGE -> androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(Color(0xFFFFF9C4).copy(alpha = 0.6f), Color.Black),
+                            center = androidx.compose.ui.geometry.Offset(0f, -bgRadius * 0.5f),
+                            radius = bgRadius
+                        )
+                    }
 
-                // Ground Shadow
-                drawOval(
-                    color = Color.Black.copy(alpha = 0.3f), // Darker shadow for contrast
-                    topLeft = androidx.compose.ui.geometry.Offset(-25f, 5f),
-                    size = androidx.compose.ui.geometry.Size(50f, 15f)
-                )
-                
-                // Bird Render
-                with(BirdPartRenderer) {
-                    drawBirdFromAppearance(
-                        x = 0f, 
-                        y = 0f, 
-                        appearance = appearance, 
-                        isSelected = false,
-                        animTime = animTime,
-                        bobOffset = 0f,
-                        rotation = birdRotation
+                    drawCircle(
+                        brush = bgBrush,
+                        radius = bgRadius,
+                        center = androidx.compose.ui.geometry.Offset(0f, -15f) // Center on bird body
                     )
-                }
-            }
-        }
-        
+
+                    // Ground Shadow
+                    drawOval(
+                        color = Color.Black.copy(alpha = 0.25f),
+                        topLeft = androidx.compose.ui.geometry.Offset(-18f, 2f),
+                        size = androidx.compose.ui.geometry.Size(36f, 10f)
+                    )
+
+                    // Bird Render — bird feet at (0, 0), body extends upward
+                    with(BirdPartRenderer) {
+                        drawBirdFromAppearance(
+                            x = 0f,
+                            y = 0f,
+                            appearance = appearance,
+                            isSelected = false,
+                            animTime = animTime,
+                            bobOffset = 0f,
+                            rotation = birdRotation
+                        )
+                    }
+                } // end camera offset translate
+            } // end scale
+        } // end center translate
     }
 }
 

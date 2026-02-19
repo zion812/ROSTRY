@@ -17,10 +17,11 @@ I have explored the ROSTRY codebase to assess the current state of the "Digital 
    - `AppNavHost.kt` contains a comprehensive set of routes for both Farmer and Enthusiast personas, including the new Digital Farm routes.
 
 4. **Pending Tasks**:
-   - I found a defined task in `.agent/tasks/farmer_location_upgrade.md`: "Enhance Farmer Upgrade with Location Verification". This aims to capture GPS coordinates during the upgrade process.
-   - `phase-breakdown.md` lists several tasks, some of which (like `DigitalFarmCanvas.kt`) seem to have been implemented as `IsometricFarmCanvas` inside or alongside `DigitalFarmScreen`.
+   - **COMPLETED**: "Enhance Farmer Upgrade with Location Verification". The `GeneralProfileViewModel` and `UpgradeFarmerSheet` now support capturing and saving GPS coordinates.
+
+   - `phase-breakdown.md` lists several tasks. "Task 4: Implement Digital Farm 2.5D Canvas Foundation" is largely complete (see `IsometricFarmCanvas.kt`).
 
 ## Next Steps Recommendations
-- **Verify Bird Studio**: Run the app and test the "Save" and "Reset" buttons in the Bird Studio to ensure they work as expected.
-- **Farmer Upgrade**: Proceed with the "Enhance Farmer Upgrade with Location Verification" task to improve data quality for farm locations.
+- **Verify Bird Studio**: Run the app and test the "Save" and "Reset" buttons in the Bird Studio.
+- **Digital Farm Polish**: Proceed to "Task 5: Implement Flocking Behavior" (boids algorithm) to bring the farm to life with realistic bird movement.
 - **Digital Farm Polish**: Continue with "Task 5: Implement Flocking Behavior" or "Task 6: Weather Effects" from `phase-breakdown.md` if not already fully integrated.

@@ -347,6 +347,12 @@ class CloudStorageQuotaManager @Inject constructor(
                 documentBytes += subUsage.documentBytes
                 dataBytes += subUsage.dataBytes
             }
+        } catch (e: com.google.firebase.storage.StorageException) {
+            if (e.errorCode == -13010) { // ERROR_OBJECT_NOT_FOUND
+                Timber.v("Directory not found (empty): $path")
+            } else {
+                Timber.w(e, "Error listing directory $path")
+            }
         } catch (e: Exception) {
             Timber.w(e, "Error listing directory $path")
         }
