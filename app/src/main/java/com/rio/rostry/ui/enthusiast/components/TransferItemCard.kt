@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -92,14 +93,19 @@ fun TransferItemCard(
                 }
                 val statusColor = when (transfer.status.uppercase()) {
                     "PENDING" -> MaterialTheme.colorScheme.tertiary
-                    "VERIFIED" -> MaterialTheme.colorScheme.primary
+                    "VERIFIED", "CLAIMED" -> MaterialTheme.colorScheme.primary
                     "COMPLETED" -> Color(0xFF4CAF50)
                     "DISPUTED" -> MaterialTheme.colorScheme.error
+                    "TIMEOUT", "DENIED", "CANCELLED" -> MaterialTheme.colorScheme.errorContainer
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                val labelColor = when (transfer.status.uppercase()) {
+                    "TIMEOUT", "DENIED", "CANCELLED" -> MaterialTheme.colorScheme.onErrorContainer
+                    else -> MaterialTheme.colorScheme.onPrimary
                 }
                 AssistChip(
                     onClick = {},
-                    label = { Text(transfer.status) },
+                    label = { Text(transfer.status, color = labelColor) },
                     colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
                         containerColor = statusColor
                     )
@@ -164,30 +170,46 @@ fun TransferItemCard(
             }
 
             // Verification Progress
+            val isFailedState = transfer.status.uppercase() in listOf("TIMEOUT", "DENIED", "CANCELLED", "FAILED")
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Dimens.space_small)
             ) {
-                val steps = listOf("Pending", "Verified", "Completed")
+                val steps = listOf("Pending", "Verified/Accepted", "Completed")
                 val currentStep = when (transfer.status.uppercase()) {
                     "PENDING" -> 0
-                    "VERIFIED" -> 1
+                    "VERIFIED", "CLAIMED" -> 1
                     "COMPLETED" -> 2
-                    else -> 0
+                    else -> if (isFailedState) 2 else 0 // Show as finished if failed
                 }
                 steps.forEachIndexed { index, step ->
                     val isCompleted = index <= currentStep
+                    val iconColor = if (isFailedState && index == 2) {
+                         MaterialTheme.colorScheme.error
+                    } else if (index <= currentStep) {
+                         MaterialTheme.colorScheme.primary
+                    } else {
+                         MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val iconVector = if (isFailedState && index == 2) {
+                        Icons.Filled.Warning
+                    } else if (isCompleted) {
+                        Icons.Filled.CheckCircle
+                    } else {
+                        Icons.Outlined.Circle
+                    }
+
                     Icon(
-                        imageVector = if (isCompleted) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+                        imageVector = iconVector,
                         contentDescription = step,
-                        tint = if (index == currentStep) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = iconColor,
                         modifier = Modifier.size(Dimens.icon_medium)
                     )
                     if (index < steps.lastIndex) {
                         Divider(
                             modifier = Modifier.weight(1f).padding(horizontal = Dimens.space_small),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isCompleted && !isFailedState) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

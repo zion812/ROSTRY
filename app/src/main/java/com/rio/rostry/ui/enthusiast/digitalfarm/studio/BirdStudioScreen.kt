@@ -371,53 +371,8 @@ fun StudioControls(
     viewModel: BirdStudioViewModel? = null
 ) {
     val tabs = listOf("Field Mode", "Color DNA", "Quick Select", "General", "Head", "Body", "Plumage", "Legs", "Genetics")
-    
-    Column(modifier = Modifier.fillMaxSize()) {
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            edgePadding = 16.dp,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { onTabSelected(index) },
-                    text = { Text(title) }
-                )
-            }
-        }
-        
-        // ASI Score Indicator (Visible on all tabs)
-        // ... (Keep existing ASI Indicator code if it was here, but in previous view it was below tabs)
-        // Wait, I need to be careful not to delete the ASI indicator if it's in the range. 
-        // The EndLine 382 is inside the `when` block or before it?
-        // Let's look at the previous file view. 
-        // Lines 346-400 were viewed. 
-        // `StudioControls` starts at 346.
-        // The `when` block was around 375.
-        // I should just update the `tabs` list and the `when` block.
-        
-        // ... (ASI Indicator code omitted for brevity in replacement, assuming it's safe if not in range OR I need to include it)
-        // Actually, the replacement range 352-382 covers the tabs list and the start of the `when` block?
-        // No, `val tabs = ...` is at 352.
-        // `when` starts at 375.
-        // So I will replace the whole `when` block and the tabs list definition.
-        
-    } // This closing brace is wrong for the replacement content if I am replacing a block.
-    
-    // Let's refine the range.
-    // I want to replace `val tabs = ...` (Line 352)
-    // AND the `when` block (Line 375-383).
-    // But there is code in between (ASI Indicator) which I added in a previous step!
-    // I should use `multi_replace_file_content` or two separate `replace_file_content` calls.
-    // Or just one `replace_file_content` if I can match the context.
-    
-    // Step 1: Update tabs list.
-    // Step 2: Update `when` block.
-    
-    // Let's do Step 1 first.
 
-    
+
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
             selectedTabIndex = selectedTab,

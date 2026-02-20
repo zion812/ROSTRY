@@ -2,10 +2,12 @@ package com.rio.rostry.data.repository
 
 import com.rio.rostry.data.database.dao.EggCollectionDao
 import com.rio.rostry.data.database.dao.HatchingBatchDao
+import com.rio.rostry.data.database.dao.HatchingLogDao
 import com.rio.rostry.data.database.entity.EggCollectionEntity
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.util.*
@@ -51,7 +53,8 @@ data class HatchabilityTrend(
 @Singleton
 class HatchabilityRepository @Inject constructor(
     private val eggCollectionDao: EggCollectionDao,
-    private val hatchingBatchDao: HatchingBatchDao
+    private val hatchingBatchDao: HatchingBatchDao,
+    private val hatchingLogDao: HatchingLogDao
 ) {
     
     /**
@@ -60,29 +63,74 @@ class HatchabilityRepository @Inject constructor(
     fun getHatchabilityAnalysis(farmerId: String): Flow<Resource<HatchabilityAnalysis>> = flow {
         emit(Resource.Loading())
         try {
-            // Get active batches as a proxy for hatchability data
-            val activeBatches = hatchingBatchDao.observeActiveBatchesForFarmer(farmerId, 0)
-            
-            // Since we don't have direct access to completed batches with hatched counts,
-            // we'll create a simplified analysis based on available data
+            // Get all egg collections for this farmer to determine total eggs set
+            val allCollections = eggCollectionDao.observeRecentByFarmer(farmerId, 500)
+                .first()
+
+            val setCollections = allCollections.filter { it.setForHatching }
+            val collectionIds = setCollections.map { it.collectionId }
+
+            var totalEggsSet = 0
+            var totalHatched = 0
             val batchResults = mutableListOf<BatchHatchResult>()
-            
-            // Calculate estimated totals
-            val totalEggsSet = 0 // Would need additional DAO query
-            val totalHatched = 0 // Would need additional DAO query
-            
+            val pairPerformance = mutableMapOf<String, MutableList<Pair<Int, Int>>>() // pairId -> (set, hatched)
+
+            if (collectionIds.isNotEmpty()) {
+                val batches = hatchingBatchDao.getBySourceCollectionIds(collectionIds)
+                batches.forEach { batch ->
+                    val eggsSet = batch.eggsCount ?: 0
+                    if (eggsSet > 0) {
+                        totalEggsSet += eggsSet
+                        val hatchedInBatch = hatchingLogDao.countByBatchAndType(batch.batchId, "HATCHED")
+                        totalHatched += hatchedInBatch
+
+                        val batchHatchRate = if (eggsSet > 0) (hatchedInBatch.toDouble() / eggsSet) * 100 else 0.0
+                        batchResults.add(
+                            BatchHatchResult(
+                                batchId = batch.batchId,
+                                batchName = batch.name.ifBlank { "Batch ${batch.batchId.takeLast(4)}" },
+                                eggsSet = eggsSet,
+                                hatched = hatchedInBatch,
+                                hatchRate = batchHatchRate,
+                                startedAt = batch.startedAt,
+                                hatchedAt = batch.hatchedAt
+                            )
+                        )
+
+                        // Track per-pair performance
+                        batch.sourceCollectionId?.let { colId ->
+                            val collection = setCollections.find { it.collectionId == colId }
+                            collection?.pairId?.let { pId ->
+                                pairPerformance.getOrPut(pId) { mutableListOf() }
+                                    .add(eggsSet to hatchedInBatch)
+                            }
+                        }
+                    }
+                }
+            }
+
             val hatchRate = if (totalEggsSet > 0) (totalHatched.toDouble() / totalEggsSet) * 100 else 0.0
-            
+
+            // Calculate fertility rate (slightly higher than hatch rate as some fertile eggs fail to hatch)
+            val fertilityRate = if (hatchRate > 0) minOf(hatchRate * 1.1, 100.0) else 0.0
+
+            // Calculate per-pair performance as hatch rate
+            val pairRates = pairPerformance.mapValues { (_, records) ->
+                val totalSet = records.sumOf { it.first }
+                val totalHatch = records.sumOf { it.second }
+                if (totalSet > 0) (totalHatch.toDouble() / totalSet) * 100 else 0.0
+            }
+
             val analysis = HatchabilityAnalysis(
                 totalEggsSet = totalEggsSet,
                 totalHatched = totalHatched,
                 hatchRate = hatchRate,
-                fertilityRate = hatchRate * 0.9, // Estimate
+                fertilityRate = fertilityRate,
                 avgIncubationDays = 21.0, // Standard for chickens
-                recentBatches = batchResults,
-                pairPerformance = emptyMap()
+                recentBatches = batchResults.sortedByDescending { it.startedAt }.take(10),
+                pairPerformance = pairRates
             )
-            
+
             emit(Resource.Success(analysis))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to calculate hatchability"))
@@ -136,8 +184,7 @@ class HatchabilityRepository @Inject constructor(
     }
     
     /**
-     * Get hatchability trends by month.
-     * Note: Simplified implementation - returns empty trends until additional DAO queries are added.
+     * Get hatchability trends by month using real data from HatchingLogDao.
      */
     fun getHatchabilityTrends(farmerId: String, months: Int = 6): Flow<List<HatchabilityTrend>> = flow {
         val trends = mutableListOf<HatchabilityTrend>()
@@ -146,17 +193,32 @@ class HatchabilityRepository @Inject constructor(
         repeat(months) { offset ->
             calendar.time = Date()
             calendar.add(Calendar.MONTH, -offset)
-            val month = calendar.get(Calendar.MONTH) + 1
-            val year = calendar.get(Calendar.YEAR)
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val monthStart = calendar.timeInMillis
             
-            // Placeholder - would need additional DAO queries for actual data
+            calendar.add(Calendar.MONTH, 1)
+            val monthEnd = calendar.timeInMillis
+            
+            val month = calendar.get(Calendar.MONTH) // Previous month since we added 1
+            val year = if (month == 0) calendar.get(Calendar.YEAR) - 1 else calendar.get(Calendar.YEAR)
+            val displayMonth = if (month == 0) 12 else month
+            
+            // Query real hatching data per month
+            val eggsSet = hatchingLogDao.countEggsSetBetweenForFarmer(farmerId, monthStart, monthEnd)
+            val hatched = hatchingLogDao.countHatchedBetweenForFarmer(farmerId, monthStart, monthEnd)
+            val hatchRate = if (eggsSet > 0) (hatched.toDouble() / eggsSet) * 100 else 0.0
+            
             trends.add(
                 HatchabilityTrend(
-                    month = month,
+                    month = displayMonth,
                     year = year,
-                    hatchRate = 0.0,
-                    totalEggs = 0,
-                    totalHatched = 0
+                    hatchRate = hatchRate,
+                    totalEggs = eggsSet,
+                    totalHatched = hatched
                 )
             )
         }

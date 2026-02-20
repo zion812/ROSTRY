@@ -300,6 +300,7 @@ object Routes {
         const val CREATE = "enthusiast/create"
         const val DASHBOARD = "enthusiast/dashboard"
         const val TRANSFERS = "enthusiast/transfers"
+        const val PROFILE = "enthusiast/profile"  // Dedicated Enthusiast profile
         const val EGG_COLLECTION = "enthusiast/egg_collection"
         const val DIGITAL_FARM = "enthusiast/digital_farm" // Evolutionary Visuals Feature
         const val ROOSTER_CARD = "enthusiast/rooster_card/{productId}"
@@ -561,7 +562,7 @@ object Routes {
             BottomNavDestination(EnthusiastNav.EXPLORE, "Explore"),
             BottomNavDestination(Social.FEED, "Community"), // Explicit Community tab
             BottomNavDestination(EnthusiastNav.DASHBOARD, "Dashboard"),
-            BottomNavDestination(Common.PROFILE, "Profile") // Use Common Profile or specific if exists
+            BottomNavDestination(EnthusiastNav.PROFILE, "Profile") // Dedicated Enthusiast profile
         ),
         accessibleRoutes = setOf(
             EnthusiastNav.HOME,
@@ -569,7 +570,7 @@ object Routes {
             EnthusiastNav.CREATE,
             EnthusiastNav.DASHBOARD,
             EnthusiastNav.TRANSFERS,
-            Common.PROFILE,
+            EnthusiastNav.PROFILE,
             Common.VERIFY_ENTHUSIAST_KYC,
             Common.STORAGE_QUOTA,
             Settings.ROOT,

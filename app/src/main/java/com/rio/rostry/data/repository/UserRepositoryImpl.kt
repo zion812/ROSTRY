@@ -217,6 +217,8 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun searchUsers(query: String): Flow<List<UserEntity>> = userDao.searchUsers(query)
 
+    override fun searchUsersForTransfer(query: String, currentUserId: String): Flow<List<UserEntity>> = userDao.searchUsersForTransfer(query, currentUserId)
+
     /**
      * Updates the user's role type.
      * 

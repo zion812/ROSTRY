@@ -163,4 +163,7 @@ interface TransferDao {
     // Cleanup: delete old completed transfers for archival
     @Query("DELETE FROM transfers WHERE status IN ('COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT') AND completedAt < :cutoff")
     suspend fun deleteCompletedBefore(cutoff: Long): Int
+
+    @Query("SELECT * FROM transfers WHERE type = 'ENTHUSIAST_TRANSFER' AND status = 'PENDING' AND transferCodeExpiresAt IS NOT NULL AND transferCodeExpiresAt < :now ORDER BY transferCodeExpiresAt ASC")
+    suspend fun getExpiredEnthusiastTransfers(now: Long): List<TransferEntity>
 }

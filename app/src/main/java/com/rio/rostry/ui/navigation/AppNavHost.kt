@@ -90,6 +90,7 @@ import com.rio.rostry.ui.farmer.FarmerMarketScreen
 import com.rio.rostry.ui.farmer.FarmerCreateScreen
 import com.rio.rostry.ui.farmer.FarmerCommunityScreen
 import com.rio.rostry.ui.farmer.FarmerProfileScreen
+import com.rio.rostry.ui.enthusiast.profile.EnthusiastProfileScreen
 import com.rio.rostry.ui.farmer.asset.FarmAssetListScreen
 import com.rio.rostry.ui.farmer.asset.FarmAssetDetailScreen
 import com.rio.rostry.ui.farmer.FarmerMarketViewModel
@@ -287,6 +288,7 @@ internal fun roleGraphRegisteredRoutesBasic(): Set<String> = setOf(
     Routes.EnthusiastNav.CREATE,
     Routes.EnthusiastNav.DASHBOARD,
     Routes.EnthusiastNav.TRANSFERS,
+    Routes.EnthusiastNav.PROFILE,
     // Social/Community
     Routes.GROUPS,
     Routes.EVENTS,
@@ -1501,21 +1503,7 @@ private fun RoleNavGraph(
             }
         }
 
-        composable(
-            route = Routes.EnthusiastNav.BIRD_COMPARISON,
-            arguments = listOf(navArgument("birdIds") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val birdIds = backStackEntry.arguments?.getString("birdIds") ?: ""
-            com.rio.rostry.ui.enthusiast.comparison.BirdComparisonScreen(
-                // birdIds passed via ViewModel or separate logic if needed, but here filtered list is just for logging? 
-                // Wait, BirdComparisonScreen signature doesn't take birdIds either! 
-                // It takes only viewModel and onNavigateBack.
-                // The prompt showed line 1510: birdIds = birdIds.split... 
-                // But the actual file BirdComparisonScreen.kt doesn't have birdIds param.
-                // I should remove birdIds too.
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+
 
         composable(
             route = Routes.EnthusiastNav.ROOSTER_CARD,
@@ -1564,6 +1552,27 @@ private fun RoleNavGraph(
                 onCreateTransfer = { navController.navigate(Routes.TRANSFER_CREATE) },
                 onOpenTraceability = { id -> navController.navigate(Routes.Builders.traceability(id)) }
             )
+        }
+
+        // Add TransferResponseScreen mapping
+        composable(
+            route = "transfer/response/{transferId}",
+            arguments = listOf(navArgument("transferId") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "rostry://transfer/response/{transferId}" })
+        ) { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId")
+            if (transferId.isNullOrBlank()) {
+                ErrorScreen(message = "Invalid transfer ID", onBack = { navController.popBackStack() })
+            } else {
+                com.rio.rostry.ui.enthusiast.transfer.TransferResponseScreen(
+                    transferId = transferId,
+                    onBackClick = { navController.popBackStack() },
+                    onTransferComplete = {
+                        navController.popBackStack()
+                        navController.navigate(Routes.EnthusiastNav.TRANSFERS)
+                    }
+                )
+            }
         }
 
 
@@ -2188,7 +2197,7 @@ private fun RoleNavGraph(
         // Enthusiast Home Screen
         composable(Routes.EnthusiastNav.HOME) {
             com.rio.rostry.ui.enthusiast.EnthusiastHomeScreen(
-                onOpenProfile = { navController.navigate(Routes.PROFILE) },
+                onOpenProfile = { navController.navigate(Routes.EnthusiastNav.PROFILE) },
                 onOpenAnalytics = { navController.navigate(Routes.Analytics.ENTHUSIAST) },
                 onOpenTransfers = { navController.navigate(Routes.EnthusiastNav.TRANSFERS) },
                 onOpenTraceability = { productId -> navController.navigate("traceability/$productId") },
@@ -2206,6 +2215,16 @@ private fun RoleNavGraph(
                 onOpenDigitalFarm = { navController.navigate(Routes.EnthusiastNav.DIGITAL_FARM) },
                 onOpenFarmAssets = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
                 onOpenFarmLog = { navController.navigate(Routes.Monitoring.FARM_LOG) }
+            )
+        }
+        
+        // Enthusiast Profile Screen
+        composable(Routes.EnthusiastNav.PROFILE) {
+            EnthusiastProfileScreen(
+                onVerifyKyc = { navController.navigate(Routes.VERIFY_ENTHUSIAST_KYC) },
+                onContactSupport = { /* open support */ },
+                onNavigateToStorageQuota = { navController.navigate(Routes.Common.STORAGE_QUOTA) },
+                onNavigateToBird = { productId -> navController.navigate(Routes.EnthusiastNav.birdProfile(productId)) }
             )
         }
         
@@ -2892,16 +2911,7 @@ private fun RoleNavGraph(
         }
 
         // Show Records Screen
-        composable(
-            route = Routes.EnthusiastNav.SHOW_RECORDS,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
-            com.rio.rostry.ui.enthusiast.show.ShowRecordsScreen(
-                birdId = productId,
-                onBack = { navController.popBackStack() }
-            )
-        }
+
 
         // --- Enthusiast Premium Toolset Routes ---
 
@@ -3777,13 +3787,13 @@ private fun RoleNavGraph(
             )
         }
 
-        // Show Entry Stub
+        // Show Entry
         composable(
             route = Routes.EnthusiastNav.SHOW_ENTRY,
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            com.rio.rostry.ui.enthusiast.show.ShowEntryScreen(
+            com.rio.rostry.ui.enthusiast.showrecords.ShowEntryScreen(
                 productId = productId,
                 onNavigateBack = { navController.popBackStack() }
             )

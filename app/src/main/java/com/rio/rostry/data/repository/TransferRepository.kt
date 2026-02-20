@@ -5,6 +5,8 @@ import com.rio.rostry.data.database.entity.TransferEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,11 +20,20 @@ interface TransferRepository {
     fun observeAwaitingVerificationCountForFarmer(userId: String): Flow<Int>
     fun observeRecentActivity(userId: String): Flow<List<TransferEntity>>
     suspend fun getTransferStatusSummary(userId: String): Map<String, Int>
+    suspend fun initiateEnthusiastTransfer(
+        productId: String,
+        fromUserId: String,
+        toUserId: String,
+        lineageSnapshotJson: String,
+        healthSnapshotJson: String,
+        transferCode: String
+    ): TransferEntity
 }
 
 @Singleton
 class TransferRepositoryImpl @Inject constructor(
-    private val dao: TransferDao
+    private val dao: TransferDao,
+    private val auditLogDao: com.rio.rostry.data.database.dao.AuditLogDao
 ) : TransferRepository {
 
     override fun getById(transferId: String): Flow<TransferEntity?> = dao.getTransferById(transferId)
@@ -73,5 +84,53 @@ class TransferRepositoryImpl @Inject constructor(
     override suspend fun getTransferStatusSummary(userId: String): Map<String, Int> {
         val transfers = dao.getUserTransfersBetween(userId, null, null).first()
         return transfers.groupBy { it.status }.mapValues { it.value.size }
+    }
+
+    override suspend fun initiateEnthusiastTransfer(
+        productId: String,
+        fromUserId: String,
+        toUserId: String,
+        lineageSnapshotJson: String,
+        healthSnapshotJson: String,
+        transferCode: String
+    ): TransferEntity {
+        val now = System.currentTimeMillis()
+        // 15 minute timeout per requirements
+        val expiresAt = now + (15 * 60 * 1000)
+        
+        val transfer = TransferEntity(
+            transferId = java.util.UUID.randomUUID().toString(),
+            productId = productId,
+            fromUserId = fromUserId,
+            toUserId = toUserId,
+            amount = 0.0, // Enthusiast transfers are non-monetary in this scope
+            type = "ENTHUSIAST_TRANSFER",
+            status = "PENDING",
+            transferCode = transferCode,
+            transferCodeExpiresAt = expiresAt,
+            transferType = "ENTHUSIAST_TRANSFER",
+            lineageSnapshotJson = lineageSnapshotJson,
+            healthSnapshotJson = healthSnapshotJson,
+            initiatedAt = now,
+            updatedAt = now,
+            lastModifiedAt = now,
+            dirty = true
+        )
+        dao.upsert(transfer)
+
+        // Log initiation
+        auditLogDao.insert(
+            com.rio.rostry.data.database.entity.AuditLogEntity(
+                logId = UUID.randomUUID().toString(),
+                type = "TRANSFER",
+                refId = transfer.transferId,
+                action = "INITIATE_ENTHUSIAST_TRANSFER",
+                actorUserId = fromUserId,
+                detailsJson = "{\"productId\":\"$productId\",\"toUserId\":\"$toUserId\"}",
+                createdAt = now
+            )
+        )
+
+        return transfer
     }
 }

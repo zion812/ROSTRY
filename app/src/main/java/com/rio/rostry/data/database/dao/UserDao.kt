@@ -60,6 +60,14 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE fullName LIKE '%' || :query || '%' OR userId LIKE '%' || :query || '%' OR address LIKE '%' || :query || '%'")
     fun searchUsers(query: String): Flow<List<UserEntity>>
 
+    @Query("""
+        SELECT * FROM users 
+        WHERE userId != :currentUserId 
+        AND (fullName LIKE '%' || :query || '%' OR address LIKE '%' || :query || '%') 
+        ORDER BY CASE WHEN verificationStatus = 'VERIFIED' THEN 0 ELSE 1 END ASC, fullName ASC
+    """)
+    fun searchUsersForTransfer(query: String, currentUserId: String): Flow<List<UserEntity>>
+
     @Query("UPDATE users SET verificationStatus = :status, updatedAt = :updatedAt WHERE userId = :userId")
     suspend fun updateVerificationStatus(userId: String, status: String, updatedAt: Long = System.currentTimeMillis())
 

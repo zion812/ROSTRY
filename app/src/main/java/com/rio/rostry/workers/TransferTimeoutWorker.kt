@@ -58,7 +58,7 @@ class TransferTimeoutWorker @AssistedInject constructor(
                     val fromUserId = t.fromUserId ?: ""
                     intelligentNotificationService.notifyTransferEvent(TransferEventType.TIMED_OUT, transferId, "Transfer Timed Out", message)
                     taskRepository.generateTransferTimeoutTask(transferId, fromUserId, t.orderId, now)
-  
+
                     // Issue refund idempotently if linked to an order with a payment
                     try {
                         val orderId = t.orderId
@@ -70,6 +70,38 @@ class TransferTimeoutWorker @AssistedInject constructor(
                             }
                         }
                     } catch (_: Exception) { /* best-effort refund */ }
+                }
+            }
+
+            // --- Enthusiast Transfer Timeout Handling ---
+            val expiredEnthusiastTransfers = transferDao.getExpiredEnthusiastTransfers(now)
+            if (expiredEnthusiastTransfers.isNotEmpty()) {
+                transferDao.markTimedOut(expiredEnthusiastTransfers.map { it.transferId }, updatedAt = now)
+                
+                expiredEnthusiastTransfers.forEach { transfer ->
+                    // Log the timeout
+                    auditLogDao.insert(
+                        AuditLogEntity(
+                            logId = UUID.randomUUID().toString(),
+                            type = "TRANSFER",
+                            refId = transfer.transferId,
+                            action = "TIMEOUT_ENTHUSIAST_TRANSFER",
+                            actorUserId = null,
+                            detailsJson = null,
+                            createdAt = now
+                        )
+                    )
+
+                    // Notify relevant parties
+                    val productName = transfer.productId ?: "Asset" // Should ideally fetch name, but ID works as fallback for logs
+                    val message = "The 15-minute transfer window for $productName has expired."
+                    
+                    intelligentNotificationService.notifyTransferEvent(
+                        type = TransferEventType.TIMED_OUT,
+                        transferId = transfer.transferId,
+                        title = "Transfer Expired",
+                        message = message
+                    )
                 }
             }
             Result.success()

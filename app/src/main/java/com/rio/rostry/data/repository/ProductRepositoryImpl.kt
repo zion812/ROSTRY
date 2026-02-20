@@ -37,6 +37,16 @@ class ProductRepositoryImpl @Inject constructor(
         return productDao.findById(productId)
     }
 
+    override suspend fun transferOwnership(productId: String, newOwnerId: String): Resource<Unit> {
+        return try {
+            val now = System.currentTimeMillis()
+            productDao.updateSellerIdAndTouch(productId, newOwnerId, now)
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to transfer ownership")
+        }
+    }
+
     override fun getProductsBySeller(sellerId: String): Flow<Resource<List<ProductEntity>>> {
         return productDao.getProductsBySeller(sellerId).map { Resource.Success(it) }
     }

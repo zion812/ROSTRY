@@ -22,6 +22,8 @@ interface UserRepository {
 
     fun searchUsers(query: String): Flow<List<UserEntity>>
 
+    fun searchUsersForTransfer(query: String, currentUserId: String): Flow<List<UserEntity>>
+
     suspend fun updateUserType(userId: String, newType: UserType): Resource<Unit>
 
     suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit>

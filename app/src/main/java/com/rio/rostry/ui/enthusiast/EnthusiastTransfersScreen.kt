@@ -218,6 +218,7 @@ fun EnthusiastTransfersScreen(
                 totalCount = state.pending.size + historyPaging.itemCount,
                 pendingCount = state.pending.size,
                 disputedCount = state.pending.count { it.status == "DISPUTED" } + historyPaging.itemSnapshotList.items.count { it.status == "DISPUTED" },
+                failedCount = historyPaging.itemSnapshotList.items.count { it.status.uppercase() in listOf("TIMEOUT", "DENIED", "CANCELLED", "FAILED") },
                 completedCount = historyPaging.itemSnapshotList.items.count { it.status == "COMPLETED" },
                 onFilterByStatus = { vm.setStatusFilter(it) },
                 modifier = Modifier.fillMaxWidth()

@@ -16,22 +16,18 @@ interface ProductRepository {
 
     fun getProductById(productId: String): Flow<Resource<ProductEntity?>>
 
-    /**
-     * Get a product by ID (direct suspend call).
-     * Used by PedigreeManager for efficient genealogy traversal.
-     */
     suspend fun getById(productId: String): ProductEntity?
+
+    /**
+     * Transfers ownership of a product to a new user.
+     */
+    suspend fun transferOwnership(productId: String, newOwnerId: String): Resource<Unit>
 
     fun getProductsBySeller(sellerId: String): Flow<Resource<List<ProductEntity>>>
 
     fun getProductsByCategory(category: String): Flow<Resource<List<ProductEntity>>>
 
-    suspend fun addProduct(product: ProductEntity, validateReferences: Boolean = true): Resource<String> {
-        if (validateReferences && !validateProductReferences(product)) {
-            return Resource.Error("Invalid product reference: seller does not exist")
-        }
-        throw NotImplementedError("addProduct must be implemented")
-    }
+    suspend fun addProduct(product: ProductEntity, validateReferences: Boolean = true): Resource<String>
 
     suspend fun updateProduct(product: ProductEntity): Resource<Unit>
 

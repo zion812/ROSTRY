@@ -77,6 +77,13 @@ interface ShowRecordDao {
     
     @Query("DELETE FROM show_records WHERE isDeleted = 1")
     suspend fun purgeDeleted()
+
+    // Owner-level aggregation
+    @Query("SELECT COUNT(*) FROM show_records WHERE ownerId = :ownerId AND result IN ('WIN', '1ST') AND isDeleted = 0")
+    suspend fun countWinsByOwner(ownerId: String): Int
+
+    @Query("SELECT COUNT(*) FROM show_records WHERE ownerId = :ownerId AND isDeleted = 0")
+    suspend fun countTotalByOwner(ownerId: String): Int
 }
 
 /**

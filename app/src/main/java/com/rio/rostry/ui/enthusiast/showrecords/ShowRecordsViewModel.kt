@@ -105,7 +105,12 @@ class ShowRecordsViewModel @Inject constructor(
         eventDate: Long,
         type: String, // SHOW, EXHIBITION, SPARRING
         result: String,
-        placement: String?, // Can be parsed to Int or stored in notes if complex
+        location: String?,
+        category: String?,
+        score: Double?,
+        placement: Int?,
+        totalParticipants: Int?,
+        opponentName: String?,
         judge: String?,
         notes: String?
     ) {
@@ -118,7 +123,14 @@ class ShowRecordsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isSaving = true)
 
         val photosJson = com.google.gson.Gson().toJson(_inputPhotos.value)
-        val userId = currentUserProvider.userIdOrNull() ?: "current_user"
+        val userId = currentUserProvider.userIdOrNull()
+        if (userId == null) {
+            _uiState.value = _uiState.value.copy(
+                isSaving = false,
+                errorMessage = "You must be signed in to save records"
+            )
+            return
+        }
 
         val record = ShowRecordEntity(
             recordId = UUID.randomUUID().toString(),
@@ -126,10 +138,15 @@ class ShowRecordsViewModel @Inject constructor(
             ownerId = userId,
             recordType = type,
             eventName = eventName,
+            eventLocation = location,
             eventDate = eventDate,
             result = result,
-            placement = placement?.toIntOrNull(),
-            judgesNotes = judge, // Mapping judge name to notes field temporarily or handling separately
+            placement = placement,
+            totalParticipants = totalParticipants,
+            category = category,
+            score = score,
+            opponentName = opponentName,
+            judgesNotes = judge,
             notes = notes,
             photoUrls = photosJson,
             createdAt = System.currentTimeMillis(),

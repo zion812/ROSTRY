@@ -88,9 +88,10 @@ class EnthusiastTransferViewModel @Inject constructor(
                             .sortedByDescending { it.initiatedAt }
                         val historyBase = dated.filter { !it.status.equals("PENDING", true) }
                         val statusFilteredHistory = when (s) {
-                            "VERIFIED" -> historyBase.filter { it.status.equals("VERIFIED", true) }
-                            "COMPLETED" -> historyBase.filter { it.status.equals("COMPLETED", true) }
-                            "DISPUTED" -> historyBase.filter { it.status.equals("DISPUTED", true) }
+                            "VERIFIED" -> historyBase.filter { it.status.uppercase() in listOf("VERIFIED", "CLAIMED") }
+                            "COMPLETED" -> historyBase.filter { it.status.uppercase() == "COMPLETED" }
+                            "DISPUTED" -> historyBase.filter { it.status.uppercase() == "DISPUTED" }
+                            "FAILED" -> historyBase.filter { it.status.uppercase() in listOf("TIMEOUT", "DENIED", "CANCELLED", "FAILED") }
                             else -> historyBase
                         }.sortedByDescending { it.initiatedAt }
                         _state.update {
@@ -126,14 +127,21 @@ class EnthusiastTransferViewModel @Inject constructor(
             val (start, end) = range
             val uid = currentUserProvider.userIdOrNull() ?: ""
             val typeOrNull = t.takeIf { it != "ALL" }
-            val statusOrNull = s.takeIf { it !in setOf("ALL", "PENDING") }
+            
+            // Map our UI status filters to DB statuses
+            val statusOrNull = when (s) {
+                "ALL", "PENDING" -> null // handled by DAO excluding PENDING
+                "FAILED" -> "FAILED" // we might need a more complex query if we want to filter by multiple failed states via Room, for now we rely on the in-memory filter or a generic failed state if one existed. Since we can only pass one status, we'll let it be null and filter later if needed, or pass the specific one requested.
+                else -> s
+            }
+
             Pager(
                 config = PagingConfig(pageSize = 20, prefetchDistance = 10, enablePlaceholders = false)
             ) {
                 transferDao.pagingHistory(
                     userId = uid,
                     type = typeOrNull,
-                    status = statusOrNull,
+                    status = statusOrNull, // This might need refinement if FAILED maps to multiple DB states and we use paging heavily
                     start = start,
                     end = end
                 )

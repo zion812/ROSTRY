@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
@@ -47,6 +48,7 @@ fun TransferStatsCard(
     totalCount: Int,
     pendingCount: Int,
     disputedCount: Int,
+    failedCount: Int,
     completedCount: Int,
     onFilterByStatus: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -97,6 +99,16 @@ fun TransferStatsCard(
                     showBadge = disputedCount > 0,
                     onClick = { onFilterByStatus("DISPUTED") },
                     contentDescription = "Disputed transfers: $disputedCount, tap to filter"
+                )
+                VerticalDivider(modifier = Modifier.height(40.dp).width(1.dp))
+                MetricItem(
+                    icon = Icons.Filled.Error,
+                    value = failedCount.toString(),
+                    label = "Failed",
+                    tint = MaterialTheme.colorScheme.errorContainer,
+                    showBadge = failedCount > 0,
+                    onClick = { onFilterByStatus("FAILED") },
+                    contentDescription = "Failed transfers (Timeout/Denied/Cancelled): $failedCount, tap to filter"
                 )
                 VerticalDivider(modifier = Modifier.height(40.dp).width(1.dp))
                 MetricItem(

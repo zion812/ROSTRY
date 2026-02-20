@@ -15,6 +15,7 @@ import javax.inject.Singleton
 
 interface TransferNotifier {
     fun notifyInitiated(transferId: String, toUserId: String?)
+    fun notifyPending(transferId: String, title: String)
     fun notifyBuyerVerified(transferId: String)
     fun notifyCompleted(transferId: String)
     fun notifyCancelled(transferId: String)
@@ -65,6 +66,11 @@ class TransferNotifierImpl @Inject constructor(
     override fun notifyInitiated(transferId: String, toUserId: String?) {
         val deepLink = "rostry://transfer/$transferId"
         post("Transfer Initiated", "Transfer $transferId started${toUserId?.let { " for $it" } ?: ""}", transferId, deepLink)
+    }
+
+    override fun notifyPending(transferId: String, title: String) {
+        val deepLink = "rostry://transfer/$transferId"
+        post(title, "Transfer $transferId is pending your action", transferId, deepLink)
     }
 
     override fun notifyBuyerVerified(transferId: String) {

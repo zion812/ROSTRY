@@ -26,7 +26,7 @@ enum class FarmEventType {
 }
   
 enum class TransferEventType {
-    INITIATED, VERIFIED, COMPLETED, CANCELLED, DISPUTED, TIMED_OUT
+    INITIATED, VERIFIED, COMPLETED, CANCELLED, DISPUTED, TIMED_OUT, ENTHUSIAST_TRANSFER_PROPOSED
 }
   
 enum class SocialEventType {
@@ -418,6 +418,9 @@ class IntelligentNotificationService @Inject constructor(
                 transferNotifier.notifyCancelled(transferId)
             }
             TransferEventType.TIMED_OUT -> transferNotifier.notifyTimedOut(transferId)
+            TransferEventType.ENTHUSIAST_TRANSFER_PROPOSED -> {
+                transferNotifier.notifyPending(transferId, title)
+            }
             else -> {
                 // no-op
             }

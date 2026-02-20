@@ -49,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.rio.rostry.ui.components.MediaThumbnailRow
@@ -60,7 +62,20 @@ import java.util.Locale
 @Composable
 fun AddShowRecordSheet(
     onDismiss: () -> Unit,
-    onSave: (String, Long, String, String, String?, String?, String?) -> Unit,
+    onSave: (
+        name: String,
+        date: Long,
+        type: String,
+        result: String,
+        location: String?,
+        category: String?,
+        score: Double?,
+        placement: Int?,
+        totalParticipants: Int?,
+        opponentName: String?,
+        judge: String?,
+        notes: String?
+    ) -> Unit,
     onAddPhoto: (Uri) -> Unit,
     photos: List<String>,
     onRemovePhoto: (Int) -> Unit
@@ -69,8 +84,15 @@ fun AddShowRecordSheet(
     val scrollState = rememberScrollState()
 
     var eventName by remember { mutableStateOf("") }
+    var eventLocation by remember { mutableStateOf("") }
     var eventDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    var category by remember { mutableStateOf("") }
+    var score by remember { mutableStateOf("") }
+    var placement by remember { mutableStateOf("") }
+    var totalEntries by remember { mutableStateOf("") }
+    var opponentName by remember { mutableStateOf("") }
 
     var typeExpanded by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf("SHOW") }
@@ -84,6 +106,7 @@ fun AddShowRecordSheet(
     var notes by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             try {
@@ -121,6 +144,15 @@ fun AddShowRecordSheet(
                 singleLine = true
             )
 
+            // Event Location
+            OutlinedTextField(
+                value = eventLocation,
+                onValueChange = { eventLocation = it },
+                label = { Text("Location (Optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
             // Date Picker
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -132,7 +164,7 @@ fun AddShowRecordSheet(
                     style = MaterialTheme.typography.bodyLarge
                 )
                 IconButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = "Select Date")
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.CalendarToday, contentDescription = "Select Date")
                 }
             }
 
@@ -189,6 +221,26 @@ fun AddShowRecordSheet(
                 }
             }
 
+            // Sparring Opponent Visibility
+            androidx.compose.animation.AnimatedVisibility(visible = selectedType == "SPARRING") {
+                OutlinedTextField(
+                    value = opponentName,
+                    onValueChange = { opponentName = it },
+                    label = { Text("Opponent Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+
+            // Category
+            OutlinedTextField(
+                value = category,
+                onValueChange = { category = it },
+                label = { Text("Category (e.g., Heritage, Game)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
             // Result Dropdown
             ExposedDropdownMenuBox(
                 expanded = resultExpanded,
@@ -218,6 +270,37 @@ fun AddShowRecordSheet(
                         )
                     }
                 }
+            }
+
+            // Metrics row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = placement,
+                    onValueChange = { placement = it.filter { c -> c.isDigit() } },
+                    label = { Text("Place") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = totalEntries,
+                    onValueChange = { totalEntries = it.filter { c -> c.isDigit() } },
+                    label = { Text("Total") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = score,
+                    onValueChange = { score = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Score") },
+                    modifier = Modifier.weight(1.2f),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                )
             }
 
             // Judge Name
@@ -262,7 +345,7 @@ fun AddShowRecordSheet(
                             onClick = { selectedGalleryIndex = null },
                             modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
                         ) {
-                            Icon(Icons.Default.Close, "Close", tint = androidx.compose.ui.graphics.Color.White)
+                            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Close, "Close", tint = androidx.compose.ui.graphics.Color.White)
                         }
                     }
                 }
@@ -282,7 +365,7 @@ fun AddShowRecordSheet(
                     onClick = { pickImageLauncher.launch(arrayOf("image/*")) },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Gallery")
                 }
@@ -298,7 +381,7 @@ fun AddShowRecordSheet(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(18.dp))
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.CameraAlt, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Camera")
                 }
@@ -309,7 +392,21 @@ fun AddShowRecordSheet(
             // Save Button
             Button(
                 onClick = {
-                    onSave(eventName, eventDate, selectedType, selectedResult, null, judge, notes)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onSave(
+                        eventName,
+                        eventDate,
+                        selectedType,
+                        selectedResult,
+                        eventLocation.takeIf { it.isNotBlank() },
+                        category.takeIf { it.isNotBlank() },
+                        score.toDoubleOrNull(),
+                        placement.toIntOrNull(),
+                        totalEntries.toIntOrNull(),
+                        opponentName.takeIf { it.isNotBlank() },
+                        judge.takeIf { it.isNotBlank() },
+                        notes.takeIf { it.isNotBlank() }
+                    )
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = eventName.isNotBlank()

@@ -97,6 +97,36 @@ fun ShowRecordsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Error display
+                state.errorMessage?.let { err ->
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                err,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { viewModel.clearError() }) {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = "Dismiss",
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Stats Header
                 ShowStatsHeader(
                     totalShows = state.totalShows,
@@ -150,8 +180,8 @@ fun ShowRecordsScreen(
         if (state.isAddSheetOpen) {
             AddShowRecordSheet(
                 onDismiss = { viewModel.closeAddSheet() },
-                onSave = { name, date, type, result, placement, judge, notes ->
-                    viewModel.saveRecord(name, date, type, result, placement, judge, notes)
+                onSave = { name, date, type, result, location, category, score, placement, total, opponent, judge, notes ->
+                    viewModel.saveRecord(name, date, type, result, location, category, score, placement, total, opponent, judge, notes)
                 },
                 onAddPhoto = { uri -> viewModel.addPhoto(uri) },
                 photos = inputPhotos,
@@ -286,10 +316,61 @@ fun ShowRecordCard(
             }
             
             val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-            Text(
-                text = "Date: ${dateFormat.format(Date(record.eventDate))}",
-                style = MaterialTheme.typography.bodySmall
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Date: ${dateFormat.format(Date(record.eventDate))}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (!record.eventLocation.isNullOrBlank()) {
+                    Text(
+                        text = record.eventLocation,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (!record.category.isNullOrBlank()) {
+                Text(
+                    text = "Category: ${record.category}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            // Metrics row
+            if (record.placement != null || record.score != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    record.placement?.let {
+                        Text(
+                            text = "Placed: #$it${if (record.totalParticipants != null) "/${record.totalParticipants}" else ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    record.score?.let {
+                        Text(
+                            text = "Score: $it",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            if (!record.opponentName.isNullOrBlank()) {
+                 Text(
+                    text = "vs. ${record.opponentName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
             
             if (!record.judgesNotes.isNullOrBlank()) {
                  Text(

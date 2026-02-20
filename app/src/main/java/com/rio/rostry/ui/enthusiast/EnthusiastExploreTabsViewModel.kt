@@ -81,16 +81,25 @@ class EnthusiastExploreTabsViewModel @Inject constructor(
         val users = userDao.getAllUsers().first()
         val farmers = users.filter { it.role == UserType.FARMER || it.userType == "EXPERT" }.take(10)
         
-        // Mock Learning Content
+        // Curated Learning Content (static resource-based, no external URLs)
         val modules = listOf(
             com.rio.rostry.ui.enthusiast.explore.LearningModule(
-                "1", "How to Start Your Backyard Farm", "ARTICLE", "5 min read", "https://example.com/thumb1.jpg"
+                "1", "How to Start Your Backyard Farm", "ARTICLE", "5 min read"
             ),
             com.rio.rostry.ui.enthusiast.explore.LearningModule(
-                "2", "Understanding Chicken Behavior", "VIDEO", "12:00", "https://example.com/thumb2.jpg"
+                "2", "Understanding Chicken Behavior", "VIDEO", "12:00"
             ),
-             com.rio.rostry.ui.enthusiast.explore.LearningModule(
-                "3", "Organic Feed Guide", "ARTICLE", "3 min read", "https://example.com/thumb3.jpg"
+            com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "3", "Organic Feed Guide", "ARTICLE", "3 min read"
+            ),
+            com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "4", "Breeding Pair Selection Tips", "ARTICLE", "4 min read"
+            ),
+            com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "5", "Incubation Temperature Guide", "ARTICLE", "6 min read"
+            ),
+            com.rio.rostry.ui.enthusiast.explore.LearningModule(
+                "6", "Show Preparation Essentials", "VIDEO", "8:30"
             )
         )
         
