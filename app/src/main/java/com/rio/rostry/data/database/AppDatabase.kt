@@ -155,9 +155,15 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ArenaParticipantEntity::class,
         // Digital Bird Twin Foundation (Phase T1)
         DigitalTwinEntity::class,
-        BirdEventEntity::class
+        BirdEventEntity::class,
+        // Enhanced Farmer Asset Management System
+        AssetLifecycleEventEntity::class,
+        AssetHealthRecordEntity::class,
+        TaskRecurrenceEntity::class,
+        AssetBatchOperationEntity::class,
+        ComplianceRuleEntity::class
     ],
-    version = 82, // 81 -> 82 (Added DigitalTwinEntity, BirdEventEntity)
+    version = 83, // 82 -> 83 (Added DigitalTwinEntity, BirdEventEntity) -> Enhanced Farmer Asset Management
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -318,6 +324,13 @@ abstract class AppDatabase : RoomDatabase() {
     // Digital Bird Twin Foundation DAOs (Phase T1)
     abstract fun digitalTwinDao(): DigitalTwinDao
     abstract fun birdEventDao(): BirdEventDao
+    
+    // Enhanced Farmer Asset Management Epic DAOs
+    abstract fun assetLifecycleEventDao(): AssetLifecycleEventDao
+    abstract fun assetHealthRecordDao(): AssetHealthRecordDao
+    abstract fun taskRecurrenceDao(): TaskRecurrenceDao
+    abstract fun assetBatchOperationDao(): AssetBatchOperationDao
+    abstract fun complianceRuleDao(): ComplianceRuleDao
 
     object Converters {
         @TypeConverter
@@ -883,7 +896,110 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        
+        // Enhanced Farmer Asset Management System (82 -> 83)
+        val MIGRATION_82_83 = object : Migration(82, 83) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `asset_lifecycle_events` (
+                        `eventId` TEXT NOT NULL PRIMARY KEY,
+                        `assetId` TEXT NOT NULL,
+                        `farmerId` TEXT NOT NULL,
+                        `eventType` TEXT NOT NULL,
+                        `fromStage` TEXT,
+                        `toStage` TEXT,
+                        `eventData` TEXT NOT NULL,
+                        `triggeredBy` TEXT NOT NULL,
+                        `occurredAt` INTEGER NOT NULL,
+                        `recordedAt` INTEGER NOT NULL,
+                        `recordedBy` TEXT NOT NULL,
+                        `notes` TEXT,
+                        `mediaItemsJson` TEXT,
+                        `dirty` INTEGER NOT NULL,
+                        `syncedAt` INTEGER
+                    )
+                """.trimIndent())
+                
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `asset_health_records` (
+                        `recordId` TEXT NOT NULL PRIMARY KEY,
+                        `assetId` TEXT NOT NULL,
+                        `farmerId` TEXT NOT NULL,
+                        `recordType` TEXT NOT NULL,
+                        `recordData` TEXT NOT NULL,
+                        `healthScore` INTEGER NOT NULL,
+                        `veterinarianId` TEXT,
+                        `veterinarianNotes` TEXT,
+                        `followUpRequired` INTEGER NOT NULL,
+                        `followUpDate` INTEGER,
+                        `costInr` REAL,
+                        `mediaItemsJson` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL,
+                        `syncedAt` INTEGER
+                    )
+                """.trimIndent())
+                
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `task_recurrences` (
+                        `recurrenceId` TEXT NOT NULL PRIMARY KEY,
+                        `taskId` TEXT NOT NULL,
+                        `pattern` TEXT NOT NULL,
+                        `interval` INTEGER NOT NULL,
+                        `daysOfWeek` TEXT,
+                        `endDate` INTEGER,
+                        `maxOccurrences` INTEGER,
+                        `currentOccurrence` INTEGER NOT NULL,
+                        `lastGenerated` INTEGER,
+                        `nextDue` INTEGER,
+                        `isActive` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `asset_batch_operations` (
+                        `operationId` TEXT NOT NULL PRIMARY KEY,
+                        `farmerId` TEXT NOT NULL,
+                        `operationType` TEXT NOT NULL,
+                        `selectionCriteria` TEXT NOT NULL,
+                        `operationData` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `totalItems` INTEGER NOT NULL,
+                        `processedItems` INTEGER NOT NULL,
+                        `successfulItems` INTEGER NOT NULL,
+                        `failedItems` INTEGER NOT NULL,
+                        `errorLog` TEXT,
+                        `canRollback` INTEGER NOT NULL,
+                        `rollbackData` TEXT,
+                        `startedAt` INTEGER,
+                        `completedAt` INTEGER,
+                        `estimatedDuration` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `compliance_rules` (
+                        `ruleId` TEXT NOT NULL PRIMARY KEY,
+                        `jurisdiction` TEXT NOT NULL,
+                        `ruleType` TEXT NOT NULL,
+                        `assetTypes` TEXT NOT NULL,
+                        `ruleData` TEXT NOT NULL,
+                        `isActive` INTEGER NOT NULL,
+                        `effectiveFrom` INTEGER NOT NULL,
+                        `effectiveUntil` INTEGER,
+                        `severity` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `reminderDays` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
 
 
         // FarmAsset sale lifecycle columns (62 → 63)

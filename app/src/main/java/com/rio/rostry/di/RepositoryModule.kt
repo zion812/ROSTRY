@@ -336,6 +336,23 @@ abstract class RepositoryModule {
     abstract fun bindProfitabilityRepository(
         impl: com.rio.rostry.data.repository.analytics.ProfitabilityRepositoryImpl
     ): com.rio.rostry.data.repository.analytics.ProfitabilityRepository
+
+    // Enhanced Farmer Asset Management Repositories
+    @Binds
+    @Singleton
+    abstract fun bindAssetLifecycleRepository(impl: com.rio.rostry.data.repository.AssetLifecycleRepositoryImpl): com.rio.rostry.domain.repository.AssetLifecycleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAssetBatchOperationRepository(impl: com.rio.rostry.data.repository.AssetBatchOperationRepositoryImpl): com.rio.rostry.domain.repository.AssetBatchOperationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTaskSchedulingRepository(impl: com.rio.rostry.data.repository.TaskSchedulingRepositoryImpl): com.rio.rostry.domain.repository.TaskSchedulingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEnhancedDailyLogRepository(impl: com.rio.rostry.data.repository.EnhancedDailyLogRepositoryImpl): com.rio.rostry.domain.repository.EnhancedDailyLogRepository
 }
 
 @Module

@@ -270,7 +270,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_71_72,
             AppDatabase.MIGRATION_72_73,
             AppDatabase.MIGRATION_73_74,
-            AppDatabase.MIGRATION_81_82
+            AppDatabase.MIGRATION_81_82,
+            AppDatabase.MIGRATION_82_83
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -741,4 +742,25 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideBirdEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.BirdEventDao = db.birdEventDao()
+
+    // Enhanced Farmer Asset Management Epic DAOs
+    @Provides
+    @Singleton
+    fun provideAssetLifecycleEventDao(db: AppDatabase): com.rio.rostry.data.database.dao.AssetLifecycleEventDao = db.assetLifecycleEventDao()
+
+    @Provides
+    @Singleton
+    fun provideAssetHealthRecordDao(db: AppDatabase): com.rio.rostry.data.database.dao.AssetHealthRecordDao = db.assetHealthRecordDao()
+
+    @Provides
+    @Singleton
+    fun provideTaskRecurrenceDao(db: AppDatabase): com.rio.rostry.data.database.dao.TaskRecurrenceDao = db.taskRecurrenceDao()
+
+    @Provides
+    @Singleton
+    fun provideAssetBatchOperationDao(db: AppDatabase): com.rio.rostry.data.database.dao.AssetBatchOperationDao = db.assetBatchOperationDao()
+
+    @Provides
+    @Singleton
+    fun provideComplianceRuleDao(db: AppDatabase): com.rio.rostry.data.database.dao.ComplianceRuleDao = db.complianceRuleDao()
 }
