@@ -271,7 +271,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_72_73,
             AppDatabase.MIGRATION_73_74,
             AppDatabase.MIGRATION_81_82,
-            AppDatabase.MIGRATION_82_83
+            AppDatabase.MIGRATION_82_83,
+            AppDatabase.MIGRATION_83_84
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -763,4 +764,22 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideComplianceRuleDao(db: AppDatabase): com.rio.rostry.data.database.dao.ComplianceRuleDao = db.complianceRuleDao()
+
+    // Asset Multimedia Gallery DAOs
+    @Provides
+    @Singleton
+    fun provideMediaItemDao(db: AppDatabase): com.rio.rostry.data.database.dao.MediaItemDao = db.mediaItemDao()
+
+    @Provides
+    @Singleton
+    fun provideMediaTagDao(db: AppDatabase): com.rio.rostry.data.database.dao.MediaTagDao = db.mediaTagDao()
+
+    @Provides
+    @Singleton
+    fun provideMediaCacheMetadataDao(db: AppDatabase): com.rio.rostry.data.database.dao.MediaCacheMetadataDao = db.mediaCacheMetadataDao()
+
+    @Provides
+    @Singleton
+    fun provideGalleryFilterStateDao(db: AppDatabase): com.rio.rostry.data.database.dao.GalleryFilterStateDao = db.galleryFilterStateDao()
 }
+

@@ -2156,19 +2156,41 @@ private fun RoleNavGraph(
             )
         }
         
+
         // Farm Assets Management
         composable(Routes.FarmerNav.FARM_ASSETS) {
              com.rio.rostry.ui.farmer.asset.FarmAssetListScreen(
                 onNavigateBack = { navController.navigate(Routes.FarmerNav.HOME) },
                 onAssetClick = { assetId -> navController.navigate(Routes.FarmerNav.ASSET_DETAILS.replace("{assetId}", assetId)) },
                 onAddAsset = { navController.navigate(Routes.Onboarding.FARM_BIRD) },
-                onAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) }
+                onAddBatch = { navController.navigate(Routes.Onboarding.FARM_BATCH) },
+                onOpenGallery = { navController.navigate(Routes.FarmerNav.GALLERY) }
             )
         }
 
+        // Multimedia Gallery
+        composable(Routes.FarmerNav.GALLERY) {
+            com.rio.rostry.ui.shared.gallery.GalleryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToMediaViewer = { assetId ->
+                    navController.navigate(Routes.FarmerNav.assetMedia(assetId))
+                }
+            )
+        }
 
+        composable(
+            route = Routes.FarmerNav.ASSET_MEDIA,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
+            com.rio.rostry.ui.shared.gallery.AssetMediaScreen(
+                assetId = assetId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToMediaViewer = { mediaUrl -> /* TODO */ },
+                onNavigateToUpload = { aId -> /* TODO */ }
+            )
+        }
 
-        // Farmer Create Screen
         composable(Routes.FarmerNav.CREATE) {
             com.rio.rostry.ui.farmer.FarmerCreateScreen(
                 onNavigateBack = { navController.popBackStack() }
@@ -2214,7 +2236,8 @@ private fun RoleNavGraph(
                 onOpenHallOfFame = { navController.navigate(Routes.EnthusiastNav.HALL_OF_FAME) },
                 onOpenDigitalFarm = { navController.navigate(Routes.EnthusiastNav.DIGITAL_FARM) },
                 onOpenFarmAssets = { navController.navigate(Routes.FarmerNav.FARM_ASSETS) },
-                onOpenFarmLog = { navController.navigate(Routes.Monitoring.FARM_LOG) }
+                onOpenFarmLog = { navController.navigate(Routes.Monitoring.FARM_LOG) },
+                onOpenGallery = { navController.navigate(Routes.EnthusiastNav.GALLERY) }
             )
         }
         
@@ -2348,7 +2371,31 @@ private fun RoleNavGraph(
                 onOpenProduct = { productId -> navController.navigate(Routes.Builders.productDetails(productId)) },
                 onOpenEvent = { eventId -> /* TODO: event detail */ },
                 onShare = { _ -> /* TODO: share */ },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onOpenGallery = { navController.navigate(Routes.EnthusiastNav.GALLERY) }
+            )
+        }
+        
+        // Multimedia Gallery (Enthusiast)
+        composable(Routes.EnthusiastNav.GALLERY) {
+            com.rio.rostry.ui.shared.gallery.GalleryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToMediaViewer = { assetId ->
+                    navController.navigate(Routes.EnthusiastNav.assetMedia(assetId))
+                }
+            )
+        }
+
+        composable(
+            route = Routes.EnthusiastNav.ASSET_MEDIA,
+            arguments = listOf(navArgument("assetId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
+            com.rio.rostry.ui.shared.gallery.AssetMediaScreen(
+                assetId = assetId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToMediaViewer = { mediaUrl -> /* TODO */ },
+                onNavigateToUpload = { aId -> /* TODO */ }
             )
         }
         

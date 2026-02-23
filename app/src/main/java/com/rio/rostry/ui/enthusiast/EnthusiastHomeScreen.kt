@@ -142,7 +142,8 @@ fun EnthusiastHomeScreen(
     onOpenDigitalFarm: () -> Unit = {},
     // Farmer Parity Callbacks
     onOpenFarmAssets: () -> Unit = {},
-    onOpenFarmLog: () -> Unit = {}
+    onOpenFarmLog: () -> Unit = {},
+    onOpenGallery: () -> Unit = {}
 ) {
 
     val vm: EnthusiastHomeViewModel = hiltViewModel()

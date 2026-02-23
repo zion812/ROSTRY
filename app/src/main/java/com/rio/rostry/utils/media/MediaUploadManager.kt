@@ -248,4 +248,95 @@ class MediaUploadManager @Inject constructor(
   
     /** Checks if a specific remote path is currently being uploaded (in-memory). */
     fun isUploading(remotePath: String): Boolean = activeUploads.containsKey(remotePath)
+    
+    /**
+     * Enqueue a gallery media upload. Generates thumbnail if requested, creates MediaItemEntity in DB,
+     * and tracks the upload progress.
+     */
+    fun enqueueGalleryMedia(
+        request: com.rio.rostry.domain.model.media.MediaUploadRequest,
+        mediaItemDao: com.rio.rostry.data.database.dao.MediaItemDao,
+        mediaTagDao: com.rio.rostry.data.database.dao.MediaTagDao
+    ) {
+        scope.launch {
+            val mediaId = java.util.UUID.randomUUID().toString()
+            val remotePath = "gallery/${request.assetId ?: "general"}/$mediaId"
+            var thumbnailUrl: String? = null
+            
+            // Thumbnail generation stub
+            if (request.generateThumbnail && request.mediaType == com.rio.rostry.domain.model.media.MediaType.IMAGE) {
+                // In a real implementation we would compress and resize the image, 
+                // then upload it to a thumbnail path.
+                // thumbnailUrl = generateAndUploadThumbnail(request.sourceUri)
+            }
+            
+            val now = System.currentTimeMillis()
+            val entity = com.rio.rostry.data.database.entity.MediaItemEntity(
+                mediaId = mediaId,
+                assetId = request.assetId,
+                url = remotePath, // Will be updated to download URL on success
+                localPath = request.sourceUri.toString(),
+                mediaType = request.mediaType.name,
+                dateAdded = now,
+                fileSize = 0L, // Should be resolved from URI
+                width = null,
+                height = null,
+                duration = null,
+                thumbnailUrl = thumbnailUrl,
+                uploadStatus = com.rio.rostry.domain.model.media.UploadStatus.PENDING.name,
+                createdAt = now,
+                updatedAt = now,
+                isCached = false,
+                dirty = true
+            )
+            
+            mediaItemDao.insertMedia(entity)
+            if (request.tags.isNotEmpty()) {
+                mediaTagDao.insertTags(request.tags.map {
+                    com.rio.rostry.data.database.entity.MediaTagEntity(
+                        mediaId = mediaId,
+                        tagId = it.tagId,
+                        tagType = it.tagType.name,
+                        value = it.value,
+                        createdAt = now
+                    )
+                })
+            }
+            
+            // Queue the actual upload
+            enqueueToOutbox(
+                localPath = request.sourceUri.toString(),
+                remotePath = remotePath,
+                contextJson = """{"mediaId": "$mediaId", "type": "gallery"}"""
+            )
+            
+            // Observe the upload to update the MediaItem status
+            launch {
+                events.collect { event ->
+                    when (event) {
+                        is UploadEvent.Progress -> {
+                            if (event.remotePath == remotePath) {
+                                mediaItemDao.updateMediaStatus(mediaId, com.rio.rostry.domain.model.media.UploadStatus.UPLOADING.name)
+                            }
+                        }
+                        is UploadEvent.Success -> {
+                            if (event.remotePath == remotePath) {
+                                mediaItemDao.updateMediaUrlAndStatus(
+                                    mediaId, 
+                                    event.downloadUrl, 
+                                    com.rio.rostry.domain.model.media.UploadStatus.COMPLETED.name
+                                )
+                            }
+                        }
+                        is UploadEvent.Failed -> {
+                            if (event.remotePath == remotePath) {
+                                mediaItemDao.updateMediaStatus(mediaId, com.rio.rostry.domain.model.media.UploadStatus.FAILED.name)
+                            }
+                        }
+                        else -> {}
+                    }
+                }
+            }
+        }
+    }
 }

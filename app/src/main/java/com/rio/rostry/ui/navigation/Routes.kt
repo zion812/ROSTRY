@@ -280,6 +280,11 @@ object Routes {
 
         // NEW: Feed History Route
         const val FEED_HISTORY = "farmer/feed_history"
+
+        // NEW: Multimedia Gallery Routes
+        const val GALLERY = "farmer/gallery"
+        const val ASSET_MEDIA = "farmer/asset_media/{assetId}"
+        fun assetMedia(assetId: String) = "farmer/asset_media/$assetId"
         
         // Glass Box Farm Profile Routes
         const val PUBLIC_PROFILE_PREVIEW = "farmer/profile/preview"  // Farmer previews own public profile
@@ -368,13 +373,17 @@ object Routes {
         // Enthusiast Premium Toolset - Phase D
         const val FLOCK_ANALYTICS = "enthusiast/flock_analytics"
 
-        // Digital Twin Dashboard & Growth Tracker
         const val DIGITAL_TWIN_DASHBOARD = "enthusiast/digital_twin/{birdId}"
         const val GROWTH_TRACKER = "enthusiast/growth_tracker/{birdId}"
         const val MORPHOLOGY_GRADING = "enthusiast/grading/{birdId}"
         fun digitalTwinDashboard(birdId: String) = "enthusiast/digital_twin/$birdId"
         fun growthTracker(birdId: String) = "enthusiast/growth_tracker/$birdId"
         fun morphologyGrading(birdId: String) = "enthusiast/grading/$birdId"
+
+        // NEW: Multimedia Gallery Routes
+        const val GALLERY = "enthusiast/gallery"
+        const val ASSET_MEDIA = "enthusiast/asset_media/{assetId}"
+        fun assetMedia(assetId: String) = "enthusiast/asset_media/$assetId"
     }
     
     // NEW: Enhanced Egg Log and Hatchability Routes
@@ -514,6 +523,9 @@ object Routes {
             FarmerNav.CREATE_AUCTION_FROM_ASSET,
             // Calendar
             FarmerNav.CALENDAR,
+            // Multimedia Gallery
+            FarmerNav.GALLERY,
+            FarmerNav.ASSET_MEDIA,
             // Feed History
             FarmerNav.FEED_HISTORY,
             // Farm Activity Log
@@ -683,6 +695,9 @@ object Routes {
             EnthusiastNav.DIGITAL_TWIN_DASHBOARD,
             EnthusiastNav.GROWTH_TRACKER,
             EnthusiastNav.MORPHOLOGY_GRADING,
+            // Multimedia Gallery
+            EnthusiastNav.GALLERY,
+            EnthusiastNav.ASSET_MEDIA,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features - Farm Management

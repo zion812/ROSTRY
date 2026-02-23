@@ -12,4 +12,7 @@
 
     <!-- Persistent app files for reports saved to filesDir/reports -->
     <files-path name="reports" path="reports/" />
+
+    <!-- Cache path for Asset Multimedia Gallery media -->
+    <cache-path name="gallery_media" path="gallery_media/" />
 </paths>

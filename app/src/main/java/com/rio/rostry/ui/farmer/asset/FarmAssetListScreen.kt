@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ fun FarmAssetListScreen(
     onAssetClick: (String) -> Unit,
     onAddAsset: () -> Unit,
     onAddBatch: () -> Unit,
+    onOpenGallery: () -> Unit = {},
     onTagBatch: (String, Int) -> Unit = { _, _ -> } // NEW: Tagging Callback
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -263,6 +265,10 @@ fun FarmAssetListScreen(
                         }
                     },
                     actions = {
+                        // Gallery Button
+                        IconButton(onClick = onOpenGallery) {
+                            Icon(androidx.compose.material.icons.Icons.Default.PhotoLibrary, contentDescription = "Gallery")
+                        }
                         // Grid/List Toggle
                         IconButton(onClick = { isGridView = !isGridView }) {
                             Icon(

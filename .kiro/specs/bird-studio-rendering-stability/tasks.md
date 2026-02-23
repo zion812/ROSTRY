@@ -1,0 +1,162 @@
+# Implementation Plan
+
+- [ ] 1. Write bug condition exploration test
+  - **Property 1: Fault Condition** - Visible Gaps at Connection Zones During Rotation
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate visible gaps at all 5 connection zones
+  - **Scoped PBT Approach**: Scope the property to concrete failing cases with rotation = 1.0 (maximum right rotation) and rotation = -1.0 (maximum left rotation)
+  - Test that renderBird(rotation = 1.0) shows NO visible gaps at neck-to-body, legs-to-body, wings-to-body, tail-to-body, and chest-to-body connection zones
+  - Test that renderBird(rotation = -1.0) shows NO visible gaps at all connection zones
+  - Test that renderBird(rotation = 0.5, bodyWidth = 1.0, legLength = 1.0) shows NO visible gaps at morph-sensitive zones
+  - Use pixel analysis to detect background color pixels between parts (indicates gaps)
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples found:
+    - Measure neck gap size (expected: ~20f * rotation * sizeMultiplier pixels)
+    - Measure leg gap size (expected: ~10f * rotation * sizeMultiplier pixels)
+    - Measure tail gap size (expected: ~25f * rotation * sizeMultiplier pixels)
+    - Identify chest-body seam visibility
+    - Identify wing-body connection issues
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10_
+
+- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Existing Rendering Behavior Unchanged
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-buggy inputs (rotation = 0.0, default morph parameters)
+  - Observe: renderBird(rotation = 0.0) produces specific visual output for all parts
+  - Observe: renderBird with LACED pattern produces specific feather rendering
+  - Observe: renderBird with customPrimaryColor overrides default colors correctly
+  - Observe: renderBird with isSelected = true shows golden glow and circle outline
+  - Write property-based tests capturing observed behavior patterns:
+    - For all inputs with rotation = 0.0 AND default morphs, visual output matches baseline
+    - For all PlumagePattern values, feather patterns render identically to baseline
+    - For all color combinations, resolveColor produces identical results to baseline
+    - For all animation frames (animTime values), breathing and blinking match baseline
+    - For all style variations (tail, wing, leg, comb styles), rendering matches baseline
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12_
+
+- [ ] 3. Fix for Bird Studio Rendering Stability
+
+  - [ ] 3.1 Implement drawTailConnection function
+    - Create new function in BirdPartRenderer.kt
+    - Calculate tail base position using tailParallax offset and tail style
+    - Calculate body back position using bodyParallax offset
+    - Render Path with quadraticBezierTo curves connecting tail base to body back
+    - Use horizontal gradient from tailColor to bodyColor for seamless blending
+    - Scale connection width based on bodyWidth morph parameter (0.0 to 1.0)
+    - Adjust for tailLength morph parameter (0.5 to 1.5)
+    - Adjust for tailAngle morph parameter (0.0 to 1.0)
+    - Handle all TailStyle variations (SHORT, SICKLE, LONG_SICKLE, FAN, SQUIRREL, WHIP, NONE)
+    - _Bug_Condition: isBugCondition(input) where input.rotation != 0.0 OR input.tailLength != 1.0 OR input.tailAngle != 0.5_
+    - _Expected_Behavior: No visible gap between tail and body across all rotation angles (-1.0 to 1.0) and tail morph values_
+    - _Preservation: Tail rendering (drawTail) continues to use existing Path-based drawing with rotation transforms_
+    - _Requirements: 1.4, 1.9, 2.4, 2.9, 3.7_
+
+  - [ ] 3.2 Implement drawWingConnection function
+    - Create new function in BirdPartRenderer.kt
+    - Calculate wing root position where wing meets body
+    - Render small feathered oval using drawFeatheredOval at connection point
+    - Use wingColor with bodyColor as secondary for pattern continuity
+    - Scale based on bodyWidth morph parameter (0.0 to 1.0)
+    - Handle both FOLDED and SPREAD wing styles with different connection shapes
+    - Render connection for both left and right wings
+    - _Bug_Condition: isBugCondition(input) where input.rotation != 0.0 OR input.bodyWidth != 0.5_
+    - _Expected_Behavior: No visible gap between wings and body across all rotation angles and body width values_
+    - _Preservation: Wing rendering (drawWing) continues to use existing clipPath and feather rendering logic_
+    - _Requirements: 1.3, 2.3, 2.6, 3.6_
+
+  - [ ] 3.3 Implement drawChestConnection function
+    - Create new function in BirdPartRenderer.kt
+    - Render gradient overlay at chest-body seam
+    - Use vertical gradient from chestColor to bodyColor
+    - Apply same clipPath as chest to ensure boundary alignment
+    - Scale based on bodyWidth morph parameter (0.0 to 1.0)
+    - Adjust for bodyRoundness if applicable
+    - _Bug_Condition: isBugCondition(input) where input.rotation != 0.0 OR input.bodyWidth != 0.5_
+    - _Expected_Behavior: No visible seam between chest and body clipPath regions_
+    - _Preservation: Chest rendering (drawChest) continues to use existing clipPath and feather rendering_
+    - _Requirements: 1.5, 2.5, 2.6, 3.3_
+
+  - [ ] 3.4 Implement drawLegConnection function
+    - Create new function in BirdPartRenderer.kt
+    - Calculate hip socket positions for both legs using legParallax offset
+    - Render small ovals (hip sockets) at connection points
+    - Use radial gradient from legColor (outer) to bodyColor (inner)
+    - Scale based on legLength morph parameter (0.0 to 1.0)
+    - Scale based on legThickness if applicable
+    - Adjust vertical position based on stanceYShift (passed via by parameter)
+    - Handle all Stance variations (UPRIGHT, LOW, CROUCHING, etc.)
+    - _Bug_Condition: isBugCondition(input) where input.rotation != 0.0 OR input.legLength != 0.5 OR input.stance != Stance.NORMAL_
+    - _Expected_Behavior: No visible gap between legs and body across all rotation angles, leg length values, and stance types_
+    - _Preservation: Leg rendering (drawLegs) continues to use existing overlay logic for feathering and decorations_
+    - _Requirements: 1.2, 1.7, 1.10, 2.2, 2.7, 2.10, 3.8_
+
+  - [ ] 3.5 Implement drawNeckConnection function
+    - Create new function in BirdPartRenderer.kt
+    - Call existing drawNeck function (currently not invoked in drawBirdFromAppearance)
+    - Modify drawNeck to accept parallax offsets for head and body
+    - Render neck as tapered shape connecting head base to body top
+    - Use chestColor (neck matches chest/head color in most bird species)
+    - Scale based on neckLength morph parameter (0.0 to 1.0) if implemented in BirdAppearance
+    - Handle different NeckStyle variations (SHORT, LONG, ARCHED, etc.) if applicable
+    - _Bug_Condition: isBugCondition(input) where input.rotation != 0.0 OR input.neckLength != 0.5_
+    - _Expected_Behavior: No visible gap between head and body across all rotation angles and neck length values_
+    - _Preservation: Head rendering (drawHead) continues to use existing drawing methods without modification_
+    - _Requirements: 1.1, 1.8, 2.1, 2.8, 3.3_
+
+  - [ ] 3.6 Integrate connection geometry into drawBirdFromAppearance rendering order
+    - Open BirdPartRenderer.kt and locate drawBirdFromAppearance function
+    - Insert drawTailConnection call after shadow rendering, before drawTail
+    - Insert drawWingConnection call after drawBody, before drawWing
+    - Insert drawChestConnection call after drawWing, before drawChest
+    - Insert drawLegConnection call after drawChest, before drawLegs
+    - Insert drawNeckConnection call after drawLegs, before drawHead
+    - Pass appropriate parameters to each connection function:
+      - x, by (includes stanceYShift), s (sizeMultiplier), appearance, rotation
+      - Parallax offsets: tailParallax, bodyParallax, chestParallax, legParallax, headParallax
+    - Ensure connection geometry renders in correct z-order (back-to-front)
+    - _Bug_Condition: isBugCondition(input) where input.rotation != 0.0 OR morph parameters deviate from defaults_
+    - _Expected_Behavior: Connection geometry renders seamlessly between all parts across all rotation and morph values_
+    - _Preservation: Existing rendering order and part drawing methods remain unchanged_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 3.1, 3.2, 3.3_
+
+  - [ ] 3.7 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Seamless Connection Geometry
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - Verify no visible gaps at all 5 connection zones for rotation = 1.0
+    - Verify no visible gaps at all 5 connection zones for rotation = -1.0
+    - Verify no visible gaps at morph-sensitive zones for extreme morph values
+    - Verify connection geometry is present and properly blended
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
+
+  - [ ] 3.8 Verify preservation tests still pass
+    - **Property 2: Preservation** - Existing Rendering Behavior Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Verify visual output for rotation = 0.0 matches baseline (connection geometry invisible or minimal)
+    - Verify feather patterns render identically across all PlumagePattern values
+    - Verify color system produces identical results
+    - Verify animations (breathing, blinking) work identically
+    - Verify all style variations render identically
+    - Confirm all tests still pass after fix (no regressions)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Run all exploration tests (task 1) - should now PASS
+  - Run all preservation tests (task 2) - should still PASS
+  - Verify no visual regressions in Bird Studio UI
+  - Test interactive rotation in studio interface - verify smooth transitions with no gaps
+  - Test morph parameter sliders - verify connection geometry adapts smoothly
+  - Ask user if questions arise or if additional testing is needed

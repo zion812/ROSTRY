@@ -353,6 +353,15 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindEnhancedDailyLogRepository(impl: com.rio.rostry.data.repository.EnhancedDailyLogRepositoryImpl): com.rio.rostry.domain.repository.EnhancedDailyLogRepository
+
+    // Asset Multimedia Gallery Repositories
+    @Binds
+    @Singleton
+    abstract fun bindMediaCacheManager(impl: com.rio.rostry.data.manager.MediaCacheManagerImpl): com.rio.rostry.domain.manager.MediaCacheManager
+
+    @Binds
+    @Singleton
+    abstract fun bindMediaGalleryRepository(impl: com.rio.rostry.data.repository.MediaGalleryRepositoryImpl): com.rio.rostry.domain.repository.MediaGalleryRepository
 }
 
 @Module

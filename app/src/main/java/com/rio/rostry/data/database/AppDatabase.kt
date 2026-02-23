@@ -161,9 +161,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AssetHealthRecordEntity::class,
         TaskRecurrenceEntity::class,
         AssetBatchOperationEntity::class,
-        ComplianceRuleEntity::class
+        ComplianceRuleEntity::class,
+        MediaItemEntity::class,
+        MediaTagEntity::class,
+        MediaCacheMetadataEntity::class,
+        GalleryFilterStateEntity::class
     ],
-    version = 83, // 82 -> 83 (Added DigitalTwinEntity, BirdEventEntity) -> Enhanced Farmer Asset Management
+    version = 84, // 83 -> 84 (Added Media Gallery Entity)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -331,6 +335,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun taskRecurrenceDao(): TaskRecurrenceDao
     abstract fun assetBatchOperationDao(): AssetBatchOperationDao
     abstract fun complianceRuleDao(): ComplianceRuleDao
+
+    // Asset Multimedia Gallery DAOs
+    abstract fun mediaItemDao(): MediaItemDao
+    abstract fun mediaTagDao(): MediaTagDao
+    abstract fun mediaCacheMetadataDao(): MediaCacheMetadataDao
+    abstract fun galleryFilterStateDao(): GalleryFilterStateDao
 
     object Converters {
         @TypeConverter
@@ -995,6 +1005,77 @@ abstract class AppDatabase : RoomDatabase() {
                         `description` TEXT NOT NULL,
                         `reminderDays` INTEGER,
                         `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        // Asset Multimedia Gallery tables (83 -> 84)
+        val MIGRATION_83_84 = object : Migration(83, 84) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Media Items
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `media_items` (
+                        `mediaId` TEXT NOT NULL PRIMARY KEY,
+                        `assetId` TEXT,
+                        `url` TEXT NOT NULL,
+                        `localPath` TEXT,
+                        `mediaType` TEXT NOT NULL,
+                        `dateAdded` INTEGER NOT NULL,
+                        `fileSize` INTEGER NOT NULL,
+                        `width` INTEGER,
+                        `height` INTEGER,
+                        `duration` INTEGER,
+                        `thumbnailUrl` TEXT,
+                        `uploadStatus` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `isCached` INTEGER NOT NULL,
+                        `lastAccessedAt` INTEGER,
+                        `dirty` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_items_assetId` ON `media_items` (`assetId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_items_dateAdded` ON `media_items` (`dateAdded`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_items_uploadStatus` ON `media_items` (`uploadStatus`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_items_mediaType` ON `media_items` (`mediaType`)")
+
+                // Media Tags
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `media_tags` (
+                        `mediaId` TEXT NOT NULL,
+                        `tagId` TEXT NOT NULL,
+                        `tagType` TEXT NOT NULL,
+                        `value` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`mediaId`, `tagId`),
+                        FOREIGN KEY(`mediaId`) REFERENCES `media_items`(`mediaId`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_tags_mediaId` ON `media_tags` (`mediaId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_tags_tagType_value` ON `media_tags` (`tagType`, `value`)")
+
+                // Cache Metadata
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `media_cache_metadata` (
+                        `mediaId` TEXT NOT NULL PRIMARY KEY,
+                        `localPath` TEXT NOT NULL,
+                        `fileSize` INTEGER NOT NULL,
+                        `downloadedAt` INTEGER NOT NULL,
+                        `lastAccessedAt` INTEGER NOT NULL,
+                        `accessCount` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_cache_metadata_lastAccessedAt` ON `media_cache_metadata` (`lastAccessedAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_cache_metadata_fileSize` ON `media_cache_metadata` (`fileSize`)")
+
+                // Filter State
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `gallery_filter_state` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `ageGroupsJson` TEXT NOT NULL,
+                        `sourceTypesJson` TEXT NOT NULL,
                         `updatedAt` INTEGER NOT NULL
                     )
                 """.trimIndent())
