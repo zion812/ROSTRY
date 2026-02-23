@@ -93,7 +93,7 @@ fun SocialFeedScreen(
                 onClick = { vm.setFeedType(SocialFeedViewModel.FeedType.GLOBAL) },
                 label = { Text("For You") },
                 leadingIcon = if (feedType == SocialFeedViewModel.FeedType.GLOBAL) {
-                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    { Icon(Icons.Default.Check, contentDescription = "Following status icon", modifier = Modifier.size(16.dp)) }
                 } else null
             )
             FilterChip(
@@ -101,7 +101,7 @@ fun SocialFeedScreen(
                 onClick = { vm.setFeedType(SocialFeedViewModel.FeedType.FOLLOWING) },
                 label = { Text("Following") },
                 leadingIcon = if (feedType == SocialFeedViewModel.FeedType.FOLLOWING) {
-                   { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                   { Icon(Icons.Default.Check, contentDescription = "Follower status icon", modifier = Modifier.size(16.dp)) }
                 } else null
             )
         }
@@ -187,7 +187,7 @@ fun StoriesRow(
                 ) {
                     AsyncImage(
                         model = story.mediaUrl,
-                        contentDescription = null,
+                        contentDescription = "Post options menu",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -239,10 +239,10 @@ fun DiscussionPostCard(
                     Modifier.fillMaxWidth().padding(top = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                    Icon(Icons.Filled.Repeat, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                    Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                    Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "Comment on post", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Repeat, contentDescription = "Repost", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Outlined.FavoriteBorder, contentDescription = "Like post", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Share, contentDescription = "Share post", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -289,7 +289,7 @@ private fun PostCard(
             if (!post.mediaUrl.isNullOrBlank()) {
                  AsyncImage(
                     model = post.mediaUrl,
-                    contentDescription = null,
+                    contentDescription = "New Post",
                     modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp).clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )

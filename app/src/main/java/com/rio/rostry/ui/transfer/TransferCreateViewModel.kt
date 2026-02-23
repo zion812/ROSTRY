@@ -40,7 +40,8 @@ class TransferCreateViewModel @Inject constructor(
     private val quarantineDao: QuarantineRecordDao,
     private val connectivityManager: ConnectivityManager,
     private val syncManager: SyncManager,
-    private val biosecurityRepository: com.rio.rostry.data.repository.BiosecurityRepository
+    private val biosecurityRepository: com.rio.rostry.data.repository.BiosecurityRepository,
+    private val validationFramework: com.rio.rostry.domain.validation.ValidationFramework
 
 ) : ViewModel() {
 
@@ -264,7 +265,8 @@ class TransferCreateViewModel @Inject constructor(
             if (s.selectedProduct == null) put("product", "Select a product")
             if (s.selectedRecipient == null) put("recipient", "Select a recipient")
             if (s.transferType == TransferType.SALE) {
-                val amt = s.amount.toDoubleOrNull()
+                val amtStr = validationFramework.sanitizeText(s.amount)
+                val amt = amtStr.toDoubleOrNull()
                 if (amt == null) put("amount", "Enter a valid number")
                 else if (amt <= 0.0) put("amount", "Amount must be greater than 0")
             }
@@ -376,7 +378,7 @@ class TransferCreateViewModel @Inject constructor(
                     type = s.transferType.name,
                     status = "PENDING",
                     transactionReference = null,
-                    notes = s.notes.ifBlank { null },
+                    notes = validationFramework.sanitizeText(s.notes).ifBlank { null },
                     initiatedAt = now,
                     updatedAt = now,
                     lastModifiedAt = now,

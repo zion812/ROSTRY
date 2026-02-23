@@ -107,7 +107,7 @@ fun BackupRestoreScreen(
                                 )
                                 Spacer(Modifier.width(8.dp))
                             } else {
-                                Icon(Icons.Default.CloudUpload, contentDescription = null)
+                                Icon(Icons.Default.CloudUpload, contentDescription = "Upload backup to cloud")
                                 Spacer(Modifier.width(8.dp))
                             }
                             Text(if (backupState is BackupState.InProgress) "Creating..." else "Create Backup")
@@ -125,7 +125,7 @@ fun BackupRestoreScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.CheckCircle,
-                                        contentDescription = null,
+                                        contentDescription = "Success icon",
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -157,7 +157,7 @@ fun BackupRestoreScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.Error,
-                                        contentDescription = null,
+                                        contentDescription = "Error icon",
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -203,7 +203,7 @@ fun BackupRestoreScreen(
                                 )
                                 Spacer(Modifier.width(8.dp))
                             } else {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                Icon(Icons.Default.CloudDownload, contentDescription = "Download backup from cloud")
                                 Spacer(Modifier.width(8.dp))
                             }
                             Text(
@@ -228,7 +228,7 @@ fun BackupRestoreScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.CheckCircle,
-                                        contentDescription = null,
+                                        contentDescription = "Success icon",
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -260,7 +260,7 @@ fun BackupRestoreScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.Error,
-                                        contentDescription = null,
+                                        contentDescription = "Error icon",
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -297,7 +297,7 @@ fun BackupRestoreScreen(
                 showConfirmDialog = false
                 viewModel.cancelRestore()
             },
-            icon = { Icon(Icons.Default.Restore, contentDescription = null) },
+            icon = { Icon(Icons.Default.Restore, contentDescription = "Restore history icon") },
             title = { Text("Confirm Restore") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -353,7 +353,7 @@ private fun BackupHistoryItem(backup: BackupService.BackupMetadata) {
         ) {
             Icon(
                 Icons.Default.Backup,
-                contentDescription = null,
+                contentDescription = "Success or error status icon",
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.width(12.dp))

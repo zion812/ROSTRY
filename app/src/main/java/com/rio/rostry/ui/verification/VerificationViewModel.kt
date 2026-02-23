@@ -59,7 +59,8 @@ class VerificationViewModel @Inject constructor(
     val placesClient: PlacesClient,
     private val savedStateHandle: SavedStateHandle,
     private val draftRepository: VerificationDraftRepository,
-    private val uploadTaskDao: UploadTaskDao
+    private val uploadTaskDao: UploadTaskDao,
+    private val validationFramework: com.rio.rostry.domain.validation.ValidationFramework
 ) : ViewModel() {
 
     // Keep UiState compatible with View for now, but sourced from FormState
@@ -558,6 +559,8 @@ class VerificationViewModel @Inject constructor(
             // 3. Submit
             val locationMap = if (lat != null && lng != null) mapOf("lat" to lat, "lng" to lng) else null
             
+            val sanitizedPhone = validationFramework.sanitizeText(form.contactPhone)
+
             val result = userRepository.submitKycVerification(
                 userId = user.userId,
                 submissionId = submissionId,
@@ -569,7 +572,7 @@ class VerificationViewModel @Inject constructor(
                 currentRole = user.role,
                 targetRole = targetRole,
                 farmLocation = locationMap,
-                applicantPhone = form.contactPhone
+                applicantPhone = sanitizedPhone
             )
 
             if (result is Resource.Success) {
@@ -656,7 +659,9 @@ class VerificationViewModel @Inject constructor(
                          if (idx >= 0) name = cursor.getString(idx)
                      }
                 }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                timber.log.Timber.w(e, "Failed to query file extension from URI")
+            }
             if (name.contains(".")) name.substringAfterLast('.') else "jpg"
         }
     }

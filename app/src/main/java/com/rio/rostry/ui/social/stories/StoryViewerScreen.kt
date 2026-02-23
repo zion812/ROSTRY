@@ -78,7 +78,7 @@ fun StoryViewerScreen(
         // Media
         AsyncImage(
             model = currentStory.mediaUrl,
-            contentDescription = null,
+            contentDescription = "Close viewer",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )

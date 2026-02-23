@@ -125,7 +125,7 @@ private fun EnhancedErrorBanner(message: String, modifier: Modifier = Modifier) 
 
     Card(colors = CardDefaults.cardColors(containerColor = containerColor), modifier = modifier.fillMaxWidth()) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = contentColor)
+            Icon(icon, contentDescription = "Transfer status step icon", tint = contentColor)
             Spacer(Modifier.width(8.dp))
             Text(text = message, color = contentColor, style = MaterialTheme.typography.bodyMedium)
         }
@@ -365,7 +365,7 @@ private fun ConfirmationStep(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             if (passed) Icons.Filled.Check else Icons.Filled.Close,
-                            contentDescription = null,
+                            contentDescription = "Expand or collapse receiver details",
                             tint = if (passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                         Spacer(Modifier.width(8.dp))

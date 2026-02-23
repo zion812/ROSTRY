@@ -288,15 +288,9 @@ class FirestoreService @Inject constructor(
             .get().await()
             .documents.mapNotNull { it.toObject(DailyLogEntity::class.java) }
 
-    /**
-     * @deprecated Daily logs are now LOCAL-ONLY in Split-Brain architecture.
-     * Use pushBatchSummaries() instead for cloud sync.
-     */
-    @Deprecated("Use pushBatchSummaries for Split-Brain architecture", ReplaceWith("pushBatchSummaries(userId, batchSummaries)"))
     override suspend fun pushDailyLogs(userId: String, role: UserType, entities: List<DailyLogEntity>): Int {
-        // FREE TIER: Daily logs no longer sync to cloud
         Timber.w("pushDailyLogs called but disabled in Split-Brain architecture. Use BatchSummary instead.")
-        return 0 // Return 0 to indicate no sync happened
+        return 0
     }
 
     override suspend fun fetchUpdatedTasks(userId: String, role: UserType, since: Long, limit: Int): List<TaskEntity> =

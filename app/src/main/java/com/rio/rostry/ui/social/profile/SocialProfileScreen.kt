@@ -153,7 +153,7 @@ fun ProfileHeader(
             // Avatar
             AsyncImage(
                 model = user.profilePictureUrl ?: "https://via.placeholder.com/150",
-                contentDescription = null,
+                contentDescription = "Go back",
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
@@ -256,7 +256,7 @@ fun PostThumbnail(post: PostEntity, onClick: () -> Unit) {
         if (!post.mediaUrl.isNullOrBlank()) {
             AsyncImage(
                 model = post.mediaUrl,
-                contentDescription = null,
+                contentDescription = "More options",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

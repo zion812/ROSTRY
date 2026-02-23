@@ -86,7 +86,7 @@ fun StoryCreatorScreen(
             if (selectedUri != null) {
                 AsyncImage(
                     model = selectedUri,
-                    contentDescription = null,
+                    contentDescription = "Close story creator",
                     modifier = Modifier.fillMaxSize()
                 )
             } else {

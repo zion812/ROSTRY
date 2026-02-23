@@ -57,7 +57,8 @@ class SyncManager @Inject constructor(
     private val traceabilityRepository: TraceabilityRepository,
     private val sessionManager: SessionManager,
     // Split-Brain Data Architecture
-    private val batchSummaryDao: com.rio.rostry.data.database.dao.BatchSummaryDao
+    private val batchSummaryDao: com.rio.rostry.data.database.dao.BatchSummaryDao,
+    private val circuitBreakerRegistry: com.rio.rostry.data.resilience.CircuitBreakerRegistry
 ) {
     companion object {
         // Overall sync timeout to prevent indefinite operations
@@ -253,16 +254,24 @@ class SyncManager @Inject constructor(
     ): T {
         var currentDelay = initialDelayMs
         var lastError: Throwable? = null
+        val breaker = circuitBreakerRegistry.getBreaker("sync_manager")
         repeat(attempts) { attempt ->
             try {
                 // Simple connectivity guard to avoid hammering on poor networks
                 if (!connectivityManager.isOnline()) {
                     Timber.w("Network offline, delaying sync attempt ${attempt + 1}")
                 }
-                return block()
+                val result = breaker.execute {
+                    block()
+                }
+                return result.getOrThrow()
             } catch (t: Throwable) {
                 lastError = t
                 Timber.w(t, "Sync network operation failed on attempt ${attempt + 1}")
+                if (t is com.rio.rostry.data.resilience.CircuitOpenException) {
+                    Timber.w("Circuit is OPEN for sync_manager. Aborting retries.")
+                    throw t // Fast-fail if circuit is open
+                }
                 if (attempt == attempts - 1) throw t
                 kotlinx.coroutines.delay(currentDelay)
                 currentDelay = (currentDelay * factor).toLong()

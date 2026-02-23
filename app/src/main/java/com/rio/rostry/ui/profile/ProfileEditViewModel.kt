@@ -25,7 +25,8 @@ class ProfileEditViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val mediaUploadManager: MediaUploadManager,
     private val currentUserProvider: CurrentUserProvider,
-    private val flowAnalyticsTracker: FlowAnalyticsTracker
+    private val flowAnalyticsTracker: FlowAnalyticsTracker,
+    private val validationFramework: com.rio.rostry.domain.validation.ValidationFramework
 ) : ViewModel() {
 
     data class UiState(
@@ -91,8 +92,9 @@ class ProfileEditViewModel @Inject constructor(
     }
 
     fun updateName(name: String) {
-        _ui.value = _ui.value.copy(name = name, isDirty = true)
-        validateField("name", name)
+        val sanitized = validationFramework.sanitizeText(name)
+        _ui.value = _ui.value.copy(name = sanitized, isDirty = true)
+        validateField("name", sanitized)
     }
 
     fun updateEmail(email: String) {
@@ -101,17 +103,20 @@ class ProfileEditViewModel @Inject constructor(
     }
 
     fun updatePhone(phone: String) {
-        _ui.value = _ui.value.copy(phone = phone, isDirty = true)
-        validateField("phone", phone)
+        val sanitized = validationFramework.sanitizeText(phone)
+        _ui.value = _ui.value.copy(phone = sanitized, isDirty = true)
+        validateField("phone", sanitized)
     }
 
     fun updateLocation(location: String) {
-        _ui.value = _ui.value.copy(location = location, isDirty = true)
-        validateField("location", location)
+        val sanitized = validationFramework.sanitizeText(location)
+        _ui.value = _ui.value.copy(location = sanitized, isDirty = true)
+        validateField("location", sanitized)
     }
 
     fun updateBio(bio: String) {
-        _ui.value = _ui.value.copy(bio = bio, isDirty = true)
+        val sanitized = validationFramework.sanitizeText(bio)
+        _ui.value = _ui.value.copy(bio = sanitized, isDirty = true)
         // No validation for bio as it's not saved
     }
 
@@ -167,21 +172,17 @@ class ProfileEditViewModel @Inject constructor(
                 }
             }
             "email" -> {
-                val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
-                if (value.isBlank()) {
-                    errors[field] = "Email is required"
-                } else if (!emailRegex.matches(value)) {
-                    errors[field] = "Invalid email format"
+                val result = validationFramework.validateEmail(value)
+                if (result is com.rio.rostry.domain.validation.InputValidationResult.Invalid) {
+                    errors[field] = result.errors.firstOrNull()?.message ?: "Invalid email"
                 } else {
                     errors.remove(field)
                 }
             }
             "phone" -> {
-                val phoneRegex = "^[+]?[0-9]{10,15}$".toRegex()
-                if (value.isBlank()) {
-                    errors[field] = "Phone is required"
-                } else if (!phoneRegex.matches(value)) {
-                    errors[field] = "Invalid phone format"
+                val result = validationFramework.validatePhone(value)
+                if (result is com.rio.rostry.domain.validation.InputValidationResult.Invalid) {
+                    errors[field] = result.errors.firstOrNull()?.message ?: "Invalid phone"
                 } else {
                     errors.remove(field)
                 }

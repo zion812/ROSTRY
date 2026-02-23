@@ -83,10 +83,10 @@ fun SettingsScreen(
                             BadgedBox(
                                 badge = { Badge { Text(pendingCount.toString()) } }
                             ) {
-                                Icon(Icons.Filled.Dashboard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Filled.Dashboard, contentDescription = "Light Mode illustration", tint = MaterialTheme.colorScheme.primary)
                             }
                         } else {
-                            Icon(Icons.Filled.Dashboard, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Filled.Dashboard, contentDescription = "Dark Mode illustration", tint = MaterialTheme.colorScheme.primary)
                         }
                     },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f))
@@ -115,7 +115,7 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text("Theme") },
                 supportingContent = { Text(state.theme.replaceFirstChar { it.uppercase() }) },
-                leadingContent = { Icon(Icons.Filled.DarkMode, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                leadingContent = { Icon(Icons.Filled.DarkMode, contentDescription = "Dark Theme Switch", tint = MaterialTheme.colorScheme.primary) },
                 trailingContent = {
                     TextButton(onClick = { showThemeMenu = true }) { Text("Change") }
                     DropdownMenu(expanded = showThemeMenu, onDismissRequest = { showThemeMenu = false }) {
@@ -142,7 +142,7 @@ fun SettingsScreen(
                     }
                     Text(label)
                 },
-                leadingContent = { Icon(Icons.Filled.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                leadingContent = { Icon(Icons.Filled.Language, contentDescription = "Language settings", tint = MaterialTheme.colorScheme.primary) },
                 trailingContent = {
                     TextButton(onClick = { showLangMenu = true }) { Text("Change") }
                     DropdownMenu(expanded = showLangMenu, onDismissRequest = { showLangMenu = false }) {
@@ -165,7 +165,7 @@ fun SettingsScreen(
                 headlineContent = { Text("Backup & Restore") },
                 supportingContent = { Text("Export or import your farm data") },
                 leadingContent = {
-                    Icon(Icons.Filled.Backup, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.Backup, contentDescription = "Backup settings", tint = MaterialTheme.colorScheme.primary)
                 },
                 trailingContent = {
                     TextButton(onClick = onNavigateToBackupRestore) { Text("Open") }

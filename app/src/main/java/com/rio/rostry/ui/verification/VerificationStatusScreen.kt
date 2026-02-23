@@ -140,7 +140,7 @@ fun VerificationStatusScreen(
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                                    Icon(Icons.Default.Schedule, contentDescription = "Pending verification", tint = MaterialTheme.colorScheme.secondary)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Under Review", style = MaterialTheme.typography.headlineSmall)
                                 }
@@ -159,7 +159,7 @@ fun VerificationStatusScreen(
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                                    Icon(Icons.Default.ArrowUpward, contentDescription = "Submitted for review", tint = MaterialTheme.colorScheme.tertiary)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Upgrade Pending", style = MaterialTheme.typography.headlineSmall)
                                 }
@@ -174,7 +174,7 @@ fun VerificationStatusScreen(
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.CheckCircle, contentDescription = "Verification approved", tint = MaterialTheme.colorScheme.primary)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Verified", style = MaterialTheme.typography.headlineSmall)
                                 }
@@ -193,7 +193,7 @@ fun VerificationStatusScreen(
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Default.Close, contentDescription = "Verification rejected", tint = MaterialTheme.colorScheme.error)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Needs Attention", style = MaterialTheme.typography.headlineSmall)
                                 }
@@ -262,7 +262,7 @@ fun DocumentPreviewDialog(
                     val isImage = url.contains("images") || type in listOf("PHOTO", "FARM_PHOTO")
                     Card(modifier = Modifier.fillMaxWidth().clickable { selectedDoc = url }.padding(8.dp)) {
                         Row(modifier = Modifier.padding(16.dp)) {
-                            Icon(if (isImage) Icons.Default.Image else Icons.Default.Description, contentDescription = null)
+                            Icon(if (isImage) Icons.Default.Image else Icons.Default.Description, contentDescription = "Document icon")
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(type)
@@ -323,7 +323,7 @@ fun DocumentViewerDialog(
                             .crossfade(true)
                             .build()
                     },
-                    contentDescription = null,
+                    contentDescription = "Expand or collapse history",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(400.dp)
@@ -381,7 +381,7 @@ fun TimelineItem(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = color)
+            Icon(icon, contentDescription = "Verification status step icon", tint = color)
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)

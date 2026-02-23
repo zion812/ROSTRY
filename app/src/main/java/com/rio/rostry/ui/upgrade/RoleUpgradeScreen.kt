@@ -152,7 +152,7 @@ fun RoleUpgradeScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Icon(Icons.Filled.Check, contentDescription = "Confirmation checkmark", tint = MaterialTheme.colorScheme.onTertiaryContainer)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "Rest assured: All your existing farm data, birds, and logs will be preserved.",
@@ -225,7 +225,7 @@ fun RoleUpgradeScreen(
                             ) {
                                 Icon(
                                     imageVector = if (verified) Icons.Filled.Check else Icons.Filled.Close,
-                                    contentDescription = null,
+                                    contentDescription = "Dismiss error message",
                                     tint = if (verified) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                                 )
                                 Spacer(Modifier.width(12.dp))
@@ -260,7 +260,7 @@ fun RoleUpgradeScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                     Icon(imageVector = Icons.Filled.Schedule, contentDescription = null)
+                                     Icon(imageVector = Icons.Filled.Schedule, contentDescription = "Review pending icon")
                                      Spacer(Modifier.width(8.dp))
                                      Text("Verification Pending", style = MaterialTheme.typography.titleMedium)
                                 }
@@ -276,7 +276,7 @@ fun RoleUpgradeScreen(
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                         Icon(imageVector = Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                                         Icon(imageVector = Icons.Filled.Warning, contentDescription = "Review rejected icon", tint = MaterialTheme.colorScheme.onErrorContainer)
                                          Spacer(Modifier.width(8.dp))
                                          Text("Verification Rejected", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onErrorContainer)
                                     }

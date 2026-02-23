@@ -17,7 +17,6 @@ import com.rio.rostry.workers.SyncWorker
 import com.rio.rostry.workers.LifecycleWorker
 import com.rio.rostry.workers.TransferTimeoutWorker
 import com.rio.rostry.workers.ModerationWorker
-import com.rio.rostry.workers.OutgoingMessageWorker
 import com.rio.rostry.workers.AnalyticsAggregationWorker
 import com.rio.rostry.workers.ReportingWorker
 import com.rio.rostry.workers.VaccinationReminderWorker

@@ -82,7 +82,7 @@ fun SyncConflictScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.CheckCircle,
-                        contentDescription = null,
+                        contentDescription = "Dismiss conflict",
                         modifier = Modifier.size(64.dp),
                         tint = Color(0xFF4CAF50)
                     )
@@ -111,7 +111,7 @@ fun SyncConflictScreen(
                         ) {
                             Icon(
                                 Icons.Default.Warning,
-                                contentDescription = null,
+                                contentDescription = "Expand or collapse details",
                                 tint = MaterialTheme.colorScheme.error
                             )
                             Spacer(Modifier.width(12.dp))
@@ -171,7 +171,7 @@ private fun ConflictCard(
                             "Order" -> Icons.Default.ShoppingCart
                             else -> Icons.Default.Article
                         },
-                        contentDescription = null,
+                        contentDescription = "Warning icon",
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(8.dp))
@@ -243,7 +243,7 @@ private fun ConflictCard(
                         onClick = onKeepLocal,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.PhoneAndroid, contentDescription = null, Modifier.size(16.dp))
+                        Icon(Icons.Default.PhoneAndroid, contentDescription = "Local device icon", Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Keep Local")
                     }
@@ -251,7 +251,7 @@ private fun ConflictCard(
                         onClick = onKeepRemote,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Cloud, contentDescription = null, Modifier.size(16.dp))
+                        Icon(Icons.Default.Cloud, contentDescription = "Cloud server icon", Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Keep Remote")
                     }

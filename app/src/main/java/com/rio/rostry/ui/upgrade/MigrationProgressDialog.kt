@@ -54,7 +54,7 @@ fun MigrationProgressDialog(
                         }
                     }
                     is Resource.Error -> {
-                        Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+                        Icon(Icons.Default.Error, contentDescription = "Migration error alert", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
                         Text("Migration Failed", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         Text(status.message ?: "An unexpected error occurred.")
                         Button(onClick = onDismiss) { Text("Close") }
@@ -116,7 +116,7 @@ private fun MigrationStatusContent(
     Spacer(modifier = Modifier.height(16.dp))
 
     if (entity.status == RoleMigrationEntity.STATUS_COMPLETED) {
-        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
+        Icon(Icons.Default.CheckCircle, contentDescription = "Migration successful", tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onComplete,
@@ -125,7 +125,7 @@ private fun MigrationStatusContent(
             Text("Go to Enthusiast Dashboard")
         }
     } else if (entity.status == RoleMigrationEntity.STATUS_FAILED || entity.status == RoleMigrationEntity.STATUS_ROLLED_BACK) {
-        Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
+        Icon(Icons.Default.Error, contentDescription = "Migration failed", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
         Spacer(modifier = Modifier.height(8.dp))
         entity.errorMessage?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
