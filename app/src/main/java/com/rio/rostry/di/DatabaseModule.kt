@@ -272,7 +272,9 @@ object DatabaseModule {
             AppDatabase.MIGRATION_73_74,
             AppDatabase.MIGRATION_81_82,
             AppDatabase.MIGRATION_82_83,
-            AppDatabase.MIGRATION_83_84
+            AppDatabase.MIGRATION_83_84,
+            AppDatabase.MIGRATION_84_85,
+            AppDatabase.MIGRATION_85_86
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -781,5 +783,18 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideGalleryFilterStateDao(db: AppDatabase): com.rio.rostry.data.database.dao.GalleryFilterStateDao = db.galleryFilterStateDao()
+
+    // Production Readiness Phase 1 DAOs
+    @Provides
+    @Singleton
+    fun provideErrorLogDao(db: AppDatabase): com.rio.rostry.data.database.dao.ErrorLogDao = db.errorLogDao()
+
+    @Provides
+    @Singleton
+    fun provideConfigurationCacheDao(db: AppDatabase): com.rio.rostry.data.database.dao.ConfigurationCacheDao = db.configurationCacheDao()
+
+    @Provides
+    @Singleton
+    fun provideCircuitBreakerMetricsDao(db: AppDatabase): com.rio.rostry.data.database.dao.CircuitBreakerMetricsDao = db.circuitBreakerMetricsDao()
 }
 

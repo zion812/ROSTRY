@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.room.withTransaction
 import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.NotificationDao
+import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.entity.NotificationEntity
 import com.rio.rostry.data.repository.monitoring.TaskRepository
 import com.rio.rostry.utils.notif.AnalyticsNotifier
@@ -36,6 +37,7 @@ enum class SocialEventType {
 @Singleton
 class IntelligentNotificationService @Inject constructor(
     private val notificationDao: NotificationDao,
+    private val userDao: UserDao,
     private val taskRepository: TaskRepository,
     private val connectivityManager: ConnectivityManager,
     @ApplicationContext private val context: Context,
@@ -54,6 +56,8 @@ class IntelligentNotificationService @Inject constructor(
         metadata: Map<String, Any>? = null
     ) {
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "FARM")) return
+        
         val notificationId = generateId("notif_farm_")
         val deepLink = generateDeepLink("FARM", productId, type.name)
   
@@ -101,6 +105,8 @@ class IntelligentNotificationService @Inject constructor(
         message: String
     ) {
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "TRANSFER")) return
+        
         val notificationId = generateId("notif_transfer_")
         val deepLink = generateDeepLink("TRANSFER", transferId)
   
@@ -137,6 +143,8 @@ class IntelligentNotificationService @Inject constructor(
   
     suspend fun notifyOrderUpdate(orderId: String, status: String, title: String, message: String) {
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "ORDER")) return
+        
         val notificationId = generateId("notif_order_")
         val deepLink = generateDeepLink("ORDER", orderId)
   
@@ -166,6 +174,8 @@ class IntelligentNotificationService @Inject constructor(
     suspend fun notifyOnboardingComplete(productId: String, productName: String, taskCount: Int, isBatch: Boolean) {
         val type = if (isBatch) FarmEventType.BATCH_ADDED else FarmEventType.BIRD_ADDED
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "FARM")) return
+        
         val notificationId = generateId("notif_farm_")
         val deepLink = generateDeepLink("FARM", productId, type.name)
         val title = if (isBatch) "Batch Added" else "Bird Added"
@@ -196,6 +206,8 @@ class IntelligentNotificationService @Inject constructor(
     suspend fun notifyComplianceIssue(productId: String, productName: String) {
         val type = FarmEventType.COMPLIANCE_ALERT
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "FARM")) return
+        
         val notificationId = generateId("notif_farm_")
         val deepLink = generateDeepLink("FARM", productId, type.name)
         val title = "Compliance Alert"
@@ -227,6 +239,8 @@ class IntelligentNotificationService @Inject constructor(
     suspend fun notifyGoalProgress(goalType: String, progress: Int) {
         val type = FarmEventType.DAILY_GOAL_MILESTONE
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "FARM")) return
+        
         val notificationId = generateId("notif_farm_")
         val deepLink = generateDeepLink("FARM", "", type.name)
         val title = "Daily Goal Progress"
@@ -262,6 +276,8 @@ class IntelligentNotificationService @Inject constructor(
         fromUser: String
     ) {
         val userId = currentUserProvider.userIdOrNull() ?: return
+        if (!shouldNotify(userId, "SOCIAL")) return
+        
         val notificationId = generateId("notif_social_")
         val deepLink = generateDeepLink("SOCIAL", refId, type.name)
   
@@ -455,6 +471,17 @@ class IntelligentNotificationService @Inject constructor(
         // It also ensures isBatched is false (no-op if already false)
         kotlinx.coroutines.runBlocking {
             notificationDao.markBatchDisplayed(listOf(notificationId), now)
+        }
+    }
+
+    private suspend fun shouldNotify(userId: String, category: String): Boolean {
+        val user = userDao.findById(userId) ?: return false
+        if (!user.notificationsEnabled) return false
+        return when (category) {
+            "FARM", "ORDER" -> user.farmAlertsEnabled
+            "TRANSFER" -> user.transferAlertsEnabled
+            "SOCIAL" -> user.socialAlertsEnabled
+            else -> true
         }
     }
 }

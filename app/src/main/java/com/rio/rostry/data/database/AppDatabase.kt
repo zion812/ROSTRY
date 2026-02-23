@@ -165,9 +165,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MediaItemEntity::class,
         MediaTagEntity::class,
         MediaCacheMetadataEntity::class,
-        GalleryFilterStateEntity::class
+        GalleryFilterStateEntity::class,
+        // Production Readiness Phase 1
+        ErrorLogEntity::class,
+        ConfigurationCacheEntity::class,
+        CircuitBreakerMetricsEntity::class
     ],
-    version = 84, // 83 -> 84 (Added Media Gallery Entity)
+    version = 87, // 86 -> 87 (Phase 6 Notifications: User Preferences)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -341,6 +345,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mediaTagDao(): MediaTagDao
     abstract fun mediaCacheMetadataDao(): MediaCacheMetadataDao
     abstract fun galleryFilterStateDao(): GalleryFilterStateDao
+
+    // Production Readiness Phase 1 DAOs
+    abstract fun errorLogDao(): ErrorLogDao
+    abstract fun configurationCacheDao(): ConfigurationCacheDao
+    abstract fun circuitBreakerMetricsDao(): CircuitBreakerMetricsDao
 
     object Converters {
         @TypeConverter
@@ -1082,6 +1091,70 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Production Readiness Phase 1 tables (84 -> 85)
+        val MIGRATION_84_85 = object : Migration(84, 85) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Error Logs table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `error_logs` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `timestamp` INTEGER NOT NULL,
+                        `user_id` TEXT,
+                        `operation_name` TEXT NOT NULL,
+                        `error_category` TEXT NOT NULL,
+                        `error_message` TEXT NOT NULL,
+                        `stack_trace` TEXT,
+                        `additional_data` TEXT,
+                        `reported` INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_error_logs_timestamp` ON `error_logs` (`timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_error_logs_user_id` ON `error_logs` (`user_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_error_logs_error_category` ON `error_logs` (`error_category`)")
+
+                // Configuration Cache table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `configuration_cache` (
+                        `key` TEXT NOT NULL PRIMARY KEY,
+                        `value` TEXT NOT NULL,
+                        `value_type` TEXT NOT NULL,
+                        `last_updated` INTEGER NOT NULL,
+                        `source` TEXT NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_configuration_cache_last_updated` ON `configuration_cache` (`last_updated`)")
+
+                // Circuit Breaker Metrics table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `circuit_breaker_metrics` (
+                        `service_name` TEXT NOT NULL PRIMARY KEY,
+                        `state` TEXT NOT NULL,
+                        `failure_rate` REAL NOT NULL,
+                        `total_calls` INTEGER NOT NULL,
+                        `failed_calls` INTEGER NOT NULL,
+                        `last_state_change` INTEGER NOT NULL,
+                        `last_updated` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        // Phase 6 Notifications (85 -> 86)
+        val MIGRATION_85_86 = object : Migration(85, 86) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `notifications` ADD COLUMN `userPreferenceEnabled` INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        // Phase 6 Notification Preferences (86 -> 87)
+        val MIGRATION_86_87 = object : Migration(86, 87) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `notificationsEnabled` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `farmAlertsEnabled` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `transferAlertsEnabled` INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `socialAlertsEnabled` INTEGER NOT NULL DEFAULT 1")
+            }
+        }
 
         // FarmAsset sale lifecycle columns (62 → 63)
         val MIGRATION_62_63 = object : Migration(62, 63) {

@@ -43,5 +43,6 @@ data class NotificationEntity(
     val isBatched: Boolean = false, // indicates notification is queued for batch display
     val batchedAt: Long? = null, // timestamp when notification was batched
     val displayedAt: Long? = null, // timestamp when device notification was displayed
-    val domain: String? = null // domain category: "FARM", "TRANSFER", "ORDER", "SOCIAL"
+    val domain: String? = null, // domain category: "FARM", "TRANSFER", "ORDER", "SOCIAL"
+    val userPreferenceEnabled: Boolean = true // Added for Phase 6 Notification Triggers
 )

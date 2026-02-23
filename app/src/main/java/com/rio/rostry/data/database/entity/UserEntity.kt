@@ -59,7 +59,13 @@ data class UserEntity(
     @get:PropertyName("suspended")
     val isSuspended: Boolean = false,
     val suspensionReason: String? = null,
-    val suspensionEndsAt: Long? = null
+    val suspensionEndsAt: Long? = null,
+    
+    // Notification Preferences
+    val notificationsEnabled: Boolean = true,
+    val farmAlertsEnabled: Boolean = true,
+    val transferAlertsEnabled: Boolean = true,
+    val socialAlertsEnabled: Boolean = true
 ) {
     @get:Exclude
     val role: UserType
