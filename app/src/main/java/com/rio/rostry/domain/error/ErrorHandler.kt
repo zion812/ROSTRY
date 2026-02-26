@@ -13,12 +13,14 @@ interface ErrorHandler {
      * @param error The throwable to handle.
      * @param operationName Human-readable name of the operation that failed.
      * @param recoveryStrategy Optional strategy to attempt automatic recovery.
+     * @param userId Optional user ID for context (if available).
      * @return [ErrorResult] with handling outcome and user message.
      */
     suspend fun handle(
         error: Throwable,
         operationName: String,
-        recoveryStrategy: RecoveryStrategy? = null
+        recoveryStrategy: RecoveryStrategy? = null,
+        userId: String? = null
     ): ErrorResult
 
     /**

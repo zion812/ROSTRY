@@ -97,7 +97,7 @@ private fun ConfirmationView(
         uri?.let { 
             try {
                 context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission") }
             
             if (upgradeType != null && currentUploadType != null) {
                 if (currentUploadIsImage) {

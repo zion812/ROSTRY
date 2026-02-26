@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,6 +20,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.rio.rostry.ui.components.states.LoadingIndicator
+import com.rio.rostry.ui.components.states.ErrorState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,11 +69,12 @@ fun TraceabilityScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.loading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                LoadingIndicator(message = "Loading traceability data...")
             } else if (state.error != null) {
-                Text(
-                    text = state.error ?: "Unknown error",
-                    modifier = Modifier.align(Alignment.Center)
+                ErrorState(
+                    title = "Failed to load traceability",
+                    message = state.error ?: "An unexpected error occurred",
+                    onRetry = { vm.load(productId) }
                 )
             } else {
                 FamilyTreeView(

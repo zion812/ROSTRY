@@ -16,6 +16,9 @@ interface TransferDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(transfer: TransferEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(transfers: List<TransferEntity>)
+
     @Update
     suspend fun updateTransfer(transfer: TransferEntity)
 

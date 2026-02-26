@@ -1,7 +1,12 @@
 package com.rio.rostry.domain.manager
 
+import android.util.Log
 import com.rio.rostry.data.database.dao.ConfigurationCacheDao
 import com.rio.rostry.data.database.entity.ConfigurationCacheEntity
+import com.rio.rostry.domain.config.AppConfiguration
+import com.rio.rostry.domain.config.ConfigurationDefaults
+import com.rio.rostry.domain.config.ConfigurationManager
+import com.rio.rostry.domain.config.ValidationResult
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import com.google.gson.Gson
@@ -9,9 +14,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
-import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "RemoteConfigMgr"
 
 /**
  * Configuration manager backed by Firebase Remote Config, with local caching
@@ -23,7 +29,7 @@ class RemoteConfigurationManager @Inject constructor(
     private val gson: Gson
 ) : ConfigurationManager {
 
-    private val _configFlow = MutableStateFlow(ConfigurationDefaults.DEFAULT)
+    private val _configFlow = MutableStateFlow(ConfigurationDefaults.DEFAULT_CONFIGURATION)
     private var lastRefreshTime: Long = 0L
 
     companion object {
@@ -37,30 +43,32 @@ class RemoteConfigurationManager @Inject constructor(
             val remote = fetchFromRemote()
             if (remote != null) {
                 val validation = validate(remote)
-                if (validation is ConfigValidationResult.Valid) {
+                if (validation is ValidationResult.Valid) {
                     cacheConfiguration(remote)
                     _configFlow.value = remote
                     lastRefreshTime = System.currentTimeMillis()
                     return Result.success(remote)
                 } else {
-                    Timber.w("Remote config invalid: ${(validation as ConfigValidationResult.Invalid).errors}")
+                    Log.w(TAG, "Remote config invalid: ${(validation as ValidationResult.Invalid).errors}")
                 }
             }
 
             // 2. Try cache
             val cached = loadFromCache()
             if (cached != null) {
-                Timber.d("Using cached configuration")
+                Log.d(TAG, "Using cached configuration")
                 _configFlow.value = cached
                 return Result.success(cached)
             }
 
             // 3. Use defaults
-            Timber.d("Using default configuration")
-            Result.success(ConfigurationDefaults.DEFAULT)
+            Log.d(TAG, "Using default configuration")
+            _configFlow.value = ConfigurationDefaults.DEFAULT_CONFIGURATION
+            Result.success(ConfigurationDefaults.DEFAULT_CONFIGURATION)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to load configuration, using defaults")
-            Result.success(ConfigurationDefaults.DEFAULT)
+            Log.e(TAG, "Failed to load configuration, using defaults", e)
+            _configFlow.value = ConfigurationDefaults.DEFAULT_CONFIGURATION
+            Result.success(ConfigurationDefaults.DEFAULT_CONFIGURATION)
         }
     }
 
@@ -79,8 +87,34 @@ class RemoteConfigurationManager @Inject constructor(
 
     override fun get(): AppConfiguration = _configFlow.value
 
-    override fun validate(config: AppConfiguration): ConfigValidationResult {
-        return ConfigurationValidator.validate(config)
+    override fun validate(config: AppConfiguration): ValidationResult {
+        val configValidator = com.rio.rostry.domain.manager.ConfigurationValidator
+        val managerResult = configValidator.validate(
+            com.rio.rostry.domain.manager.AppConfiguration(
+                thresholds = com.rio.rostry.domain.manager.ThresholdConfig(
+                    storageQuotaMB = config.thresholds.storageQuotaMB,
+                    maxBatchSize = config.thresholds.maxBatchSize,
+                    circuitBreakerFailureRate = config.thresholds.circuitBreakerFailureRate,
+                    hubCapacity = config.thresholds.hubCapacity,
+                    deliveryRadiusKm = config.thresholds.deliveryRadiusKm
+                ),
+                timeouts = com.rio.rostry.domain.manager.TimeoutConfig(
+                    networkRequestSeconds = config.timeouts.networkRequestSeconds,
+                    circuitBreakerOpenSeconds = config.timeouts.circuitBreakerOpenSeconds,
+                    retryDelaysSeconds = config.timeouts.retryDelaysSeconds
+                ),
+                security = com.rio.rostry.domain.manager.SecurityConfig(
+                    adminIdentifiers = config.security.adminIdentifiers,
+                    allowedFileTypes = config.security.allowedFileTypes
+                )
+            )
+        )
+        return when (managerResult) {
+            is com.rio.rostry.domain.manager.ConfigValidationResult.Valid -> ValidationResult.Valid
+            is com.rio.rostry.domain.manager.ConfigValidationResult.Invalid -> ValidationResult.Invalid(
+                managerResult.errors.map { com.rio.rostry.domain.config.ValidationError("config", it, "VALIDATION") }
+            )
+        }
     }
 
     override fun observe(): Flow<AppConfiguration> = _configFlow.asStateFlow()
@@ -101,7 +135,7 @@ class RemoteConfigurationManager @Inject constructor(
                 null
             }
         } catch (e: Exception) {
-            Timber.w(e, "Failed to fetch remote configuration")
+            Log.w(TAG, "Failed to fetch remote configuration", e)
             null
         }
     }
@@ -113,7 +147,7 @@ class RemoteConfigurationManager @Inject constructor(
                 gson.fromJson(entity.value, AppConfiguration::class.java)
             } else null
         } catch (e: Exception) {
-            Timber.w(e, "Failed to load cached configuration")
+            Log.w(TAG, "Failed to load cached configuration", e)
             null
         }
     }
@@ -129,7 +163,7 @@ class RemoteConfigurationManager @Inject constructor(
             )
             configCacheDao.upsert(entity)
         } catch (e: Exception) {
-            Timber.w(e, "Failed to cache configuration")
+            Log.w(TAG, "Failed to cache configuration", e)
         }
     }
 }

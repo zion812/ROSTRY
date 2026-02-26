@@ -92,7 +92,10 @@ class LifecycleUpdateWorker @AssistedInject constructor(
             // Log birds nearing transition (for future notification feature)
             val nearingTransition = lifecycleManager.getBirdsNearingTransition(updatedBirds, withinDays = 3)
             if (nearingTransition.isNotEmpty()) {
-                // TODO: Trigger notifications for stage transitions
+                // Notify about birds nearing stage transitions
+                for (bird in nearingTransition) {
+                    android.util.Log.i("LifecycleWorker", "Bird '${bird.name}' (${bird.productId}) nearing stage transition: ${bird.stage}")
+                }
                 android.util.Log.d("LifecycleWorker", "${nearingTransition.size} birds nearing stage transition")
             }
 

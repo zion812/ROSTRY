@@ -42,6 +42,7 @@ import android.content.pm.PackageManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
+import timber.log.Timber
   
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -311,7 +312,7 @@ fun OnboardFarmBatchScreen(
                         uris.forEach { uri ->
                             try {
                                 ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            } catch (e: Exception) { }
+                            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for photo") }
                         }
                         if (uris != null) vm.updateMedia { m -> m.copy(photoUris = uris.map { it.toString() }) }
                     }
@@ -319,7 +320,7 @@ fun OnboardFarmBatchScreen(
                         uris.forEach { uri ->
                             try {
                                 ctx.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            } catch (e: Exception) { }
+                            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for document") }
                         }
                         if (uris != null) vm.updateMedia { m -> m.copy(documentUris = uris.map { it.toString() }) }
                     }

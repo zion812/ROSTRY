@@ -12,8 +12,10 @@ import javax.inject.Singleton
  * Generic atomic batch processor for database operations.
  * 
  * Guarantees atomicity: either all items succeed or all fail.
- * Validates all items before starting, limits batch size, and
- * supports progress tracking.
+ * Validates all items before starting, limits batch size to 100 items,
+ * and provides comprehensive logging for batch operations.
+ * 
+ * Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8
  */
 @Singleton
 class AtomicBatchProcessor @Inject constructor(
@@ -25,45 +27,70 @@ class AtomicBatchProcessor @Inject constructor(
     }
 
     /**
-     * Execute a batch operation atomically.
+     * Execute a batch operation atomically within a database transaction.
      *
      * @param items List of items to process.
+     * @param operationName Name of the operation for logging purposes.
      * @param validator Optional validator – all items are validated before processing begins.
      * @param operation Suspending function applied to each item within the transaction.
      * @param transactionBlock Wraps the entire batch in a database transaction.
      * @return [BatchResult] with success/failure details.
+     * 
+     * Requirements:
+     * - 17.1: All operations execute within transactions
+     * - 17.2: Any failure triggers rollback
+     * - 17.3: Validates all items before transaction
+     * - 17.4: Returns validation errors without modifying database
+     * - 17.5: Logs start and completion with item counts
+     * - 17.6: Logs rollback reason
+     * - 17.7: Limits batch size to 100 items
+     * - 17.8: Ensures atomicity (all or nothing)
      */
     suspend fun <T> executeBatch(
         items: List<T>,
+        operationName: String = "BatchOperation",
         validator: InputValidator<T>? = null,
         operation: suspend (T) -> Unit,
         transactionBlock: suspend (suspend () -> Unit) -> Unit
     ): BatchResult<T> {
-        // 1. Check batch size
+        // 1. Check batch size (Requirement 17.7)
         if (items.isEmpty()) {
+            Timber.d("[$operationName] Batch operation skipped: empty batch")
             return BatchResult.Success(processedCount = 0)
         }
+        
         if (items.size > MAX_BATCH_SIZE) {
+            val errorMsg = "Batch size ${items.size} exceeds maximum of $MAX_BATCH_SIZE"
+            Timber.w("[$operationName] $errorMsg")
             return BatchResult.Failure(
-                error = "Batch size ${items.size} exceeds maximum of $MAX_BATCH_SIZE",
+                error = errorMsg,
                 failedAtIndex = null
             )
         }
 
-        // 2. Validate all items upfront (fail-fast)
+        // Log batch start (Requirement 17.5)
+        Timber.i("[$operationName] Starting batch operation with ${items.size} items")
+
+        // 2. Validate all items upfront before transaction (Requirements 17.3, 17.4)
         if (validator != null) {
             val validationResult = validateAll(items, validator)
             if (!validationResult.isAllValid) {
                 val firstError = validationResult.invalid.entries.first()
                 val errorMsg = firstError.value.joinToString("; ") { it.message }
+                val message = "Item at index ${firstError.key} failed validation: $errorMsg"
+                
+                // Log validation failure (Requirement 17.4)
+                Timber.w("[$operationName] Batch validation failed: ${validationResult.invalid.size} invalid items. $message")
+                
                 return BatchResult.ValidationFailed(
                     validationResult = validationResult,
-                    message = "Item at index ${firstError.key} failed validation: $errorMsg"
+                    message = message
                 )
             }
+            Timber.d("[$operationName] All ${items.size} items passed validation")
         }
 
-        // 3. Execute atomically inside transaction
+        // 3. Execute atomically inside transaction (Requirements 17.1, 17.2, 17.8)
         return try {
             var processedCount = 0
             transactionBlock {
@@ -73,28 +100,46 @@ class AtomicBatchProcessor @Inject constructor(
                         processedCount++
                     } catch (e: Exception) {
                         // Transaction will be rolled back, propagate exception
-                        Timber.e(e, "Batch operation failed at index $index")
+                        Timber.e(e, "[$operationName] Batch operation failed at index $index")
                         throw BatchItemException(index, e)
                     }
                 }
             }
-            Timber.d("Batch operation completed successfully: $processedCount items")
+            
+            // Log successful completion (Requirement 17.5)
+            Timber.i("[$operationName] Batch operation completed successfully: $processedCount items processed")
             BatchResult.Success(processedCount = processedCount)
+            
         } catch (e: BatchItemException) {
-            errorHandler.handle(e.cause ?: e, "AtomicBatchProcessor")
+            // Log rollback with reason (Requirement 17.6)
+            val rollbackReason = "Failed at item ${e.failedIndex}: ${e.cause?.message ?: "Unknown error"}"
+            Timber.e(e, "[$operationName] Batch operation rolled back. Reason: $rollbackReason")
+            
+            errorHandler.handle(e.cause ?: e, operationName)
+            
             BatchResult.Failure(
-                error = "Failed at item ${e.failedIndex}: ${e.cause?.message ?: "Unknown error"}",
+                error = rollbackReason,
                 failedAtIndex = e.failedIndex
             )
         } catch (e: Exception) {
-            errorHandler.handle(e, "AtomicBatchProcessor")
+            // Log rollback with reason (Requirement 17.6)
+            val rollbackReason = "Transaction failed: ${e.message}"
+            Timber.e(e, "[$operationName] Batch operation rolled back. Reason: $rollbackReason")
+            
+            errorHandler.handle(e, operationName)
+            
             BatchResult.Failure(
-                error = "Transaction failed: ${e.message}",
+                error = rollbackReason,
                 failedAtIndex = null
             )
         }
     }
 
+    /**
+     * Validates all items in a batch before processing.
+     * 
+     * Requirement 17.3: Validate all items before beginning transaction
+     */
     private fun <T> validateAll(items: List<T>, validator: InputValidator<T>): BatchValidationResult {
         val validIndices = mutableListOf<Int>()
         val invalidMap = mutableMapOf<Int, List<com.rio.rostry.domain.validation.InputValidationError>>()

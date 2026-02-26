@@ -80,7 +80,7 @@ data class DailyLogEntity(
                 val type = object : com.google.gson.reflect.TypeToken<List<com.rio.rostry.ui.components.MediaItem>>() {}.type
                 val items: List<com.rio.rostry.ui.components.MediaItem>? = com.google.gson.Gson().fromJson(mediaItemsJson, type)
                 if (!items.isNullOrEmpty()) return items
-            } catch (_: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.d(e, "Failed to parse mediaItemsJson for DailyLog: $logId, falling back to photoUrls") }
         }
         
         // Fallback: parse legacy photoUrls

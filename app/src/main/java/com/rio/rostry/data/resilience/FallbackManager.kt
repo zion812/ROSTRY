@@ -12,6 +12,12 @@ import javax.inject.Singleton
  * Manages graceful degradation when network or services fail.
  * Serves stale cache data with visual indicators, provides partial results,
  * and shows farmer-friendly error messages.
+ * 
+ * Implements four fallback strategies:
+ * 1. Cached data fallback - return stale cached data
+ * 2. Default value fallback - return sensible defaults
+ * 3. Empty result fallback - return empty collections/null
+ * 4. Descriptive error fallback - return user-friendly error messages
  */
 @Singleton
 class FallbackManager @Inject constructor(
@@ -21,6 +27,7 @@ class FallbackManager @Inject constructor(
     /**
      * Attempt to get data from primary source, falling back to cache on failure.
      * Returns stale data with indicator if primary fails.
+     * Implements: Cached data fallback strategy (Requirement 11.3, 21.1)
      */
     suspend fun <T> withFallback(
         cacheKey: String,
@@ -83,28 +90,50 @@ class FallbackManager @Inject constructor(
 
     /**
      * Convert technical errors to farmer-friendly messages.
+     * Implements standard error messages per Requirements 14.4, 14.5, 14.6.
+     * Implements: Descriptive error fallback strategy (Requirement 21.4)
      */
     fun getFriendlyErrorMessage(error: Throwable): String {
         return when {
-            error.message?.contains("timeout", ignoreCase = true) == true ->
-                "Connection is slow. Please check your internet and try again."
-            
+            // Network errors (Requirement 14.4)
+            error.message?.contains("timeout", ignoreCase = true) == true ||
             error.message?.contains("network", ignoreCase = true) == true ||
-            error.message?.contains("connect", ignoreCase = true) == true ->
-                "No internet connection. Your changes will sync when you're back online."
+            error.message?.contains("connect", ignoreCase = true) == true ||
+            error is java.net.SocketTimeoutException ||
+            error is java.net.UnknownHostException ||
+            error is java.io.IOException ->
+                "Unable to connect. Please check your internet connection."
             
-            error is CircuitOpenException ->
-                "Service temporarily unavailable. Please try again in a few minutes."
+            // Server errors (Requirement 14.6)
+            error is CircuitOpenException ||
+            error is RetryBudgetExhaustedException ||
+            error.message?.contains("503", ignoreCase = true) == true ||
+            error.message?.contains("502", ignoreCase = true) == true ||
+            error.message?.contains("500", ignoreCase = true) == true ->
+                "Service temporarily unavailable. Please try again later."
             
-            error is RetryBudgetExhaustedException ->
-                "Too many requests. Please wait a moment before trying again."
-            
-            error.message?.contains("permission", ignoreCase = true) == true ->
+            // Permission errors (Requirement 14.6)
+            error is SecurityException ||
+            error.message?.contains("permission", ignoreCase = true) == true ||
+            error.message?.contains("unauthorized", ignoreCase = true) == true ||
+            error.message?.contains("403", ignoreCase = true) == true ->
                 "You don't have permission to perform this action."
             
-            error.message?.contains("not found", ignoreCase = true) == true ->
+            // Validation errors (Requirement 14.5) - these should be handled specifically by callers
+            error is IllegalArgumentException ->
+                error.message?.let { "Invalid input: $it" } 
+                    ?: "Invalid input. Please check your data and try again."
+            
+            error is IllegalStateException ->
+                error.message?.let { "Operation not allowed: $it" }
+                    ?: "This operation cannot be performed right now."
+            
+            // Not found errors
+            error.message?.contains("not found", ignoreCase = true) == true ||
+            error.message?.contains("404", ignoreCase = true) == true ->
                 "The requested data could not be found."
             
+            // Default fallback
             else ->
                 "Something went wrong. Please try again or contact support if the problem persists."
         }
@@ -127,6 +156,52 @@ class FallbackManager @Inject constructor(
             
             else ->
                 listOf(SuggestedAction.RETRY, SuggestedAction.CONTACT_SUPPORT)
+        }
+    }
+
+    /**
+     * Default value fallback strategy.
+     * Returns a sensible default value when primary source fails.
+     * Implements: Default value fallback strategy (Requirement 21.2)
+     */
+    suspend fun <T> withDefaultFallback(
+        defaultValue: T,
+        primary: suspend () -> T
+    ): T {
+        return try {
+            primary()
+        } catch (e: Exception) {
+            defaultValue
+        }
+    }
+
+    /**
+     * Empty result fallback strategy.
+     * Returns an empty collection or null when primary source fails.
+     * Implements: Empty result fallback strategy (Requirement 21.3)
+     */
+    suspend fun <T> withEmptyFallback(
+        primary: suspend () -> List<T>
+    ): List<T> {
+        return try {
+            primary()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Nullable empty result fallback strategy.
+     * Returns null when primary source fails.
+     * Implements: Empty result fallback strategy (Requirement 21.3)
+     */
+    suspend fun <T> withNullFallback(
+        primary: suspend () -> T
+    ): T? {
+        return try {
+            primary()
+        } catch (e: Exception) {
+            null
         }
     }
 }

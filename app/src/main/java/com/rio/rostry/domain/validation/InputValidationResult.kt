@@ -28,3 +28,9 @@ data class BatchValidationResult(
 ) {
     val isAllValid: Boolean get() = invalid.isEmpty()
 }
+
+/**
+ * Type alias for backward compatibility.
+ * Some verification system code references ValidationResult instead of InputValidationResult.
+ */
+typealias ValidationResult = InputValidationResult

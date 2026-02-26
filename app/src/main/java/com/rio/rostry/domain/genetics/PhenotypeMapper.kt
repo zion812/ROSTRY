@@ -8,14 +8,22 @@ import com.rio.rostry.domain.model.*
  */
 object PhenotypeMapper {
 
+    /**
+     * Determine sex from genotype using the S locus (sex-linked, Z chromosome).
+     * In poultry: ZZ = Male (homozygous), ZW = Female (hemizygous).
+     * We detect this by checking if both S locus alleles are present and identical (ZZ = male)
+     * vs. having a mismatch or null-equivalent (ZW = female).
+     */
+    fun determineSex(genotype: GeneticProfile): Boolean {
+        // S locus is sex-linked (Z chromosome). 
+        // Males (ZZ) have two S alleles, Females (ZW) effectively have one.
+        // We approximate: if both alleles are the same = male (ZZ), different = female (ZW)
+        return genotype.sLocus.first == genotype.sLocus.second
+    }
+
     fun mapToAppearance(genotype: GeneticProfile, ageWeeks: Int): BirdAppearance {
-        val isMale = true // Todo: determine sex from genotype? Usually passed separately or implied by Z/W. 
-        // For simplicity, we might store sex in GeneticProfile or pass it. 
-        // Let's assume for now we derive it or default.
-        // Actually, GeneticProfile has pairs. If Z/W it's female, Z/Z male.
-        // But our GeneticProfile uses pairs for everything.
-        // Let's assume standard behavior: passed externally or determined by caller.
-        // For this mapper, let's allow passing isMale, or default to male for visualization if unknown.
+        // Determine sex from genotype using Z/W chromosome logic
+        val isMale = determineSex(genotype)
         
         // Base Template
         val base = BirdAppearance(

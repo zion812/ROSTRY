@@ -26,10 +26,10 @@ enum class CircuitState {
 
 /** Configuration for circuit breaker behavior. */
 data class CircuitBreakerConfig(
-    val failureRateThreshold: Double = 0.5,
-    val minimumCallsBeforeTrip: Int = 10,
-    val openDurationMs: Long = 30_000L,
-    val halfOpenMaxCalls: Int = 1,
+    val failureRateThreshold: Double = 0.5,  // 50% failure rate threshold
+    val minimumCallsBeforeTrip: Int = 10,     // Minimum 10 requests before opening
+    val openDurationMs: Long = 30_000L,       // 30 seconds open duration
+    val halfOpenMaxCalls: Int = 1,            // Allow 1 test request in half-open
     val recordWindowSize: Int = 100
 )
 

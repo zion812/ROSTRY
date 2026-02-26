@@ -1,5 +1,6 @@
 package com.rio.rostry.data.resilience
 
+import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -11,6 +12,8 @@ import javax.inject.Singleton
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
+
+private const val TAG = "RetryPolicyManager"
 
 /**
  * Manages retry policies with exponential backoff, jitter, and circuit breaker pattern.
@@ -28,6 +31,8 @@ class RetryPolicyManager @Inject constructor() {
     /**
      * Execute a suspending block with retry policy.
      * Respects circuit breaker state and retry budgets.
+     * Logs each retry attempt with attempt number and delay.
+     * Logs successful retries.
      */
     suspend fun <T> executeWithRetry(
         key: String,
@@ -38,12 +43,14 @@ class RetryPolicyManager @Inject constructor() {
         
         // Check circuit breaker
         if (circuitBreaker.isOpen()) {
+            Log.w(TAG, "Circuit breaker open for $key - rejecting request")
             return Result.failure(CircuitOpenException("Circuit breaker open for $key"))
         }
 
         // Check retry budget
         val budget = retryBudgets.getOrPut(key) { AtomicInteger(policy.retryBudget) }
         if (budget.get() <= 0) {
+            Log.w(TAG, "Retry budget exhausted for $key")
             return Result.failure(RetryBudgetExhaustedException("Retry budget exhausted for $key"))
         }
 
@@ -55,6 +62,12 @@ class RetryPolicyManager @Inject constructor() {
                 val result = block()
                 circuitBreaker.onSuccess()
                 budget.set(policy.retryBudget) // Reset budget on success
+                
+                // Log successful retry (if this was a retry, not the first attempt)
+                if (attempt > 0) {
+                    Log.i(TAG, "Retry successful for $key after $attempt attempt(s)")
+                }
+                
                 return Result.success(result)
             } catch (e: Exception) {
                 lastException = e
@@ -63,7 +76,14 @@ class RetryPolicyManager @Inject constructor() {
                 
                 if (attempt < policy.maxRetries) {
                     val delayMs = calculateBackoff(attempt, policy)
+                    
+                    // Log retry attempt with attempt number and delay
+                    Log.d(TAG, "Retry attempt ${attempt + 1}/${policy.maxRetries} for $key - delaying ${delayMs}ms - error: ${e.message}")
+                    
                     delay(delayMs)
+                } else {
+                    // Log final failure after all retries exhausted
+                    Log.w(TAG, "All retry attempts exhausted for $key after ${attempt + 1} attempts - error: ${e.message}")
                 }
                 attempt++
             }
@@ -74,6 +94,7 @@ class RetryPolicyManager @Inject constructor() {
 
     /**
      * Create a Flow transformer that applies retry policy.
+     * Logs each retry attempt with attempt number and delay.
      */
     fun <T> retryFlow(key: String, policy: RetryPolicy = RetryPolicy.DEFAULT): (Flow<T>) -> Flow<T> = { upstream ->
         var attempt = 0
@@ -81,13 +102,19 @@ class RetryPolicyManager @Inject constructor() {
             val circuitBreaker = circuitBreakers.getOrPut(key) { CircuitBreakerState() }
             
             if (circuitBreaker.isOpen()) {
+                Log.w(TAG, "Circuit breaker open for $key - rejecting flow retry")
                 emit(throw CircuitOpenException("Circuit breaker open"))
                 false
             } else if (attempt >= policy.maxRetries) {
+                Log.w(TAG, "All flow retry attempts exhausted for $key after ${attempt + 1} attempts")
                 false
             } else {
                 circuitBreaker.onFailure()
                 val delayMs = calculateBackoff(attempt, policy)
+                
+                // Log retry attempt
+                Log.d(TAG, "Flow retry attempt ${attempt + 1}/${policy.maxRetries} for $key - delaying ${delayMs}ms - error: ${cause.message}")
+                
                 delay(delayMs)
                 attempt++
                 true
@@ -118,26 +145,32 @@ class RetryPolicyManager @Inject constructor() {
         val exponentialDelay = policy.baseDelayMs * 2.0.pow(attempt.toDouble()).toLong()
         val cappedDelay = min(exponentialDelay, policy.maxDelayMs)
         
-        // Add jitter (±25%)
-        val jitter = (cappedDelay * 0.25 * (Random.nextFloat() * 2 - 1)).toLong()
-        return cappedDelay + jitter
+        // Add jitter (±25%) only if enabled in policy
+        return if (policy.useJitter) {
+            val jitter = (cappedDelay * 0.25 * (Random.nextFloat() * 2 - 1)).toLong()
+            cappedDelay + jitter
+        } else {
+            cappedDelay
+        }
     }
 }
 
 /**
  * Configuration for retry behavior.
+ * Default policy uses exponential backoff with delays of 1s, 2s, 4s.
  */
 data class RetryPolicy(
     val maxRetries: Int = 3,
-    val baseDelayMs: Long = 1000L,
-    val maxDelayMs: Long = 30000L,
-    val retryBudget: Int = 10  // Max retries per window
+    val baseDelayMs: Long = 1000L,  // 1 second base delay
+    val maxDelayMs: Long = 4000L,   // 4 seconds max delay (for 1s, 2s, 4s progression)
+    val retryBudget: Int = 10,      // Max retries per window
+    val useJitter: Boolean = false  // Disable jitter by default for predictable delays
 ) {
     companion object {
         val DEFAULT = RetryPolicy()
-        val CRITICAL = RetryPolicy(maxRetries = 5, baseDelayMs = 500L)
+        val CRITICAL = RetryPolicy(maxRetries = 5, baseDelayMs = 500L, useJitter = true)
         val ANALYTICS = RetryPolicy(maxRetries = 1, baseDelayMs = 2000L)
-        val BACKGROUND = RetryPolicy(maxRetries = 3, baseDelayMs = 5000L, maxDelayMs = 60000L)
+        val BACKGROUND = RetryPolicy(maxRetries = 3, baseDelayMs = 5000L, maxDelayMs = 60000L, useJitter = true)
     }
 }
 

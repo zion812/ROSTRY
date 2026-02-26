@@ -96,7 +96,7 @@ class BirdProfileViewModel @Inject constructor(
                     try {
                         val bviResult = breedingValueService.calculateBVI(productId)
                         _uiState.update { it.copy(bvi = bviResult) }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { timber.log.Timber.w(e, "Failed to calculate BVI for product: $productId") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message) }

@@ -21,5 +21,7 @@ data class VerificationDraftEntity(
     val uploadProgressJson: String?,
     val lastSavedAt: Long,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val mergedAt: Long? = null,
+    val mergedInto: String? = null
 )

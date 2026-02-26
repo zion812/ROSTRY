@@ -134,7 +134,7 @@ fun QrScannerScreen(
                                     )
                                     boundCamera = camera
                                     if (torchOn) camera.cameraControl.enableTorch(true)
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) { timber.log.Timber.w(e, "Failed to bind camera use cases") }
                             }, ContextCompat.getMainExecutor(ctx))
                             previewView
                         })

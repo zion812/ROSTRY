@@ -51,7 +51,7 @@ data class GrowthRecordEntity(
                 val type = object : TypeToken<List<MediaItem>>() {}.type
                 val items: List<MediaItem>? = Gson().fromJson(mediaItemsJson, type)
                 if (!items.isNullOrEmpty()) return items
-            } catch (_: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.d(e, "Failed to parse mediaItemsJson for GrowthRecord: $recordId") }
         }
         return photoUrl?.takeIf { it.isNotBlank() }?.let {
             listOf(MediaItem(url = it, caption = "Week $week", recordType = "GROWTH", recordId = recordId))
@@ -124,7 +124,7 @@ data class MortalityRecordEntity(
                 val type = object : TypeToken<List<MediaItem>>() {}.type
                 val items: List<MediaItem>? = Gson().fromJson(mediaItemsJson, type)
                 if (!items.isNullOrEmpty()) return items
-            } catch (_: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.d(e, "Failed to parse mediaItemsJson for MortalityRecord: $deathId") }
         }
         return photoUrls?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.mapIndexed { i, url ->
             MediaItem(url = url, caption = "Photo ${i+1}", recordType = "MORTALITY", recordId = deathId)
@@ -175,7 +175,7 @@ data class VaccinationRecordEntity(
                 val type = object : TypeToken<List<MediaItem>>() {}.type
                 val items: List<MediaItem>? = Gson().fromJson(mediaItemsJson, type)
                 if (!items.isNullOrEmpty()) return items
-            } catch (_: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.d(e, "Failed to parse mediaItemsJson for VaccinationRecord: $vaccinationId") }
         }
         return photoUrls?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.mapIndexed { i, url ->
             MediaItem(url = url, caption = "Photo ${i+1}", recordType = "VACCINATION", recordId = vaccinationId)

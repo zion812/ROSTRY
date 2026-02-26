@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
+import com.rio.rostry.domain.error.ErrorHandler
 import com.rio.rostry.domain.showcase.ShowcaseCard
 import com.rio.rostry.domain.showcase.ShowcaseCardGenerator
 import com.rio.rostry.utils.Resource
@@ -39,6 +40,7 @@ class ShowcaseCardViewModel @Inject constructor(
     private val productDao: ProductDao,
     private val vaccinationRecordDao: VaccinationRecordDao,
     private val showRecordRepository: com.rio.rostry.data.repository.ShowRecordRepository,
+    private val errorHandler: ErrorHandler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -107,7 +109,8 @@ class ShowcaseCardViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to generate showcase card")
-                _uiState.value = ShowcaseCardUiState.Error(e.message ?: "An error occurred")
+                val errorResult = errorHandler.handle(e, "generate-showcase-card")
+                _uiState.value = ShowcaseCardUiState.Error(errorResult.userMessage)
             }
         }
     }

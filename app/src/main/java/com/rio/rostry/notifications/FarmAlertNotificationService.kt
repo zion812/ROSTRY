@@ -118,7 +118,7 @@ class FarmAlertNotificationService @Inject constructor(
     }
 
     private suspend fun isNotificationEnabled(type: String): Boolean {
-        return userPreferencesRepository.isFarmNotificationEnabled(type)
+        return userPreferencesRepository.getPreference(com.rio.rostry.utils.preferences.PreferenceKeys.NOTIFICATIONS)
     }
 
     suspend fun sendVaccinationReminder(productId: String, vaccineType: String, dueDate: Long, reminderType: String) {

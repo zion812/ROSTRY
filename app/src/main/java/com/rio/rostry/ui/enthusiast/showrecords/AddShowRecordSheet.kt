@@ -111,7 +111,7 @@ fun AddShowRecordSheet(
         if (uri != null) {
             try {
                 context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission for show record photo") }
             onAddPhoto(uri)
         }
     }

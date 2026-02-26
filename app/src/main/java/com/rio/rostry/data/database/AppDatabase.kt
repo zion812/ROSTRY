@@ -169,9 +169,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Production Readiness Phase 1
         ErrorLogEntity::class,
         ConfigurationCacheEntity::class,
-        CircuitBreakerMetricsEntity::class
+        CircuitBreakerMetricsEntity::class,
+        MediaMetadataEntity::class,
+        HubAssignmentEntity::class,
+        ProfitabilityMetricsEntity::class
     ],
-    version = 87, // 86 -> 87 (Phase 6 Notifications: User Preferences)
+    version = 90, // 89 -> 90 (Production Readiness: Hub Assignments, Profitability Metrics, Table Modifications)
     exportSchema = true // Export Room schema JSONs to support migration testing.
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -350,6 +353,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun errorLogDao(): ErrorLogDao
     abstract fun configurationCacheDao(): ConfigurationCacheDao
     abstract fun circuitBreakerMetricsDao(): CircuitBreakerMetricsDao
+    abstract fun mediaMetadataDao(): MediaMetadataDao
+    abstract fun hubAssignmentDao(): HubAssignmentDao
+    abstract fun profitabilityMetricsDao(): ProfitabilityMetricsDao
 
     object Converters {
         @TypeConverter
@@ -1153,6 +1159,83 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `users` ADD COLUMN `farmAlertsEnabled` INTEGER NOT NULL DEFAULT 1")
                 db.execSQL("ALTER TABLE `users` ADD COLUMN `transferAlertsEnabled` INTEGER NOT NULL DEFAULT 1")
                 db.execSQL("ALTER TABLE `users` ADD COLUMN `socialAlertsEnabled` INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        // Production Readiness: Media Metadata table (87 -> 88)
+        val MIGRATION_87_88 = object : Migration(87, 88) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create media_metadata table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `media_metadata` (
+                        `mediaId` TEXT NOT NULL PRIMARY KEY,
+                        `originalUrl` TEXT NOT NULL,
+                        `thumbnailUrl` TEXT NOT NULL,
+                        `width` INTEGER NOT NULL,
+                        `height` INTEGER NOT NULL,
+                        `sizeBytes` INTEGER NOT NULL,
+                        `format` TEXT NOT NULL,
+                        `duration` INTEGER,
+                        `compressionQuality` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        FOREIGN KEY(`mediaId`) REFERENCES `media_items`(`id`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_metadata_mediaId` ON `media_metadata` (`mediaId`)")
+            }
+        }
+
+        // Production Readiness: Hub Assignments and Profitability Metrics (88 -> 89)
+        val MIGRATION_88_89 = object : Migration(88, 89) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create hub_assignments table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `hub_assignments` (
+                        `product_id` TEXT NOT NULL PRIMARY KEY,
+                        `hub_id` TEXT NOT NULL,
+                        `distance_km` REAL NOT NULL,
+                        `assigned_at` INTEGER NOT NULL,
+                        `seller_location_lat` REAL NOT NULL,
+                        `seller_location_lon` REAL NOT NULL,
+                        FOREIGN KEY(`product_id`) REFERENCES `products`(`productId`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_hub_assignments_hub_id` ON `hub_assignments` (`hub_id`)")
+
+                // Create profitability_metrics table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `profitability_metrics` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `entity_id` TEXT NOT NULL,
+                        `entity_type` TEXT NOT NULL,
+                        `period_start` INTEGER NOT NULL,
+                        `period_end` INTEGER NOT NULL,
+                        `revenue` REAL NOT NULL,
+                        `costs` REAL NOT NULL,
+                        `profit` REAL NOT NULL,
+                        `profit_margin` REAL NOT NULL,
+                        `order_count` INTEGER NOT NULL,
+                        `calculated_at` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_profitability_metrics_entity` ON `profitability_metrics` (`entity_id`, `entity_type`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_profitability_metrics_period` ON `profitability_metrics` (`period_start`, `period_end`)")
+            }
+        }
+
+        // Production Readiness: Table Modifications (89 -> 90)
+        val MIGRATION_89_90 = object : Migration(89, 90) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add hub assignment fields to products table
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `assignedHubId` TEXT")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `hubDistanceKm` REAL")
+
+                // Add KYC fields to users table
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycStatus` TEXT DEFAULT 'PENDING'")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycSubmittedAt` INTEGER")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `kycReviewedAt` INTEGER")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `farmLocationLat` REAL")
+                db.execSQL("ALTER TABLE `users` ADD COLUMN `farmLocationLon` REAL")
             }
         }
 

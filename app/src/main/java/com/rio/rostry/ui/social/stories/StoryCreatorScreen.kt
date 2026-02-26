@@ -57,7 +57,7 @@ fun StoryCreatorScreen(
         if (uri != null) {
             try {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for story") }
             selectedUri = uri
         }
     }

@@ -67,6 +67,4 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    @Deprecated("Use getPreference instead")
-    fun isFarmNotificationEnabled(type: String): Boolean = true
 }

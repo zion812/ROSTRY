@@ -62,3 +62,58 @@ object CoordinateValidator {
         return if (errors.isEmpty()) InputValidationResult.Valid else InputValidationResult.Invalid(errors)
     }
 }
+
+/**
+ * Date range validator.
+ */
+object DateRangeValidator {
+    
+    fun validate(startDate: Long, endDate: Long): InputValidationResult {
+        val errors = mutableListOf<InputValidationError>()
+        
+        if (startDate < 0) {
+            errors.add(InputValidationError("startDate", "Start date cannot be negative", "START_DATE_INVALID"))
+        }
+        
+        if (endDate < 0) {
+            errors.add(InputValidationError("endDate", "End date cannot be negative", "END_DATE_INVALID"))
+        }
+        
+        if (startDate > endDate) {
+            errors.add(InputValidationError("dateRange", "Start date must be before or equal to end date", "DATE_RANGE_INVALID"))
+        }
+        
+        return if (errors.isEmpty()) InputValidationResult.Valid else InputValidationResult.Invalid(errors)
+    }
+}
+
+/**
+ * Enum validator for validating string values against allowed enum values.
+ */
+class EnumValidator<T : Enum<T>>(
+    private val enumClass: Class<T>,
+    private val fieldName: String = "value"
+) : InputValidator<String> {
+    
+    private val allowedValues = enumClass.enumConstants?.map { it.name } ?: emptyList()
+    
+    override fun validate(value: String): InputValidationResult {
+        return if (value.isBlank()) {
+            InputValidationResult.Invalid(
+                listOf(InputValidationError(fieldName, "$fieldName is required", "${fieldName.uppercase()}_REQUIRED"))
+            )
+        } else if (value !in allowedValues) {
+            InputValidationResult.Invalid(
+                listOf(
+                    InputValidationError(
+                        fieldName,
+                        "Invalid $fieldName. Allowed values: ${allowedValues.joinToString(", ")}",
+                        "${fieldName.uppercase()}_INVALID"
+                    )
+                )
+            )
+        } else {
+            InputValidationResult.Valid
+        }
+    }
+}

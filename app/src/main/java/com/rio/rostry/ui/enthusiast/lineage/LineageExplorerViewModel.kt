@@ -77,7 +77,7 @@ class LineageExplorerViewModel @Inject constructor(
                     try {
                         val bvi = breedingValueService.calculateBVI(productId)
                         _uiState.update { it.copy(selectedNodeBvi = bvi) }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { timber.log.Timber.w(e, "Failed to calculate BVI for root bird: $productId") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
@@ -100,7 +100,7 @@ class LineageExplorerViewModel @Inject constructor(
                         it.copy(selectedNodeBvi = bvi)
                     } else it
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { timber.log.Timber.w(e, "Failed to calculate BVI for node: ${node.bird.id}") }
         }
     }
 

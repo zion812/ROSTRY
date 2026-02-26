@@ -16,6 +16,7 @@ interface RecoveryStrategy {
 /**
  * Recovery via retry with exponential backoff.
  * Delegates to the existing [RetryPolicyManager].
+ * Uses exponential backoff with delays of 1s, 2s, 4s.
  */
 class RetryRecoveryStrategy(
     private val retryPolicyManager: RetryPolicyManager,
@@ -29,8 +30,8 @@ class RetryRecoveryStrategy(
             key = context.operationName,
             policy = RetryPolicy(
                 maxRetries = maxAttempts,
-                baseDelayMs = 1000L,
-                maxDelayMs = 4000L
+                baseDelayMs = 1000L,  // 1 second
+                maxDelayMs = 4000L    // 4 seconds (for 1s, 2s, 4s progression)
             )
         ) {
             retryAction()

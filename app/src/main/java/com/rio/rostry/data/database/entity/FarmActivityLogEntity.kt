@@ -63,7 +63,7 @@ data class FarmActivityLogEntity(
                 val type = object : TypeToken<List<MediaItem>>() {}.type
                 val items: List<MediaItem>? = Gson().fromJson(mediaItemsJson, type)
                 if (!items.isNullOrEmpty()) return items
-            } catch (_: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.d(e, "Failed to parse mediaItemsJson for FarmActivityLog: $activityId") }
         }
         
         // Fallback: parse legacy photoUrls

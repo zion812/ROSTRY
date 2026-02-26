@@ -107,7 +107,7 @@ fun GeneralCreateRoute(
         uris.forEach { uri ->
             try {
                 context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission for post media") }
             
             // FREE TIER: Filter out videos - only accept images
             val mimeType = context.contentResolver.getType(uri)

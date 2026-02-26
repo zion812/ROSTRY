@@ -173,7 +173,7 @@ class VerificationUploadWorker @AssistedInject constructor(
             // Unexpected error - mark as draft and retry
             try {
                 verificationRequestDao.updateStatus(requestId, VerificationRequestEntity.STATUS_DRAFT)
-            } catch (_: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.w(e, "Failed to update verification status to DRAFT") }
             
             if (runAttemptCount < 3) {
                 Result.retry()

@@ -141,7 +141,7 @@ class StorageRepository @Inject constructor(
             if (file.absolutePath.startsWith(cacheDir) && file.exists()) {
                 file.delete()
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { Timber.w(e, "Failed to cleanup cached file: $localUriString") }
     }
 
     private fun CancellableContinuation<UploadResult>.safeResume(value: UploadResult) {

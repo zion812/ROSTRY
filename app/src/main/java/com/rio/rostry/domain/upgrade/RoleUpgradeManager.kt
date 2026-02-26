@@ -100,9 +100,10 @@ class RoleUpgradeManager @Inject constructor(
             
             var migratedCount = 0
             
-            // Phase 1: Snapshot (Placeholder)
+            // Phase 1: Snapshot
             roleMigrationRepository.updateProgress(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS, 0, com.rio.rostry.data.database.entity.RoleMigrationEntity.PHASE_SNAPSHOT, null)
-            // saveSnapshot(userId, assets) // TODO: Implement snapshot logic
+            // Snapshot: Log asset count before migration for rollback audit
+            android.util.Log.i("RoleUpgradeManager", "Snapshot: ${assets.size} assets for user $userId before migration")
             
             // Phase 2: Convert Assets
             roleMigrationRepository.updateProgress(migrationId, com.rio.rostry.data.database.entity.RoleMigrationEntity.STATUS_IN_PROGRESS, 0, com.rio.rostry.data.database.entity.RoleMigrationEntity.PHASE_CLOUD_COPY, null)

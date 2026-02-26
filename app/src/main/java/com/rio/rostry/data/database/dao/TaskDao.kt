@@ -12,6 +12,9 @@ interface TaskDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(task: TaskEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(tasks: List<TaskEntity>)
+
     @Query("SELECT * FROM tasks WHERE farmerId = :farmerId AND completedAt IS NULL AND (snoozeUntil IS NULL OR snoozeUntil <= :now) AND dueAt <= :now ORDER BY CASE priority WHEN 'URGENT' THEN 3 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 1 ELSE 0 END DESC, dueAt ASC")
     fun observeDueForFarmer(farmerId: String, now: Long): Flow<List<TaskEntity>>
 

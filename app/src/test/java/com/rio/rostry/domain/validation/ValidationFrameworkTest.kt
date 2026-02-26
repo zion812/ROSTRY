@@ -1,5 +1,6 @@
 package com.rio.rostry.domain.validation
 
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
@@ -8,10 +9,12 @@ import org.junit.Test
 class ValidationFrameworkTest {
 
     private lateinit var validationFramework: ValidationFramework
+    private lateinit var entityValidator: EntityValidator
 
     @Before
     fun setup() {
-        validationFramework = ValidationFrameworkImpl()
+        entityValidator = mockk(relaxed = true)
+        validationFramework = ValidationFrameworkImpl(entityValidator)
     }
 
     @Test

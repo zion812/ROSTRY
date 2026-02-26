@@ -640,7 +640,7 @@ class SyncManager @Inject constructor(
                 if (remoteOrdersUpdated.isNotEmpty()) {
                     val localDirtyIds = orderDao.getDirty().map { it.orderId }.toHashSet()
                     val toUpsert = remoteOrdersUpdated.filter { it.orderId !in localDirtyIds }
-                    toUpsert.forEach { orderDao.insertOrUpdate(it) }
+                    if (toUpsert.isNotEmpty()) orderDao.insertOrUpdate(toUpsert.toList())
                     pulls += toUpsert.size
                 }
             }
@@ -649,7 +649,7 @@ class SyncManager @Inject constructor(
             if (localDirty.isNotEmpty()) {
                 withRetry { firestoreService.pushOrders(localDirty) }
                 val cleaned = localDirty.map { it.copy(dirty = false, updatedAt = ctx.now) }
-                cleaned.forEach { orderDao.insertOrUpdate(it) }
+                if (cleaned.isNotEmpty()) orderDao.insertOrUpdate(cleaned)
                 pushes += cleaned.size
             }
 
@@ -670,7 +670,7 @@ class SyncManager @Inject constructor(
                 firestoreService.fetchUpdatedTransfers(ctx.userId, ctx.state.lastTransferSyncAt)
             }
             if (remoteTransfersUpdated.isNotEmpty()) {
-                remoteTransfersUpdated.forEach { transferDao.upsert(it) }
+                if (remoteTransfersUpdated.isNotEmpty()) transferDao.upsert(remoteTransfersUpdated)
                 pulls += remoteTransfersUpdated.size
             }
 
@@ -693,7 +693,7 @@ class SyncManager @Inject constructor(
                         local.copy(dirty = false, updatedAt = ctx.now)
                     }
                 }
-                cleaned.forEach { transferDao.upsert(it) }
+                if (cleaned.isNotEmpty()) transferDao.upsert(cleaned)
                 pushes += cleaned.size
             }
             transferDao.purgeDeleted()
@@ -1127,7 +1127,7 @@ class SyncManager @Inject constructor(
                     if (remoteTasks.isNotEmpty()) {
                          val localDirtyIds = taskDao.getDirty().map { it.taskId }.toHashSet()
                          val toUpsert = remoteTasks.filter { it.taskId !in localDirtyIds }
-                         toUpsert.forEach { taskDao.upsert(it) }
+                         if (toUpsert.isNotEmpty()) taskDao.upsert(toUpsert)
                          pulls += toUpsert.size
                     }
                     val localDirty = taskDao.getDirty()

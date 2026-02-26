@@ -46,7 +46,7 @@ fun EnthusiastKycScreen(
         uri?.let {
             try {
                 context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission for KYC document") }
             
             if (currentUploadType != null) {
                 if (currentUploadIsImage) {

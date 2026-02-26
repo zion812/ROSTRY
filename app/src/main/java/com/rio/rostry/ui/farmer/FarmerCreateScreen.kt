@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.ui.navigation.Routes
 import com.rio.rostry.ui.components.SyncStatusBadge
 import com.rio.rostry.ui.components.ConflictNotification
+import timber.log.Timber
 
 
 @Composable
@@ -46,7 +47,7 @@ fun FarmerCreateScreen(
             try {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (e: Exception) {
-                // Ignore failure to take persistable permission
+                Timber.w(e, "Failed to take persistable URI permission for photo")
             }
         }
         viewModel.addMedia("photo", uris.map { it.toString() }) 
@@ -58,7 +59,7 @@ fun FarmerCreateScreen(
         uris.forEach { uri ->
             try {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for video") }
         }
         viewModel.addMedia("video", uris.map { it.toString() }) 
     }
@@ -69,7 +70,7 @@ fun FarmerCreateScreen(
         uris.forEach { uri ->
             try {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for audio") }
         }
         viewModel.addMedia("audio", uris.map { it.toString() }) 
     }
@@ -80,7 +81,7 @@ fun FarmerCreateScreen(
         uris.forEach { uri ->
             try {
                 context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) { }
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for document") }
         }
         viewModel.addMedia("document", uris.map { it.toString() }) 
     }

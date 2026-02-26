@@ -19,6 +19,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.sync.SyncConflict
 import com.rio.rostry.data.sync.SyncManager
+import com.rio.rostry.ui.components.states.LoadingIndicator
+import com.rio.rostry.ui.components.states.EmptyState
+import com.rio.rostry.ui.components.states.CompactLoadingIndicator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,27 +73,13 @@ fun SyncConflictScreen(
         }
     ) { padding ->
         if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
-                    Spacer(Modifier.height(16.dp))
-                    Text("Detecting conflicts...")
-                }
-            }
+            LoadingIndicator(message = "Detecting conflicts...")
         } else if (state.conflicts.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = "Dismiss conflict",
-                        modifier = Modifier.size(64.dp),
-                        tint = Color(0xFF4CAF50)
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text("All data synced!", style = MaterialTheme.typography.titleLarge)
-                    Text("No conflicts detected", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
+            EmptyState(
+                icon = Icons.Default.CheckCircle,
+                title = "All data synced!",
+                description = "No conflicts detected. Your data is up to date."
+            )
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -232,7 +221,7 @@ private fun ConflictCard(
             // Action buttons
             if (isResolving) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(24.dp))
+                    CompactLoadingIndicator(message = "Resolving...")
                 }
             } else {
                 Row(

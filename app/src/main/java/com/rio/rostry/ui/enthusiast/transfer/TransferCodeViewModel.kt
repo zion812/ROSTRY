@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.ProductDao
+import com.rio.rostry.domain.error.ErrorHandler
 import com.rio.rostry.domain.transfer.OwnershipTransferUseCase
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,7 @@ import javax.inject.Inject
 class TransferCodeViewModel @Inject constructor(
     private val transferUseCase: OwnershipTransferUseCase,
     private val productDao: ProductDao,
+    private val errorHandler: ErrorHandler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -75,7 +77,8 @@ class TransferCodeViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _uiState.value = TransferCodeUiState.Error(e.message ?: "An error occurred")
+                val errorResult = errorHandler.handle(e, "initiate-transfer")
+                _uiState.value = TransferCodeUiState.Error(errorResult.userMessage)
             }
         }
     }

@@ -1,7 +1,7 @@
 package com.rio.rostry.di
 
 import com.rio.rostry.data.database.dao.ConfigurationCacheDao
-import com.rio.rostry.domain.manager.ConfigurationManager
+import com.rio.rostry.domain.config.ConfigurationManager
 import com.rio.rostry.domain.manager.RemoteConfigurationManager
 import com.google.gson.Gson
 import dagger.Module

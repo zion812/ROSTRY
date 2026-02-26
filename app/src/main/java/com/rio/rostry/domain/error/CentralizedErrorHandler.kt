@@ -1,18 +1,20 @@
 package com.rio.rostry.domain.error
 
+import android.util.Log
 import com.rio.rostry.data.database.dao.ErrorLogDao
 import com.rio.rostry.data.database.entity.ErrorLogEntity
 import com.rio.rostry.data.resilience.CircuitOpenException
 import com.rio.rostry.data.resilience.FallbackManager
 import com.rio.rostry.data.resilience.RetryBudgetExhaustedException
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import timber.log.Timber
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ErrorHandler"
 
 /**
  * Production-grade centralized error handler.
@@ -32,13 +34,15 @@ class CentralizedErrorHandler @Inject constructor(
     override suspend fun handle(
         error: Throwable,
         operationName: String,
-        recoveryStrategy: RecoveryStrategy?
+        recoveryStrategy: RecoveryStrategy?,
+        userId: String?
     ): ErrorResult {
         val category = categorize(error)
         val userMessage = getUserMessage(error)
 
         // Build context
         val context = ErrorContext(
+            userId = userId,
             operationName = operationName,
             stackTrace = error.stackTraceToString(),
             additionalData = mapOf(
@@ -49,9 +53,9 @@ class CentralizedErrorHandler @Inject constructor(
 
         // 1. Log to Timber
         when (category) {
-            ErrorCategory.FATAL -> Timber.e(error, "FATAL [$operationName]: ${error.message}")
-            ErrorCategory.USER_ACTIONABLE -> Timber.w(error, "USER_ACTIONABLE [$operationName]: ${error.message}")
-            ErrorCategory.RECOVERABLE -> Timber.d(error, "RECOVERABLE [$operationName]: ${error.message}")
+            ErrorCategory.FATAL -> Log.e(TAG, "FATAL [$operationName]: ${error.message}", error)
+            ErrorCategory.USER_ACTIONABLE -> Log.w(TAG, "USER_ACTIONABLE [$operationName]: ${error.message}", error)
+            ErrorCategory.RECOVERABLE -> Log.d(TAG, "RECOVERABLE [$operationName]: ${error.message}")
         }
 
         // 2. Persist to local database
@@ -66,7 +70,7 @@ class CentralizedErrorHandler @Inject constructor(
                     recordException(error)
                 }
             } catch (e: Exception) {
-                Timber.w(e, "Failed to report to Crashlytics")
+                Log.w(TAG, "Failed to report to Crashlytics", e)
             }
         }
 
@@ -76,7 +80,7 @@ class CentralizedErrorHandler @Inject constructor(
             val recoveryResult = try {
                 recoveryStrategy.recover(error, context)
             } catch (e: Exception) {
-                Timber.w(e, "Recovery strategy failed for $operationName")
+                Log.w(TAG, "Recovery strategy failed for $operationName", e)
                 Result.failure(e)
             }
             recovered = recoveryResult.isSuccess
@@ -155,7 +159,7 @@ class CentralizedErrorHandler @Inject constructor(
             errorLogDao.insert(entity)
         } catch (e: Exception) {
             // Don't let logging failures propagate
-            Timber.w(e, "Failed to persist error log")
+            Log.w(TAG, "Failed to persist error log", e)
         }
     }
 }

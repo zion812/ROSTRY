@@ -473,7 +473,7 @@ private fun UpdateQuarantineDialog(
                     uri?.let {
                         try {
                             context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        } catch (e: Exception) { }
+                        } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission for quarantine photo") }
                         photoUri = it.toString()
                     }
                 }
