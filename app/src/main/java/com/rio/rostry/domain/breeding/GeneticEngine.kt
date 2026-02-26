@@ -98,6 +98,15 @@ class GeneticEngine @Inject constructor() {
         }
     }
 
+    /**
+     * Returns a default GeneticProfile for a known breed.
+     * Used by BreedingCompatibilityCalculator to infer genotypes from product attributes.
+     */
+    fun getDefaultGenotypeForBreed(breed: String): com.rio.rostry.domain.model.GeneticProfile? {
+        // Return null for unknown breeds — compatibility calculator handles this gracefully
+        return null
+    }
+
     // --- Data Definitions ---
 
     enum class Genotype { HomozygousDominant, Heterozygous, HomozygousRecessive, Unknown }

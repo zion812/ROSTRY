@@ -30,7 +30,8 @@ enum class DraftStatus {
 data class DraftMergeRequest(
     val productId: String,
     val draftIds: List<String>,
-    val conflictResolutions: Map<String, Any> = emptyMap()
+    val conflictResolutions: Map<String, Any> = emptyMap(),
+    val mergedByUserId: String? = null
 )
 
 /**

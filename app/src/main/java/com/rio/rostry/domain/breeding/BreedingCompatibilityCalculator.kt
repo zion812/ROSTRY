@@ -4,6 +4,7 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.domain.genetics.PhenotypeMapper
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlin.math.pow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -72,8 +73,8 @@ class BreedingCompatibilityCalculator @Inject constructor(
         val femaleGenotype = inferGenotypeFromProduct(female)
         
         if (maleGenotype != null && femaleGenotype != null) {
-            val malePhenotype = PhenotypeMapper.mapToAppearance(maleGenotype, male.ageInWeeks ?: 0)
-            val femalePhenotype = PhenotypeMapper.mapToAppearance(femaleGenotype, female.ageInWeeks ?: 0)
+            val malePhenotype = PhenotypeMapper.mapToAppearance(maleGenotype, male.ageWeeks ?: 0)
+            val femalePhenotype = PhenotypeMapper.mapToAppearance(femaleGenotype, female.ageWeeks ?: 0)
             
             // Comb compatibility
             if (malePhenotype.comb == femalePhenotype.comb) {
@@ -113,7 +114,7 @@ class BreedingCompatibilityCalculator @Inject constructor(
         }
         
         // Age compatibility
-        val ageDiff = abs((male.ageInWeeks ?: 0) - (female.ageInWeeks ?: 0))
+        val ageDiff = abs((male.ageWeeks ?: 0) - (female.ageWeeks ?: 0))
         if (ageDiff > 52) { // More than 1 year difference
             score -= 10
             reasons.add("Age gap: ${ageDiff / 52} years")
@@ -143,20 +144,24 @@ class BreedingCompatibilityCalculator @Inject constructor(
         val relatedIds = getRelatedBirdIds(currentPartner, excludeWithinGenerations)
         
         // Get all potential mates (same species, opposite sex, not sick)
-        val allProducts = productRepository.getAllProducts()
+        val resource = productRepository.getAllProducts().first()
+        val allProducts = when (resource) {
+            is com.rio.rostry.utils.Resource.Success -> resource.data ?: emptyList()
+            else -> emptyList()
+        }
         val potentialMates = allProducts.filter { product ->
             product.productId != currentPartner.productId &&
             product.productId !in relatedIds &&
             product.healthStatus != "Sick" &&
-            product.isMale != currentPartner.isMale // Opposite sex
+            product.gender != currentPartner.gender // Opposite sex
         }
         
         // Calculate compatibility for each and rank by diversity
         val suggestions = mutableListOf<BreedingSuggestion>()
         for (mate in potentialMates) {
             val result = calculateCompatibility(
-                if (currentPartner.isMale) currentPartner else mate,
-                if (currentPartner.isMale) mate else currentPartner
+                if (currentPartner.gender == "male") currentPartner else mate,
+                if (currentPartner.gender == "male") mate else currentPartner
             )
             
             suggestions.add(

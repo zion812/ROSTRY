@@ -55,9 +55,9 @@ fun MultiProviderAuthScreen(
                     timber.log.Timber.d("MultiProviderAuthScreen: Navigating to UserSetup")
                     onAuthSuccess()
                 }
-                is AuthViewModel.NavAction.ToOtp -> {
+                is AuthViewModel.NavAction.ToOtpPlaceholder -> {
                     // This would navigate to OTP screen, but phone auth is disabled
-                    timber.log.Timber.d("MultiProviderAuthScreen: ToOtp action (phone disabled)")
+                    timber.log.Timber.d("MultiProviderAuthScreen: ToOtpPlaceholder action (phone disabled)")
                 }
             }
         }

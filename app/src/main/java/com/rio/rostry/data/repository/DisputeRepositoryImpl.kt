@@ -107,7 +107,7 @@ class DisputeRepositoryImpl @Inject constructor(
                         "resolution" to resolution,
                         "adminId" to adminId,
                         "reporterId" to (dispute?.reporterId ?: "unknown"),
-                        "sellerId" to (dispute?.sellerId ?: "unknown")
+                        "sellerId" to (dispute?.reportedUserId ?: "unknown")
                     )
                 ),
                 createdAt = now
@@ -118,7 +118,7 @@ class DisputeRepositoryImpl @Inject constructor(
         dispute?.let { d ->
             // Notify reporter
             notificationService.notifyOrderUpdate(
-                orderId = d.orderId ?: disputeId,
+                orderId = d.transferId.ifBlank { disputeId },
                 status = "DISPUTE_RESOLVED",
                 title = "Dispute Resolved",
                 message = "Your dispute has been resolved: $resolution"
@@ -126,12 +126,12 @@ class DisputeRepositoryImpl @Inject constructor(
             
             // Notify seller
             notificationService.onOrderStatusChanged(
-                orderId = d.orderId ?: disputeId,
-                userId = d.sellerId ?: "",
+                orderId = d.transferId.ifBlank { disputeId },
+                userId = d.reportedUserId,
                 oldStatus = "DISPUTED",
                 newStatus = status.name,
                 title = "Dispute Resolved",
-                message = "The dispute for order ${d.orderId} has been resolved: $resolution"
+                message = "The dispute for transfer ${d.transferId} has been resolved: $resolution"
             )
         }
         
@@ -180,7 +180,7 @@ class DisputeRepositoryImpl @Inject constructor(
         // Notify reporter that seller has responded
         dispute?.let { d ->
             notificationService.notifyOrderUpdate(
-                orderId = d.orderId ?: disputeId,
+                orderId = d.transferId.ifBlank { disputeId },
                 status = "DISPUTE_UNDER_REVIEW",
                 title = "Seller Responded to Dispute",
                 message = "The seller has submitted their response. Your dispute is now under review."

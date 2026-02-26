@@ -59,10 +59,9 @@ object AuthModuleNew {
     @Provides
     @Singleton
     fun provideFirebaseAuthDataSource(
-        firebaseAuth: FirebaseAuth,
-        authStateManager: AuthStateManager
+        firebaseAuth: FirebaseAuth
     ): FirebaseAuthDataSource {
-        return FirebaseAuthDataSource(firebaseAuth, authStateManager)
+        return FirebaseAuthDataSource(firebaseAuth)
     }
     
     /**
@@ -78,14 +77,10 @@ object AuthModuleNew {
     @Singleton
     @Named("AuthRepositoryNew")
     fun provideAuthRepositoryNew(
-        firebaseAuthDataSource: FirebaseAuthDataSource,
-        rateLimiter: RateLimiter,
-        authStateManager: AuthStateManager
+        firebaseAuthDataSource: FirebaseAuthDataSource
     ): AuthRepository {
         return AuthRepositoryImplNew(
-            firebaseAuthDataSource = firebaseAuthDataSource,
-            rateLimiter = rateLimiter,
-            authStateManager = authStateManager
+            firebaseAuthDataSource = firebaseAuthDataSource
         )
     }
     

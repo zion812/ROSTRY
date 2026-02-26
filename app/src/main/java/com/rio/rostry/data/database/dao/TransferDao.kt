@@ -86,6 +86,15 @@ interface TransferDao {
     )
     fun getUserTransfersBetween(userId: String, start: Long?, end: Long?): Flow<List<TransferEntity>>
 
+    // Analytics: get all transfers in a date range (no user filter)
+    @Query(
+        "SELECT * FROM transfers " +
+        "WHERE initiatedAt >= :start AND initiatedAt <= :end " +
+        "AND isDeleted = 0 " +
+        "ORDER BY initiatedAt DESC"
+    )
+    fun getAllTransfersBetween(start: Long, end: Long): Flow<List<TransferEntity>>
+
     @Query(
         "SELECT * FROM transfers " +
         "WHERE (fromUserId = :userId OR toUserId = :userId) " +

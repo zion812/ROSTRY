@@ -75,6 +75,7 @@ import androidx.navigation.navDeepLink
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import com.rio.rostry.ui.auth.AuthViewModel
+import com.rio.rostry.ui.auth.needsPhoneVerificationBanner
 import com.rio.rostry.ui.auth.AuthWelcomeViewModel
 import com.rio.rostry.ui.auth.AuthWelcomeScreen
 import com.rio.rostry.ui.splash.SplashScreen
@@ -531,7 +532,7 @@ private fun RoleNavScaffold(
                             launchSingleTop = true
                             popUpTo(controller.graph.startDestinationId) { inclusive = false }
                         }
-                    } else if (concreteLike.isNotBlank() && isWriteAction(concreteLike) && authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+                    } else if (concreteLike.isNotBlank() && isWriteAction(concreteLike) && authViewModel.uiState.value.needsPhoneVerificationBanner) {
                         // If this is a write action and phone verification is deferred, show verification dialog
                         pendingGuestAction = concreteLike // Store the intended action
                         showSignInDialog = true // Reuse the existing dialog functionality by showing it as a verification prompt
@@ -658,7 +659,7 @@ private fun RoleNavScaffold(
                 // Show verification banner when phone verification is deferred
                 // FREE TIER: Hide this banner since phone auth is disabled
                 val FREE_TIER_BANNER_HIDDEN = true
-                if (!FREE_TIER_BANNER_HIDDEN && authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+                if (!FREE_TIER_BANNER_HIDDEN && authViewModel.uiState.value.needsPhoneVerificationBanner) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -723,7 +724,7 @@ private fun RoleNavScaffold(
     }
 
     // Phone verification required dialog for authenticated users with deferred verification
-    if (showSignInDialog && !isGuestMode && authViewModel.uiState.value.pendingPhoneVerificationReason != null) {
+    if (showSignInDialog && !isGuestMode && authViewModel.uiState.value.needsPhoneVerificationBanner) {
         AlertDialog(
             onDismissRequest = {
                 pendingGuestAction = null

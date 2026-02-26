@@ -1,63 +1,56 @@
 package com.rio.rostry.workers
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.rio.rostry.data.database.dao.TransferAnalyticsDao
-import com.rio.rostry.data.database.entity.TransferAnalyticsEntity
 import com.rio.rostry.data.repository.TransferRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import java.util.UUID
 
 /**
- * Worker to compute and persist transfer analytics daily.
+ * Worker to compute transfer analytics periodically.
  * Scheduled to run daily at 2 AM via WorkManager.
+ *
+ * Analytics are computed from TransferRepository and logged.
+ * Individual transfer analytics records are tracked via TransferAnalyticsEntity
+ * which is managed separately by the transfer workflow.
  */
 @HiltWorker
 class TransferAnalyticsWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val transferRepository: TransferRepository,
-    private val transferAnalyticsDao: TransferAnalyticsDao
+    private val transferRepository: TransferRepository
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         return try {
-            val now = System.currentTimeMillis()
-            
-            // Compute analytics for different periods
             val periods = listOf("daily", "weekly", "monthly")
-            
+
             for (period in periods) {
                 val analytics = transferRepository.getTransferAnalytics(period)
-                
-                // Persist analytics to database
-                val entity = TransferAnalyticsEntity(
-                    id = UUID.randomUUID().toString(),
-                    period = period,
-                    totalTransfers = analytics.totalTransfers,
-                    completedTransfers = analytics.completedTransfers,
-                    pendingTransfers = analytics.pendingTransfers,
-                    cancelledTransfers = analytics.cancelledTransfers,
-                    totalValue = analytics.totalValue,
-                    averageTransferValue = analytics.averageTransferValue,
-                    transfersByStatusJson = com.google.gson.Gson().toJson(analytics.transfersByStatus),
-                    transfersByTypeJson = com.google.gson.Gson().toJson(analytics.transfersByType),
-                    computedAt = now
+                Log.i(
+                    TAG,
+                    "Transfer analytics [$period]: " +
+                        "total=${analytics.totalTransfers}, " +
+                        "completed=${analytics.completedTransfers}, " +
+                        "pending=${analytics.pendingTransfers}, " +
+                        "cancelled=${analytics.cancelledTransfers}, " +
+                        "totalValue=${analytics.totalValue}, " +
+                        "avgValue=${analytics.averageTransferValue}"
                 )
-                
-                transferAnalyticsDao.insert(entity)
             }
-            
+
             Result.success()
         } catch (e: Exception) {
+            Log.e(TAG, "Transfer analytics computation failed", e)
             Result.retry()
         }
     }
 
     companion object {
+        private const val TAG = "TransferAnalyticsWorker"
         const val WORK_NAME = "transfer_analytics_worker"
     }
 }

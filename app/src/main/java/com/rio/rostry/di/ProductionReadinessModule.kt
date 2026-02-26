@@ -59,9 +59,12 @@ object ProductionReadinessModule {
         kycDao: KycVerificationDao,
         verificationRequestDao: VerificationRequestDao,
         userDao: UserDao,
+        auditLogDao: com.rio.rostry.data.database.dao.AuditLogDao,
+        userRepository: com.rio.rostry.data.repository.UserRepository,
+        notificationService: com.rio.rostry.notifications.IntelligentNotificationService,
         gson: Gson
     ): VerificationSystem {
-        return VerificationSystemImpl(productDraftDao, kycDao, verificationRequestDao, userDao, gson)
+        return VerificationSystemImpl(productDraftDao, kycDao, verificationRequestDao, userDao, auditLogDao, userRepository, notificationService, gson)
     }
 
     // ─── Marketplace Intelligence ───────────────────────────────────────

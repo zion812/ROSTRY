@@ -11,6 +11,7 @@ import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.KycVerificationEntity
 import com.rio.rostry.data.database.entity.ProductVerificationDraftEntity
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.domain.validation.CoordinateValidator
 import com.rio.rostry.domain.validation.InputValidationError
 import com.rio.rostry.domain.validation.InputValidationResult
