@@ -1,680 +1,905 @@
 ---
 Version: 1.0
-Last Updated: 2026-02-05
-Audience: Developers
+Last Updated: 2026-02-26
+Audience: Developers, Architects
 Status: Active
-Related_Docs: [data-layer-architecture.md, cache-management.md, data-sources-integration.md, architecture.md, api-integration-guide.md]
-Tags: [fetcher, data-fetching, caching, request-deduplication, health-monitoring]
+Related_Docs: [architecture.md, cache-management.md, data-layer-architecture.md, testing-strategy.md]
+Tags: [fetcher, data-retrieval, caching, performance]
 ---
 
-# Fetcher System Documentation
+# Fetcher System Architecture
+
+**Document Type**: Architecture Guide
+**Version**: 1.0
+**Last Updated**: 2026-02-26
+**Feature Owner**: Data Layer Infrastructure
+**Status**: ✅ Fully Implemented
 
 ## Overview
 
-The Fetcher System is a centralized data fetching infrastructure that provides intelligent caching, request deduplication, and health monitoring capabilities. It serves as the primary mechanism for retrieving data from various sources while optimizing performance and reliability.
+The **Fetcher System** is a centralized data fetching infrastructure that provides intelligent caching, request deduplication, and health monitoring capabilities. It serves as the backbone for ROSTRY's data retrieval operations, ensuring optimal performance and reliability across all data sources.
+
+### Key Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| **Reduced Network Overhead** | Minimizes redundant requests through intelligent caching and coalescing |
+| **Improved Performance** | Faster response times through strategic caching and prefetching |
+| **Enhanced Reliability** | Better fault tolerance and graceful degradation during service issues |
+| **Centralized Management** | Single point of control for all data fetching operations |
+| **Consistent Behavior** | Uniform error handling and caching behavior across the application |
 
 ## Architecture
 
 ### Core Components
 
-#### 1. FetcherRegistry
-The central registry for all fetchers with type-safe registration and retrieval.
+The Fetcher System consists of five primary components working together to provide efficient data retrieval:
 
-- **Purpose**: Manages all available fetchers and provides a way to retrieve them by type
-- **Key Features**:
-  - Type-safe fetcher registration
-  - Centralized fetcher management
-  - Runtime fetcher discovery
+```mermaid
+graph TB
+    subgraph "UI Layer"
+        UI[Compose UI]
+        VM[ViewModel]
+    end
+
+    subgraph "Fetcher System"
+        FR[FetcherRegistry]
+        FC[FetcherCoordinator]
+        RC[RequestCoalescer]
+        CL[ContextualLoader]
+        HC[FetcherHealthCheck]
+    end
+
+    subgraph "Caching Layer"
+        CM[CacheManager]
+        CH[CacheHealthMonitor]
+    end
+
+    subgraph "Data Sources"
+        Local[(Local Data - Room)]
+        Remote[(Remote Data - Firebase/APIs)]
+    end
+
+    UI --> VM
+    VM --> FR
+    FR --> FC
+    FC --> RC
+    FC --> CL
+    FC --> HC
+    FC --> CM
+    CM --> Local
+    CM --> Remote
+    FC --> Local
+    FC --> Remote
+    HC --> CM
+```
+
+### Component Responsibilities
+
+#### 1. FetcherRegistry
+
+**Purpose**: Central registry for all fetchers with type-safe registration and retrieval
+
+**Location**: `data/fetcher/FetcherRegistry.kt`
+
+**Responsibilities**:
+- Type-safe registration of fetcher implementations
+- Runtime retrieval of registered fetchers
+- Fetcher metadata management
+- Fetcher lifecycle tracking
+
+**Usage Pattern**:
+```kotlin
+// Register a fetcher
+fetcherRegistry.register(
+    key = "products",
+    fetcher = ProductFetcher(remoteDataSource, localDataSource),
+    metadata = FetcherMetadata(
+        ttl = 5.minutes,
+        cachePolicy = CachePolicy.CACHE_FIRST,
+        priority = Priority.HIGH
+    )
+)
+
+// Retrieve a fetcher
+val fetcher = fetcherRegistry.getFetcher<ProductRequest, ProductResponse>("products")
+```
 
 #### 2. FetcherCoordinator
-Orchestrates fetch operations, manages cache interactions, and handles request routing.
 
-- **Purpose**: Coordinates the entire fetch process, including cache checks and data retrieval
-- **Key Features**:
-  - Cache-first or network-first strategies
-  - Request routing to appropriate fetchers
-  - Cache interaction management
-  - Error handling coordination
+**Purpose**: Orchestrates fetch operations, manages cache interactions, and handles request routing
+
+**Location**: `data/fetcher/FetcherCoordinator.kt`
+
+**Responsibilities**:
+- Request validation and normalization
+- Cache interaction management
+- Data source routing (local vs remote)
+- Response transformation and wrapping
+- Error handling and retry coordination
+
+**Core API**:
+```kotlin
+class FetcherCoordinator @Inject constructor(
+    private val registry: FetcherRegistry,
+    private val cacheManager: CacheManager,
+    private val requestCoalescer: RequestCoalescer,
+    private val healthCheck: FetcherHealthCheck
+) {
+    suspend fun <T, R> fetch(request: ClientRequest<T, R>): Resource<R>
+    suspend fun <T, R> fetchWithRetry(request: ClientRequest<T, R>, maxRetries: Int): Resource<R>
+}
+```
 
 #### 3. RequestCoalescer
-Deduplicates concurrent requests for the same data to prevent redundant network calls.
 
-- **Purpose**: Prevents multiple identical requests from being processed simultaneously
-- **Key Features**:
-  - Thread-safe request deduplication
-  - Concurrent request handling
-  - Performance optimization
-  - Resource conservation
+**Purpose**: Deduplicates concurrent requests for the same data to prevent redundant network calls
 
-#### 4. ContextualLoader
-Handles contextual data loading with priority management and smart prefetching.
+**Location**: `data/fetcher/RequestCoalescer.kt`
 
-- **Purpose**: Loads data based on context and usage patterns
-- **Key Features**:
-  - Context-aware loading
-  - Priority-based fetching
-  - Smart prefetching
-  - Resource optimization
+**Responsibilities**:
+- Request key generation and normalization
+- Concurrent request tracking
+- Result sharing across duplicate requests
+- Memory management for pending requests
+- Timeout handling for stalled requests
 
-#### 5. FetcherHealthCheck
-Monitors fetcher performance, availability, and response times for proactive maintenance.
-
-- **Purpose**: Tracks the health and performance of fetchers
-- **Key Features**:
-  - Performance metrics collection
-  - Availability monitoring
-  - Response time tracking
-  - Proactive maintenance alerts
-
-## Design Patterns
-
-### Strategy Pattern
-The fetcher system implements the Strategy pattern to allow different fetching strategies for different data sources:
-
+**Deduplication Logic**:
 ```kotlin
-interface Fetcher<T> {
-    suspend fun fetch(request: ClientRequest<T>): Resource<T>
-    fun supports(request: ClientRequest<T>): Boolean
-}
+class RequestCoalescer @Inject constructor() {
+    private val pendingRequests = ConcurrentHashMap<String, CompletableDeferred<Any>>()
 
-class UserFetcher : Fetcher<User> {
-    override suspend fun fetch(request: ClientRequest<User>): Resource<User> {
-        // Implementation
-    }
-    
-    override fun supports(request: ClientRequest<User>): Boolean {
-        return request.type == RequestType.USER
-    }
-}
-```
-
-### Factory Pattern
-For creating fetcher instances with appropriate configurations:
-
-```kotlin
-class FetcherFactory {
-    fun createFetcher(type: FetchType): Fetcher<*> {
-        return when (type) {
-            FetchType.USER -> UserFetcher()
-            FetchType.PRODUCT -> ProductFetcher()
-            FetchType.ORDER -> OrderFetcher()
-            else -> DefaultFetcher()
-        }
-    }
-}
-```
-
-### Observer Pattern
-For monitoring fetcher health and performance metrics:
-
-```kotlin
-interface FetcherHealthObserver {
-    fun onHealthChanged(fetcherId: String, healthStatus: HealthStatus)
-    fun onPerformanceMetric(metric: PerformanceMetric)
-}
-```
-
-## Caching Integration
-
-### Cache Strategies
-The fetcher system supports multiple caching strategies:
-
-1. **Cache First**: Return cached data if available, otherwise fetch from network
-2. **Network First**: Always fetch from network, update cache with response
-3. **Stale While Revalidate**: Return stale cache while fetching fresh data in background
-4. **Cache Only**: Only return cached data, no network requests
-5. **Network Only**: Skip cache, always fetch from network
-
-### Cache Policy Configuration
-```kotlin
-data class CachePolicy(
-    val strategy: CacheStrategy,
-    val ttl: Duration,
-    val maxSize: Int,
-    val evictionPolicy: EvictionPolicy
-)
-```
-
-### Cache Invalidation
-Smart invalidation based on data dependencies and update events:
-
-```kotlin
-interface CacheInvalidator {
-    suspend fun invalidate(key: String)
-    suspend fun invalidateByPattern(pattern: String)
-    suspend fun invalidateByTag(tag: String)
-    suspend fun clear()
-}
-```
-
-## Concurrency & Performance
-
-### Thread Safety
-All fetcher operations are thread-safe to handle concurrent requests:
-
-```kotlin
-class ThreadSafeFetcher<T> : Fetcher<T> {
-    private val mutex = Mutex()
-    
-    override suspend fun fetch(request: ClientRequest<T>): Resource<T> {
-        return mutex.withLock {
-            // Thread-safe fetch implementation
-        }
-    }
-}
-```
-
-### Request Coalescing
-Prevents duplicate network calls for identical requests occurring simultaneously:
-
-```kotlin
-class RequestCoalescer {
-    private val activeRequests = mutableMapOf<String, Deferred<Resource<*>>>()
-    
-    suspend fun <T> executeOrJoin(request: ClientRequest<T>, fetcher: Fetcher<T>): Resource<T> {
-        val key = generateRequestKey(request)
-        
-        return activeRequests[key]?.let { 
+    suspend fun <T> executeOrJoin(
+        key: String,
+        operation: suspend () -> T
+    ): T {
+        // Check if request is already in flight
+        val existing = pendingRequests[key]
+        if (existing != null) {
             // Join existing request
             @Suppress("UNCHECKED_CAST")
-            it.await() as Resource<T>
-        } ?: run {
-            // Create new request
-            val deferred = async {
-                try {
-                    fetcher.fetch(request)
-                } finally {
-                    activeRequests.remove(key)
-                }
-            }
-            
-            activeRequests[key] = deferred
-            deferred.await() as Resource<T>
+            return existing.await() as T
         }
-    }
-}
-```
 
-## Error Handling & Resilience
+        // Create new deferred
+        val deferred = CompletableDeferred<Any>()
+        pendingRequests[key] = deferred
 
-### Retry Mechanisms
-Configurable retry policies with exponential backoff:
-
-```kotlin
-data class RetryPolicy(
-    val maxAttempts: Int,
-    val initialDelay: Duration,
-    val multiplier: Float,
-    val maxDelay: Duration
-)
-
-class RetryMechanism {
-    suspend fun <T> executeWithRetry(
-        retryPolicy: RetryPolicy,
-        operation: suspend () -> Resource<T>
-    ): Resource<T> {
-        var attempt = 0
-        var currentDelay = retryPolicy.initialDelay
-        
-        while (attempt < retryPolicy.maxAttempts) {
-            val result = operation()
-            
-            if (result is Resource.Success) {
-                return result
-            }
-            
-            if (attempt == retryPolicy.maxAttempts - 1) {
-                return result
-            }
-            
-            delay(currentDelay.inWholeMilliseconds)
-            currentDelay = minOf(
-                currentDelay * retryPolicy.multiplier,
-                retryPolicy.maxDelay
-            )
-            
-            attempt++
-        }
-        
-        return Resource.Error("Max retry attempts exceeded")
-    }
-}
-```
-
-### Circuit Breaker Pattern
-Prevents cascading failures during service outages:
-
-```kotlin
-class CircuitBreaker(
-    private val failureThreshold: Int,
-    private val timeout: Duration
-) {
-    enum class State { CLOSED, OPEN, HALF_OPEN }
-    
-    private var state = State.CLOSED
-    private var failureCount = 0
-    private var lastFailureTime: Instant? = null
-    
-    suspend fun <T> execute(operation: suspend () -> Resource<T>): Resource<T> {
-        return when (state) {
-            State.OPEN -> {
-                if (isTimeoutElapsed()) {
-                    state = State.HALF_OPEN
-                    attemptCall(operation)
-                } else {
-                    Resource.Error("Circuit breaker is OPEN")
-                }
-            }
-            State.HALF_OPEN -> attemptCall(operation)
-            State.CLOSED -> attemptCall(operation)
-        }
-    }
-    
-    private suspend fun <T> attemptCall(operation: suspend () -> Resource<T>): Resource<T> {
         return try {
             val result = operation()
-            if (result is Resource.Success) {
-                onSuccess()
-            } else {
-                onFailure()
-            }
+            deferred.complete(result)
             result
         } catch (e: Exception) {
-            onFailure()
-            Resource.Error(e.message ?: "Unknown error")
+            deferred.completeExceptionally(e)
+            throw e
+        } finally {
+            pendingRequests.remove(key)
         }
     }
-    
-    private fun onSuccess() {
-        failureCount = 0
-        state = State.CLOSED
-    }
-    
-    private fun onFailure() {
-        failureCount++
-        if (failureCount >= failureThreshold) {
-            state = State.OPEN
-            lastFailureTime = Clock.System.now()
-        }
-    }
-    
-    private fun isTimeoutElapsed(): Boolean {
-        val lastFailure = lastFailureTime ?: return true
-        return Clock.System.now() - lastFailure > timeout
-    }
 }
 ```
 
-## Integration with Repository Layer
+#### 4. ContextualLoader
 
-### Repository Integration Pattern
-The fetcher system integrates seamlessly with the repository layer:
+**Purpose**: Handles contextual data loading with priority management and smart prefetching
 
+**Location**: `data/fetcher/ContextualLoader.kt`
+
+**Responsibilities**:
+- Context-aware data loading
+- Priority-based request scheduling
+- Prefetching based on usage patterns
+- Memory pressure adaptation
+- Loading state management
+
+**Priority Levels**:
 ```kotlin
-@Singleton
-class ProductRepositoryImpl @Inject constructor(
-    private val fetcherCoordinator: FetcherCoordinator,
-    private val cacheManager: CacheManager,
-    private val localDataSource: LocalProductDataSource,
-    private val remoteDataSource: RemoteProductDataSource
-) : ProductRepository {
-    
-    override suspend fun getProducts(): Resource<List<Product>> {
-        val request = ClientRequest(
-            key = "products",
-            fetcher = remoteDataSource::fetchProducts,
-            cachePolicy = CachePolicy(
-                strategy = CacheStrategy.CACHE_FIRST,
-                ttl = 5.minutes,
-                maxSize = 100,
-                evictionPolicy = EvictionPolicy.LRU
-            ),
-            ttl = 5.minutes
-        )
-        
-        return fetcherCoordinator.fetch(request)
-    }
-    
-    override suspend fun getProduct(id: String): Resource<Product> {
-        val request = ClientRequest(
-            key = "product:$id",
-            fetcher = { remoteDataSource.fetchProduct(id) },
-            cachePolicy = CachePolicy(
-                strategy = CacheStrategy.CACHE_FIRST,
-                ttl = 10.minutes,
-                maxSize = 500,
-                evictionPolicy = EvictionPolicy.LRU
-            ),
-            ttl = 10.minutes
-        )
-        
-        return fetcherCoordinator.fetch(request)
-    }
+enum class LoadPriority {
+    CRITICAL,    // Immediate loading (user waiting)
+    HIGH,        // Load as soon as possible
+    NORMAL,      // Default priority
+    LOW,         // Load when resources available
+    PREFETCH     // Background prefetching
 }
 ```
 
-### Resource Wrapper Pattern
-Returns data wrapped in Resource sealed class for consistent error handling:
+#### 5. FetcherHealthCheck
 
+**Purpose**: Monitors fetcher performance, availability, and response times for proactive maintenance
+
+**Location**: `data/fetcher/FetcherHealthCheck.kt`
+
+**Responsibilities**:
+- Success/failure rate tracking
+- Response time monitoring
+- Circuit breaker state management
+- Health metric collection
+- Degradation detection and reporting
+
+**Metrics Collected**:
 ```kotlin
-sealed class Resource<out T> {
-    data class Success<T>(val data: T) : Resource<T>()
-    data class Error(val message: String, val exception: Exception? = null) : Resource<Nothing>()
-    object Loading : Resource<Nothing>()
+data class FetcherHealthMetrics(
+    val successRate: Double,           // 0.0 to 1.0
+    val averageResponseTime: Long,     // milliseconds
+    val requestsPerMinute: Int,
+    val failureRate: Double,           // 0.0 to 1.0
+    val circuitBreakerState: CircuitBreakerState,
+    val lastSuccessTime: Instant?,
+    val lastFailureTime: Instant?,
+    val consecutiveFailures: Int
+)
+
+enum class CircuitBreakerState {
+    CLOSED,      // Normal operation
+    OPEN,        // Failing, reject requests
+    HALF_OPEN    // Testing if recovered
 }
 ```
 
-## Usage Examples
+## Request Flow
 
-### Basic Fetch Operation
-```kotlin
-class ProductService @Inject constructor(
-    private val fetcherCoordinator: FetcherCoordinator
-) {
-    suspend fun fetchProduct(productId: String): Resource<Product> {
-        val request = ClientRequest(
-            key = "product_$productId",
-            fetcher = { fetchProductFromApi(productId) },
-            cachePolicy = CachePolicy.default()
-        )
-        
-        return fetcherCoordinator.fetch(request)
-    }
-    
-    private suspend fun fetchProductFromApi(id: String): Product {
-        // Implementation
-    }
-}
-```
-
-### Fetch with Custom Cache Policy
-```kotlin
-suspend fun fetchUserProfile(userId: String): Resource<User> {
-    val request = ClientRequest(
-        key = "user_$userId",
-        fetcher = { fetchUserFromRemote(userId) },
-        cachePolicy = CachePolicy(
-            strategy = CacheStrategy.STALE_WHILE_REVALIDATE,
-            ttl = 30.minutes,
-            maxSize = 200,
-            evictionPolicy = EvictionPolicy.LRU
-        )
-    )
-    
-    return fetcherCoordinator.fetch(request)
-}
-```
-
-### Batch Fetch Operation
-```kotlin
-suspend fun fetchMultipleProducts(ids: List<String>): Resource<List<Product>> {
-    val requests = ids.map { id ->
-        ClientRequest(
-            key = "product_$id",
-            fetcher = { fetchProductById(id) },
-            cachePolicy = CachePolicy.default()
-        )
-    }
-    
-    return fetcherCoordinator.batchFetch(requests)
-}
-```
-
-## Testing Fetchers
-
-### Unit Testing Pattern
-```kotlin
-@Test
-fun `fetch with cache miss should fetch from remote and cache result`() = runTest {
-    // Given
-    val mockRemoteDataSource = mockk<RemoteProductDataSource>()
-    coEvery { mockRemoteDataSource.fetchProducts() } returns expectedResult
-    
-    val fetcher = ProductFetcher(mockRemoteDataSource)
-    val request = ClientRequest(
-        key = "products",
-        fetcher = { mockRemoteDataSource.fetchProducts() },
-        cachePolicy = CachePolicy(CacheStrategy.CACHE_ONLY)
-    )
-    
-    // When
-    val result = fetcher.fetch(request)
-    
-    // Then
-    assertIs<Resource.Success<List<Product>>>(result)
-    assertEquals(expectedResult, result.data)
-}
-```
-
-### Integration Testing
-```kotlin
-@HiltTest
-class FetcherIntegrationTest {
-    @get:Rule
-    val hiltRule = HiltAndroidRule(this)
-    
-    @Inject
-    lateinit var fetcherCoordinator: FetcherCoordinator
-    
-    @Inject
-    lateinit var cacheManager: CacheManager
-    
-    @Test
-    fun `fetch with cache hit should return cached data`() = runTest {
-        // Given
-        val testData = listOf(Product("1", "Test Product"))
-        cacheManager.put("test-key", testData)
-        
-        val request = ClientRequest(
-            key = "test-key",
-            fetcher = { /* This shouldn't be called */ },
-            cachePolicy = CachePolicy(CacheStrategy.CACHE_ONLY)
-        )
-        
-        // When
-        val result = fetcherCoordinator.fetch(request)
-        
-        // Then
-        assertIs<Resource.Success<List<Product>>>(result)
-        assertEquals(testData, result.data)
-    }
-}
-```
-
-## Performance Considerations
-
-### Caching Strategy Selection
-Choose the appropriate cache strategy based on data characteristics:
-
-- **CACHE_FIRST**: For static or slowly changing data
-- **NETWORK_FIRST**: For frequently updated data
-- **STALE_WHILE_REVALIDATE**: For data that can tolerate slightly stale content
-- **CACHE_ONLY**: For offline-first scenarios
-- **NETWORK_ONLY**: For real-time data requirements
-
-### Memory Management
-- Configure appropriate cache sizes to balance performance and memory usage
-- Use LRU eviction policy to remove least recently used items
-- Monitor cache hit ratios to optimize performance
-
-### Network Optimization
-- Implement request batching where appropriate
-- Use compression for large payloads
-- Implement smart prefetching based on usage patterns
-
-## Monitoring & Observability
-
-### Metrics Collected
-- Cache hit/miss ratios
-- Fetch success/failure rates
-- Response times
-- Error rates
-- Active request counts
-
-### Logging Strategy
-- Log request keys and timing for performance analysis
-- Track cache operations for debugging
-- Monitor health check results
-- Record circuit breaker state changes
-
-## Security Considerations
-
-### Data Encryption
-- Encrypt cached sensitive data at rest
-- Use secure key management for encryption keys
-- Sanitize data before caching to remove sensitive information
-
-### Access Control
-- Validate permissions before fetching data
-- Implement role-based access controls
-- Audit data access patterns
-
-## Troubleshooting
-
-### Common Issues
-- **Cache Inconsistency**: Ensure proper cache invalidation strategies
-- **Memory Leaks**: Monitor cache sizes and implement proper cleanup
-- **Network Failures**: Implement robust retry and fallback mechanisms
-- **Thread Safety**: Ensure all operations are properly synchronized
-
-### Debugging Tips
-- Enable detailed logging for fetch operations
-- Monitor cache hit ratios to identify performance issues
-- Use health check endpoints to verify fetcher status
-- Implement circuit breaker dashboards for monitoring
-
-## Feature Flow Diagrams
-
-### Fetch Request Flow
+### Complete Fetch Flow
 
 ```mermaid
 sequenceDiagram
     participant UI as Compose UI
     participant VM as ViewModel
+    participant FR as FetcherRegistry
     participant FC as FetcherCoordinator
     participant RC as RequestCoalescer
     participant CM as CacheManager
-    participant DS as DataSource
+    participant HC as FetcherHealthCheck
+    participant DS as Data Source
 
     UI->>VM: Request Data
+    VM->>FR: getFetcher(key)
+    FR-->>VM: Fetcher<T>
     VM->>FC: fetch(ClientRequest)
-    FC->>RC: executeOrJoin(request)
+    FC->>RC: executeOrJoin(requestKey)
     RC->>CM: Check Cache
-    alt Cache Hit
+    
+    alt Cache Hit (Stale-While-Revalidate)
         CM-->>RC: Cached Data
         RC-->>FC: Return Cached
-        FC-->>VM: Resource.Success(data)
+        FC->>HC: recordSuccess()
+        FC-->>VM: Resource.Success(cached)
+        VM-->>UI: Update State
+        
+        Note over FC,DS: Background refresh
+        FC->>DS: Fetch Fresh Data
+        DS-->>FC: Fresh Data
+        FC->>CM: Update Cache
+        FC->>HC: recordSuccess()
     else Cache Miss
         RC->>DS: Fetch from Source
         DS-->>RC: Fresh Data
         RC->>CM: Store in Cache
         RC-->>FC: Return Fresh Data
-        FC-->>VM: Resource.Success(data)
+        FC->>HC: recordSuccess()
+        FC-->>VM: Resource.Success(fresh)
+        VM-->>UI: Update State
     end
-    VM-->>UI: Update State
+    
+    alt Fetch Failure
+        DS-->>RC: Error
+        RC->>HC: recordFailure()
+        HC->>RC: CircuitBreaker State
+        
+        alt Circuit Breaker Open
+            RC-->>FC: Fallback/Error
+            FC-->>VM: Resource.Error
+            VM-->>UI: Show Error
+        else Retry Allowed
+            RC->>DS: Retry (backoff)
+            Note over RC,DS: Exponential backoff
+        end
+    end
 ```
 
 ### Cache Strategy Flow
 
 ```mermaid
 flowchart TD
-    A[Request Arrives] --> B{Cache Policy Strategy}
-    B -->|CACHE_FIRST| C{Check Cache}
-    B -->|NETWORK_FIRST| D[Fetch from Network]
-    B -->|STALE_WHILE_REVALIDATE| E[Return Stale & Fetch Fresh]
-
-    C -->|Hit| F[Return Cached Data]
-    C -->|Miss| G[Fetch from Network]
-    G --> H[Cache Result]
-    H --> I[Return Fresh Data]
-
-    D --> J{Success?}
-    J -->|Yes| K[Cache Result]
-    J -->|No| L[Return Error]
-    K --> M[Return Fresh Data]
-
-    E --> N[Return Stale Data]
-    E --> O[Fetch Fresh in Background]
-    O --> P[Update Cache]
-
-    F --> Q[Done]
-    I --> Q
-    L --> Q
-    M --> Q
-    N --> Q
+    A[Fetch Request] --> B{Cache Enabled?}
+    B -->|No| C[Fetch from Source]
+    B -->|Yes| D{Cache Exists?}
+    
+    D -->|No| E[Fetch from Source]
+    E --> F[Store in Cache]
+    F --> G[Return Data]
+    
+    D -->|Yes| H{Cache Valid?}
+    H -->|Yes| I[Return Cached Data]
+    I --> J{Background Refresh?}
+    J -->|Yes| K[Async Refresh]
+    J -->|No| L[Done]
+    
+    H -->|No| M[Fetch from Source]
+    M --> N[Update Cache]
+    N --> O[Return Fresh Data]
+    
+    C --> G
 ```
 
-### Request Coalescing Flow
+## Caching Integration
 
-```mermaid
-sequenceDiagram
-    participant UI1 as UI Request 1
-    participant UI2 as UI Request 2
-    participant UI3 as UI Request 3
-    participant RC as RequestCoalescer
-    participant DS as DataSource
+### Cache Policies
 
-    par Multiple Requests
-        UI1->>RC: Request A
-        UI2->>RC: Request A
-        UI3->>RC: Request A
-    end
+The Fetcher System integrates with `CacheManager` to provide multiple caching strategies:
 
-    opt First Request Proceeds
-        RC->>DS: Fetch Data
-        DS-->>RC: Data Response
-    end
-
-    par All Requests Get Same Response
-        RC-->>UI1: Same Response
-        RC-->>UI2: Same Response
-        RC-->>UI3: Same Response
-    end
+```kotlin
+enum class CachePolicy {
+    /**
+     * Fetch from cache first, then refresh from source in background
+     * Best for: Content that can be stale briefly (feeds, lists)
+     */
+    CACHE_FIRST,
+    
+    /**
+     * Fetch from source only, update cache
+     * Best for: Critical data requiring freshness (orders, payments)
+     */
+    NETWORK_ONLY,
+    
+    /**
+     * Return cache if available, otherwise fetch from source
+     * Best for: Static or slowly changing data (profiles, settings)
+     */
+    CACHE_ELSE_NETWORK,
+    
+    /**
+     * Fetch from both sources in parallel, return first response
+     * Best for: Latency-critical operations
+     */
+    CACHE_AND_NETWORK,
+    
+    /**
+     * Return cache only, never fetch from source
+     * Best for: Offline mode, historical data
+     */
+    CACHE_ONLY
+}
 ```
 
-### Health Monitoring Flow
+### TTL Strategies
 
-```mermaid
-sequenceDiagram
-    participant FH as FetcherHealthCheck
-    participant F as Fetcher
-    participant M as MetricsCollector
+```kotlin
+data class CacheConfig(
+    val ttl: Duration,                    // Time to live
+    val staleWhileRevalidate: Boolean,    // Serve stale during refresh
+    val maxStale: Duration?,              // Maximum staleness allowed
+    val preFetch: Duration?,              // Prefetch before expiry
+    val invalidateOn: List<String>        // Events that invalidate cache
+)
 
-    loop Continuous Monitoring
-        F->>FH: recordOperation(start)
-        F->>FH: recordSuccess(duration)
-        alt Operation Fails
-            F->>FH: recordFailure(error)
-        end
-        FH->>M: collectMetrics()
-        M-->>FH: healthStatus
-    end
+// Example configurations
+val ProductCacheConfig = CacheConfig(
+    ttl = 5.minutes,
+    staleWhileRevalidate = true,
+    maxStale = 15.minutes,
+    preFetch = 1.minute,
+    invalidateOn = listOf("product_updated", "product_deleted")
+)
 
-    alt Health Degraded
-        FH->>F: adjustBehavior()
-    end
+val OrderCacheConfig = CacheConfig(
+    ttl = 30.seconds,
+    staleWhileRevalidate = false,
+    maxStale = null,
+    preFetch = null,
+    invalidateOn = listOf("order_status_changed")
+)
 ```
 
-### Error Handling & Retry Flow
+### Cache Invalidation
 
-```mermaid
-flowchart TD
-    A[Request Starts] --> B{Network Available?}
-    B -->|No| C[Return Cached or Error]
-    B -->|Yes| D[Execute Request]
+```kotlin
+class CacheInvalidator @Inject constructor(
+    private val cacheManager: CacheManager
+) {
+    /**
+     * Invalidate cache by key
+     */
+    suspend fun invalidate(key: String)
+    
+    /**
+     * Invalidate cache by pattern
+     */
+    suspend fun invalidatePattern(pattern: String)
+    
+    /**
+     * Invalidate on event
+     */
+    suspend fun invalidateOnEvent(event: String)
+    
+    /**
+     * Clear all caches
+     */
+    suspend fun clearAll()
+}
+```
 
-    D --> E{Request Successful?}
-    E -->|Yes| F[Return Success]
-    E -->|No| G{Retry Policy Allows?}
+## Error Handling & Resilience
 
-    G -->|Yes| H{Circuit Breaker Tripped?}
-    H -->|No| I[Apply Backoff & Retry]
-    H -->|Yes| J[Return Error Immediately]
+### Retry Mechanism
 
-    I --> D
-    G -->|No| K[Return Error]
-    C --> L[Done]
-    F --> L
-    J --> L
-    K --> L
+```kotlin
+sealed class RetryPolicy {
+    object NoRetry : RetryPolicy()
+    data class Fixed(
+        val maxRetries: Int,
+        val delay: Duration
+    ) : RetryPolicy()
+    data class ExponentialBackoff(
+        val maxRetries: Int,
+        val initialDelay: Duration,
+        val maxDelay: Duration,
+        val factor: Double = 2.0
+    ) : RetryPolicy()
+}
+
+// Usage
+val retryPolicy = ExponentialBackoff(
+    maxRetries = 3,
+    initialDelay = 1.seconds,
+    maxDelay = 30.seconds,
+    factor = 2.0
+)
+```
+
+### Circuit Breaker Pattern
+
+```kotlin
+class CircuitBreaker(
+    private val failureThreshold: Int = 5,
+    private val successThreshold: Int = 3,
+    private val openTimeout: Duration = 30.seconds
+) {
+    private var state = CircuitBreakerState.CLOSED
+    private var failureCount = 0
+    private var successCount = 0
+    private var openTime: Instant? = null
+
+    suspend fun <T> execute(operation: suspend () -> T): T {
+        when (state) {
+            CircuitBreakerState.OPEN -> {
+                if (shouldTryHalfOpen()) {
+                    state = CircuitBreakerState.HALF_OPEN
+                } else {
+                    throw CircuitBreakerOpenException()
+                }
+            }
+            CircuitBreakerState.HALF_OPEN -> {
+                // Allow one request to test
+            }
+            CircuitBreakerState.CLOSED -> {
+                // Normal operation
+            }
+        }
+
+        return try {
+            val result = operation()
+            onSuccess()
+            result
+        } catch (e: Exception) {
+            onFailure()
+            throw e
+        }
+    }
+
+    private fun onSuccess() {
+        if (state == CircuitBreakerState.HALF_OPEN) {
+            successCount++
+            if (successCount >= successThreshold) {
+                reset()
+            }
+        }
+    }
+
+    private fun onFailure() {
+        failureCount++
+        if (failureCount >= failureThreshold) {
+            state = CircuitBreakerState.OPEN
+            openTime = Instant.now()
+        }
+    }
+
+    private fun reset() {
+        state = CircuitBreakerState.CLOSED
+        failureCount = 0
+        successCount = 0
+        openTime = null
+    }
+
+    private fun shouldTryHalfOpen(): Boolean {
+        return openTime?.let {
+            Duration.between(it, Instant.now()) >= openTimeout
+        } ?: true
+    }
+}
+```
+
+### Fallback Strategies
+
+```kotlin
+sealed class FallbackStrategy<T> {
+    object None : FallbackStrategy<Nothing>()
+    data class DefaultValue<T>(val value: T) : FallbackStrategy<T>()
+    data class FromCache<T>(val staleOk: Boolean = true) : FallbackStrategy<T>()
+    data class Custom<T>(val handler: suspend (Exception) -> T?) : FallbackStrategy<T>()
+}
+
+// Usage
+val fallback = FallbackStrategy.FromCache<ProductList>(staleOk = true)
+```
+
+## Performance Optimization
+
+### Connection Pooling
+
+```kotlin
+// Configured in HttpModule
+val okHttpClient = OkHttpClient.Builder()
+    .connectionPool(ConnectionPool(
+        maxIdleConnections = 5,
+        keepAliveDuration = 5,
+        TimeUnit.MINUTES
+    ))
+    .build()
+```
+
+### Request Batching
+
+```kotlin
+class BatchFetcher @Inject constructor(
+    private val coordinator: FetcherCoordinator
+) {
+    /**
+     * Batch multiple requests together
+     */
+    suspend fun <T> batch(
+        requests: List<ClientRequest<*, T>>,
+        maxBatchSize: Int = 10
+    ): List<Resource<T>> {
+        // Group requests by type
+        val grouped = requests.groupBy { it.type }
+        
+        // Execute batches
+        return grouped.flatMap { (_, batch) ->
+            batch.chunked(maxBatchSize).map { chunk ->
+                executeBatch(chunk)
+            }
+        }
+    }
+}
+```
+
+### Adaptive Strategies
+
+```kotlin
+class AdaptiveFetcher @Inject constructor(
+    private val healthCheck: FetcherHealthCheck
+) {
+    suspend fun <T> fetch(request: ClientRequest<T>): Resource<T> {
+        val metrics = healthCheck.getMetrics(request.key)
+        
+        // Adapt based on health
+        return when {
+            metrics.successRate < 0.5 -> {
+                // High failure rate: use cache aggressively
+                fetchWithCacheFallback(request)
+            }
+            metrics.averageResponseTime > 5000 -> {
+                // Slow response: prefetch aggressively
+                fetchWithPrefetch(request)
+            }
+            else -> {
+                // Normal: standard fetch
+                fetcherCoordinator.fetch(request)
+            }
+        }
+    }
+}
+```
+
+## Testing Fetchers
+
+### FetcherTestUtils
+
+```kotlin
+object FetcherTestUtils {
+    /**
+     * Create a mock fetcher
+     */
+    fun <T, R> createMockFetcher(
+        response: R,
+        delay: Duration = 0.milliseconds
+    ): Fetcher<T, R> {
+        return object : Fetcher<T, R> {
+            override suspend fun fetch(request: T): R {
+                if (delay > Duration.ZERO) {
+                    kotlinx.coroutines.delay(delay)
+                }
+                return response
+            }
+        }
+    }
+
+    /**
+     * Create a failing fetcher
+     */
+    fun <T, R> createFailingFetcher(
+        exception: Exception,
+        failureCount: Int = Int.MAX_VALUE
+    ): Fetcher<T, R> {
+        var count = 0
+        return object : Fetcher<T, R> {
+            override suspend fun fetch(request: T): R {
+                count++
+                if (count <= failureCount) {
+                    throw exception
+                }
+                throw IllegalStateException("Should not reach here")
+            }
+        }
+    }
+
+    /**
+     * Test fetcher with coalescer
+     */
+    suspend fun testCoalescing(
+        coalescer: RequestCoalescer,
+        requestCount: Int,
+        operation: suspend () -> String
+    ): List<String> {
+        return coroutineScope {
+            (1..requestCount).map {
+                async {
+                    coalescer.executeOrJoin("test-key", operation)
+                }
+            }.awaitAll()
+        }
+    }
+}
+```
+
+### Unit Testing Pattern
+
+```kotlin
+@ExperimentalCoroutinesApi
+class FetcherCoordinatorTest {
+    @get:Rule
+    val instantExecutorRule = InstantTaskExecutorRule()
+
+    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var registry: FetcherRegistry
+    private lateinit var cacheManager: CacheManager
+    private lateinit var coalescer: RequestCoalescer
+    private lateinit var healthCheck: FetcherHealthCheck
+    private lateinit var coordinator: FetcherCoordinator
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+        registry = mockk()
+        cacheManager = mockk()
+        coalescer = RequestCoalescer()
+        healthCheck = mockk()
+        coordinator = FetcherCoordinator(
+            registry, cacheManager, coalescer, healthCheck
+        )
+    }
+
+    @Test
+    fun `fetch returns cached data on cache hit`() = runTest {
+        // Given
+        val cachedData = ProductList(products = emptyList())
+        every { cacheManager.get<ProductList>(any()) } returns cachedData
+
+        // When
+        val result = coordinator.fetch(testRequest)
+
+        // Then
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        assertThat((result as Resource.Success).data).isEqualTo(cachedData)
+    }
+
+    @Test
+    fun `fetch coalesces concurrent requests`() = runTest {
+        // Given
+        var fetchCount = 0
+        val fetcher = FetcherTestUtils.createMockFetcher(
+            ProductList(products = emptyList()),
+            100.milliseconds
+        )
+
+        // When
+        val results = coroutineScope {
+            (1..5).map {
+                async {
+                    coordinator.fetch(testRequest.copy(fetcher = fetcher))
+                }
+            }.awaitAll()
+        }
+
+        // Then
+        assertThat(results).hasSize(5)
+        // All results should be from same fetch
+    }
+}
+```
+
+## Monitoring & Metrics
+
+### Performance Metrics
+
+```kotlin
+data class FetcherPerformanceMetrics(
+    val totalRequests: Long,
+    val cacheHitRate: Double,
+    val averageLatency: Duration,
+    val p95Latency: Duration,
+    val p99Latency: Duration,
+    val errorRate: Double,
+    val requestsPerSecond: Double
+)
+
+interface FetcherMetricsCollector {
+    fun recordRequest(
+        key: String,
+        latency: Duration,
+        cacheHit: Boolean,
+        success: Boolean
+    )
+
+    fun recordError(
+        key: String,
+        error: Throwable
+    )
+
+    fun getMetrics(key: String): FetcherPerformanceMetrics
+}
+```
+
+### Health Monitoring
+
+```kotlin
+class FetcherHealthMonitor @Inject constructor(
+    private val healthCheck: FetcherHealthCheck,
+    private val metricsCollector: FetcherMetricsCollector
+) {
+    /**
+     * Get health status for all fetchers
+     */
+    fun getOverallHealth(): FetcherHealthStatus {
+        val fetcherKeys = healthCheck.getAllFetcherKeys()
+        val metrics = fetcherKeys.map { key ->
+            key to healthCheck.getMetrics(key)
+        }.toMap()
+
+        val unhealthy = metrics.filterValues { it.successRate < 0.9 }
+        val degraded = metrics.filterValues { 
+            it.successRate in 0.9..0.95 || it.averageResponseTime > 3000 
+        }
+
+        return FetcherHealthStatus(
+            healthy = metrics.size - unhealthy.size - degraded.size,
+            degraded = degraded.size,
+            unhealthy = unhealthy.size,
+            details = metrics
+        )
+    }
+
+    /**
+     * Alert on degraded health
+     */
+    suspend fun checkAndAlert() {
+        val status = getOverallHealth()
+        if (status.unhealthy > 0) {
+            Timber.e("Fetcher health degraded: ${status.unhealthy} unhealthy")
+            // Send alert
+        }
+    }
+}
+```
+
+## Best Practices
+
+### When to Use Fetcher System
+
+✅ **Use Fetcher System for**:
+- Network data fetching with caching
+- Data sources that benefit from deduplication
+- Operations requiring health monitoring
+- Multi-source data retrieval (cache + network)
+- Critical data paths needing resilience
+
+❌ **Don't use Fetcher System for**:
+- Simple local database queries
+- One-off operations without caching needs
+- Real-time streaming data
+- File uploads/downloads
+
+### Configuration Guidelines
+
+1. **Set appropriate TTL**:
+   - Dynamic content: 30s - 5m
+   - Semi-static content: 5m - 30m
+   - Static content: 30m - 24h
+
+2. **Choose right cache policy**:
+   - Feeds/lists: `CACHE_FIRST`
+   - Critical data: `NETWORK_ONLY`
+   - Profiles: `CACHE_ELSE_NETWORK`
+
+3. **Configure retry wisely**:
+   - Transient errors: Exponential backoff
+   - Permanent errors: No retry
+   - Rate limits: Fixed delay
+
+4. **Monitor health**:
+   - Set up alerts for success rate < 90%
+   - Track p95 latency trends
+   - Monitor cache hit rates
+
+## Troubleshooting
+
+### Common Issues
+
+**Problem**: Fetch requests failing with network errors
+- **Cause**: Network connectivity, coalescer conflicts, cache misconfiguration
+- **Solution**:
+  1. Verify network connectivity
+  2. Check RequestCoalescer for duplicate handling
+  3. Review CachePolicy configuration
+  4. Enable detailed fetcher logging
+
+**Problem**: Cache misses when data should be available
+- **Cause**: TTL expiration, incorrect cache key, invalidation
+- **Solution**:
+  1. Verify cache key generation
+  2. Check TTL settings
+  3. Review invalidation triggers
+  4. Inspect CacheManager storage
+
+**Problem**: Duplicate network requests despite coalescing
+- **Cause**: Different request keys, timing issues
+- **Solution**:
+  1. Ensure identical requests use same cache key
+  2. Verify RequestCoalescer singleton
+  3. Check for race conditions
+
+**Problem**: Health check reporting degraded status
+- **Cause**: High failure rate, slow responses, service unavailability
+- **Solution**:
+  1. Review health metrics
+  2. Check downstream service availability
+  3. Adjust thresholds if appropriate
+  4. Investigate specific fetcher implementations
+
+## Related Documentation
+
+- `cache-management.md` - Cache Manager implementation details
+- `data-layer-architecture.md` - Data layer patterns and structure
+- `testing-strategy.md` - Testing approaches for data layer
+- `performance-optimization.md` - Performance tuning guide
+
+## Appendix: File Locations
+
+```
+data/fetcher/
+├── FetcherRegistry.kt          # Central fetcher registry
+├── FetcherCoordinator.kt       # Fetch orchestration
+├── RequestCoalescer.kt         # Request deduplication
+├── ContextualLoader.kt         # Context-aware loading
+├── FetcherHealthCheck.kt       # Health monitoring
+├── Fetcher.kt                  # Fetcher interface
+├── ClientRequest.kt            # Request definition
+├── CachePolicy.kt              # Cache policies
+└── CircuitBreaker.kt           # Circuit breaker implementation
+
+data/cache/
+├── CacheManager.kt             # Cache management
+├── CacheHealthMonitor.kt       # Cache health
+├── CacheInvalidator.kt         # Cache invalidation
+└── CacheConfig.kt              # Cache configuration
 ```

@@ -1,454 +1,839 @@
 ---
 Version: 1.0
-Last Updated: 2026-02-05
-Audience: Developers
+Last Updated: 2026-02-26
+Audience: Developers, Architects
 Status: Active
-Related_Docs: [data-contracts.md, architecture.md, dependency-injection.md, cache-management.md]
-Tags: [data-layer, architecture, repository-pattern, offline-first]
+Related_Docs: [fetcher-system.md, cache-management.md, architecture.md, data-contracts.md]
+Tags: [data-layer, repository, architecture, patterns]
 ---
 
 # Data Layer Architecture
 
+**Document Type**: Architecture Guide
+**Version**: 1.0
+**Last Updated**: 2026-02-26
+**Feature Owner**: Data Layer Infrastructure
+**Status**: ✅ Fully Implemented
+
 ## Overview
 
-The ROSTRY data layer implements a comprehensive architecture that combines traditional repository patterns with advanced caching, health monitoring, and resilience mechanisms. The architecture is organized into several key subsystems that work together to provide reliable, performant data access.
+The ROSTRY Data Layer provides a robust, scalable, and testable foundation for data management. It implements the repository pattern with offline-first architecture, intelligent caching, and comprehensive health monitoring. This document covers the complete data layer architecture, including repositories, data sources, caching, and integration patterns.
 
-## Architecture Components
+### Key Principles
 
-### 1. Fetcher System
+| Principle | Description |
+|-----------|-------------|
+| **Single Source of Truth** | Room database as authoritative local source |
+| **Offline-First** | App functions without network connectivity |
+| **Repository Pattern** | Clean abstraction over data sources |
+| **Type Safety** | Sealed classes for result handling |
+| **Testability** | Interface-based design for easy mocking |
+| **Resilience** | Graceful degradation on failures |
 
-The Fetcher System is a centralized data fetching infrastructure that provides intelligent caching, request deduplication, and health monitoring capabilities.
+## Architecture
 
-#### Core Components
-- **`FetcherRegistry`**: Central registry for all fetchers with type-safe registration and retrieval
-- **`FetcherCoordinator`**: Orchestrates fetch operations, manages cache interactions, and handles request routing
-- **`RequestCoalescer`**: Deduplicates concurrent requests for the same data to prevent redundant network calls
-- **`ContextualLoader`**: Handles contextual data loading with priority management and smart prefetching
-- **`FetcherHealthCheck`**: Monitors fetcher performance, availability, and response times for proactive maintenance
+### Layer Structure
 
-#### Design Pattern
-- **Strategy Pattern**: Pluggable fetcher implementations allowing different strategies for different data sources
-- **Factory Pattern**: For creating fetcher instances with appropriate configurations
-- **Observer Pattern**: For monitoring fetcher health and performance metrics
+```mermaid
+graph TB
+    subgraph "Domain Layer"
+        UC[Use Cases]
+        Model[Domain Models]
+    end
 
-#### Caching Integration
-- **CacheManager**: Integrated with the central cache manager for intelligent caching strategies
-- **Cache Strategies**: Supports TTL-based, staleness-aware, and cache-aside patterns
-- **Cache Invalidation**: Smart invalidation based on data dependencies and update events
+    subgraph "Data Layer"
+        subgraph "Repository Layer"
+            Repo[Repositories]
+            RepoImpl[Repository Implementations]
+        end
 
-#### Concurrency & Performance
-- **Thread-Safe Operations**: All fetcher operations are thread-safe to handle concurrent requests
-- **Request Coalescing**: Prevents duplicate network calls for identical requests occurring simultaneously
-- **Connection Pooling**: Efficient reuse of network connections to minimize overhead
-- **Batching**: Groups similar requests when possible to reduce network round trips
+        subgraph "Fetcher System"
+            FC[FetcherCoordinator]
+            RC[RequestCoalescer]
+            CM[CacheManager]
+        end
 
-### 2. Cache Management
+        subgraph "Data Sources"
+            LocalDS[Local Data Sources]
+            RemoteDS[Remote Data Sources]
+        end
 
-The cache management system provides intelligent caching with health monitoring and performance optimization.
+        subgraph "Persistence"
+            Room[(Room Database)]
+            DataStore[(DataStore)]
+        end
 
-#### Core Components
-- **`CacheManager`**: Central cache management API and usage
-- **`CacheHealthMonitor`**: Cache health monitoring and metrics
-- **`CachePolicy`**: Cache policies and TTL strategies
-- **`CacheInvalidator`**: Cache invalidation strategies
+        subgraph "Remote"
+            Firebase[(Firebase)]
+            API[(REST APIs)]
+        end
+    end
 
-#### Cache Strategies
-- **TTL-based**: Time-to-live caching with configurable expiration
-- **Stale-While-Revalidate**: Serve stale data while fetching fresh data in background
-- **Cache-Aside**: Lazy loading pattern where cache is populated on first access
-- **Write-Through**: Synchronous writes to both cache and backing store
-
-#### Performance Metrics
-- Cache hit ratios
-- Response time improvements
-- Memory utilization
-- Eviction patterns
-
-### 3. Health Monitoring
-
-The health monitoring system continuously monitors data layer components and provides metrics for proactive maintenance.
-
-#### Core Components
-- **`HealthMonitor`**: Overall system health monitoring
-- **`DataLayerHealthCheck`**: Data layer health checks
-- **`NetworkHealthMonitor`**: Network connectivity health
-
-#### Monitoring Capabilities
-- Availability monitoring
-- Performance metrics
-- Error rate tracking
-- Latency measurements
-- Resource utilization
-
-### 4. Data Integrity
-
-The data integrity system ensures data validation, consistency, and correctness throughout the data layer.
-
-#### Core Components
-- **`DataIntegrityChecker`**: Data integrity validation
-- **`ConsistencyValidator`**: Data consistency enforcement
-- **`ValidationPipeline`**: Validation pipeline implementation
-
-#### Validation Types
-- Input validation
-- Schema validation
-- Business rule validation
-- Cross-reference validation
-- Data format validation
-
-### 5. Resilience Patterns
-
-The resilience system implements circuit breakers, retry logic, and fault tolerance mechanisms.
-
-#### Core Components
-- **`CircuitBreaker`**: Circuit breaker pattern implementation
-- **`RetryMechanism`**: Retry logic with exponential backoff
-- **`FallbackHandler`**: Fallback strategies for service failures
-
-#### Resilience Strategies
-- Circuit breaker pattern to prevent cascading failures
-- Retry mechanisms with exponential backoff
-- Fallback strategies for graceful degradation
-- Timeout handling
-- Bulkhead isolation
-
-## Data Flow Patterns
-
-### Read Operations
-1. Request arrives at FetcherCoordinator
-2. RequestCoalescer checks for duplicate requests
-3. CacheManager checks for cached data
-4. If cache miss, fetch from data source
-5. Store result in cache
-6. Return result to caller
-
-### Write Operations
-1. Request validated by DataIntegrityChecker
-2. Applied to local data store (Room)
-3. Queued for remote synchronization
-4. SyncManager processes queue
-5. Apply to remote data source (Firebase)
-6. Handle conflicts with resolution strategy
-
-### Synchronization Flow
-1. SyncManager initiates sync operation
-2. Pull changes from remote source
-3. Apply local changes to remote
-4. Resolve conflicts using timestamp/version
-5. Update local cache
-6. Notify observers of changes
-
-## Integration Patterns
-
-### Repository Integration
-The fetcher system integrates seamlessly with the repository layer:
-
-```kotlin
-class ProductRepositoryImpl @Inject constructor(
-    private val fetcherCoordinator: FetcherCoordinator,
-    private val cacheManager: CacheManager,
-    private val localDataSource: LocalProductDataSource,
-    private val remoteDataSource: RemoteProductDataSource
-) : ProductRepository {
-    
-    override suspend fun getProducts(): Resource<List<Product>> {
-        val request = ClientRequest(
-            key = "products",
-            fetcher = remoteDataSource::fetchProducts,
-            cachePolicy = CachePolicy.CACHE_FIRST,
-            ttl = 5.minutes
-        )
-        
-        return fetcherCoordinator.fetch(request)
-    }
-}
+    UC --> Repo
+    Repo --> RepoImpl
+    RepoImpl --> FC
+    FC --> CM
+    FC --> LocalDS
+    FC --> RemoteDS
+    LocalDS --> Room
+    LocalDS --> DataStore
+    RemoteDS --> Firebase
+    RemoteDS --> API
 ```
 
-### ViewModel Integration
-Repositories return Resource wrappers that ViewModels can easily consume:
+### Package Structure
+
+```
+data/
+├── fetcher/                    # Fetcher System
+│   ├── FetcherRegistry.kt
+│   ├── FetcherCoordinator.kt
+│   ├── RequestCoalescer.kt
+│   ├── ContextualLoader.kt
+│   └── FetcherHealthCheck.kt
+│
+├── cache/                      # Cache Management
+│   ├── CacheManager.kt
+│   ├── CacheHealthMonitor.kt
+│   ├── CacheInvalidator.kt
+│   └── CacheConfig.kt
+│
+├── repository/                 # Repository Implementations
+│   ├── UserRepositoryImpl.kt
+│   ├── ProductRepositoryImpl.kt
+│   ├── OrderRepositoryImpl.kt
+│   ├── monitoring/             # Farm Monitoring Repos
+│   ├── social/                 # Social Platform Repos
+│   └── enthusiast/             # Enthusiast Feature Repos
+│
+├── local/                      # Local Data Sources
+│   ├── LocalUserDataSource.kt
+│   ├── LocalProductDataSource.kt
+│   └── ...
+│
+├── remote/                     # Remote Data Sources
+│   ├── RemoteUserDataSource.kt
+│   ├── RemoteProductDataSource.kt
+│   └── ...
+│
+├── database/                   # Room Database
+│   ├── AppDatabase.kt
+│   ├── dao/                    # Data Access Objects
+│   ├── entity/                 # Entity Classes
+│   └── migrations/             # Database Migrations
+│
+├── preferences/                # DataStore Preferences
+│   ├── UserPreferencesDataStore.kt
+│   └── AppPreferencesDataStore.kt
+│
+├── health/                     # Health Monitoring
+│   ├── DataLayerHealthCheck.kt
+│   ├── NetworkHealthMonitor.kt
+│   └── HealthMonitor.kt
+│
+├── integrity/                  # Data Integrity
+│   ├── DataIntegrityChecker.kt
+│   ├── ConsistencyValidator.kt
+│   └── ValidationPipeline.kt
+│
+├── resilience/                 # Resilience Patterns
+│   ├── CircuitBreaker.kt
+│   ├── RetryMechanism.kt
+│   └── FallbackHandler.kt
+│
+├── migration/                  # Data Migration
+│   ├── MigrationManager.kt
+│   └── VersionedMigration.kt
+│
+├── mock/                       # Mock Data
+│   ├── MockDataProvider.kt
+│   └── TestDataFactory.kt
+│
+└── base/                       # Base Classes
+    ├── BaseRepository.kt
+    └── BaseDataSource.kt
+```
+
+## Repository Pattern
+
+### BaseRepository
+
+All repositories extend `BaseRepository` which provides common functionality:
 
 ```kotlin
-@HiltViewModel
-class ProductViewModel @Inject constructor(
-    private val repository: ProductRepository
-) : BaseViewModel() {
-    
-    private val _products = MutableStateFlow<Resource<List<Product>>>(Resource.Loading)
-    val products: StateFlow<Resource<List<Product>>> = _products.asStateFlow()
-    
-    fun loadProducts() {
-        viewModelScope.launch {
-            _products.value = Resource.Loading
-            _products.value = repository.getProducts()
+abstract class BaseRepository {
+    /**
+     * Execute a network call with error handling
+     */
+    protected suspend fun <T> safeApiCall(
+        apiCall: suspend () -> T
+    ): Resource<T> {
+        return try {
+            val result = apiCall()
+            Resource.Success(result)
+        } catch (e: HttpException) {
+            when (e.code()) {
+                401 -> Resource.Error("Unauthorized", e)
+                403 -> Resource.Error("Forbidden", e)
+                404 -> Resource.Error("Not found", e)
+                500 -> Resource.Error("Server error", e)
+                else -> Resource.Error("Network error: ${e.message}", e)
+            }
+        } catch (e: IOException) {
+            Resource.Error("Network unavailable", e)
+        } catch (e: Exception) {
+            Resource.Error("Unexpected error: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Execute a database call with error handling
+     */
+    protected suspend fun <T> safeDbCall(
+        dbCall: suspend () -> T
+    ): Resource<T> {
+        return try {
+            val result = dbCall()
+            Resource.Success(result)
+        } catch (e: SQLiteException) {
+            Resource.Error("Database error", e)
+        } catch (e: Exception) {
+            Resource.Error("Database operation failed", e)
+        }
+    }
+
+    /**
+     * Safe call with generic error handling
+     */
+    protected suspend fun <T> safeCall(
+        operation: String,
+        block: suspend () -> T
+    ): Resource<T> {
+        return try {
+            Resource.Success(block())
+        } catch (e: Exception) {
+            Timber.e(e, "Operation '$operation' failed")
+            Resource.Error("$operation failed: ${e.message}", e)
         }
     }
 }
 ```
 
-## Error Handling
+### Repository Implementation Pattern
 
-### Error Types
-- **Network Errors**: Connectivity issues, timeouts, server errors
-- **Data Errors**: Validation failures, parsing errors, integrity violations
-- **Cache Errors**: Cache corruption, disk space issues
-- **Sync Errors**: Conflict resolution failures, partial syncs
-
-### Error Recovery
-- Automatic retry with exponential backoff
-- Fallback to cached data when remote unavailable
-- Circuit breaker to prevent cascading failures
-- Graceful degradation of functionality
-
-## Performance Considerations
-
-### Caching Strategy
-- Multi-level cache (memory → disk → network)
-- Smart prefetching based on usage patterns
-- Adaptive TTL based on data volatility
-- Cache warming for critical data
-
-### Memory Management
-- LRU eviction policies
-- Memory pressure handling
-- Object pooling for frequently created objects
-- Proper resource cleanup
-
-### Network Optimization
-- Request batching
-- Compression
-- Connection reuse
-- Bandwidth-adaptive loading
-
-## Testing Strategy
-
-### Unit Testing
-- Individual component testing (fetchers, cache, health checks)
-- Mock data sources for isolated testing
-- Edge case validation
-
-### Integration Testing
-- End-to-end data flow testing
-- Cache behavior validation
-- Error scenario testing
-- Performance benchmarking
-
-### Testing Patterns
 ```kotlin
-@Test
-fun `fetch with cache miss should fetch from remote and cache result`() = runTest {
-    // Given
-    coEvery { remoteDataSource.fetchProducts() } returns expectedResult
-    every { cacheManager.get<List<Product>>(any()) } returns null
-    
-    // When
-    val result = repository.getProducts()
-    
-    // Then
-    assertEquals(Resource.Success(expectedResult), result)
-    coVerify { remoteDataSource.fetchProducts() }
-    verify { cacheManager.put(any(), any()) }
+@Singleton
+class ProductRepositoryImpl @Inject constructor(
+    private val fetcherCoordinator: FetcherCoordinator,
+    private val cacheManager: CacheManager,
+    private val localDataSource: LocalProductDataSource,
+    private val remoteDataSource: RemoteProductDataSource,
+    private val healthCheck: DataLayerHealthCheck
+) : BaseRepository(), ProductRepository {
+
+    override suspend fun getProducts(): Resource<List<Product>> {
+        return safeCall("getProducts") {
+            val request = ClientRequest(
+                key = "products:all",
+                fetcher = remoteDataSource::fetchProducts,
+                cachePolicy = CachePolicy.CACHE_FIRST,
+                ttl = 5.minutes
+            )
+
+            val result = fetcherCoordinator.fetch(request)
+            
+            when (result) {
+                is Resource.Success -> {
+                    healthCheck.recordSuccess("getProducts")
+                    result
+                }
+                is Resource.Error -> {
+                    healthCheck.recordFailure("getProducts", result.exception)
+                    result
+                }
+                is Resource.Loading -> result
+            }
+        }
+    }
+
+    override suspend fun getProductById(productId: String): Resource<Product> {
+        return safeCall("getProductById") {
+            // Try cache first
+            val cached = cacheManager.get<Product>("product:$productId")
+            if (cached != null) {
+                return@safeCall Resource.Success(cached)
+            }
+
+            // Fetch from local
+            val local = localDataSource.getProductById(productId)
+            if (local != null) {
+                return@safeCall Resource.Success(local)
+            }
+
+            // Fetch from remote
+            val request = ClientRequest(
+                key = "product:$productId",
+                fetcher = { remoteDataSource.fetchProduct(productId) },
+                cachePolicy = CachePolicy.NETWORK_ONLY,
+                ttl = 10.minutes
+            )
+
+            fetcherCoordinator.fetch(request)
+        }
+    }
+
+    override suspend fun createProduct(product: Product): Resource<Unit> {
+        return safeCall("createProduct") {
+            // Save to local first (offline-first)
+            localDataSource.insertProduct(product)
+
+            // Sync to remote
+            remoteDataSource.createProduct(product)
+
+            // Invalidate cache
+            cacheManager.removePattern("products:*")
+
+            // Record success
+            healthCheck.recordSuccess("createProduct")
+        }
+    }
+
+    override fun getProductsFlow(): Flow<List<Product>> {
+        return localDataSource.getProductsFlow()
+            .catch { e ->
+                Timber.e(e, "Error observing products")
+                emit(emptyList())
+            }
+    }
 }
 ```
 
-## Migration Strategy
+### Repository Interfaces
 
-### Database Migrations
-- Versioned migration scripts
-- Rollback capabilities
-- Data validation post-migration
-- Zero-downtime migration patterns
+```kotlin
+interface ProductRepository {
+    suspend fun getProducts(): Resource<List<Product>>
+    suspend fun getProductById(productId: String): Resource<Product>
+    suspend fun createProduct(product: Product): Resource<Unit>
+    suspend fun updateProduct(product: Product): Resource<Unit>
+    suspend fun deleteProduct(productId: String): Resource<Unit>
+    fun getProductsFlow(): Flow<List<Product>>
+    fun getProductFlow(productId: String): Flow<Product?>
+}
 
-### Cache Migration
-- Cache format versioning
-- Backward compatibility
-- Migration during app startup
-- Fallback to fresh fetch if migration fails
-
-## Monitoring & Observability
-
-### Metrics Collected
-- Cache hit/miss ratios
-- Fetch success/failure rates
-- Response times
-- Error rates
-- Resource utilization
-
-### Logging Strategy
-- Structured logging with correlation IDs
-- Performance markers
-- Error context preservation
-- Privacy-conscious data handling
-
-## Security Considerations
-
-### Data Encryption
-- Cache encryption at rest
-- Secure key management
-- Memory encryption for sensitive data
-- Secure data deletion
-
-### Access Control
-- Role-based access to data sources
-- Permission validation
-- Audit logging
-- Secure credential handling
-
-## Database Schema Diagrams
-
-### Core Entity Relationships
-
-```mermaid
-erDiagram
-    USER ||--o{ PRODUCT : owns
-    USER ||--o{ ORDER : places
-    USER ||--o{ TRANSFER : initiates
-    PRODUCT ||--o{ ORDER_ITEM : included_in
-    ORDER ||--o{ ORDER_ITEM : contains
-    ORDER ||--o{ PAYMENT : has
-    ORDER ||--o{ DELIVERY_CONFIRMATION : confirmed_by
-    TRANSFER ||--o{ TRANSFER_VERIFICATION : verified_by
-    PRODUCT ||--o{ TRANSFER : transferred
-    FAMILY_TREE ||--o{ PRODUCT : parent_of
-    VACCINATION_RECORD ||--o{ PRODUCT : belongs_to
-    GROWTH_RECORD ||--o{ PRODUCT : belongs_to
-    MORTALITY_RECORD ||--o{ PRODUCT : belongs_to
-    QUARANTINE_RECORD ||--o{ PRODUCT : belongs_to
-    BREEDING_PAIR ||--o{ PRODUCT : parent_in
-    HATCHING_BATCH ||--o{ PRODUCT : hatched_from
-    POST ||--o{ COMMENT : has
-    USER ||--o{ LIKE : creates
-    POST ||--o{ LIKE : receives
-    USER ||--o{ FOLLOW : follows
-    USER ||--o{ MESSAGE : sends
-    USER ||o{--|| THREAD : participates_in
-    MESSAGE ||--o{ THREAD : belongs_to
-    ANALYTICS_DAILY ||--|| USER : tracks
-    ANALYTICS_DAILY ||--|| PRODUCT : tracks
-    REPORT ||--o{ ANALYTICS_DAILY : aggregates
-    FAMILY_TREE ||--|| PRODUCT : connects
-    TRACEABILITY_ENTITY ||--o{ PRODUCT : tracks
-    EVIDENCE_ORDER_ENTITY ||--o{ ORDER : extends
-    EVIDENCE_QUOTE_ENTITY ||--o{ EVIDENCE_ORDER_ENTITY : part_of
-    EVIDENCE_PAYMENT_ENTITY ||--o{ EVIDENCE_ORDER_ENTITY : payment_for
-    EVIDENCE_DELIVERY_CONFIRMATION_ENTITY ||--o{ EVIDENCE_ORDER_ENTITY : confirms
-    EVIDENCE_EVIDENCE_ENTITY ||--o{ EVIDENCE_ORDER_ENTITY : evidences
-    EVIDENCE_DISPUTE_ENTITY ||--o{ EVIDENCE_ORDER_ENTITY : disputes
-    EVIDENCE_AUDIT_LOG_ENTITY ||--o{ EVIDENCE_ORDER_ENTITY : audits
-    FARM_ASSET_ENTITY ||--o{ PRODUCT : manages
-    DAILY_LOG_ENTITY ||--o{ FARM_ASSET_ENTITY : logs
-    TASK_ENTITY ||--o{ DAILY_LOG_ENTITY : creates
-    SOCIAL_ENTITY ||--o{ USER : connects
-    COMMUNITY_ENTITY ||--o{ USER : joins
-    AUCTION_ENTITY ||--o{ PRODUCT : auctions
-    BID_ENTITY ||--o{ AUCTION_ENTITY : bids_on
-    CART_ITEM_ENTITY ||--o{ USER : adds_to_cart
-    WISHLIST_ENTITY ||--o{ USER : wishes_for
-    CHAT_MESSAGE_ENTITY ||--o{ USER : sends
-    CHAT_MESSAGE_ENTITY ||--o{ THREAD : belongs_to
-    COIN_ENTITY ||--o{ USER : owns
-    COIN_LEDGER_ENTITY ||--o{ COIN_ENTITY : tracks
-    COMPETITION_ENTRY_ENTITY ||--o{ USER : enters
-    DAILY_BIRD_LOG_ENTITY ||--o{ PRODUCT : logs
-    DASHBOARD_CACHE_ENTITY ||--o{ USER : caches
-    DELIVERY_HUB_ENTITY ||--o{ ORDER : delivers_to
-    ENTHUSIAST_BREEDING_ENTITY ||--o{ PRODUCT : breeds
-    ENTHUSIAST_VERIFICATION_ENTITY ||--o{ USER : verifies
-    EVENT_RSVP_ENTITY ||--o{ USER : attends
-    EVENT_RSVP_ENTITY ||--o{ EVENT : attends
-    FARM_ACTIVITY_LOG_ENTITY ||--o{ FARM_ASSET_ENTITY : logs
-    FARM_MONITORING_ENTITY ||--o{ PRODUCT : monitors
-    FARM_PROFILE_ENTITY ||--o{ USER : profiles
-    FARM_TIMELINE_EVENT_ENTITY ||--o{ FARM_PROFILE_ENTITY : events
-    FARM_VERIFICATION_ENTITY ||--o{ FARM_PROFILE_ENTITY : verifies
-    GENETIC_ANALYSIS_ENTITY ||--o{ PRODUCT : analyzes
-    INVENTORY_ITEM_ENTITY ||--o{ PRODUCT : inventories
-    INVOICE_ENTITY ||--o{ ORDER : invoices
-    IOT_DATA_ENTITY ||--o{ PRODUCT : monitors
-    IOT_DEVICE_ENTITY ||--o{ USER : owns
-    MARKET_LISTING_ENTITY ||--o{ PRODUCT : lists
-    MY_VOTES_ENTITY ||--o{ USER : votes
-    NEW_FARM_MONITORING_ENTITY ||--o{ PRODUCT : monitors
-    NOTIFICATION_ENTITY ||--o{ USER : notifies
-    ORDER_TRACKING_EVENT_ENTITY ||--o{ ORDER : tracks
-    OUTBOX_ENTITY ||--o{ USER : queues
-    PRODUCT_FTS_ENTITY ||--o{ PRODUCT : searches
-    RATE_LIMIT_ENTITY ||--o{ USER : limits
-    REFUND_ENTITY ||--o{ PAYMENT : refunds
-    REVIEW_ENTITY ||--o{ PRODUCT : reviews
-    ROLE_MIGRATION_ENTITY ||--o{ USER : migrates
-    SHOW_RECORD_ENTITY ||--o{ PRODUCT : records
-    STORAGE_QUOTA_ENTITY ||--o{ USER : quotas
-    SYNC_STATE_ENTITY ||--o{ USER : syncs
-    UPLOAD_TASK_ENTITY ||--o{ USER : uploads
-    VERIFICATION_DRAFT_ENTITY ||--o{ USER : drafts
-    VERIFICATION_REQUEST_ENTITY ||--o{ USER : requests
-    BREED_ENTITY ||--o{ PRODUCT : breeds
-    BREEDING_PAIR_ENTITY ||--o{ PRODUCT : pairs
-    BATCH_SUMMARY_ENTITY ||--o{ PRODUCT : summarizes
+interface UserRepository {
+    suspend fun getCurrentUser(): Resource<User?>
+    suspend fun getUserById(userId: String): Resource<User?>
+    suspend fun updateUser(user: User): Resource<Unit>
+    suspend fun deleteUser(userId: String): Resource<Unit>
+    fun getUserFlow(userId: String): Flow<User?>
+    suspend fun searchUsers(query: String): Resource<List<User>>
+}
 ```
 
-### Fetcher System Schema
+## Data Sources
 
-```mermaid
-erDiagram
-    FETCHER_REGISTRY ||--o{ FETCHER_COORDINATOR : manages
-    FETCHER_COORDINATOR ||--o{ REQUEST_COALESCER : coordinates
-    REQUEST_COALESCER ||--o{ CONTEXTUAL_LOADER : loads_contextually
-    FETCHER_HEALTH_CHECK ||--o{ FETCHER_COORDINATOR : monitors
-    CACHE_MANAGER ||--o{ FETCHER_COORDINATOR : caches_for
-    CACHE_HEALTH_MONITOR ||--o{ CACHE_MANAGER : monitors
-    CACHE_INVALIDATOR ||--o{ CACHE_MANAGER : invalidates
-    CLIENT_REQUEST ||--o{ FETCHER_COORDINATOR : requests
-    CACHE_POLICY ||--o{ CLIENT_REQUEST : governs
-    CACHE_ENTRY ||--o{ CACHE_MANAGER : stores
-    FETCHER_METRICS ||--o{ FETCHER_HEALTH_CHECK : tracks
-    HEALTH_STATUS ||--o{ FETCHER_HEALTH_CHECK : reports
+### Local Data Sources
+
+Local data sources provide access to Room database and DataStore:
+
+```kotlin
+interface LocalProductDataSource {
+    suspend fun getProductById(productId: String): Product?
+    suspend fun getProducts(): List<Product>
+    suspend fun insertProduct(product: Product)
+    suspend fun updateProduct(product: Product)
+    suspend fun deleteProduct(productId: String)
+    fun getProductsFlow(): Flow<List<Product>>
+    suspend fun searchProducts(query: String): List<Product>
+}
+
+@Singleton
+class LocalProductDataSourceImpl @Inject constructor(
+    private val productDao: ProductDao,
+    private val productMapper: ProductMapper
+) : LocalProductDataSource {
+
+    override suspend fun getProductById(productId: String): Product? {
+        return productDao.getById(productId)?.let(productMapper::toDomain)
+    }
+
+    override suspend fun getProducts(): List<Product> {
+        return productDao.getAll().map(productMapper::toDomain)
+    }
+
+    override suspend fun insertProduct(product: Product) {
+        productDao.insert(productMapper.toEntity(product))
+    }
+
+    override fun getProductsFlow(): Flow<List<Product>> {
+        return productDao.getAllFlow().map { entities ->
+            entities.map(productMapper::toDomain)
+        }
+    }
+
+    // ... other implementations
+}
 ```
 
-### Repository Layer Schema
+### Remote Data Sources
 
-```mermaid
-erDiagram
-    REPOSITORY_MODULE ||--o{ REPOSITORY_IMPL : contains
-    REPOSITORY_IMPL ||--o{ DAO : uses
-    REPOSITORY_IMPL ||--o{ REMOTE_DATA_SOURCE : uses
-    REPOSITORY_IMPL ||--o{ CACHE_MANAGER : uses
-    REPOSITORY_IMPL ||--o{ FETCHER_COORDINATOR : uses
-    BASE_REPOSITORY ||--|| REPOSITORY_IMPL : extends
-    DAO ||--o{ ENTITY : manages
-    REMOTE_DATA_SOURCE ||--o{ API_SERVICE : calls
-    API_SERVICE ||--o{ REMOTE_RESPONSE : returns
-    ENTITY ||--o{ DAO : stored_by
-    LOCAL_DATA_SOURCE ||--o{ DAO : wraps
-    REMOTE_DATA_SOURCE ||--o{ REMOTE_RESPONSE : maps_to
-    REPOSITORY_INTERFACE ||--|| REPOSITORY_IMPL : implements
+Remote data sources provide access to Firebase and REST APIs:
+
+```kotlin
+interface RemoteProductDataSource {
+    suspend fun fetchProducts(): List<Product>
+    suspend fun fetchProduct(productId: String): Product
+    suspend fun createProduct(product: Product)
+    suspend fun updateProduct(product: Product)
+    suspend fun deleteProduct(productId: String)
+}
+
+@Singleton
+class RemoteProductDataSourceImpl @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val apiService: ProductService,
+    private val productMapper: ProductMapper
+) : RemoteProductDataSource {
+
+    override suspend fun fetchProducts(): List<Product> {
+        return firestore.collection("products")
+            .whereEqualTo("isActive", true)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(50)
+            .get()
+            .await()
+            .documents
+            .mapNotNull { doc ->
+                doc.toObject(ProductEntity::class.java)?.let(productMapper::toDomain)
+            }
+    }
+
+    override suspend fun fetchProduct(productId: String): Product {
+        return firestore.collection("products")
+            .document(productId)
+            .get()
+            .await()
+            .toObject(ProductEntity::class.java)
+            ?.let(productMapper::toDomain)
+            ?: throw ProductNotFoundException(productId)
+    }
+
+    override suspend fun createProduct(product: Product) {
+        val entity = productMapper.toEntity(product)
+        firestore.collection("products")
+            .document(product.id)
+            .set(entity)
+            .await()
+    }
+
+    // ... other implementations
+}
 ```
 
-### Sync and Cache Schema
+## Offline-First Implementation
 
-```mermaid
-erDiagram
-    SYNC_MANAGER ||--o{ SYNC_WORKER : schedules
-    SYNC_WORKER ||--o{ REPOSITORY : syncs
-    REPOSITORY ||--o{ DAO : persists
-    DAO ||--o{ ROOM_DATABASE : belongs_to
-    ROOM_DATABASE ||--o{ ENTITY : contains
-    SYNC_STATE ||--o{ SYNC_MANAGER : tracks
-    OUTBOX_ENTITY ||--o{ SYNC_MANAGER : queues
-    SYNC_OPERATION ||--o{ SYNC_WORKER : performs
-    CACHE_MANAGER ||--o{ CACHE_ENTRY : manages
-    CACHE_ENTRY ||--o{ ENTITY : caches
-    CACHE_POLICY ||--o{ CACHE_ENTRY : governs
-    SYNC_STRATEGY ||--o{ SYNC_MANAGER : defines
-    CONFLICT_RESOLUTION ||--o{ SYNC_MANAGER : handles
-    SYNC_HISTORY ||--o{ SYNC_MANAGER : logs
+### Sync Strategy
+
+```kotlin
+class SyncManager @Inject constructor(
+    private val syncWorker: SyncWorker,
+    private val outboxManager: OutboxManager,
+    private val connectivityManager: ConnectivityManager
+) {
+    /**
+     * Sync all data sources
+     */
+    suspend fun syncAll(): Resource<SyncStats> {
+        if (!connectivityManager.isOnline()) {
+            return Resource.Error("Network unavailable")
+        }
+
+        return try {
+            val stats = SyncStats()
+
+            // Process outbox first (pending writes)
+            stats.pushed = outboxManager.processPending()
+
+            // Pull remote changes
+            stats.pulled = pullAllChanges()
+
+            Resource.Success(stats)
+        } catch (e: Exception) {
+            Resource.Error("Sync failed: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Queue operation for later sync
+     */
+    suspend fun queueOperation(operation: OutboxOperation) {
+        outboxManager.enqueue(operation)
+    }
+
+    private suspend fun pullAllChanges(): Int {
+        var count = 0
+        count += pullUsers()
+        count += pullProducts()
+        count += pullOrders()
+        // ... more pulls
+        return count
+    }
+}
 ```
 
-## Future Enhancements
+### Outbox Pattern
 
-### Planned Improvements
-- Distributed caching for multi-device sync
-- Machine learning-based prefetching
-- Advanced conflict resolution strategies
-- Real-time data synchronization
-- Enhanced offline capabilities
+```kotlin
+data class OutboxOperation(
+    val id: String = UUID.randomUUID().toString(),
+    val type: OperationType,
+    val entityType: String,
+    val entityId: String,
+    val payload: String, // JSON
+    val createdAt: Instant = Instant.now(),
+    val retryCount: Int = 0,
+    val lastAttemptAt: Instant? = null
+)
+
+enum class OperationType {
+    CREATE, UPDATE, DELETE
+}
+
+class OutboxManager @Inject constructor(
+    private val outboxDao: OutboxDao,
+    private val operationMapper: OperationMapper
+) {
+    /**
+     * Enqueue operation for later sync
+     */
+    suspend fun enqueue(operation: OutboxOperation) {
+        outboxDao.insert(operationMapper.toEntity(operation))
+    }
+
+    /**
+     * Process all pending operations
+     */
+    suspend fun processPending(): Int {
+        val pending = outboxDao.getPending()
+        var successCount = 0
+
+        for (entity in pending) {
+            val operation = operationMapper.toDomain(entity)
+            try {
+                executeOperation(operation)
+                outboxDao.delete(entity)
+                successCount++
+            } catch (e: Exception) {
+                handleOperationFailure(operation, e)
+            }
+        }
+
+        return successCount
+    }
+
+    private suspend fun executeOperation(operation: OutboxOperation) {
+        when (operation.type) {
+            OperationType.CREATE -> executeCreate(operation)
+            OperationType.UPDATE -> executeUpdate(operation)
+            OperationType.DELETE -> executeDelete(operation)
+        }
+    }
+
+    private suspend fun handleOperationFailure(
+        operation: OutboxOperation,
+        error: Exception
+    ) {
+        if (operation.retryCount >= MAX_RETRIES) {
+            // Move to failed queue
+            Timber.e(error, "Operation failed permanently: ${operation.id}")
+        } else {
+            // Schedule retry
+            outboxDao.incrementRetry(operation.id)
+        }
+    }
+}
+```
+
+### Conflict Resolution
+
+```kotlin
+sealed class ConflictResolution {
+    object UseLocal : ConflictResolution()
+    object UseRemote : ConflictResolution()
+    data class Merge(val merged: JsonElement) : ConflictResolution()
+    object Manual : ConflictResolution()
+}
+
+class ConflictResolver @Inject constructor(
+    private val gson: Gson
+) {
+    /**
+     * Resolve conflict between local and remote data
+     */
+    suspend fun resolve(
+        local: JsonElement,
+        remote: JsonElement,
+        entityType: String
+    ): ConflictResolution {
+        return when (entityType) {
+            "product" -> resolveProductConflict(local, remote)
+            "order" -> resolveOrderConflict(local, remote)
+            "user" -> resolveUserConflict(local, remote)
+            else -> ConflictResolution.UseRemote // Default
+        }
+    }
+
+    private fun resolveProductConflict(
+        local: JsonElement,
+        remote: JsonElement
+    ): ConflictResolution {
+        val localObj = local.asJsonObject
+        val remoteObj = remote.asJsonObject
+
+        // Use server timestamp to determine winner
+        val localTime = localObj.get("updatedAt")?.asLong ?: 0L
+        val remoteTime = remoteObj.get("updatedAt")?.asLong ?: 0L
+
+        return if (localTime > remoteTime) {
+            ConflictResolution.UseLocal
+        } else {
+            ConflictResolution.UseRemote
+        }
+    }
+
+    private fun resolveOrderConflict(
+        local: JsonElement,
+        remote: JsonElement
+    ): ConflictResolution {
+        // Orders use merge strategy for status updates
+        val localObj = local.asJsonObject
+        val remoteObj = remote.asJsonObject
+
+        val merged = JsonObject()
+
+        // Take latest status from remote
+        merged.add("status", remoteObj.get("status"))
+
+        // Merge other fields intelligently
+        // ... merge logic
+
+        return ConflictResolution.Merge(merged)
+    }
+}
+```
+
+## Health Monitoring
+
+### Data Layer Health Check
+
+```kotlin
+class DataLayerHealthCheck @Inject constructor(
+    private val networkMonitor: NetworkHealthMonitor,
+    private val databaseMonitor: DatabaseHealthMonitor,
+    private val firebaseMonitor: FirebaseHealthMonitor
+) {
+    private val operationMetrics = ConcurrentHashMap<String, OperationMetrics>()
+
+    data class OperationMetrics(
+        var successCount: Long = 0,
+        var failureCount: Long = 0,
+        var totalLatency: Long = 0,
+        var lastSuccessTime: Instant? = null,
+        var lastFailureTime: Instant? = null,
+        var lastError: String? = null
+    )
+
+    /**
+     * Record successful operation
+     */
+    fun recordSuccess(operation: String, latency: Long = 0) {
+        val metrics = operationMetrics.getOrPut(operation) { OperationMetrics() }
+        synchronized(metrics) {
+            metrics.successCount++
+            metrics.totalLatency += latency
+            metrics.lastSuccessTime = Instant.now()
+        }
+    }
+
+    /**
+     * Record failed operation
+     */
+    fun recordFailure(operation: String, error: Throwable?, latency: Long = 0) {
+        val metrics = operationMetrics.getOrPut(operation) { OperationMetrics() }
+        synchronized(metrics) {
+            metrics.failureCount++
+            metrics.totalLatency += latency
+            metrics.lastFailureTime = Instant.now()
+            metrics.lastError = error?.message
+        }
+    }
+
+    /**
+     * Get health status for operation
+     */
+    fun getOperationHealth(operation: String): OperationHealth {
+        val metrics = operationMetrics[operation] ?: return OperationHealth.UNKNOWN
+
+        val total = metrics.successCount + metrics.failureCount
+        val successRate = if (total > 0) {
+            metrics.successCount.toDouble() / total
+        } else {
+            0.0
+        }
+
+        val avgLatency = if (metrics.successCount > 0) {
+            metrics.totalLatency / metrics.successCount
+        } else {
+            0L
+        }
+
+        return OperationHealth(
+            successRate = successRate,
+            averageLatency = avgLatency,
+            lastSuccessTime = metrics.lastSuccessTime,
+            lastFailureTime = metrics.lastFailureTime,
+            lastError = metrics.lastError
+        )
+    }
+
+    /**
+     * Get overall data layer health
+     */
+    fun getOverallHealth(): DataLayerHealth {
+        return DataLayerHealth(
+            networkHealth = networkMonitor.getHealth(),
+            databaseHealth = databaseMonitor.getHealth(),
+            firebaseHealth = firebaseMonitor.getHealth(),
+            operationMetrics = operationMetrics.mapValues { (_, metrics) ->
+                OperationHealth(
+                    successRate = metrics.successCount.toDouble() / 
+                        (metrics.successCount + metrics.failureCount),
+                    averageLatency = metrics.totalLatency / 
+                        maxOf(1, metrics.successCount),
+                    lastSuccessTime = metrics.lastSuccessTime,
+                    lastFailureTime = metrics.lastFailureTime,
+                    lastError = metrics.lastError
+                )
+            }
+        )
+    }
+}
+```
+
+## Testing
+
+### Repository Testing
+
+```kotlin
+@ExperimentalCoroutinesApi
+class ProductRepositoryTest {
+    @get:Rule
+    val instantExecutorRule = InstantTaskExecutorRule()
+
+    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var repository: ProductRepositoryImpl
+    private lateinit var fetcherCoordinator: FetcherCoordinator
+    private lateinit var cacheManager: CacheManager
+    private lateinit var localDataSource: LocalProductDataSource
+    private lateinit var remoteDataSource: RemoteProductDataSource
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+        fetcherCoordinator = mockk()
+        cacheManager = mockk()
+        localDataSource = mockk()
+        remoteDataSource = mockk()
+        repository = ProductRepositoryImpl(
+            fetcherCoordinator, cacheManager, localDataSource, remoteDataSource, mockk()
+        )
+    }
+
+    @Test
+    fun `getProducts returns cached data when available`() = runTest {
+        // Given
+        val cachedProducts = listOf(createTestProduct())
+        coEvery { cacheManager.get<ProductList>("products:all") } returns ProductList(cachedProducts)
+
+        // When
+        val result = repository.getProducts()
+
+        // Then
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        assertThat((result as Resource.Success).data).isEqualTo(cachedProducts)
+    }
+
+    @Test
+    fun `getProducts fetches from remote when cache miss`() = runTest {
+        // Given
+        coEvery { cacheManager.get<ProductList>("products:all") } returns null
+        coEvery { fetcherCoordinator.fetch(any()) } returns Resource.Success(listOf(createTestProduct()))
+
+        // When
+        val result = repository.getProducts()
+
+        // Then
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        coVerify { fetcherCoordinator.fetch(any()) }
+    }
+}
+```
+
+## Best Practices
+
+### Repository Guidelines
+
+1. **Always use Resource wrapper**: Return `Resource<T>` for all operations
+2. **Handle errors gracefully**: Use `safeCall`, `safeApiCall`, `safeDbCall`
+3. **Invalidate caches**: After write operations
+4. **Record health metrics**: Use `healthCheck.recordSuccess/Failure`
+5. **Support offline**: Queue operations when offline
+6. **Provide Flow APIs**: For reactive UI updates
+
+### Data Source Guidelines
+
+1. **Single responsibility**: Each data source handles one entity type
+2. **Type conversion**: Use mappers for entity/domain conversion
+3. **Error propagation**: Throw specific exceptions for error handling
+4. **Transaction support**: Use transactions for multi-step operations
+
+### Caching Guidelines
+
+1. **Cache on read**: Store fetched data in cache
+2. **Invalidate on write**: Clear cache after modifications
+3. **Use appropriate TTL**: Based on data freshness requirements
+4. **Monitor cache health**: Track hit rates and eviction
+
+## Related Documentation
+
+- `fetcher-system.md` - Fetcher System details
+- `cache-management.md` - Cache management strategies
+- `data-contracts.md` - Data models and schemas
+- `testing-strategy.md` - Testing approaches
+
+## Appendix: File Locations
+
+```
+data/
+├── base/
+│   ├── BaseRepository.kt
+│   └── BaseDataSource.kt
+├── repository/
+│   ├── ProductRepositoryImpl.kt
+│   ├── UserRepositoryImpl.kt
+│   └── ...
+├── local/
+│   ├── LocalProductDataSource.kt
+│   └── ...
+├── remote/
+│   ├── RemoteProductDataSource.kt
+│   └── ...
+├── database/
+│   ├── dao/
+│   ├── entity/
+│   └── AppDatabase.kt
+└── health/
+    ├── DataLayerHealthCheck.kt
+    └── ...
+```

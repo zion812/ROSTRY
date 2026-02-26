@@ -16,6 +16,7 @@ interface RoleMigrationRepository {
     suspend fun updateProgress(migrationId: String, status: String, migratedItems: Int, phase: String? = null, entity: String? = null)
     suspend fun updateStatus(migrationId: String, status: String, errorMessage: String? = null)
     suspend fun hasActiveMigration(userId: String): Boolean
+    suspend fun updateMetadata(migrationId: String, metadataJson: String)
 }
 
 @Singleton
@@ -77,5 +78,9 @@ class RoleMigrationRepositoryImpl @Inject constructor(
     
     override suspend fun hasActiveMigration(userId: String): Boolean {
         return dao.hasActiveMigration(userId)
+    }
+
+    override suspend fun updateMetadata(migrationId: String, metadataJson: String) {
+        dao.updateMetadata(migrationId, metadataJson)
     }
 }

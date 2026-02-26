@@ -391,6 +391,12 @@ implementation(libs.firebase.appcheck.playintegrity)
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
     implementation("com.patrykandpatrick.vico:core:1.13.1")
+    
+    // OpenCSV for CSV export (Comment 2)
+    implementation("com.opencsv:opencsv:5.9")
+    
+    // Firebase Remote Config (Comment 2)
+    implementation("com.google.firebase:firebase-config-ktx:21.6.0")
 }
 // Dokka: enrich module docs with external links for Kotlin and Android APIs
 tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {

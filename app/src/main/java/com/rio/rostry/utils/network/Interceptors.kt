@@ -58,7 +58,9 @@ class RetryInterceptor @Inject constructor(
                 lastError = e
                 tryCount++
                 if (tryCount >= maxTries || !network.isOnline()) break
-                try { Thread.sleep(wait) } catch (_: InterruptedException) {}
+                try { Thread.sleep(wait) } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
                 wait *= 2
             }
         }

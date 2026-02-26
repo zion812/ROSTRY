@@ -1,676 +1,970 @@
 ---
 Version: 1.0
-Last Updated: 2026-02-05
-Audience: Developers
+Last Updated: 2026-02-26
+Audience: Developers, Architects
 Status: Active
-Related_Docs: [data-layer-architecture.md, cache-management.md, fetcher-system.md, architecture.md]
-Tags: [data-sources, integration, remote, local, sync]
+Related_Docs: [firebase-setup.md, api-integration-guide.md, data-layer-architecture.md]
+Tags: [data-sources, integration, firebase, api, external-services]
 ---
 
 # Data Sources Integration Guide
 
+**Document Type**: Integration Guide
+**Version**: 1.0
+**Last Updated**: 2026-02-26
+**Feature Owner**: Data Layer Infrastructure
+**Status**: ✅ Fully Implemented
+
 ## Overview
 
-The ROSTRY application integrates multiple data sources including Firebase services, external APIs, and local storage. This document outlines the integration patterns, configuration, and best practices for connecting to various data sources.
+ROSTRY integrates with multiple data sources including Firebase services, external APIs, and local storage. This guide covers integration patterns, configuration, error handling, and best practices for each data source.
 
-## Data Source Categories
+### Data Source Categories
 
-### 1. Firebase Integration
+| Category | Data Sources | Purpose |
+|----------|-------------|---------|
+| **Local** | Room Database, DataStore | Offline storage, caching, preferences |
+| **Firebase** | Firestore, Auth, Storage, Functions, FCM | Backend services, authentication, messaging |
+| **External APIs** | Weather API, Google Maps, Places | Third-party integrations |
+| **Services** | VoiceLogService, BackupService | Internal services |
 
-#### Firebase Services Used
-- **Firebase Auth**: User authentication with phone OTP
-- **Firebase Firestore**: Real-time database for user profiles, products, transfers, social data
-- **Firebase Storage**: File uploads for images, videos, documents
-- **Firebase Functions**: Server-side logic for transfers, payments, moderation
-- **Firebase Cloud Messaging (FCM)**: Push notification delivery
-- **Firebase App Check**: App attestation and protection
+## Firebase Integration
 
-#### Configuration
+### Firebase Services Architecture
+
+```mermaid
+graph TB
+    subgraph "Firebase Services"
+        Auth[Firebase Auth]
+        Firestore[Firebase Firestore]
+        Storage[Firebase Storage]
+        Functions[Firebase Cloud Functions]
+        FCM[Firebase Cloud Messaging]
+        AppCheck[Firebase App Check]
+    end
+
+    subgraph "Android App"
+        Repo[Repository Layer]
+        DS[Data Sources]
+    end
+
+    Repo --> DS
+    DS --> Auth
+    DS --> Firestore
+    DS --> Storage
+    DS --> Functions
+    DS --> FCM
+    DS --> AppCheck
+```
+
+### Firebase Configuration
+
+**Module**: `di/FirebaseModule.kt`
+
 ```kotlin
-// FirebaseModule.kt
 @Module
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
-    
+
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth {
-        return Firebase.auth
+        return FirebaseAuth.getInstance()
     }
-    
+
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore {
-        return Firebase.firestore
+        return FirebaseFirestore.getInstance().apply {
+            firestoreSettings = FirestoreSettings.Builder()
+                .setPersistenceEnabled(true)
+                .build()
+        }
     }
-    
+
     @Provides
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage {
-        return Firebase.storage
+        return FirebaseStorage.getInstance()
     }
-    
+
     @Provides
     @Singleton
-    fun provideFirebaseFunctions(): FirebaseFunctions {
-        return Firebase.functions
+    fun provideFirebaseMessaging(): FirebaseMessaging {
+        return FirebaseMessaging.getInstance()
     }
 }
 ```
 
-#### Security Rules
-```javascript
-// Firestore security rules
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Products can be read by anyone, but only created by authenticated users
-    match /products/{productId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && 
-        resource.data.sellerId == request.auth.uid;
-    }
-  }
-}
-```
+### Firestore Integration Pattern
 
-#### Cloud Functions
-```typescript
-// functions/src/index.ts
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
-
-admin.initializeApp();
-
-// Verify transfer function
-export const verifyTransfer = functions.https.onCall(async (data, context) => {
-  // Verify user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-  }
-  
-  // Process transfer verification
-  // Implementation details...
-});
-
-// Process payment function
-export const processPayment = functions.https.onCall(async (data, context) => {
-  // Payment processing logic
-});
-```
-
-### 2. External API Integration
-
-#### Weather API Integration
 ```kotlin
-// WeatherRepositoryImpl.kt
 @Singleton
-class WeatherRepositoryImpl @Inject constructor(
-    private val weatherApi: WeatherApi,
-    private val cacheManager: CacheManager
-) : WeatherRepository {
-    
-    override suspend fun getWeather(location: String): Resource<WeatherData> {
-        return safeApiCall {
-            // Check cache first
-            val cached = cacheManager.get<WeatherData>("weather_$location")
-            if (cached != null) {
-                return@safeApiCall cached
+class RemoteUserDataSourceImpl @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val userMapper: UserMapper,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+) : RemoteUserDataSource {
+
+    override suspend fun getUser(userId: String): User? {
+        return withContext(dispatcher) {
+            try {
+                val snapshot = firestore.collection("users")
+                    .document(userId)
+                    .get()
+                    .await()
+
+                snapshot.toObject(UserEntity::class.java)
+                    ?.let(userMapper::toDomain)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to fetch user $userId")
+                null
             }
-            
-            // Fetch from API
-            val response = weatherApi.getCurrentWeather(location)
-            
-            // Cache for 15 minutes
-            cacheManager.put("weather_$location", response, CachePolicy(ttl = 15.minutes))
-            
-            response
+        }
+    }
+
+    override suspend fun updateUser(user: User) {
+        withContext(dispatcher) {
+            try {
+                val entity = userMapper.toEntity(user)
+                firestore.collection("users")
+                    .document(user.id)
+                    .set(entity)
+                    .await()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to update user ${user.id}")
+                throw e
+            }
+        }
+    }
+
+    override fun observeUser(userId: String): Flow<User?> {
+        return callbackFlow {
+            val registration = firestore.collection("users")
+                .document(userId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Timber.e(error, "Error observing user")
+                        close(error)
+                        return@addSnapshotListener
+                    }
+
+                    val user = snapshot?.toObject(UserEntity::class.java)
+                        ?.let(userMapper::toDomain)
+                    trySend(user)
+                }
+
+            awaitClose { registration.remove() }
+        }.flowOn(dispatcher)
+    }
+}
+```
+
+### Firebase Storage Integration
+
+```kotlin
+@Singleton
+class StorageRepositoryImpl @Inject constructor(
+    private val storage: FirebaseStorage,
+    private val auth: FirebaseAuth
+) : BaseRepository(), StorageRepository {
+
+    override suspend fun uploadProfileImage(
+        userId: String,
+        uri: Uri
+    ): Resource<String> {
+        return safeCall("uploadProfileImage") {
+            val ref = storage.reference
+                .child("users")
+                .child(userId)
+                .child("profile")
+                .child("image.jpg")
+
+            // Upload with metadata
+            val metadata = storageMetadata {
+                contentType = "image/jpeg"
+                setCustomMetadata("userId", userId)
+            }
+
+            val uploadTask = ref.putFile(uri, metadata).await()
+
+            // Get download URL
+            ref.downloadUrl.await().toString()
+        }
+    }
+
+    override suspend fun uploadProductImages(
+        productId: String,
+        uris: List<Uri>
+    ): Resource<List<String>> {
+        return safeCall("uploadProductImages") {
+            uris.mapIndexed { index, uri ->
+                val ref = storage.reference
+                    .child("products")
+                    .child(productId)
+                    .child("image_$index.jpg")
+
+                ref.putFile(uri).await()
+                ref.downloadUrl.await().toString()
+            }
+        }
+    }
+
+    override suspend fun deleteFile(path: String): Resource<Unit> {
+        return safeCall("deleteFile") {
+            storage.reference.child(path).delete().await()
         }
     }
 }
+```
 
-// WeatherApi.kt
-interface WeatherApi {
-    @GET("/current")
-    suspend fun getCurrentWeather(
-        @Query("location") location: String,
-        @Query("apiKey") apiKey: String
-    ): WeatherData
+### Cloud Functions Integration
+
+```kotlin
+@Singleton
+class CloudFunctionsManager @Inject constructor(
+    private val firebaseFunctions: FirebaseFunctions
+) {
+    /**
+     * Verify transfer via Cloud Function
+     */
+    suspend fun verifyTransfer(
+        transferId: String,
+        verificationCode: String
+    ): Resource<TransferVerificationResult> {
+        return try {
+            val data = hashMapOf(
+                "transferId" to transferId,
+                "verificationCode" to verificationCode
+            )
+
+            val result = firebaseFunctions
+                .getHttpsCallable("verifyTransfer")
+                .call(data)
+                .await()
+
+            val response = Gson().fromJson(
+                Gson().toJson(result.data),
+                TransferVerificationResult::class.java
+            )
+
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error("Verification failed: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Process payment via Cloud Function
+     */
+    suspend fun processPayment(
+        orderId: String,
+        paymentMethod: String
+    ): Resource<PaymentResult> {
+        return try {
+            val data = hashMapOf(
+                "orderId" to orderId,
+                "paymentMethod" to paymentMethod
+            )
+
+            val result = firebaseFunctions
+                .getHttpsCallable("processPayment")
+                .call(data)
+                .await()
+
+            val response = Gson().fromJson(
+                Gson().toJson(result.data),
+                PaymentResult::class.java
+            )
+
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error("Payment failed: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Upgrade user role via Cloud Function
+     */
+    suspend fun upgradeRole(
+        userId: String,
+        newRole: String,
+        reason: String
+    ): Resource<Unit> {
+        return try {
+            val data = hashMapOf(
+                "userId" to userId,
+                "newRole" to newRole,
+                "reason" to reason
+            )
+
+            firebaseFunctions
+                .getHttpsCallable("upgradeRole")
+                .call(data)
+                .await()
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error("Role upgrade failed: ${e.message}", e)
+        }
+    }
 }
 ```
 
-#### Google Maps Platform Integration
+### Firebase Cloud Messaging Integration
+
 ```kotlin
-// LocationModule.kt
+@Singleton
+class NotificationManager @Inject constructor(
+    private val messaging: FirebaseMessaging,
+    private val notificationManagerCompat: NotificationManagerCompat
+) {
+    /**
+     * Subscribe to topic
+     */
+    suspend fun subscribeToTopic(topic: String) {
+        try {
+            messaging.subscribeToTopic(topic).await()
+            Timber.d("Subscribed to topic: $topic")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to subscribe to topic: $topic")
+        }
+    }
+
+    /**
+     * Unsubscribe from topic
+     */
+    suspend fun unsubscribeFromTopic(topic: String) {
+        try {
+            messaging.unsubscribeFromTopic(topic).await()
+            Timber.d("Unsubscribed from topic: $topic")
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to unsubscribe from topic: $topic")
+        }
+    }
+
+    /**
+     * Get FCM token
+     */
+    suspend fun getToken(): String? {
+        return try {
+            messaging.token.await()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to get FCM token")
+            null
+        }
+    }
+
+    /**
+     * Handle incoming notification
+     */
+    fun handleNotification(remoteMessage: RemoteMessage) {
+        val notification = remoteMessage.notification
+        val data = remoteMessage.data
+
+        if (notification != null) {
+            showNotification(
+                title = notification.title ?: "",
+                body = notification.body ?: "",
+                data = data
+            )
+        } else if (data.isNotEmpty()) {
+            // Data message - handle in background
+            handleDataMessage(data)
+        }
+    }
+
+    private fun showNotification(
+        title: String,
+        body: String,
+        data: Map<String, String>
+    ) {
+        val channelId = when (data["type"]) {
+            "transfer" -> "transfers"
+            "order" -> "orders"
+            "message" -> "messages"
+            else -> "general"
+        }
+
+        val notification = NotificationCompat.Builder(applicationContext, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(createPendingIntent(data))
+            .build()
+
+        notificationManagerCompat.notify(
+            System.currentTimeMillis().toInt(),
+            notification
+        )
+    }
+}
+```
+
+## External API Integration
+
+### Weather API Integration
+
+**Repository**: `WeatherRepositoryImpl.kt`
+
+```kotlin
+@Singleton
+class WeatherRepositoryImpl @Inject constructor(
+    private val weatherApi: WeatherApi,
+    private val weatherDao: WeatherDao,
+    private val weatherMapper: WeatherMapper
+) : BaseRepository(), WeatherRepository {
+
+    override suspend fun getCurrentWeather(location: Location): Resource<Weather> {
+        return safeCall("getCurrentWeather") {
+            // Try cache first
+            val cached = weatherDao.getCachedWeather(location.latitude, location.longitude)
+            if (cached != null && !cached.isExpired()) {
+                return@safeCall weatherMapper.toDomain(cached)
+            }
+
+            // Fetch from API
+            val response = weatherApi.getCurrentWeather(
+                lat = location.latitude,
+                lon = location.longitude,
+                appId = BuildConfig.WEATHER_API_KEY
+            )
+
+            val weather = weatherMapper.toDomain(response)
+
+            // Cache the result
+            weatherDao.insertWeather(
+                WeatherEntity(
+                    latitude = location.latitude,
+                    longitude = location.longitude,
+                    temperature = weather.temperature,
+                    condition = weather.condition,
+                    humidity = weather.humidity,
+                    windSpeed = weather.windSpeed,
+                    fetchedAt = Instant.now()
+                )
+            )
+
+            weather
+        }
+    }
+
+    override suspend fun getWeatherForecast(
+        location: Location,
+        days: Int
+    ): Resource<List<WeatherForecast>> {
+        return safeCall("getWeatherForecast") {
+            val response = weatherApi.getWeatherForecast(
+                lat = location.latitude,
+                lon = location.longitude,
+                cnt = days,
+                appId = BuildConfig.WEATHER_API_KEY
+            )
+
+            response.list.map(weatherMapper::toForecastDomain)
+        }
+    }
+}
+```
+
+### Google Maps Integration
+
+**Module**: `di/LocationModule.kt`
+
+```kotlin
 @Module
 @InstallIn(SingletonComponent::class)
 object LocationModule {
-    
+
     @Provides
     @Singleton
-    fun provideFusedLocationProviderClient(@ApplicationContext context: Context): FusedLocationProviderClient {
+    fun provideFusedLocationProviderClient(
+        @ApplicationContext context: Context
+    ): FusedLocationProviderClient {
         return LocationServices.getFusedLocationProviderClient(context)
     }
-    
+
     @Provides
     @Singleton
     fun provideGeocoder(@ApplicationContext context: Context): Geocoder {
         return Geocoder(context, Locale.getDefault())
     }
 }
+```
 
-// PlacesModule.kt
-@Module
-@InstallIn(SingletonComponent::class)
-object PlacesModule {
-    
-    @Provides
-    @Singleton
-    fun providePlacesClient(@ApplicationContext context: Context): PlacesClient {
-        if (!Places.isInitialized()) {
-            Places.initialize(context, BuildConfig.GOOGLE_MAPS_API_KEY)
+**Repository**: `LocationRepositoryImpl.kt`
+
+```kotlin
+@Singleton
+class LocationRepositoryImpl @Inject constructor(
+    private val fusedLocationClient: FusedLocationProviderClient,
+    private val geocoder: Geocoder,
+    private val placesClient: PlacesClient
+) : BaseRepository(), LocationRepository {
+
+    @SuppressLint("MissingPermission")
+    override suspend fun getCurrentLocation(): Resource<Location> {
+        return safeCall("getCurrentLocation") {
+            val locationResult = fusedLocationClient.lastLocation.await()
+            locationResult ?: throw LocationNotFoundException()
         }
-        return Places.createClient(context)
+    }
+
+    override suspend fun getAddressFromLocation(location: Location): Resource<String> {
+        return safeCall("getAddressFromLocation") {
+            val addresses = geocoder.getFromLocation(
+                location.latitude,
+                location.longitude,
+                1
+            )
+
+            addresses?.firstOrNull()?.getAddressLine(0)
+                ?: throw AddressNotFoundException()
+        }
+    }
+
+    override suspend fun searchPlaces(query: String): Resource<List<Place>> {
+        return safeCall("searchPlaces") {
+            val request = FindCurrentPlaceRequest.builder(listOf("establishment"))
+                .setSessionToken(PlaceSessionToken())
+                .build()
+
+            val response = placesClient.findCurrentPlace(request).await()
+            response.placeLikelihoods.map { it.place.toDomain() }
+        }
     }
 }
 ```
 
-#### Payment Gateway Integration
+### Payment Gateway Integration
+
+**Module**: `di/PaymentModule.kt`
+
 ```kotlin
-// PaymentModule.kt
 @Module
 @InstallIn(SingletonComponent::class)
 object PaymentModule {
-    
+
     @Provides
     @Singleton
     fun providePaymentGateway(): PaymentGateway {
-        return DefaultPaymentGateway(BuildConfig.PAYMENT_API_KEY)
+        return DefaultPaymentGateway(
+            apiKey = BuildConfig.PAYMENT_API_KEY,
+            environment = if (BuildConfig.DEBUG) {
+                PaymentEnvironment.SANDBOX
+            } else {
+                PaymentEnvironment.PRODUCTION
+            }
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun providePaymentRepository(
+        paymentGateway: PaymentGateway,
+        paymentDao: PaymentDao
+    ): PaymentRepository {
+        return PaymentRepositoryImpl(paymentGateway, paymentDao)
     }
 }
+```
 
-// PaymentRepositoryImpl.kt
+**Repository**: `PaymentRepositoryImpl.kt`
+
+```kotlin
 @Singleton
 class PaymentRepositoryImpl @Inject constructor(
     private val paymentGateway: PaymentGateway,
-    private val firebaseFunctions: FirebaseFunctions
-) : PaymentRepository {
-    
-    override suspend fun processPayment(paymentRequest: PaymentRequest): Resource<PaymentResult> {
-        return safeApiCall {
-            // Process payment through gateway
-            val gatewayResult = paymentGateway.processPayment(paymentRequest)
-            
-            // Verify payment through Firebase Function
-            val verificationResult = firebaseFunctions
-                .getHttpsCallable("verifyPayment")
-                .call(gatewayResult.paymentId)
-                .await()
-            
-            PaymentResult(
-                paymentId = gatewayResult.paymentId,
-                status = gatewayResult.status,
-                verification = verificationResult.data as Map<String, Any>
+    private val paymentDao: PaymentDao
+) : BaseRepository(), PaymentRepository {
+
+    override suspend fun initiatePayment(
+        orderId: String,
+        amount: Double,
+        currency: String
+    ): Resource<PaymentIntent> {
+        return safeCall("initiatePayment") {
+            val intent = paymentGateway.createPaymentIntent(
+                amount = amount,
+                currency = currency,
+                metadata = mapOf("orderId" to orderId)
             )
+
+            // Store locally
+            paymentDao.insertPayment(
+                PaymentEntity(
+                    id = intent.id,
+                    orderId = orderId,
+                    amount = amount,
+                    currency = currency,
+                    status = PaymentStatus.PENDING,
+                    createdAt = Instant.now()
+                )
+            )
+
+            intent
+        }
+    }
+
+    override suspend fun verifyPayment(
+        paymentId: String,
+        signature: String
+    ): Resource<PaymentVerification> {
+        return safeCall("verifyPayment") {
+            val verification = paymentGateway.verifyPaymentSignature(
+                paymentId = paymentId,
+                signature = signature
+            )
+
+            if (verification.success) {
+                // Update local record
+                paymentDao.updatePaymentStatus(
+                    paymentId = paymentId,
+                    status = PaymentStatus.COMPLETED
+                )
+            }
+
+            verification
+        }
+    }
+
+    override suspend fun refundPayment(
+        paymentId: String,
+        amount: Double?,
+        reason: String
+    ): Resource<Refund> {
+        return safeCall("refundPayment") {
+            val refund = paymentGateway.createRefund(
+                paymentId = paymentId,
+                amount = amount,
+                reason = reason
+            )
+
+            // Update local record
+            paymentDao.insertRefund(
+                RefundEntity(
+                    id = refund.id,
+                    paymentId = paymentId,
+                    amount = refund.amount,
+                    reason = reason,
+                    status = refund.status,
+                    createdAt = Instant.now()
+                )
+            )
+
+            refund
         }
     }
 }
 ```
 
-### 3. Service Layer Integration
+## Service Integration
 
-#### Voice Logging Service
+### VoiceLogService
+
 ```kotlin
-// VoiceLogService.kt
-interface VoiceLogService {
-    suspend fun startRecording(): Resource<Unit>
-    suspend fun stopRecording(): Resource<VoiceLog>
-    suspend fun uploadVoiceLog(voiceLog: VoiceLog): Resource<String>
-}
-
-// VoiceLogRepositoryImpl.kt
 @Singleton
-class VoiceLogRepositoryImpl @Inject constructor(
-    private val voiceLogService: VoiceLogService,
-    private val storage: FirebaseStorage
-) : VoiceLogRepository {
-    
-    override suspend fun createVoiceLog(audioFile: File): Resource<String> {
-        return safeCall {
-            // Upload to Firebase Storage
-            val uploadTask = storage
-                .getReference("voice_logs/${UUID.randomUUID()}.mp3")
-                .putFile(audioFile.toUri())
-            
-            val downloadUrl = uploadTask.await().storage.downloadUrl.await()
-            downloadUrl.toString()
+class VoiceLogService @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth
+) {
+    /**
+     * Log voice activity
+     */
+    suspend fun logVoiceActivity(
+        activityType: String,
+        metadata: Map<String, Any>
+    ): Resource<Unit> {
+        return try {
+            val userId = auth.currentUser?.uid
+                ?: return Resource.Error("User not authenticated")
+
+            val log = hashMapOf(
+                "userId" to userId,
+                "activityType" to activityType,
+                "metadata" to metadata,
+                "timestamp" to FieldValue.serverTimestamp()
+            )
+
+            firestore.collection("voice_logs")
+                .add(log)
+                .await()
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error("Voice logging failed: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Get voice activity history
+     */
+    suspend fun getVoiceHistory(
+        limit: Int = 50
+    ): Resource<List<VoiceLog>> {
+        return try {
+            val userId = auth.currentUser?.uid
+                ?: return Resource.Error("User not authenticated")
+
+            val snapshot = firestore.collection("voice_logs")
+                .whereEqualTo("userId", userId)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(limit.toLong())
+                .get()
+                .await()
+
+            val logs = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(VoiceLog::class.java)
+            }
+
+            Resource.Success(logs)
+        } catch (e: Exception) {
+            Resource.Error("Failed to fetch voice history: ${e.message}", e)
         }
     }
 }
 ```
 
-#### Backup Service
-```kotlin
-// BackupService.kt
-interface BackupService {
-    suspend fun createBackup(): Resource<BackupResult>
-    suspend fun restoreBackup(backupId: String): Resource<Unit>
-    suspend fun listBackups(): Resource<List<BackupInfo>>
-}
+### BackupService
 
-// BackupRepositoryImpl.kt
+```kotlin
 @Singleton
-class BackupRepositoryImpl @Inject constructor(
-    private val backupService: BackupService,
-    private val storage: FirebaseStorage
-) : BackupRepository {
-    
-    override suspend fun createUserDataBackup(): Resource<String> {
-        return safeCall {
-            // Create backup of user data
-            val backupResult = backupService.createBackup()
-            
-            if (backupResult is Resource.Success) {
-                // Upload backup to Firebase Storage
-                val uploadTask = storage
-                    .getReference("backups/${backupResult.data.backupId}.json")
-                    .putBytes(backupResult.data.data.toByteArray())
-                
-                val downloadUrl = uploadTask.await().storage.downloadUrl.await()
-                downloadUrl.toString()
-            } else {
-                throw Exception("Backup creation failed")
-            }
-        }
-    }
-}
-```
-
-## Data Source Selection Strategies
-
-### 1. Context-Aware Data Source Selection
-```kotlin
-class DataSourceSelector @Inject constructor(
-    private val localDataSource: LocalDataSource,
-    private val remoteDataSource: RemoteDataSource,
-    private val connectivityManager: ConnectivityManager
-) {
-    
-    fun selectDataSource(context: DataSourceContext): DataSource {
-        return when {
-            !isConnected() -> localDataSource
-            context.requiresRealtime -> remoteDataSource
-            context.offlineMode -> localDataSource
-            context.cacheAvailable -> localDataSource
-            else -> remoteDataSource
-        }
-    }
-    
-    private fun isConnected(): Boolean {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network)
-        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-    }
-}
-```
-
-### 2. Priority-Based Selection
-```kotlin
-enum class DataSourcePriority {
-    LOCAL_FIRST,
-    REMOTE_FIRST,
-    BALANCED
-}
-
-class PriorityBasedDataSourceSelector @Inject constructor(
-    private val localDataSource: LocalDataSource,
-    private val remoteDataSource: RemoteDataSource
-) {
-    
-    suspend fun <T> executeWithPriority(
-        priority: DataSourcePriority,
-        localOperation: suspend () -> T,
-        remoteOperation: suspend () -> T
-    ): T {
-        return when (priority) {
-            DataSourcePriority.LOCAL_FIRST -> {
-                try {
-                    localOperation()
-                } catch (e: Exception) {
-                    remoteOperation()
-                }
-            }
-            DataSourcePriority.REMOTE_FIRST -> {
-                try {
-                    remoteOperation()
-                } catch (e: Exception) {
-                    localOperation()
-                }
-            }
-            DataSourcePriority.BALANCED -> {
-                // Execute both concurrently and return the first successful result
-                coroutineScope {
-                    val localDeferred = async { localOperation() }
-                    val remoteDeferred = async { remoteOperation() }
-                    
-                    // Return the first successful result
-                    listOf(localDeferred, remoteDeferred)
-                        .firstOrNull { it.isCompleted && !it.getCompletionExceptionOrNull() != null }
-                        ?.await()
-                        ?: localDeferred.await() // fallback to local
-                }
-            }
-        }
-    }
-}
-```
-
-## Error Handling Across Data Sources
-
-### 1. Unified Error Handling
-```kotlin
-sealed class DataSourceError {
-    object NetworkError : DataSourceError()
-    object AuthenticationError : DataSourceError()
-    object NotFoundError : DataSourceError()
-    object ValidationError : DataSourceError()
-    data class UnknownError(val message: String) : DataSourceError()
-}
-
-suspend fun <T> handleDataSourceErrors(block: suspend () -> T): Resource<T> {
-    return try {
-        Resource.Success(block())
-    } catch (e: IOException) {
-        Resource.Error(DataSourceError.NetworkError, e)
-    } catch (e: HttpException) {
-        when (e.code()) {
-            401 -> Resource.Error(DataSourceError.AuthenticationError, e)
-            404 -> Resource.Error(DataSourceError.NotFoundError, e)
-            400 -> Resource.Error(DataSourceError.ValidationError, e)
-            else -> Resource.Error(DataSourceError.UnknownError(e.message()), e)
-        }
-    } catch (e: Exception) {
-        Resource.Error(DataSourceError.UnknownError(e.message ?: "Unknown error"), e)
-    }
-}
-```
-
-### 2. Fallback Strategies
-```kotlin
-class FallbackDataSourceHandler @Inject constructor(
-    private val primaryDataSource: DataSource,
-    private val secondaryDataSource: DataSource,
-    private val cacheDataSource: DataSource
-) {
-    
-    suspend fun <T> executeWithFallback(
-        primaryOp: suspend () -> T,
-        secondaryOp: suspend () -> T,
-        cacheOp: suspend () -> T
-    ): Resource<T> {
-        // Try primary source
-        runCatching { return Resource.Success(primaryOp()) }
-        
-        // Try secondary source
-        runCatching { return Resource.Success(secondaryOp()) }
-        
-        // Try cache
-        runCatching { return Resource.Success(cacheOp()) }
-        
-        // All failed
-        return Resource.Error("All data sources failed")
-    }
-}
-```
-
-## Performance Optimization
-
-### 1. Connection Pooling
-```kotlin
-// HttpModule.kt
-@Module
-@InstallIn(SingletonComponent::class)
-object HttpModule {
-    
-    @Provides
-    @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = if (BuildConfig.DEBUG) {
-                    HttpLoggingInterceptor.Level.BODY
-                } else {
-                    HttpLoggingInterceptor.Level.NONE
-                }
-            })
-            .build()
-    }
-}
-```
-
-### 2. Request Batching
-```kotlin
-class BatchRequestProcessor @Inject constructor(
-    private val httpClient: OkHttpClient,
+class BackupService @Inject constructor(
+    private val storage: FirebaseStorage,
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth,
     private val gson: Gson
 ) {
-    
-    suspend fun <T> executeBatch(requests: List<ApiRequest>): List<Resource<T>> {
-        return requests.chunked(BATCH_SIZE).flatMap { chunk ->
-            executeBatchChunk(chunk)
+    /**
+     * Backup user data
+     */
+    suspend fun backupUserData(): Resource<String> {
+        return safeCall("backupUserData") {
+            val userId = auth.currentUser?.uid
+                ?: throw UnauthenticatedException()
+
+            // Collect all user data
+            val backupData = BackupData(
+                user = getUserData(userId),
+                products = getUserProducts(userId),
+                orders = getUserOrders(userId),
+                transfers = getUserTransfers(userId),
+                backupAt = Instant.now()
+            )
+
+            // Serialize to JSON
+            val json = gson.toJson(backupData)
+
+            // Upload to Storage
+            val backupRef = storage.reference
+                .child("backups")
+                .child(userId)
+                .child("backup_${System.currentTimeMillis()}.json")
+
+            val bytes = json.toByteArray(Charsets.UTF_8)
+            val uploadTask = backupRef.putBytes(bytes).await()
+
+            // Get download URL
+            backupRef.downloadUrl.await().toString()
         }
     }
-    
-    private suspend fun <T> executeBatchChunk(chunk: List<ApiRequest>): List<Resource<T>> {
-        return withContext(Dispatchers.IO) {
-            chunk.map { request ->
-                async {
-                    safeApiCall { executeRequest(request) }
-                }
-            }.awaitAll()
+
+    /**
+     * Restore user data from backup
+     */
+    suspend fun restoreUserData(backupUrl: String): Resource<Unit> {
+        return safeCall("restoreUserData") {
+            val userId = auth.currentUser?.uid
+                ?: throw UnauthenticatedException()
+
+            // Download backup file
+            val backupRef = FirebaseStorage.getInstance().getReferenceFromUrl(backupUrl)
+            val bytes = backupRef.getBytes(Long.MAX_VALUE).await()
+            val json = String(bytes, Charsets.UTF_8)
+
+            // Parse backup data
+            val backupData = gson.fromJson(json, BackupData::class.java)
+
+            // Restore data to Firestore
+            restoreUserData(userId, backupData)
         }
     }
-    
+
+    private suspend fun restoreUserData(userId: String, backupData: BackupData) {
+        val batch = firestore.batch()
+
+        // Restore user document
+        val userRef = firestore.collection("users").document(userId)
+        batch.set(userRef, backupData.user)
+
+        // Restore products
+        backupData.products.forEach { product ->
+            val productRef = firestore.collection("products").document(product.id)
+            batch.set(productRef, product)
+        }
+
+        // Restore orders
+        backupData.orders.forEach { order ->
+            val orderRef = firestore.collection("orders").document(order.id)
+            batch.set(orderRef, order)
+        }
+
+        // Commit batch
+        batch.commit().await()
+    }
+}
+```
+
+## Error Handling
+
+### API Error Handling
+
+```kotlin
+sealed class ApiError(
+    val message: String,
+    val code: Int? = null,
+    val cause: Throwable? = null
+) : Exception(message, cause) {
+
+    class Unauthorized(message: String = "Unauthorized") : ApiError(message, 401)
+    class Forbidden(message: String = "Forbidden") : ApiError(message, 403)
+    class NotFound(message: String = "Not found") : ApiError(message, 404)
+    class ServerError(message: String = "Server error", code: Int) : ApiError(message, code)
+    class NetworkError(message: String = "Network error", cause: Throwable) : ApiError(message, null, cause)
+    class TimeoutError(message: String = "Request timeout") : ApiError(message, 408)
+    class RateLimitExceeded(message: String = "Rate limit exceeded") : ApiError(message, 429)
+    class UnknownError(message: String = "Unknown error", cause: Throwable?) : ApiError(message, null, cause)
+
     companion object {
-        private const val BATCH_SIZE = 10
-    }
-}
-```
-
-## Security Considerations
-
-### 1. API Key Management
-```kotlin
-@Module
-@InstallIn(SingletonComponent::class)
-object SecurityModule {
-    
-    @Provides
-    @Singleton
-    fun provideApiKey(@ApplicationContext context: Context): String {
-        return try {
-            // Retrieve from secure storage or build config
-            BuildConfig.API_KEY
-        } catch (e: Exception) {
-            // Fallback to encrypted storage
-            val encryptedPrefs = context.getSharedPreferences("secure_prefs", Context.MODE_PRIVATE)
-            val encryptedKey = encryptedPrefs.getString("api_key", "") ?: ""
-            decrypt(encryptedKey)
+        fun fromThrowable(throwable: Throwable): ApiError {
+            return when (throwable) {
+                is ApiError -> throwable
+                is HttpException -> {
+                    when (throwable.code()) {
+                        401 -> Unauthorized()
+                        403 -> Forbidden()
+                        404 -> NotFound()
+                        408 -> TimeoutError()
+                        429 -> RateLimitExceeded()
+                        in 500..599 -> ServerError("Server error", throwable.code())
+                        else -> UnknownError(throwable.message, throwable)
+                    }
+                }
+                is IOException -> NetworkError("Network error", throwable)
+                is TimeoutCancellationException -> TimeoutError()
+                else -> UnknownError(throwable.message, throwable)
+            }
         }
     }
 }
 ```
 
-### 2. Certificate Pinning
+### Retry Mechanism
+
 ```kotlin
-@Provides
-@Singleton
-fun provideSecureHttpClient(): OkHttpClient {
-    val certificatePinner = CertificatePinner.Builder()
-        .add("api.rostry.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
-        .add("api.rostry.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")
-        .build()
-    
-    return OkHttpClient.Builder()
-        .certificatePinner(certificatePinner)
-        .build()
-}
-```
-
-## Testing Data Source Integration
-
-### 1. Mock Data Sources
-```kotlin
-// Test modules for data source integration
-@Module
-@TestInstallIn(
-    components = [SingletonComponent::class],
-    replaces = [FirebaseModule::class]
-)
-object TestFirebaseModule {
-    
-    @Provides
-    @Singleton
-    fun provideMockFirebaseAuth(): FirebaseAuth {
-        return mockk<FirebaseAuth>()
-    }
-    
-    @Provides
-    @Singleton
-    fun provideMockFirestore(): FirebaseFirestore {
-        return mockk<FirebaseFirestore>()
-    }
-}
-```
-
-### 2. Integration Testing
-```kotlin
-@HiltAndroidTest
-class DataSourceIntegrationTest {
-    
-    @get:Rule
-    val hiltRule = HiltAndroidRule(this)
-    
-    @Inject
-    lateinit var userRepository: UserRepository
-    
-    @Test
-    fun `user data is synced between local and remote sources`() = runTest {
-        // Given
-        val testUser = User("test-id", "Test User", "test@example.com")
-        
-        // When
-        userRepository.createUser(testUser)
-        
-        // Then
-        // Verify user exists in both local and remote sources
-        val localUser = userRepository.getLocalUser("test-id")
-        val remoteUser = userRepository.getRemoteUser("test-id")
-        
-        assertEquals(testUser, localUser)
-        assertEquals(testUser, remoteUser)
-    }
-}
-```
-
-## Monitoring and Observability
-
-### 1. Data Source Metrics
-```kotlin
-data class DataSourceMetrics(
-    val successRate: Double,
-    val avgResponseTime: Duration,
-    val errorRate: Double,
-    val throughput: Int
-)
-
-class DataSourceMonitor @Inject constructor(
-    private val metricsCollector: MetricsCollector
+class RetryHandler @Inject constructor(
+    private val networkMonitor: NetworkHealthMonitor
 ) {
-    
-    suspend fun collectMetrics(dataSource: String): DataSourceMetrics {
-        val metrics = metricsCollector.getMetricsForDataSource(dataSource)
-        
-        return DataSourceMetrics(
-            successRate = metrics.successfulRequests.toDouble() / metrics.totalRequests.toDouble(),
-            avgResponseTime = metrics.totalResponseTime / metrics.successfulRequests,
-            errorRate = metrics.failedRequests.toDouble() / metrics.totalRequests.toDouble(),
-            throughput = metrics.totalRequests / metrics.timeWindow.inWholeSeconds.toInt()
-        )
-    }
-}
-```
+    /**
+     * Execute with retry
+     */
+    suspend fun <T> executeWithRetry(
+        operation: String,
+        maxRetries: Int = 3,
+        initialDelay: Long = 1000,
+        maxDelay: Long = 30000,
+        factor: Double = 2.0,
+        block: suspend () -> T
+    ): T {
+        var currentDelay = initialDelay
+        var lastException: Exception? = null
 
-### 2. Health Checks
-```kotlin
-interface DataSourceHealthCheck {
-    suspend fun checkHealth(): HealthStatus
-}
+        repeat(maxRetries) { attempt ->
+            try {
+                return block()
+            } catch (e: Exception) {
+                lastException = e
 
-class FirebaseHealthCheck @Inject constructor(
-    private val firebaseAuth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
-) : DataSourceHealthCheck {
-    
-    override suspend fun checkHealth(): HealthStatus {
-        return try {
-            // Test a simple operation
-            val testDoc = firestore.collection("health_check").document("test")
-            testDoc.set(mapOf("timestamp" to FieldValue.serverTimestamp())).await()
-            
-            HealthStatus.Healthy
-        } catch (e: Exception) {
-            HealthStatus.Unhealthy(e.message ?: "Unknown error")
+                // Don't retry on certain errors
+                if (e is ApiError.Unauthorized || e is ApiError.Forbidden) {
+                    throw e
+                }
+
+                // Check network status
+                if (!networkMonitor.isOnline()) {
+                    Timber.w("Network unavailable, waiting...")
+                }
+
+                // Wait before retry
+                if (attempt < maxRetries - 1) {
+                    Timber.w(e, "$operation failed (attempt ${attempt + 1}/$maxRetries), retrying in ${currentDelay}ms")
+                    delay(currentDelay)
+                    currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
+                }
+            }
         }
+
+        throw lastException ?: IllegalStateException("Unknown error")
     }
 }
 ```
 
-## Troubleshooting
+## Best Practices
 
-### Common Issues
+### Data Source Selection
 
-#### 1. Network Connectivity Issues
-- **Symptoms**: Requests timing out or failing with network errors
-- **Solutions**: 
-  - Verify network permissions in manifest
-  - Check connectivity before making requests
-  - Implement proper retry mechanisms
+1. **Read operations**: Cache → Local → Remote
+2. **Write operations**: Local → Queue → Remote
+3. **Critical data**: Remote with local fallback
+4. **Static data**: Cache with long TTL
 
-#### 2. Authentication Problems
-- **Symptoms**: 401 errors, unauthorized access
-- **Solutions**:
-  - Verify Firebase Auth configuration
-  - Check token refresh mechanisms
-  - Ensure proper session management
+### Error Recovery
 
-#### 3. Rate Limiting
-- **Symptoms**: 429 errors from external APIs
-- **Solutions**:
-  - Implement exponential backoff
-  - Add rate limiting to your requests
-  - Use caching to reduce API calls
+1. **Network errors**: Retry with exponential backoff
+2. **Auth errors**: Refresh token or re-authenticate
+3. **Server errors**: Fallback to cache
+4. **Rate limits**: Queue and retry later
 
-#### 4. Data Consistency
-- **Symptoms**: Inconsistent data between local and remote sources
-- **Solutions**:
-  - Implement proper conflict resolution
-  - Use timestamp-based synchronization
-  - Add data validation checks
+### Security
 
-### Debugging Tips
-- Enable detailed logging for data source operations
-- Monitor API quotas and usage
-- Use Firebase console to monitor database operations
-- Implement circuit breakers for external API calls
-- Add health check endpoints for each data source
+1. **API keys**: Store in BuildConfig, never in code
+2. **Tokens**: Store in encrypted DataStore
+3. **Sensitive data**: Encrypt before storage
+4. **Network**: Use HTTPS only, certificate pinning for production
+
+## Related Documentation
+
+- `firebase-setup.md` - Firebase configuration and setup
+- `api-integration-guide.md` - API integration patterns
+- `data-layer-architecture.md` - Data layer architecture
+- `security-encryption.md` - Security and encryption
+
+## Appendix: File Locations
+
+```
+data/remote/
+├── RemoteUserDataSource.kt
+├── RemoteProductDataSource.kt
+├── RemoteOrderDataSource.kt
+└── ...
+
+data/local/
+├── LocalUserDataSource.kt
+├── LocalProductDataSource.kt
+├── LocalOrderDataSource.kt
+└── ...
+
+data/service/
+├── VoiceLogService.kt
+├── BackupService.kt
+└── ...
+
+di/
+├── FirebaseModule.kt
+├── NetworkModule.kt
+├── LocationModule.kt
+├── PaymentModule.kt
+└── ...
+```

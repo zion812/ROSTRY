@@ -1,804 +1,727 @@
 ---
 Version: 1.0
-Last Updated: 2026-02-05
+Last Updated: 2026-02-26
 Audience: Developers
 Status: Active
-Related_Docs: [api-documentation.md, fetcher-system.md, data-sources-integration.md, architecture.md, security-encryption.md]
-Tags: [api, integration, networking, http, retrofit, authentication]
+Related_Docs: [firebase-setup.md, data-sources-integration.md, api-documentation.md]
+Tags: [api, integration, retrofit, external-services]
 ---
 
 # API Integration Guide
 
+**Document Type**: Integration Guide  
+**Version**: 1.0  
+**Last Updated**: 2026-02-26  
+**Feature Owner**: Data Layer Infrastructure  
+**Status**: ✅ Fully Implemented
+
 ## Overview
 
-This guide provides comprehensive instructions for integrating with external APIs and internal services in the ROSTRY application. It covers setup, configuration, authentication, error handling, and best practices for API communication.
+This guide covers API integration patterns, Retrofit setup, interceptors, error handling, and best practices for integrating external APIs in ROSTRY.
 
-## Table of Contents
+## Retrofit Configuration
 
-- [API Architecture](#api-architecture)
-- [Setup and Configuration](#setup-and-configuration)
-- [Authentication](#authentication)
-- [Making API Calls](#making-api-calls)
-- [Error Handling](#error-handling)
-- [Caching Strategy](#caching-strategy)
-- [Rate Limiting](#rate-limiting)
-- [Security Considerations](#security-considerations)
-- [Testing API Integrations](#testing-api-integrations)
-- [Monitoring and Logging](#monitoring-and-logging)
-- [Troubleshooting](#troubleshooting)
+### HTTP Module Setup
 
-## API Architecture
-
-### Core Components
-
-The ROSTRY API integration system consists of several key components:
-
-1. **HttpClient**: Configured with interceptors, timeouts, and retry policies
-2. **Retrofit**: Type-safe HTTP client for REST APIs
-3. **Converter**: JSON serialization/deserialization with Gson
-4. **Interceptor**: Authentication, logging, and request modification
-5. **Repository Layer**: Abstracts API calls and handles data transformation
-6. **Fetcher System**: Centralized data fetching with caching and deduplication
-
-### Architecture Diagram
-
-```mermaid
-graph TD
-    A[UI Layer] --> B[ViewModel]
-    B --> C[Repository]
-    C --> D[Fetcher System]
-    D --> E[API Service]
-    E --> F[HTTP Client]
-    F --> G[External API]
-    
-    H[Cache Manager] --> D
-    I[Auth Manager] --> F
-    J[Logger] --> F
-```
-
-## Setup and Configuration
-
-### HTTP Client Configuration
-
-The HTTP client is configured in `HttpModule.kt`:
+**File**: `di/HttpModule.kt`
 
 ```kotlin
 @Module
 @InstallIn(SingletonComponent::class)
 object HttpModule {
-    
+
     @Provides
     @Singleton
     fun provideOkHttpClient(
+        @ApplicationContext context: Context,
         authInterceptor: AuthInterceptor,
-        loggingInterceptor: HttpLoggingInterceptor
+        loggingInterceptor: LoggingInterceptor,
+        networkInterceptor: NetworkInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .addInterceptor(loggingInterceptor)
+            .addNetworkInterceptor(networkInterceptor)
+            .addInterceptor(OfflineInterceptor(context))
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(authInterceptor)
-            .addInterceptor(loggingInterceptor)
-            .addInterceptor(RateLimitInterceptor())
-            .cache(createCache())
+            .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
+            .retryOnConnectionFailure(true)
             .build()
     }
-    
-    private fun createCache(): Cache {
-        val cacheSize = 10 * 1024 * 1024L // 10 MB
-        return Cache(File(context.cacheDir, "http_cache"), cacheSize)
-    }
-}
-```
 
-### Retrofit Configuration
-
-Retrofit is configured with Gson converter and base URL:
-
-```kotlin
-@Module
-@InstallIn(SingletonComponent::class)
-object NetworkModule {
-    
     @Provides
     @Singleton
     fun provideRetrofit(
-        okHttpClient: OkHttpClient,
-        gsonConverterFactory: GsonConverterFactory
+        client: OkHttpClient,
+        gson: Gson
     ): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.rostry.com/")
-            .client(okHttpClient)
-            .addConverterFactory(gsonConverterFactory)
+            .baseUrl(BuildConfig.BASE_URL)
+            .client(client)
+            .addCallAdapterFactory(CoroutineCallAdapterFactory())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
-    
+
     @Provides
     @Singleton
-    fun provideGson(): Gson {
-        return GsonBuilder()
-            .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-            .registerTypeAdapter(DateTime::class.java, DateTimeAdapter())
-            .create()
+    fun provideWeatherApi(retrofit: Retrofit): WeatherApi {
+        return retrofit.create(WeatherApi::class.java)
     }
-    
+
     @Provides
     @Singleton
-    fun provideGsonConverterFactory(gson: Gson): GsonConverterFactory {
-        return GsonConverterFactory.create(gson)
+    fun provideProductApi(retrofit: Retrofit): ProductApi {
+        return retrofit.create(ProductApi::class.java)
     }
 }
 ```
 
-## Authentication
+### Interceptors
 
-### API Key Authentication
-
-For services requiring API key authentication:
-
-```kotlin
-class ApiKeyInterceptor(private val apiKeyProvider: ApiKeyProvider) : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val originalRequest = chain.request()
-        val newUrl = originalRequest.url.newBuilder()
-            .addQueryParameter("apiKey", apiKeyProvider.getApiKey())
-            .build()
-        
-        val newRequest = originalRequest.newBuilder()
-            .url(newUrl)
-            .build()
-        
-        return chain.proceed(newRequest)
-    }
-}
-```
-
-### OAuth/Bearer Token Authentication
-
-For services requiring OAuth tokens:
+#### Authentication Interceptor
 
 ```kotlin
 class AuthInterceptor @Inject constructor(
-    private val tokenManager: TokenManager
+    private val sessionManager: SessionManager
 ) : Interceptor {
-    
+
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
-        
-        val token = tokenManager.getAccessToken()
-        if (token != null) {
-            val newRequest = originalRequest.newBuilder()
-                .header("Authorization", "Bearer $token")
-                .build()
-            
-            return chain.proceed(newRequest)
+
+        // Skip auth for public endpoints
+        if (originalRequest.url.encodedPath in PUBLIC_ENDPOINTS) {
+            return chain.proceed(originalRequest)
         }
-        
-        return chain.proceed(originalRequest)
+
+        // Get auth token
+        val token = sessionManager.getAuthToken()
+            ?: throw UnauthenticatedException("No auth token")
+
+        // Add auth header
+        val authenticatedRequest = originalRequest.newBuilder()
+            .header("Authorization", "Bearer $token")
+            .build()
+
+        return chain.proceed(authenticatedRequest)
     }
-}
-```
 
-### Firebase Authentication Integration
-
-For Firebase-based authentication:
-
-```kotlin
-class FirebaseAuthInterceptor @Inject constructor(
-    private val firebaseAuth: FirebaseAuth
-) : Interceptor {
-    
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val currentUser = firebaseAuth.currentUser
-        if (currentUser != null) {
-            // Get ID token for the request
-            val tokenTask = currentUser.getIdToken(false)
-            Tasks.await(tokenTask)
-            
-            val idToken = tokenTask.result?.token
-            if (idToken != null) {
-                val newRequest = chain.request().newBuilder()
-                    .header("Authorization", "Bearer $idToken")
-                    .build()
-                
-                return chain.proceed(newRequest)
-            }
-        }
-        
-        return chain.proceed(chain.request())
-    }
-}
-```
-
-## Making API Calls
-
-### Defining API Service Interfaces
-
-Create interfaces for your API endpoints:
-
-```kotlin
-interface WeatherApiService {
-    @GET("weather/current")
-    suspend fun getCurrentWeather(
-        @Query("location") location: String,
-        @Query("units") units: String = "metric"
-    ): ApiResponse<WeatherData>
-    
-    @GET("weather/forecast")
-    suspend fun getForecast(
-        @Query("location") location: String,
-        @Query("days") days: Int = 7
-    ): ApiResponse<ForecastData>
-}
-
-interface PaymentApiService {
-    @POST("payments/process")
-    suspend fun processPayment(
-        @Body paymentRequest: PaymentRequest
-    ): ApiResponse<PaymentResponse>
-    
-    @GET("payments/{paymentId}/status")
-    suspend fun getPaymentStatus(
-        @Path("paymentId") paymentId: String
-    ): ApiResponse<PaymentStatus>
-}
-```
-
-### Repository Implementation
-
-Implement repository patterns that use the API services:
-
-```kotlin
-@Singleton
-class WeatherRepositoryImpl @Inject constructor(
-    private val weatherApiService: WeatherApiService,
-    private val cacheManager: CacheManager
-) : WeatherRepository {
-    
-    override suspend fun getCurrentWeather(location: String): Resource<WeatherData> {
-        return safeApiCall {
-            // Check cache first
-            val cached = cacheManager.get<WeatherData>("weather_$location")
-            if (cached != null) {
-                return@safeApiCall cached
-            }
-            
-            // Fetch from API
-            val response = weatherApiService.getCurrentWeather(location)
-            
-            // Cache for 15 minutes
-            cacheManager.put("weather_$location", response, CachePolicy(ttl = 15.minutes))
-            
-            response
-        }
-    }
-    
-    override suspend fun getForecast(location: String, days: Int): Resource<ForecastData> {
-        return safeApiCall {
-            weatherApiService.getForecast(location, days)
-        }
-    }
-}
-```
-
-### Using Fetcher System for API Integration
-
-Integrate with the fetcher system for centralized data fetching:
-
-```kotlin
-@Singleton
-class WeatherRepositoryImpl @Inject constructor(
-    private val fetcherCoordinator: FetcherCoordinator,
-    private val weatherApiService: WeatherApiService
-) : WeatherRepository {
-    
-    override suspend fun getCurrentWeather(location: String): Resource<WeatherData> {
-        val request = ClientRequest(
-            key = "weather_$location",
-            fetcher = { weatherApiService.getCurrentWeather(location) },
-            cachePolicy = CachePolicy(
-                strategy = CacheStrategy.CACHE_FIRST,
-                ttl = 15.minutes
-            )
+    companion object {
+        private val PUBLIC_ENDPOINTS = setOf(
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/products/public",
+            "/api/health"
         )
-        
-        return fetcherCoordinator.fetch(request)
+    }
+}
+```
+
+#### Logging Interceptor
+
+```kotlin
+class LoggingInterceptor @Inject constructor() : Interceptor {
+
+    private val logger = Timber.tag("HTTP")
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+
+        // Log request
+        logger.d("${request.method} ${request.url}")
+        request.headers.forEach { name, value ->
+            logger.d("$name: $value")
+        }
+
+        val startTime = System.currentTimeMillis()
+        val response = chain.proceed(request)
+        val duration = System.currentTimeMillis() - startTime
+
+        // Log response
+        logger.d("${response.code} ${response.message} (${duration}ms)")
+        response.headers.forEach { name, value ->
+            logger.d("$name: $value")
+        }
+
+        return response
+    }
+}
+```
+
+#### Network Interceptor
+
+```kotlin
+class NetworkInterceptor @Inject constructor(
+    private val connectivityManager: ConnectivityManager
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        if (!connectivityManager.isOnline()) {
+            throw IOException("No network connection")
+        }
+
+        val response = chain.proceed(chain.request())
+
+        // Cache response
+        val cacheControl = response.header("Cache-Control")
+        if (cacheControl == null || cacheControl.contains("no-store")) {
+            return response.newBuilder()
+                .header("Cache-Control", "max-age=300") // 5 minutes
+                .build()
+        }
+
+        return response
+    }
+}
+```
+
+#### Offline Interceptor
+
+```kotlin
+class OfflineInterceptor @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val cacheManager: CacheManager
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+
+        // If offline, try to serve from cache
+        if (!context.isOnline()) {
+            val cacheKey = request.url.encodedPath
+            val cachedResponse = cacheManager.get<String>(cacheKey)
+
+            if (cachedResponse != null) {
+                return Response.Builder()
+                    .request(request)
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK (cached)")
+                    .body(cachedResponse.toResponseBody())
+                    .build()
+            }
+        }
+
+        val response = chain.proceed(request)
+
+        // Cache successful GET requests
+        if (request.method == "GET" && response.isSuccessful) {
+            val cacheKey = request.url.encodedPath
+            val bodyString = response.body?.string()
+            bodyString?.let {
+                cacheManager.put(cacheKey, it)
+            }
+            // Re-create response body since we consumed it
+            return response.newBuilder()
+                .body(bodyString?.toResponseBody())
+                .build()
+        }
+
+        return response
+    }
+
+    private fun Context.isOnline(): Boolean {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        return cm.activeNetworkInfo?.isConnected == true
+    }
+}
+```
+
+## API Service Definitions
+
+### Weather API Service
+
+```kotlin
+interface WeatherApi {
+
+    @GET("weather")
+    suspend fun getCurrentWeather(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double,
+        @Query("appid") apiKey: String,
+        @Query("units") units: String = "metric"
+    ): WeatherResponse
+
+    @GET("forecast")
+    suspend fun getWeatherForecast(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double,
+        @Query("cnt") count: Int,
+        @Query("appid") apiKey: String,
+        @Query("units") units: String = "metric"
+    ): WeatherForecastResponse
+
+    @GET("air_pollution")
+    suspend fun getAirPollution(
+        @Query("lat") lat: Double,
+        @Query("lon") lon: Double,
+        @Query("appid") apiKey: String
+    ): AirPollutionResponse
+}
+
+data class WeatherResponse(
+    @SerializedName("main") val main: MainWeather,
+    @SerializedName("weather") val weather: List<WeatherCondition>,
+    @SerializedName("wind") val wind: Wind,
+    @SerializedName("name") val cityName: String
+)
+
+data class MainWeather(
+    @SerializedName("temp") val temperature: Double,
+    @SerializedName("feels_like") val feelsLike: Double,
+    @SerializedName("humidity") val humidity: Int,
+    @SerializedName("pressure") val pressure: Int
+)
+
+data class WeatherCondition(
+    @SerializedName("id") val id: Int,
+    @SerializedName("main") val main: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("icon") val icon: String
+)
+
+data class Wind(
+    @SerializedName("speed") val speed: Double,
+    @SerializedName("deg") val direction: Int
+)
+```
+
+### Product API Service
+
+```kotlin
+interface ProductApi {
+
+    @GET("products")
+    suspend fun getProducts(
+        @Query("page") page: Int,
+        @Query("size") size: Int,
+        @Query("category") category: String?,
+        @Query("minPrice") minPrice: Double?,
+        @Query("maxPrice") maxPrice: Double?,
+        @Query("sortBy") sortBy: String = "createdAt",
+        @Query("sortDir") sortDir: String = "desc"
+    ): PagedResponse<ProductResponse>
+
+    @GET("products/{id}")
+    suspend fun getProduct(
+        @Path("id") productId: String
+    ): ProductResponse
+
+    @POST("products")
+    suspend fun createProduct(
+        @Body request: CreateProductRequest
+    ): ProductResponse
+
+    @PUT("products/{id}")
+    suspend fun updateProduct(
+        @Path("id") productId: String,
+        @Body request: UpdateProductRequest
+    ): ProductResponse
+
+    @DELETE("products/{id}")
+    suspend fun deleteProduct(
+        @Path("id") productId: String
+    ): Unit
+
+    @GET("products/search")
+    suspend fun searchProducts(
+        @Query("q") query: String,
+        @Query("page") page: Int,
+        @Query("size") size: Int
+    ): PagedResponse<ProductResponse>
+}
+
+data class ProductResponse(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("price") val price: Double,
+    @SerializedName("currency") val currency: String,
+    @SerializedName("category") val category: String,
+    @SerializedName("breed") val breed: String?,
+    @SerializedName("age") val age: Int?,
+    @SerializedName("weight") val weight: Double?,
+    @SerializedName("images") val images: List<String>,
+    @SerializedName("seller") val seller: SellerResponse,
+    @SerializedName("location") val location: LocationResponse,
+    @SerializedName("createdAt") val createdAt: Instant,
+    @SerializedName("updatedAt") val updatedAt: Instant
+)
+
+data class PagedResponse<T>(
+    @SerializedName("content") val content: List<T>,
+    @SerializedName("totalElements") val totalElements: Long,
+    @SerializedName("totalPages") val totalPages: Int,
+    @SerializedName("number") val number: Int,
+    @SerializedName("size") val size: Int
+)
+```
+
+## Rate Limiting
+
+### Rate Limiter Implementation
+
+```kotlin
+class RateLimiter @Inject constructor() {
+    private val tokenBucket = ConcurrentHashMap<String, TokenBucket>()
+
+    data class TokenBucket(
+        var tokens: Double,
+        val maxTokens: Double,
+        val refillRate: Double, // tokens per second
+        var lastRefill: Long = System.currentTimeMillis()
+    )
+
+    /**
+     * Check if request is allowed
+     */
+    suspend fun isAllowed(clientId: String, tokensRequired: Int = 1): Boolean {
+        return synchronized(this) {
+            val bucket = tokenBucket.getOrPut(clientId) {
+                TokenBucket(
+                    tokens = 100.0,
+                    maxTokens = 100.0,
+                    refillRate = 10.0
+                )
+            }
+
+            // Refill tokens based on time elapsed
+            val now = System.currentTimeMillis()
+            val elapsed = (now - bucket.lastRefill) / 1000.0
+            bucket.tokens = minOf(
+                bucket.maxTokens,
+                bucket.tokens + elapsed * bucket.refillRate
+            )
+            bucket.lastRefill = now
+
+            // Check if enough tokens
+            if (bucket.tokens >= tokensRequired) {
+                bucket.tokens -= tokensRequired
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    /**
+     * Get remaining tokens
+     */
+    fun getRemainingTokens(clientId: String): Double {
+        return tokenBucket[clientId]?.tokens ?: 0.0
+    }
+}
+```
+
+### Rate Limit Interceptor
+
+```kotlin
+class RateLimitInterceptor @Inject constructor(
+    private val rateLimiter: RateLimiter,
+    private val sessionManager: SessionManager
+) : Interceptor {
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val clientId = sessionManager.getUserId() ?: "anonymous"
+
+        // Check rate limit
+        if (!rateLimiter.isAllowed(clientId)) {
+            throw ApiError.RateLimitExceeded(
+                "Rate limit exceeded. Try again in ${calculateRetryAfter(clientId)} seconds"
+            )
+        }
+
+        val response = chain.proceed(chain.request())
+
+        // Update rate limit from headers
+        response.headers.get("X-RateLimit-Remaining")?.toIntOrNull()?.let {
+            // Update local rate limiter
+        }
+
+        return response
+    }
+
+    private fun calculateRetryAfter(clientId: String): Long {
+        val remaining = rateLimiter.getRemainingTokens(clientId)
+        return ((1 - remaining) / 10.0).toLong() + 1
     }
 }
 ```
 
 ## Error Handling
 
-### API Response Wrapper
-
-Use a sealed class to handle different response states:
+### API Error Response
 
 ```kotlin
-sealed class ApiResponse<out T> {
-    data class Success<T>(val data: T) : ApiResponse<T>()
-    data class Error(val code: Int, val message: String) : ApiResponse<Nothing>()
-    object Loading : ApiResponse<Nothing>()
-}
-
-// Alternative using Resource pattern
-sealed class Resource<out T> {
-    data class Success<T>(val data: T) : Resource<T>()
-    data class Error(val message: String, val exception: Exception? = null) : Resource<Nothing>()
-    object Loading : Resource<Nothing>()
-}
-```
-
-### Safe API Call Wrapper
-
-Create a safe wrapper for API calls with error handling:
-
-```kotlin
-suspend fun <T> safeApiCall(apiCall: suspend () -> T): Resource<T> {
-    return try {
-        Resource.Success(apiCall())
-    } catch (e: HttpException) {
-        Resource.Error(
-            message = "HTTP Error: ${e.code()} - ${e.message()}",
-            exception = e
-        )
-    } catch (e: IOException) {
-        Resource.Error(
-            message = "Network Error: ${e.message}",
-            exception = e
-        )
-    } catch (e: JsonEncodingException) {
-        Resource.Error(
-            message = "JSON Parsing Error: ${e.message}",
-            exception = e
-        )
-    } catch (e: Exception) {
-        Resource.Error(
-            message = "Unexpected Error: ${e.message}",
-            exception = e
-        )
-    }
-}
-```
-
-### Error Interceptor
-
-Implement an error interceptor for handling specific HTTP errors:
-
-```kotlin
-class ErrorInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val response = chain.proceed(chain.request())
-        
-        when (response.code) {
-            401 -> {
-                // Unauthorized - token may be expired
-                // Trigger token refresh or redirect to login
-                handleUnauthorized(response)
-            }
-            403 -> {
-                // Forbidden - insufficient permissions
-                handleForbidden(response)
-            }
-            429 -> {
-                // Too many requests - implement rate limiting
-                handleRateLimit(response)
-            }
-            500, 502, 503, 504 -> {
-                // Server errors - implement retry logic
-                handleServerError(response)
-            }
-        }
-        
-        return response
-    }
-    
-    private fun handleUnauthorized(response: Response) {
-        // Handle unauthorized access
-        // Could trigger token refresh or logout
-    }
-    
-    private fun handleForbidden(response: Response) {
-        // Handle forbidden access
-    }
-    
-    private fun handleRateLimit(response: Response) {
-        // Handle rate limiting
-        // Could implement exponential backoff
-    }
-    
-    private fun handleServerError(response: Response) {
-        // Handle server errors
-        // Could implement retry with backoff
-    }
-}
-```
-
-## Caching Strategy
-
-### HTTP Caching
-
-Enable HTTP caching in the OkHttp client:
-
-```kotlin
-private fun createCache(): Cache {
-    val cacheSize = 10 * 1024 * 1024L // 10 MB
-    return Cache(File(context.cacheDir, "http_cache"), cacheSize)
-}
-
-// Add cache interceptor
-.addInterceptor(HttpCacheInterceptor())
-```
-
-### Custom Caching with CacheManager
-
-Use the application's CacheManager for custom caching:
-
-```kotlin
-@Singleton
-class ProductRepositoryImpl @Inject constructor(
-    private val productService: ProductService,
-    private val cacheManager: CacheManager
-) : ProductRepository {
-    
-    override suspend fun getProducts(): Resource<List<Product>> {
-        return safeApiCall {
-            // Try cache first
-            val cached = cacheManager.get<List<Product>>("products")
-            if (cached != null) {
-                return@safeApiCall cached
-            }
-            
-            // Fetch from API
-            val products = productService.getProducts()
-            
-            // Cache the result
-            cacheManager.put("products", products, CachePolicy(ttl = 5.minutes))
-            
-            products
-        }
-    }
-}
-```
-
-### Cache Policy Configuration
-
-Define different cache policies for different use cases:
-
-```kotlin
-data class CachePolicy(
-    val strategy: CacheStrategy,
-    val ttl: Duration,
-    val maxSize: Int = DEFAULT_MAX_SIZE,
-    val evictionPolicy: EvictionPolicy = EvictionPolicy.LRU
+data class ErrorResponse(
+    @SerializedName("error") val error: ErrorDetail,
+    @SerializedName("timestamp") val timestamp: Instant,
+    @SerializedName("path") val path: String
 )
 
-enum class CacheStrategy {
-    CACHE_FIRST,      // Return cached data, fetch fresh in background
-    NETWORK_FIRST,    // Always fetch from network, cache result
-    STALE_WHILE_REVALIDATE,  // Return stale cache while fetching fresh
-    CACHE_ONLY,       // Only return cached data
-    NETWORK_ONLY      // Skip cache, always fetch from network
-}
+data class ErrorDetail(
+    @SerializedName("code") val code: String,
+    @SerializedName("message") val message: String,
+    @SerializedName("details") val details: List<ErrorDetail>? = null
+)
 ```
 
-## Rate Limiting
-
-### Rate Limit Interceptor
-
-Implement rate limiting to prevent API abuse:
+### Error Handler
 
 ```kotlin
-class RateLimitInterceptor : Interceptor {
-    private val requestCounts = mutableMapOf<String, MutableList<Long>>()
-    private val lock = Mutex()
-    
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val host = request.url.host
-        
-        // Check rate limit for this host
-        if (isRateLimited(host)) {
-            throw IOException("Rate limit exceeded for $host")
+class ApiErrorHandler @Inject constructor() {
+
+    fun handleErrorResponse(response: Response<*>): ApiError {
+        val errorBody = response.errorBody()?.string()
+        val errorResponse = try {
+            Gson().fromJson(errorBody, ErrorResponse::class.java)
+        } catch (e: Exception) {
+            null
         }
-        
-        // Record request
-        recordRequest(host)
-        
-        return chain.proceed(request)
-    }
-    
-    private fun isRateLimited(host: String): Boolean {
-        val currentTime = System.currentTimeMillis()
-        val windowStart = currentTime - TIME_WINDOW_MS
-        
-        val requests = requestCounts[host] ?: emptyList()
-        val validRequests = requests.filter { it > windowStart }
-        
-        return validRequests.size >= MAX_REQUESTS_PER_WINDOW
-    }
-    
-    private fun recordRequest(host: String) {
-        val currentTime = System.currentTimeMillis()
-        val requests = requestCounts.getOrPut(host) { mutableListOf() }
-        
-        // Clean up old requests
-        requests.removeAll { it < System.currentTimeMillis() - TIME_WINDOW_MS }
-        
-        // Add current request
-        requests.add(currentTime)
-    }
-    
-    companion object {
-        private const val MAX_REQUESTS_PER_WINDOW = 10
-        private const val TIME_WINDOW_MS = 60_000L // 1 minute
-    }
-}
-```
 
-### API-Specific Rate Limiting
-
-Some APIs have specific rate limits that should be respected:
-
-```kotlin
-class WeatherApiRateLimiter {
-    private val lastRequestTime = mutableMapOf<String, Long>()
-    private val lock = Mutex()
-    
-    suspend fun canMakeRequest(apiKey: String): Boolean {
-        lock.withLock {
-            val lastTime = lastRequestTime[apiKey] ?: 0L
-            val currentTime = System.currentTimeMillis()
-            
-            // Weather API allows 1 request per second per key
-            return currentTime - lastTime >= 1000L
-        }
-    }
-    
-    suspend fun recordRequest(apiKey: String) {
-        lock.withLock {
-            lastRequestTime[apiKey] = System.currentTimeMillis()
+        return when (response.code()) {
+            400 -> ApiError.BadRequest(
+                errorResponse?.error?.message ?: "Bad request"
+            )
+            401 -> ApiError.Unauthorized(
+                errorResponse?.error?.message ?: "Unauthorized"
+            )
+            403 -> ApiError.Forbidden(
+                errorResponse?.error?.message ?: "Forbidden"
+            )
+            404 -> ApiError.NotFound(
+                errorResponse?.error?.message ?: "Not found"
+            )
+            408 -> ApiError.TimeoutError(
+                errorResponse?.error?.message ?: "Request timeout"
+            )
+            429 -> ApiError.RateLimitExceeded(
+                errorResponse?.error?.message ?: "Rate limit exceeded"
+            )
+            in 500..599 -> ApiError.ServerError(
+                errorResponse?.error?.message ?: "Server error",
+                response.code()
+            )
+            else -> ApiError.UnknownError(
+                errorResponse?.error?.message ?: "Unknown error",
+                null
+            )
         }
     }
 }
 ```
 
-## Security Considerations
+## Testing API Integration
 
-### Certificate Pinning
-
-For production environments, implement certificate pinning:
+### Mock API Service
 
 ```kotlin
-val certificatePinner = CertificatePinner.Builder()
-    .add("api.rostry.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
-    .add("api.rostry.com", "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=")
-    .build()
+class MockProductApi : ProductApi {
+    private val products = mutableListOf<ProductResponse>()
 
-okHttpClientBuilder.certificatePinner(certificatePinner)
-```
+    override suspend fun getProducts(
+        page: Int,
+        size: Int,
+        category: String?,
+        minPrice: Double?,
+        maxPrice: Double?,
+        sortBy: String,
+        sortDir: String
+    ): PagedResponse<ProductResponse> {
+        // Simulate network delay
+        delay(100)
 
-### API Key Security
+        val filtered = products.filter { product ->
+            category == null || product.category == category
+        }.let {
+            if (minPrice != null) it.filter { it.price >= minPrice } else it
+        }.let {
+            if (maxPrice != null) it.filter { it.price <= maxPrice } else it
+        }
 
-Never hardcode API keys in the source code:
-
-```kotlin
-// Use BuildConfig or secure storage
-class ApiKeyProvider {
-    fun getApiKey(): String {
-        return BuildConfig.API_KEY.takeIf { it.isNotEmpty() }
-            ?: loadFromSecureStorage()
+        return PagedResponse(
+            content = filtered,
+            totalElements = filtered.size.toLong(),
+            totalPages = 1,
+            number = page,
+            size = size
+        )
     }
-    
-    private fun loadFromSecureStorage(): String {
-        // Load from encrypted shared preferences or keystore
-        TODO("Implement secure storage loading")
+
+    override suspend fun getProduct(productId: String): ProductResponse {
+        delay(100)
+        return products.find { it.id == productId }
+            ?: throw ApiError.NotFound("Product not found")
     }
+
+    override suspend fun createProduct(request: CreateProductRequest): ProductResponse {
+        delay(100)
+        val product = ProductResponse(
+            id = UUID.randomUUID().toString(),
+            name = request.name,
+            description = request.description,
+            price = request.price,
+            currency = "INR",
+            category = request.category,
+            breed = request.breed,
+            age = request.age,
+            weight = request.weight,
+            images = request.images,
+            seller = SellerResponse(id = "seller1", name = "Test Seller"),
+            location = LocationResponse(lat = 0.0, lon = 0.0),
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        products.add(product)
+        return product
+    }
+
+    // ... other implementations
 }
 ```
 
-### Data Encryption
-
-Encrypt sensitive data in transit and at rest:
-
-```kotlin
-// For sensitive API calls, use additional encryption
-class EncryptedApiService {
-    suspend fun sendSensitiveData(data: String): ApiResponse<String> {
-        val encryptedData = encrypt(data)
-        return apiService.sendEncryptedData(encryptedData)
-    }
-    
-    private fun encrypt(data: String): String {
-        // Implement encryption using AES or similar
-        TODO("Implement encryption")
-    }
-}
-```
-
-## Testing API Integrations
-
-### Mock Web Server
-
-Use MockWebServer for testing API integrations:
-
-```kotlin
-class ApiServiceTest {
-    @get:Rule
-    val mockWebServer = MockWebServer()
-    
-    private lateinit var apiService: ApiService
-    
-    @Before
-    fun setUp() {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(mockWebServer.url("/"))
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        
-        apiService = retrofit.create(ApiService::class.java)
-    }
-    
-    @Test
-    fun `getWeather returns success response`() = runTest {
-        // Given
-        val weatherJson = """
-            {
-                "temperature": 25,
-                "humidity": 60,
-                "location": "Bangalore"
-            }
-        """.trimIndent()
-        
-        mockWebServer.enqueue(MockResponse()
-            .setBody(weatherJson)
-            .addHeader("Content-Type", "application/json"))
-        
-        // When
-        val response = apiService.getCurrentWeather("Bangalore")
-        
-        // Then
-        assertTrue(response is ApiResponse.Success)
-        assertEquals(25, (response as ApiResponse.Success).data.temperature)
-    }
-}
-```
-
-### Integration Testing
-
-Test the full integration with repositories:
+### API Integration Test
 
 ```kotlin
 @HiltAndroidTest
-class WeatherRepositoryTest {
-    @get:Rule
+class ProductApiIntegrationTest {
+    @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
-    
+
     @Inject
-    lateinit var weatherRepository: WeatherRepository
-    
-    @Inject
-    lateinit var cacheManager: CacheManager
-    
+    lateinit var productApi: ProductApi
+
     @Test
-    fun `getCurrentWeather fetches from API and caches result`() = runTest {
-        // Given
-        val location = "Bangalore"
-        
+    fun `getProducts returns product list`() = runTest {
         // When
-        val result = weatherRepository.getCurrentWeather(location)
-        
+        val response = productApi.getProducts(
+            page = 0,
+            size = 10,
+            category = null,
+            minPrice = null,
+            maxPrice = null,
+            sortBy = "createdAt",
+            sortDir = "desc"
+        )
+
         // Then
-        assertTrue(result is Resource.Success)
-        
-        // Verify cache was updated
-        val cached = cacheManager.get<WeatherData>("weather_$location")
-        assertNotNull(cached)
+        assertThat(response.content).isNotEmpty()
+        assertThat(response.totalPages).isGreaterThan(0)
     }
-}
-```
 
-## Monitoring and Logging
+    @Test
+    fun `getProduct returns product when exists`() = runTest {
+        // Given
+        val productId = "test-product-id"
 
-### API Call Logging
+        // When
+        val product = productApi.getProduct(productId)
 
-Log API calls for debugging and monitoring:
-
-```kotlin
-class LoggingInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val startTime = System.currentTimeMillis()
-        
-        Timber.d("API Call: ${request.method} ${request.url}")
-        
-        val response = chain.proceed(request)
-        val duration = System.currentTimeMillis() - startTime
-        
-        Timber.d("API Response: ${response.code} (${duration}ms)")
-        
-        if (!response.isSuccessful) {
-            Timber.w("API Error: ${response.code} - ${request.url}")
-        }
-        
-        return response
+        // Then
+        assertThat(product.id).isEqualTo(productId)
     }
-}
-```
 
-### Performance Monitoring
+    @Test
+    fun `getProduct throws NotFound when product doesn't exist`() = runTest {
+        // Given
+        val productId = "non-existent-id"
 
-Track API performance metrics:
-
-```kotlin
-class ApiPerformanceTracker {
-    private val apiMetrics = mutableMapOf<String, MutableList<Long>>()
-    
-    fun recordApiCall(endpoint: String, durationMs: Long) {
-        val durations = apiMetrics.getOrPut(endpoint) { mutableListOf() }
-        durations.add(durationMs)
-        
-        // Log slow API calls
-        if (durationMs > SLOW_CALL_THRESHOLD) {
-            Timber.w("Slow API call: $endpoint took ${durationMs}ms")
+        // When/Then
+        assertFailsWith<ApiError.NotFound> {
+            productApi.getProduct(productId)
         }
     }
-    
-    fun getAverageResponseTime(endpoint: String): Double? {
-        return apiMetrics[endpoint]?.average()
-    }
-    
-    companion object {
-        private const val SLOW_CALL_THRESHOLD = 2000L // 2 seconds
-    }
 }
 ```
+
+## Best Practices
+
+### API Design Principles
+
+1. **RESTful endpoints**: Use proper HTTP methods and status codes
+2. **Versioning**: Include API version in URL or headers
+3. **Pagination**: Always paginate list responses
+4. **Filtering**: Support filtering and sorting
+5. **Error handling**: Return consistent error formats
+6. **Rate limiting**: Protect API from abuse
+7. **Caching**: Use appropriate cache headers
+8. **Documentation**: Document all endpoints with OpenAPI/Swagger
+
+### Security Best Practices
+
+1. **HTTPS only**: Never use HTTP in production
+2. **Token authentication**: Use Bearer tokens
+3. **Token refresh**: Implement token refresh mechanism
+4. **Certificate pinning**: Pin certificates in production
+5. **Input validation**: Validate all input on server
+6. **Rate limiting**: Implement rate limiting
+7. **CORS**: Configure CORS properly
+8. **API keys**: Store securely, rotate regularly
+
+### Performance Best Practices
+
+1. **Connection pooling**: Reuse connections
+2. **Compression**: Enable gzip compression
+3. **Caching**: Cache responses appropriately
+4. **Pagination**: Limit response sizes
+5. **Field selection**: Allow clients to request specific fields
+6. **Batching**: Support batch operations
+7. **Async operations**: Use coroutines for async calls
+8. **Timeout configuration**: Set appropriate timeouts
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. SSL Certificate Errors
-- **Issue**: `javax.net.ssl.SSLHandshakeException`
-- **Solution**: Check certificate pinning configuration or update certificates
+**Problem**: 401 Unauthorized errors
+- **Cause**: Expired or missing auth token
+- **Solution**: Implement token refresh, check token storage
 
-#### 2. Timeout Errors
-- **Issue**: `java.net.SocketTimeoutException`
-- **Solution**: Increase timeout values or check network connectivity
+**Problem**: 429 Rate Limit Exceeded
+- **Cause**: Too many requests
+- **Solution**: Implement backoff, reduce request frequency
 
-#### 3. 401 Unauthorized
-- **Issue**: API returns 401 status
-- **Solution**: Check authentication token validity and refresh if needed
+**Problem**: Timeout errors
+- **Cause**: Slow network or server
+- **Solution**: Increase timeout, implement retry
 
-#### 4. 429 Rate Limited
-- **Issue**: API returns 429 status
-- **Solution**: Implement proper rate limiting or increase limits with provider
+**Problem**: SSL handshake failures
+- **Cause**: Certificate issues
+- **Solution**: Check certificate pinning, update trust store
 
-#### 5. JSON Parsing Errors
-- **Issue**: `com.google.gson.JsonSyntaxException`
-- **Solution**: Check API response format and update data models accordingly
+## Related Documentation
 
-### Debugging Tips
+- `firebase-setup.md` - Firebase integration
+- `data-sources-integration.md` - Data source patterns
+- `api-documentation.md` - API documentation standards
+- `security-encryption.md` - Security practices
 
-1. **Enable Logging**: Add logging interceptors to see request/response details
-2. **Use Network Profiler**: Android Studio's network profiler to inspect traffic
-3. **Mock Services**: Use MockWebServer to isolate API issues
-4. **Check Headers**: Verify all required headers are being sent
-5. **Validate URLs**: Ensure base URLs and endpoints are correct
-6. **Test Connectivity**: Verify network connectivity and permissions
+## Appendix: File Locations
 
-### Performance Optimization
+```
+data/api/
+├── WeatherApi.kt
+├── ProductApi.kt
+├── OrderApi.kt
+└── ...
 
-1. **Batch Requests**: Combine multiple requests when possible
-2. **Use Caching**: Implement appropriate caching strategies
-3. **Compress Data**: Enable gzip compression for large payloads
-4. **Connection Pooling**: Reuse HTTP connections
-5. **Background Processing**: Perform API calls on background threads
-6. **Pagination**: Use pagination for large datasets
+data/interceptor/
+├── AuthInterceptor.kt
+├── LoggingInterceptor.kt
+├── NetworkInterceptor.kt
+├── OfflineInterceptor.kt
+└── RateLimitInterceptor.kt
 
----
+di/
+├── HttpModule.kt
+├── NetworkModule.kt
+└── ...
 
-## Conclusion
-
-This guide provides a comprehensive approach to API integration in the ROSTRY application. Following these patterns and best practices will ensure reliable, secure, and performant API communication throughout the application.
-
-For specific API documentation, refer to the individual service documentation and the repository contracts outlined in `api-documentation.md`.
+data/model/api/
+├── WeatherResponse.kt
+├── ProductResponse.kt
+├── ErrorResponse.kt
+└── ...
+```

@@ -38,7 +38,8 @@ enum class AlleleE(override val symbol: String, override val dominance: Int) : A
 // ==================== S LOCUS (Silver/Gold) - Sex Linked ====================
 enum class AlleleS(override val symbol: String, override val dominance: Int) : Allele {
     SILVER("S", 2),
-    GOLD("s+", 1);
+    GOLD("s+", 1),
+    NONE("-", 0); // Represents W chromosome in females (hemizygous)
 
     override val geneType = GeneType.S_LOCUS
 }
@@ -46,7 +47,8 @@ enum class AlleleS(override val symbol: String, override val dominance: Int) : A
 // ==================== B LOCUS (Barring) - Sex Linked ====================
 enum class AlleleB(override val symbol: String, override val dominance: Int) : Allele {
     BARRED("B", 2),
-    NON_BARRED("b+", 1);
+    NON_BARRED("b+", 1),
+    NONE("-", 0); // Represents W chromosome in females (hemizygous)
 
     override val geneType = GeneType.B_LOCUS
 }

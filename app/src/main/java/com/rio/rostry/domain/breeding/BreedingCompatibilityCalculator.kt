@@ -2,10 +2,22 @@ package com.rio.rostry.domain.breeding
 
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.domain.genetics.PhenotypeMapper
 import kotlinx.coroutines.flow.Flow
 import kotlin.math.pow
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Breeding compatibility suggestion
+ */
+data class BreedingSuggestion(
+    val productId: String,
+    val productName: String,
+    val compatibilityScore: Int,
+    val diversityScore: Double,
+    val reasons: List<String>
+)
 
 @Singleton
 class BreedingCompatibilityCalculator @Inject constructor(
@@ -13,12 +25,17 @@ class BreedingCompatibilityCalculator @Inject constructor(
     private val productRepository: ProductRepository // Injected for ancestor traversal
 ) {
 
+    // Cache for ancestor lookups per session
+    private val ancestorCache = mutableMapOf<String, Map<String, Int>>()
+
     /**
      * Calculates a comprehensive compatibility score (0-100) and analysis.
      * This now includes:
      * 1. Genetic Compatibility (Inbreeding Coefficient - COI)
      * 2. Phenotype Matching (Breed, Comb, Color) via Genetic Engine
      * 3. Age & Health Logic
+     * 4. Lethal/Sex-linked Risk Deductions
+     * 5. Alternative Suggestions
      */
     suspend fun calculateCompatibility(male: ProductEntity, female: ProductEntity): CompatibilityResult {
         var score = 0
@@ -30,14 +47,14 @@ class BreedingCompatibilityCalculator @Inject constructor(
             reasons.add("Breed match: ${male.breed}")
         } else {
             reasons.add("Cross-breeding: ${male.breed} x ${female.breed}")
-            score += 10 
+            score += 10
         }
 
-        // --- 2. Inbreeding Coefficient (COI) ---
-        // We warn heavily if COI is high.
-        // Full Sibling = 25%, Half Sibling = 12.5%, First Cousin = 6.25%
-        // We penalize score based on COI.
-        val coi = calculateCOI(male, female)
+        // --- 2. Inbreeding Coefficient (COI) using Wright's Path Method ---
+        // Clear cache for new calculation
+        ancestorCache.clear()
+        
+        val coi = calculateCOI(male, female, maxDepth = 5) // Up to 5 generations
         if (coi > 0.12) { // > 12.5% (Half-Siblings or closer)
             score -= 50
             reasons.add("CRITICAL: High Inbreeding (${"%.1f".format(coi * 100)}%)")
@@ -46,28 +63,60 @@ class BreedingCompatibilityCalculator @Inject constructor(
             reasons.add("WARNING: Moderate Inbreeding (${"%.1f".format(coi * 100)}%)")
         } else {
             score += 20 // Bonus for genetic diversity
-            reasons.add("Low Inbreeding Coefficient")
+            reasons.add("Low Inbreeding Coefficient (${"%.1f".format(coi * 100)}%)")
         }
 
-        // --- 3. Genetic Engine Trait Analysis (20 pts) ---
-        // Check key traits for synergy
-        val maleCombGeno = geneticEngine.inferGenotype(GeneticEngine.TraitType.COMB, "Rose") // Placeholder lookup from entity
-        val femaleCombGeno = geneticEngine.inferGenotype(GeneticEngine.TraitType.COMB, "Single") // Placeholder
-        // Real implementation would parse attributes from ProductEntity.description or attributes json
+        // --- 3. Phenotype Analysis via PhenotypeMapper ---
+        // Infer genotypes from product attributes
+        val maleGenotype = inferGenotypeFromProduct(male)
+        val femaleGenotype = inferGenotypeFromProduct(female)
         
-        // For now, simple color match check
-        if (!male.color.isNullOrBlank() && male.color.equals(female.color, ignoreCase = true)) {
-            score += 20
-            reasons.add("Color match: ${male.color}")
-        } else if(male.color != null && female.color != null) {
-            score += 10
-            reasons.add("Color cross: ${male.color}/${female.color}")
+        if (maleGenotype != null && femaleGenotype != null) {
+            val malePhenotype = PhenotypeMapper.mapToAppearance(maleGenotype, male.ageInWeeks ?: 0)
+            val femalePhenotype = PhenotypeMapper.mapToAppearance(femaleGenotype, female.ageInWeeks ?: 0)
+            
+            // Comb compatibility
+            if (malePhenotype.comb == femalePhenotype.comb) {
+                score += 15
+                reasons.add("Comb match: ${malePhenotype.comb}")
+            } else {
+                reasons.add("Comb cross: ${malePhenotype.comb} x ${femalePhenotype.comb}")
+                score += 5
+            }
+            
+            // Color compatibility
+            if (malePhenotype.chestColor == femalePhenotype.chestColor) {
+                score += 10
+                reasons.add("Color match: ${malePhenotype.chestColor}")
+            }
         }
 
-        // --- 4. Health & Status ---
+        // --- 4. Lethal/Sex-linked Risk Deductions ---
+        val lethalRisk = assessLethalRisk(male, female)
+        if (lethalRisk > 0) {
+            val deduction = (lethalRisk * 30).toInt()
+            score -= deduction
+            reasons.add("WARNING: Lethal gene risk detected (-$deduction pts)")
+        }
+        
+        val sexLinkedRisk = assessSexLinkedRisk(male, female)
+        if (sexLinkedRisk > 0) {
+            val deduction = (sexLinkedRisk * 20).toInt()
+            score -= deduction
+            reasons.add("WARNING: Sex-linked trait risk (-$deduction pts)")
+        }
+
+        // --- 5. Health & Status ---
         if (male.healthStatus == "Sick" || female.healthStatus == "Sick") {
              score = 0
              reasons.add("CRITICAL: One or more parents are marked as Sick")
+        }
+        
+        // Age compatibility
+        val ageDiff = abs((male.ageInWeeks ?: 0) - (female.ageInWeeks ?: 0))
+        if (ageDiff > 52) { // More than 1 year difference
+            score -= 10
+            reasons.add("Age gap: ${ageDiff / 52} years")
         }
 
         val totalScore = score.coerceIn(0, 100)
@@ -75,9 +124,131 @@ class BreedingCompatibilityCalculator @Inject constructor(
             score = totalScore,
             verdict = getVerdict(totalScore),
             reasons = reasons,
-            coiPercent = coi * 100
+            coiPercent = coi * 100,
+            diversityScore = 1.0 - coi,
+            lethalRisk = lethalRisk,
+            sexLinkedRisk = sexLinkedRisk
         )
     }
+
+    /**
+     * Get alternative breeding suggestions (non-related birds)
+     */
+    suspend fun getAlternativeSuggestions(
+        currentPartner: ProductEntity,
+        excludeWithinGenerations: Int = 3,
+        maxSuggestions: Int = 5
+    ): List<BreedingSuggestion> {
+        // Get related birds to exclude
+        val relatedIds = getRelatedBirdIds(currentPartner, excludeWithinGenerations)
+        
+        // Get all potential mates (same species, opposite sex, not sick)
+        val allProducts = productRepository.getAllProducts()
+        val potentialMates = allProducts.filter { product ->
+            product.productId != currentPartner.productId &&
+            product.productId !in relatedIds &&
+            product.healthStatus != "Sick" &&
+            product.isMale != currentPartner.isMale // Opposite sex
+        }
+        
+        // Calculate compatibility for each and rank by diversity
+        val suggestions = mutableListOf<BreedingSuggestion>()
+        for (mate in potentialMates) {
+            val result = calculateCompatibility(
+                if (currentPartner.isMale) currentPartner else mate,
+                if (currentPartner.isMale) mate else currentPartner
+            )
+            
+            suggestions.add(
+                BreedingSuggestion(
+                    productId = mate.productId,
+                    productName = mate.name ?: "Unknown",
+                    compatibilityScore = result.score,
+                    diversityScore = result.diversityScore,
+                    reasons = result.reasons.take(3) // Top 3 reasons
+                )
+            )
+        }
+        
+        // Sort by diversity score (highest first) and cap to maxSuggestions
+        return suggestions
+            .sortedByDescending { it.diversityScore }
+            .take(maxSuggestions)
+    }
+
+    /**
+     * Get all related bird IDs within N generations
+     */
+    private suspend fun getRelatedBirdIds(product: ProductEntity, generations: Int): Set<String> {
+        val ancestors = getAncestors(product, generations)
+        return ancestors.keys.toSet()
+    }
+
+    /**
+     * Infer genotype from product attributes
+     */
+    private fun inferGenotypeFromProduct(product: ProductEntity): com.rio.rostry.domain.model.GeneticProfile? {
+        // Parse attributes from product description or attributes JSON
+        // This is a simplified version - real implementation would parse from stored data
+        
+        // For now, use breed-based defaults
+        val breed = product.breed ?: return null
+        
+        return geneticEngine.getDefaultGenotypeForBreed(breed)
+    }
+
+    /**
+     * Assess lethal gene combinations
+     */
+    private suspend fun assessLethalRisk(male: ProductEntity, female: ProductEntity): Double {
+        // Check for known lethal combinations (e.g., Frizzle x Frizzle)
+        val maleTraits = parseTraits(male)
+        val femaleTraits = parseTraits(female)
+        
+        // Frizzle gene: F/f x F/f = 25% FF (lethal)
+        if (maleTraits.contains("frizzle") && femaleTraits.contains("frizzle")) {
+            return 0.25 // 25% chance of lethal
+        }
+        
+        // Creeper gene: Cp/cp x Cp/cp = 25% CpCp (lethal)
+        if (maleTraits.contains("creeper") && femaleTraits.contains("creeper")) {
+            return 0.25
+        }
+        
+        return 0.0
+    }
+
+    /**
+     * Assess sex-linked trait risks
+     */
+    private suspend fun assessSexLinkedRisk(male: ProductEntity, female: ProductEntity): Double {
+        // Check for sex-linked traits (Silver/Gold, Barring)
+        // Males are ZZ, Females are ZW
+        
+        // If male is homozygous recessive and female is dominant
+        // All male offspring will be one way, all females another
+        
+        // Simplified check - real implementation would use genetic profiles
+        return 0.0
+    }
+
+    /**
+     * Parse traits from product attributes
+     */
+    private fun parseTraits(product: ProductEntity): Set<String> {
+        val traits = mutableSetOf<String>()
+        val description = product.description ?: return traits
+        
+        val lowerDesc = description.lowercase()
+        if (lowerDesc.contains("frizzle")) traits.add("frizzle")
+        if (lowerDesc.contains("creeper")) traits.add("creeper")
+        if (lowerDesc.contains("barred")) traits.add("barred")
+        if (lowerDesc.contains("silkie")) traits.add("silkie")
+        
+        return traits
+    }
+
+    private fun abs(x: Int): Int = kotlin.math.abs(x)
 
     private fun getVerdict(score: Int): String = when {
         score >= 80 -> "Excellent Match"
@@ -120,8 +291,13 @@ class BreedingCompatibilityCalculator @Inject constructor(
     /**
      * Returns a map of AncestorID -> GenerationsBack (Depth)
      * e.g., Father -> 0, Grandfather -> 1
+     * Uses caching to avoid redundant lookups per session
      */
     private suspend fun getAncestors(startNode: ProductEntity, maxDepth: Int): Map<String, Int> {
+        // Check cache first
+        val cacheKey = "${startNode.productId}_$maxDepth"
+        ancestorCache[cacheKey]?.let { return it }
+
         val ancestors = mutableMapOf<String, Int>()
         val queue = ArrayDeque<Pair<ProductEntity, Int>>()
         queue.add(startNode to 0)
@@ -149,6 +325,9 @@ class BreedingCompatibilityCalculator @Inject constructor(
                 }
             }
         }
+        
+        // Cache the result
+        ancestorCache[cacheKey] = ancestors
         return ancestors
     }
 
@@ -156,6 +335,9 @@ class BreedingCompatibilityCalculator @Inject constructor(
         val score: Int,
         val verdict: String,
         val reasons: List<String>,
-        val coiPercent: Double = 0.0
+        val coiPercent: Double = 0.0,
+        val diversityScore: Double = 1.0,
+        val lethalRisk: Double = 0.0,
+        val sexLinkedRisk: Double = 0.0
     )
 }

@@ -25,13 +25,25 @@ enum class FarmEventType {
     VACCINATION_DUE, QUARANTINE_OVERDUE, GROWTH_CHECK, BATCH_SPLIT, HATCHING_DUE, MORTALITY_SPIKE,
     BIRD_ADDED, BATCH_ADDED, COMPLIANCE_ALERT, DAILY_GOAL_MILESTONE, KYC_REQUIRED
 }
-  
+
 enum class TransferEventType {
     INITIATED, VERIFIED, COMPLETED, CANCELLED, DISPUTED, TIMED_OUT, ENTHUSIAST_TRANSFER_PROPOSED
 }
-  
+
 enum class SocialEventType {
     NEW_MESSAGE, NEW_COMMENT, NEW_LIKE, NEW_FOLLOW
+}
+
+enum class VerificationEventType {
+    VERIFICATION_APPROVED, VERIFICATION_REJECTED, VERIFICATION_PENDING, VERIFICATION_SUBMITTED
+}
+
+enum class OrderEventType {
+    STATUS_CHANGED, PAYMENT_RECEIVED, SHIPPED, DELIVERED, DISPUTED
+}
+
+enum class LifecycleEventType {
+    BIRD_HATCHED, BIRD_GROWN, BIRD_READY_FOR_MARKET, BIRD_DELETED
 }
   
 @Singleton
@@ -240,7 +252,7 @@ class IntelligentNotificationService @Inject constructor(
         val type = FarmEventType.DAILY_GOAL_MILESTONE
         val userId = currentUserProvider.userIdOrNull() ?: return
         if (!shouldNotify(userId, "FARM")) return
-        
+
         val notificationId = generateId("notif_farm_")
         val deepLink = generateDeepLink("FARM", "", type.name)
         val title = "Daily Goal Progress"
@@ -268,6 +280,51 @@ class IntelligentNotificationService @Inject constructor(
         }
     }
 
+    /**
+     * Notify verification event (APPROVED, REJECTED, PENDING)
+     */
+    suspend fun notifyVerificationEvent(
+        type: VerificationEventType,
+        userId: String,
+        title: String,
+        message: String
+    ) {
+        if (!shouldNotify(userId, "VERIFICATION")) return
+
+        val notificationId = generateId("notif_verification_")
+        val deepLink = "rostry://${Routes.VERIFY_FARMER_LOCATION}"
+
+        val notification = NotificationEntity(
+            notificationId = notificationId,
+            userId = userId,
+            title = title,
+            message = message,
+            type = type.name,
+            deepLinkUrl = deepLink,
+            domain = "VERIFICATION",
+            isBatched = !connectivityManager.isOnline(),
+            batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
+        )
+
+        notificationDao.insertNotification(notification)
+
+        if (connectivityManager.isOnline()) {
+            // Display verification notification
+            when (type) {
+                VerificationEventType.VERIFICATION_APPROVED -> {
+                    FarmNotifier.notifyKycRequired(context) // Reuse KYC notification
+                }
+                VerificationEventType.VERIFICATION_REJECTED,
+                VerificationEventType.VERIFICATION_PENDING,
+                VerificationEventType.VERIFICATION_SUBMITTED -> {
+                    // Use generic analytics notifier for verification messages
+                    analyticsNotifier.showInsight(title, message, deepLink)
+                }
+            }
+            markDisplayed(notificationId)
+        }
+    }
+
     suspend fun notifySocialEvent(
         type: SocialEventType,
         refId: String,
@@ -277,10 +334,10 @@ class IntelligentNotificationService @Inject constructor(
     ) {
         val userId = currentUserProvider.userIdOrNull() ?: return
         if (!shouldNotify(userId, "SOCIAL")) return
-        
+
         val notificationId = generateId("notif_social_")
         val deepLink = generateDeepLink("SOCIAL", refId, type.name)
-  
+
         val notification = NotificationEntity(
             notificationId = notificationId,
             userId = userId,
@@ -292,16 +349,134 @@ class IntelligentNotificationService @Inject constructor(
             isBatched = !connectivityManager.isOnline(),
             batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
         )
-  
+
         notificationDao.insertNotification(notification)
-  
+
         // No task for social events
-  
+
         if (connectivityManager.isOnline()) {
             displaySocialNotification(type, refId, title, message, fromUser)
             markDisplayed(notificationId)
         }
     }
+
+    // ─── New Trigger Methods (Comment 5) ─────────────────────────────────
+
+    /**
+     * Trigger notification when verification is completed
+     */
+    suspend fun onVerificationCompleted(
+        userId: String,
+        verificationType: String,
+        status: String,
+        title: String,
+        message: String
+    ) {
+        if (!shouldNotify(userId, "VERIFICATION")) return
+        
+        val eventType = when (status.uppercase()) {
+            "APPROVED" -> VerificationEventType.VERIFICATION_APPROVED
+            "REJECTED" -> VerificationEventType.VERIFICATION_REJECTED
+            else -> VerificationEventType.VERIFICATION_PENDING
+        }
+        
+        notifyVerificationEvent(eventType, userId, title, message)
+    }
+
+    /**
+     * Trigger notification when transfer is received
+     */
+    suspend fun onTransferReceived(
+        transferId: String,
+        userId: String,
+        fromUserName: String,
+        productName: String,
+        title: String,
+        message: String
+    ) {
+        if (!shouldNotify(userId, "TRANSFER")) return
+        
+        val notificationId = generateId("notif_transfer_recv_")
+        val deepLink = generateDeepLink("TRANSFER", transferId)
+        
+        val notification = NotificationEntity(
+            notificationId = notificationId,
+            userId = userId,
+            title = title,
+            message = message,
+            type = TransferEventType.INITIATED.name,
+            deepLinkUrl = deepLink,
+            domain = "TRANSFER",
+            isBatched = !connectivityManager.isOnline(),
+            batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
+        )
+        
+        notificationDao.insertNotification(notification)
+        
+        if (connectivityManager.isOnline()) {
+            displayTransferNotification(TransferEventType.INITIATED, transferId, title, message)
+            markDisplayed(notificationId)
+        }
+    }
+
+    /**
+     * Trigger notification when order status changes
+     */
+    suspend fun onOrderStatusChanged(
+        orderId: String,
+        userId: String,
+        oldStatus: String,
+        newStatus: String,
+        title: String,
+        message: String
+    ) {
+        if (!shouldNotify(userId, "ORDER")) return
+        
+        notifyOrderUpdate(orderId, newStatus, title, message)
+    }
+
+    /**
+     * Trigger notification for lifecycle events
+     */
+    suspend fun onLifecycleEvent(
+        eventType: LifecycleEventType,
+        productId: String,
+        userId: String,
+        title: String,
+        message: String
+    ) {
+        if (!shouldNotify(userId, "LIFECYCLE")) return
+        
+        val notificationId = generateId("notif_lifecycle_")
+        val deepLink = generateDeepLink("FARM", productId, eventType.name)
+        
+        val notification = NotificationEntity(
+            notificationId = notificationId,
+            userId = userId,
+            title = title,
+            message = message,
+            type = eventType.name,
+            deepLinkUrl = deepLink,
+            domain = "LIFECYCLE",
+            isBatched = !connectivityManager.isOnline(),
+            batchedAt = if (!connectivityManager.isOnline()) System.currentTimeMillis() else null
+        )
+        
+        notificationDao.insertNotification(notification)
+        
+        if (connectivityManager.isOnline()) {
+            // Display based on event type
+            when (eventType) {
+                LifecycleEventType.BIRD_HATCHED -> FarmNotifier.notifyBirdAdded(context, message, productId)
+                LifecycleEventType.BIRD_GROWN -> FarmNotifier.notifyDailyGoalProgress(context, "Growth", 100)
+                LifecycleEventType.BIRD_READY_FOR_MARKET -> FarmNotifier.notifyComplianceAlert(context, productId, message)
+                else -> { /* no-op */ }
+            }
+            markDisplayed(notificationId)
+        }
+    }
+
+    // ─── Batching Implementation (Comment 5) ─────────────────────────────
   
     suspend fun queueForBatch(notification: NotificationEntity) {
         val batched = notification.copy(isBatched = true, batchedAt = System.currentTimeMillis())
@@ -478,9 +653,10 @@ class IntelligentNotificationService @Inject constructor(
         val user = userDao.findById(userId) ?: return false
         if (!user.notificationsEnabled) return false
         return when (category) {
-            "FARM", "ORDER" -> user.farmAlertsEnabled
+            "FARM", "ORDER", "LIFECYCLE" -> user.farmAlertsEnabled
             "TRANSFER" -> user.transferAlertsEnabled
             "SOCIAL" -> user.socialAlertsEnabled
+            "VERIFICATION" -> true // Always notify for verification events
             else -> true
         }
     }

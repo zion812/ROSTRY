@@ -1,7 +1,9 @@
 package com.rio.rostry.domain.analytics
 
 import android.content.Context
+import android.graphics.pdf.PdfDocument
 import android.util.Log
+import com.opencsv.CSVWriter
 import com.rio.rostry.data.database.dao.ExpenseDao
 import com.rio.rostry.data.database.dao.OrderDao
 import com.rio.rostry.data.database.dao.ProfitabilityMetricsDao
@@ -257,7 +259,7 @@ class AnalyticsEngineImpl @Inject constructor(
     }
 
     /**
-     * Export analytics report to CSV format.
+     * Export analytics report to CSV format using OpenCSV.
      */
     suspend fun exportReportCsv(
         userId: String,
@@ -274,25 +276,158 @@ class AnalyticsEngineImpl @Inject constructor(
         val totalCosts = expenseDao.getTotalInRange(userId, startDate, endDate)
         val profit = totalRevenue - totalCosts
 
+        // Use OpenCSV CSVWriter for proper CSV generation
         FileOutputStream(file).use { fos ->
             OutputStreamWriter(fos).use { writer ->
-                // Header
-                writer.write("Order ID,Product ID,Amount,Status,Date\n")
-                // Data rows
-                for (order in orders) {
-                    writer.write("${order.orderId},${order.productId},${order.totalAmount},${order.status},${order.orderDate}\n")
+                CSVWriter(writer).use { csvWriter ->
+                    // Header
+                    csvWriter.writeNext(arrayOf("Order ID", "Product ID", "Amount", "Status", "Date"))
+                    
+                    // Data rows
+                    for (order in orders) {
+                        csvWriter.writeNext(
+                            arrayOf(
+                                order.orderId,
+                                order.productId,
+                                order.totalAmount.toString(),
+                                order.status,
+                                order.orderDate.toString()
+                            )
+                        )
+                    }
+                    
+                    // Summary
+                    csvWriter.writeNext(emptyArray())
+                    csvWriter.writeNext(arrayOf("Summary"))
+                    csvWriter.writeNext(arrayOf("Total Revenue", totalRevenue.toString()))
+                    csvWriter.writeNext(arrayOf("Total Costs", totalCosts.toString()))
+                    csvWriter.writeNext(arrayOf("Profit", profit.toString()))
+                    csvWriter.writeNext(
+                        arrayOf(
+                            "Profit Margin",
+                            if (totalRevenue > 0) "${(profit / totalRevenue * 100)}%" else "0%"
+                        )
+                    )
+                    csvWriter.writeNext(arrayOf("Order Count", orders.size.toString()))
                 }
-                // Summary
-                writer.write("\nSummary\n")
-                writer.write("Total Revenue,$totalRevenue\n")
-                writer.write("Total Costs,$totalCosts\n")
-                writer.write("Profit,$profit\n")
-                writer.write("Profit Margin,${if (totalRevenue > 0) (profit / totalRevenue * 100) else 0.0}%\n")
-                writer.write("Order Count,${orders.size}\n")
             }
         }
 
         Log.i(TAG, "Exported CSV report to ${file.absolutePath}")
+        return file
+    }
+
+    /**
+     * Export analytics report to PDF format using PdfDocument.
+     */
+    suspend fun exportReportPdf(
+        userId: String,
+        startDate: Long,
+        endDate: Long,
+        fileName: String
+    ): File {
+        val reportsDir = File(context.filesDir, "reports")
+        if (!reportsDir.exists()) reportsDir.mkdirs()
+        val file = File(reportsDir, "$fileName.pdf")
+
+        val orders = orderDao.getDeliveredOrdersForFarmerBetween(userId, startDate, endDate)
+        val totalRevenue = orders.sumOf { it.totalAmount }
+        val totalCosts = expenseDao.getTotalInRange(userId, startDate, endDate)
+        val profit = totalRevenue - totalCosts
+        val profitMargin = if (totalRevenue > 0) (profit / totalRevenue * 100) else 0.0
+
+        // Create PDF document
+        val pdfDocument = PdfDocument()
+        
+        // Calculate page dimensions
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size
+        val page = pdfDocument.startPage(pageInfo)
+        val canvas = page.canvas
+
+        // Set up paint
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLACK
+            textSize = 12f
+            typeface = android.graphics.Typeface.defaultFromStyle(android.graphics.Typeface.NORMAL)
+        }
+
+        val boldPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLACK
+            textSize = 12f
+            isFakeBoldText = true
+            typeface = android.graphics.Typeface.defaultFromStyle(android.graphics.Typeface.BOLD)
+        }
+
+        val titlePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLACK
+            textSize = 18f
+            isFakeBoldText = true
+            typeface = android.graphics.Typeface.defaultFromStyle(android.graphics.Typeface.BOLD)
+        }
+
+        // Draw title
+        canvas.drawText("Analytics Report", 40f, 40f, titlePaint)
+        canvas.drawText("Period: ${startDate} - ${endDate}", 40f, 65f, paint)
+
+        // Draw summary section
+        var yPosition = 100f
+        canvas.drawText("Summary", 40f, yPosition, boldPaint)
+        yPosition += 25f
+
+        canvas.drawText("Total Revenue: $totalRevenue", 40f, yPosition, paint)
+        yPosition += 20f
+        canvas.drawText("Total Costs: $totalCosts", 40f, yPosition, paint)
+        yPosition += 20f
+        canvas.drawText("Profit: $profit", 40f, yPosition, paint)
+        yPosition += 20f
+        canvas.drawText("Profit Margin: ${"%.2f".format(profitMargin)}%", 40f, yPosition, paint)
+        yPosition += 20f
+        canvas.drawText("Order Count: ${orders.size}", 40f, yPosition, paint)
+        yPosition += 40f
+
+        // Draw orders table header
+        canvas.drawText("Orders", 40f, yPosition, boldPaint)
+        yPosition += 25f
+
+        // Table headers
+        val headerY = yPosition
+        canvas.drawText("Order ID", 40f, yPosition, boldPaint)
+        canvas.drawText("Product ID", 150f, yPosition, boldPaint)
+        canvas.drawText("Amount", 260f, yPosition, boldPaint)
+        canvas.drawText("Status", 360f, yPosition, boldPaint)
+        canvas.drawText("Date", 450f, yPosition, boldPaint)
+        yPosition += 20f
+
+        // Draw line under headers
+        canvas.drawLine(40f, yPosition, 555f, yPosition, paint)
+        yPosition += 20f
+
+        // Draw order rows
+        for (order in orders) {
+            if (yPosition > 780f) {
+                // Start new page if needed
+                pdfDocument.finishPage(page)
+                val newPage = pdfDocument.startPage(pageInfo)
+                yPosition = 40f
+            }
+            
+            canvas.drawText(order.orderId, 40f, yPosition, paint)
+            canvas.drawText(order.productId, 150f, yPosition, paint)
+            canvas.drawText("${order.totalAmount}", 260f, yPosition, paint)
+            canvas.drawText(order.status, 360f, yPosition, paint)
+            canvas.drawText("${order.orderDate}", 450f, yPosition, paint)
+            yPosition += 20f
+        }
+
+        pdfDocument.finishPage(page)
+
+        // Write document to file
+        FileOutputStream(file).use { out ->
+            pdfDocument.writeTo(out)
+        }
+        pdfDocument.close()
+
+        Log.i(TAG, "Exported PDF report to ${file.absolutePath}")
         return file
     }
 }

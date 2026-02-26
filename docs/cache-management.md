@@ -1,582 +1,876 @@
 ---
 Version: 1.0
-Last Updated: 2026-02-05
-Audience: Developers
+Last Updated: 2026-02-26
+Audience: Developers, Architects
 Status: Active
-Related_Docs: [data-layer-architecture.md, data-contracts.md, architecture.md, fetcher-system.md]
-Tags: [cache, performance, optimization, offline, storage]
+Related_Docs: [fetcher-system.md, data-layer-architecture.md, performance-optimization.md]
+Tags: [cache, caching, performance, data-management]
 ---
 
-# Cache Management Documentation
+# Cache Management Architecture
+
+**Document Type**: Architecture Guide
+**Version**: 1.0
+**Last Updated**: 2026-02-26
+**Feature Owner**: Data Layer Infrastructure
+**Status**: ✅ Fully Implemented
 
 ## Overview
 
-The ROSTRY cache management system provides intelligent caching with health monitoring and performance optimization. It implements a multi-layered caching strategy that balances performance, memory usage, and data freshness.
+ROSTRY implements a comprehensive caching system that provides intelligent data caching with TTL management, health monitoring, and strategic invalidation. The cache system is integral to the application's offline-first architecture and works seamlessly with the Fetcher System to optimize data retrieval performance.
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-Layer Caching** | In-memory + disk caching for optimal performance |
+| **TTL Management** | Time-based expiration with configurable policies |
+| **Stale-While-Revalidate** | Serve stale data during background refresh |
+| **Health Monitoring** | Cache health tracking and metrics |
+| **Smart Invalidation** | Event-based and pattern-based invalidation |
+| **Memory Management** | LRU eviction and memory pressure handling |
 
 ## Architecture
 
-### Core Components
+### Cache Layers
 
-#### 1. CacheManager
-The central cache management API and usage.
+```mermaid
+graph TB
+    subgraph "Application Layer"
+        UI[UI/ViewModel]
+        FC[FetcherCoordinator]
+    end
 
-- **Purpose**: Primary interface for all cache operations
-- **Key Features**:
-  - Put/get operations for cached data
-  - Cache size management
-  - TTL and expiration handling
-  - Cache statistics and metrics
+    subgraph "Cache Layer"
+        L1[L1: In-Memory Cache<br/>Fast, Limited Size]
+        L2[L2: Disk Cache<br/>Slower, Larger Size]
+    end
 
-#### 2. CacheHealthMonitor
-Cache health monitoring and metrics.
+    subgraph "Data Sources"
+        Local[(Room Database)]
+        Remote[(Firebase/APIs)]
+    end
 
-- **Purpose**: Monitors cache performance and health
-- **Key Features**:
-  - Cache hit/miss ratio tracking
-  - Performance metrics collection
-  - Health status reporting
-  - Alerting for cache issues
-
-#### 3. CachePolicy
-Cache policies and TTL strategies.
-
-- **Purpose**: Defines caching behavior and expiration rules
-- **Key Features**:
-  - TTL-based expiration
-  - Cache strategy selection
-  - Size limitations
-  - Eviction policies
-
-#### 4. CacheInvalidator
-Cache invalidation strategies.
-
-- **Purpose**: Manages cache invalidation and cleanup
-- **Key Features**:
-  - Key-based invalidation
-  - Pattern-based invalidation
-  - Tag-based invalidation
-  - Bulk invalidation operations
-
-## Cache Strategies
-
-### 1. TTL (Time-To-Live) Strategy
-Automatically expires cached items after a specified duration:
-
-```kotlin
-data class CachePolicy(
-    val strategy: CacheStrategy,
-    val ttl: Duration,
-    val maxSize: Int,
-    val evictionPolicy: EvictionPolicy
-)
-
-// Example usage
-val userCachePolicy = CachePolicy(
-    strategy = CacheStrategy.TTL,
-    ttl = 30.minutes,
-    maxSize = 1000,
-    evictionPolicy = EvictionPolicy.LRU
-)
+    UI --> FC
+    FC --> L1
+    L1 --> L2
+    L2 --> Local
+    L2 --> Remote
+    FC --> Local
+    FC --> Remote
+    
+    L1 -.->|Cache Hit| FC
+    L2 -.->|Cache Miss| FC
 ```
 
-### 2. Stale-While-Revalidate Strategy
-Serve stale data while fetching fresh data in the background:
+### Component Structure
 
-```kotlin
-val productCachePolicy = CachePolicy(
-    strategy = CacheStrategy.STALE_WHILE_REVALIDATE,
-    ttl = 10.minutes,  // Serve stale for 10 minutes while revalidating
-    maxSize = 500,
-    evictionPolicy = EvictionPolicy.LRU
-)
+```
+data/cache/
+├── CacheManager.kt              # Main cache API
+├── CacheHealthMonitor.kt        # Health monitoring
+├── CacheInvalidator.kt          # Invalidation logic
+├── CachePolicy.kt               # Policy definitions
+├── CacheEntry.kt                # Entry metadata
+├── MemoryCache.kt               # L1 in-memory cache
+├── DiskCache.kt                 # L2 disk cache
+└── CacheConfig.kt               # Configuration
 ```
 
-### 3. Cache-Aside Strategy
-Lazy loading pattern where cache is populated on first access:
+## CacheManager API
+
+### Core Interface
 
 ```kotlin
-suspend fun getDataWithCache(key: String): Data {
-    // Check cache first
-    val cached = cacheManager.get<Data>(key)
-    if (cached != null) {
-        return cached
-    }
-    
-    // Fetch from source if not in cache
-    val data = fetchDataFromSource(key)
-    
-    // Store in cache
-    cacheManager.put(key, data, cachePolicy)
-    
-    return data
-}
-```
+interface CacheManager {
+    /**
+     * Get cached data by key
+     * @param key Cache key
+     * @param type Type of data
+     * @return Cached data or null if not found/expired
+     */
+    suspend fun <T> get(key: String): T?
 
-## Cache Operations
+    /**
+     * Get cached data with metadata
+     * @param key Cache key
+     * @return Cache entry with metadata or null
+     */
+    suspend fun <T> getWithMetadata(key: String): CacheEntry<T>?
 
-### Basic Operations
-
-#### Put Operation
-Store data in cache with optional TTL:
-
-```kotlin
-suspend fun <T> put(key: String, data: T, policy: CachePolicy? = null) {
-    val cacheEntry = CacheEntry(
-        data = data,
-        timestamp = Clock.System.now(),
-        ttl = policy?.ttl ?: defaultTtl
+    /**
+     * Store data in cache
+     * @param key Cache key
+     * @param value Data to cache
+     * @param config Cache configuration
+     */
+    suspend fun <T> put(
+        key: String,
+        value: T,
+        config: CacheConfig? = null
     )
-    
-    cacheStore[key] = cacheEntry
+
+    /**
+     * Remove cached data by key
+     * @param key Cache key
+     */
+    suspend fun remove(key: String)
+
+    /**
+     * Remove cached data by pattern
+     * @param pattern Glob pattern (e.g., "products:*")
+     */
+    suspend fun removePattern(pattern: String)
+
+    /**
+     * Clear all cached data
+     */
+    suspend fun clearAll()
+
+    /**
+     * Get cache statistics
+     */
+    fun getStats(): CacheStats
+
+    /**
+     * Check if key exists in cache
+     */
+    suspend fun contains(key: String): Boolean
+
+    /**
+     * Get all cache keys
+     */
+    fun getAllKeys(): Set<String>
 }
 ```
 
-#### Get Operation
-Retrieve data from cache if available and not expired:
+### Usage Example
 
 ```kotlin
-suspend fun <T> get(key: String): T? {
-    val entry = cacheStore[key] ?: return null
-    
-    if (isExpired(entry)) {
-        // Remove expired entry
-        cacheStore.remove(key)
-        return null
-    }
-    
-    return entry.data as T
-}
-```
-
-#### Remove Operation
-Remove specific entry from cache:
-
-```kotlin
-suspend fun remove(key: String) {
-    cacheStore.remove(key)
-}
-```
-
-#### Clear Operation
-Clear all entries from cache:
-
-```kotlin
-suspend fun clear() {
-    cacheStore.clear()
-}
-```
-
-## Eviction Policies
-
-### 1. LRU (Least Recently Used)
-Removes the least recently accessed items when cache reaches maximum size:
-
-```kotlin
-class LruEvictionPolicy<T> : EvictionPolicy<T> {
-    override fun evict(cache: MutableMap<String, CacheEntry<T>>, maxSize: Int) {
-        if (cache.size <= maxSize) return
-        
-        // Sort by access time and remove oldest entries
-        val sortedEntries = cache.entries.sortedBy { it.value.lastAccessTime }
-        val toRemove = sortedEntries.take(cache.size - maxSize)
-        
-        toRemove.forEach { cache.remove(it.key) }
-    }
-}
-```
-
-### 2. LFU (Least Frequently Used)
-Removes the least frequently accessed items:
-
-```kotlin
-class LfuEvictionPolicy<T> : EvictionPolicy<T> {
-    override fun evict(cache: MutableMap<String, CacheEntry<T>>, maxSize: Int) {
-        if (cache.size <= maxSize) return
-        
-        // Sort by access count and remove least used
-        val sortedEntries = cache.entries.sortedBy { it.value.accessCount }
-        val toRemove = sortedEntries.take(cache.size - maxSize)
-        
-        toRemove.forEach { cache.remove(it.key) }
-    }
-}
-```
-
-### 3. FIFO (First In, First Out)
-Removes the oldest entries based on insertion time:
-
-```kotlin
-class FifoEvictionPolicy<T> : EvictionPolicy<T> {
-    override fun evict(cache: MutableMap<String, CacheEntry<T>>, maxSize: Int) {
-        if (cache.size <= maxSize) return
-        
-        // Remove entries in insertion order
-        val insertionOrder = cache.entries.toList()
-        val toRemove = insertionOrder.take(cache.size - maxSize)
-        
-        toRemove.forEach { cache.remove(it.key) }
-    }
-}
-```
-
-## Cache Invalidation Strategies
-
-### 1. Direct Invalidation
-Invalidate specific cache keys:
-
-```kotlin
-suspend fun invalidate(key: String) {
-    cacheManager.remove(key)
-}
-```
-
-### 2. Pattern-Based Invalidation
-Invalidate keys matching a pattern:
-
-```kotlin
-suspend fun invalidateByPattern(pattern: String) {
-    val regex = Regex(pattern.replace("*", ".*"))
-    val keysToRemove = cacheManager.keys.filter { regex.matches(it) }
-    
-    keysToRemove.forEach { cacheManager.remove(it) }
-}
-```
-
-### 3. Tag-Based Invalidation
-Invalidate all items associated with specific tags:
-
-```kotlin
-suspend fun invalidateByTag(tag: String) {
-    val keysWithTag = tagIndex[tag] ?: emptySet()
-    
-    keysWithTag.forEach { cacheManager.remove(it) }
-    
-    // Remove tag association
-    tagIndex.remove(tag)
-}
-```
-
-### 4. Time-Based Invalidation
-Invalidate all entries older than a specific time:
-
-```kotlin
-suspend fun invalidateOlderThan(timestamp: Instant) {
-    val keysToInvalidate = cacheManager.entries
-        .filter { it.value.timestamp < timestamp }
-        .map { it.key }
-    
-    keysToInvalidate.forEach { cacheManager.remove(it) }
-}
-```
-
-## Performance Metrics
-
-### Cache Hit Ratio
-Percentage of requests served from cache:
-
-```kotlin
-val cacheHitRatio: Double
-    get() = if (totalRequests == 0) 0.0 else hits.toDouble() / totalRequests.toDouble()
-```
-
-### Average Response Time
-Average time to serve cached vs uncached requests:
-
-```kotlin
-val averageCachedResponseTime: Duration
-    get() = if (hits == 0) Duration.ZERO else totalCachedTime / hits
-```
-
-### Memory Usage
-Current cache memory consumption:
-
-```kotlin
-val memoryUsage: Long
-    get() = cacheStore.values.sumOf { estimateSize(it.data) }
-```
-
-## Integration with Fetcher System
-
-### Cache Integration Pattern
-The cache manager integrates with the fetcher system:
-
-```kotlin
-class FetcherCoordinator @Inject constructor(
+class ProductRepositoryImpl @Inject constructor(
     private val cacheManager: CacheManager,
-    private val fetchers: List<Fetcher<*>>
+    private val localDataSource: LocalProductDataSource,
+    private val remoteDataSource: RemoteProductDataSource
+) : ProductRepository {
+
+    override suspend fun getProducts(): Resource<List<Product>> {
+        val cacheKey = "products:all"
+        
+        // Try cache first
+        val cached = cacheManager.get<ProductList>(cacheKey)
+        if (cached != null) {
+            return Resource.Success(cached.products)
+        }
+
+        // Fetch from source
+        return when (val result = remoteDataSource.fetchProducts()) {
+            is Resource.Success -> {
+                // Cache the result
+                cacheManager.put(
+                    key = cacheKey,
+                    value = ProductList(result.data),
+                    config = CacheConfig(
+                        ttl = 5.minutes,
+                        staleWhileRevalidate = true
+                    )
+                )
+                Resource.Success(result.data)
+            }
+            is Resource.Error -> result
+            is Resource.Loading -> Resource.Loading
+        }
+    }
+}
+```
+
+## Cache Policies
+
+### TTL Strategies
+
+```kotlin
+data class CacheConfig(
+    /**
+     * Time to live - how long data remains valid
+     */
+    val ttl: Duration = 5.minutes,
+
+    /**
+     * Serve stale data while refreshing in background
+     */
+    val staleWhileRevalidate: Boolean = true,
+
+    /**
+     * Maximum age of stale data that can be served
+     */
+    val maxStale: Duration? = null,
+
+    /**
+     * Prefetch before expiry to avoid latency
+     */
+    val preFetch: Duration? = 1.minute,
+
+    /**
+     * Events that should invalidate this cache
+     */
+    val invalidateOn: List<String> = emptyList(),
+
+    /**
+     * Cache priority for eviction decisions
+     */
+    val priority: CachePriority = CachePriority.NORMAL,
+
+    /**
+     * Maximum size for this cache entry
+     */
+    val maxSize: Long? = null
+)
+
+enum class CachePriority {
+    CRITICAL,    // Never evict
+    HIGH,        // Evict last
+    NORMAL,      // Default
+    LOW          // Evict first
+}
+```
+
+### Predefined Configurations
+
+```kotlin
+object CacheConfigs {
+    /**
+     * Product listings - frequently accessed, can be slightly stale
+     */
+    val PRODUCT_LIST = CacheConfig(
+        ttl = 5.minutes,
+        staleWhileRevalidate = true,
+        maxStale = 15.minutes,
+        preFetch = 1.minute,
+        invalidateOn = listOf("product_created", "product_updated", "product_deleted"),
+        priority = CachePriority.HIGH
+    )
+
+    /**
+     * User profile - rarely changes, long TTL
+     */
+    val USER_PROFILE = CacheConfig(
+        ttl = 30.minutes,
+        staleWhileRevalidate = true,
+        maxStale = 1.hour,
+        preFetch = 5.minutes,
+        invalidateOn = listOf("profile_updated"),
+        priority = CachePriority.HIGH
+    )
+
+    /**
+     * Order status - critical freshness
+     */
+    val ORDER_STATUS = CacheConfig(
+        ttl = 30.seconds,
+        staleWhileRevalidate = false,
+        maxStale = null,
+        preFetch = null,
+        invalidateOn = listOf("order_status_changed"),
+        priority = CachePriority.CRITICAL
+    )
+
+    /**
+     * Farm monitoring data - moderate freshness
+     */
+    val FARM_MONITORING = CacheConfig(
+        ttl = 2.minutes,
+        staleWhileRevalidate = true,
+        maxStale = 5.minutes,
+        preFetch = 30.seconds,
+        invalidateOn = listOf("alert_created", "metric_updated"),
+        priority = CachePriority.NORMAL
+    )
+
+    /**
+     * Static reference data - very long TTL
+     */
+    val REFERENCE_DATA = CacheConfig(
+        ttl = 24.hours,
+        staleWhileRevalidate = true,
+        maxStale = 7.days,
+        preFetch = 1.hour,
+        invalidateOn = emptyList(),
+        priority = CachePriority.LOW
+    )
+}
+```
+
+## Stale-While-Revalidate Pattern
+
+### Implementation
+
+```kotlin
+class StaleWhileRevalidateCache @Inject constructor(
+    private val cacheManager: CacheManager,
+    private val fetcherCoordinator: FetcherCoordinator
 ) {
-    
-    suspend fun <T> fetch(request: ClientRequest<T>): Resource<T> {
-        // Check cache first if policy allows
-        if (request.cachePolicy.strategy.allowsCacheRead()) {
-            val cached = cacheManager.get<T>(request.key)
-            if (cached != null) {
-                return Resource.Success(cached)
+    /**
+     * Get cached data, refresh in background if stale
+     */
+    suspend fun <T> getOrFetch(
+        key: String,
+        fetcher: suspend () -> Resource<T>,
+        config: CacheConfig
+    ): Resource<T> {
+        val entry = cacheManager.getWithMetadata<T>(key)
+
+        return when {
+            // No cache - fetch fresh
+            entry == null -> {
+                fetchAndCache(key, fetcher, config)
+            }
+
+            // Cache is fresh - return immediately
+            !entry.isStale -> {
+                Resource.Success(entry.value)
+            }
+
+            // Cache is stale but within maxStale - return stale, refresh background
+            config.staleWhileRevalidate && entry.isWithinMaxStale -> {
+                // Return stale data immediately
+                val staleData = entry.value
+
+                // Refresh in background
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val freshData = fetcher()
+                        if (freshData is Resource.Success) {
+                            cacheManager.put(key, freshData.data, config)
+                        }
+                    } catch (e: Exception) {
+                        Timber.w(e, "Background refresh failed")
+                    }
+                }
+
+                Resource.Success(staleData)
+            }
+
+            // Cache is too stale - fetch fresh
+            else -> {
+                fetchAndCache(key, fetcher, config)
             }
         }
-        
-        // Fetch from source
-        val result = executeFetcher(request)
-        
-        // Cache result if successful and policy allows
-        if (result is Resource.Success && request.cachePolicy.strategy.allowsCacheWrite()) {
-            cacheManager.put(request.key, result.data, request.cachePolicy)
+    }
+
+    private suspend fun <T> fetchAndCache(
+        key: String,
+        fetcher: suspend () -> Resource<T>,
+        config: CacheConfig
+    ): Resource<T> {
+        return when (val result = fetcher()) {
+            is Resource.Success -> {
+                cacheManager.put(key, result.data, config)
+                result
+            }
+            else -> result
         }
-        
-        return result
     }
 }
 ```
 
-### Cache-First Strategy
-Prioritize cached data when available:
+### Usage Pattern
 
 ```kotlin
-suspend fun <T> fetchWithCacheFirst(request: ClientRequest<T>): Resource<T> {
-    // Try cache first
-    val cached = cacheManager.get<T>(request.key)
-    if (cached != null) {
-        return Resource.Success(cached)
+@HiltViewModel
+class ProductListViewModel @Inject constructor(
+    private val repository: ProductRepository,
+    private val staleCache: StaleWhileRevalidateCache
+) : BaseViewModel() {
+
+    private val _uiState = MutableStateFlow<ProductListUiState>(ProductListUiState())
+    val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
+
+    init {
+        loadProducts()
     }
-    
-    // Fall back to network
-    val result = fetchFromNetwork(request)
-    
-    // Cache successful results
-    if (result is Resource.Success) {
-        cacheManager.put(request.key, result.data, request.cachePolicy)
+
+    private fun loadProducts() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            val result = staleCache.getOrFetch(
+                key = "products:list",
+                fetcher = { repository.getProducts() },
+                config = CacheConfigs.PRODUCT_LIST
+            )
+
+            _uiState.update { state ->
+                when (result) {
+                    is Resource.Success -> state.copy(
+                        isLoading = false,
+                        products = result.data,
+                        isRefreshing = false,
+                        error = null
+                    )
+                    is Resource.Error -> state.copy(
+                        isLoading = false,
+                        error = result.message,
+                        isRefreshing = false
+                    )
+                    is Resource.Loading -> state.copy(
+                        isLoading = true,
+                        isRefreshing = true
+                    )
+                }
+            }
+        }
     }
-    
-    return result
 }
 ```
 
-## Configuration Options
+## Cache Invalidation
 
-### Global Cache Configuration
-Configure global cache settings:
+### Invalidation Strategies
 
 ```kotlin
-data class GlobalCacheConfig(
-    val defaultTtl: Duration = 5.minutes,
-    val maxSize: Int = 1000,
-    val evictionPolicy: EvictionPolicy = EvictionPolicy.LRU,
-    val enableMetrics: Boolean = true,
-    val enableHealthChecks: Boolean = true
+class CacheInvalidator @Inject constructor(
+    private val cacheManager: CacheManager,
+    private val eventBus: EventBus
+) {
+    init {
+        // Subscribe to invalidation events
+        eventBus.subscribe { event: DataEvent ->
+            when (event) {
+                is ProductUpdatedEvent -> invalidateProduct(event.productId)
+                is OrderStatusChangedEvent -> invalidateOrder(event.orderId)
+                is ProfileUpdatedEvent -> invalidateUserProfile(event.userId)
+                // ... more event handlers
+            }
+        }
+    }
+
+    /**
+     * Invalidate specific product cache
+     */
+    suspend fun invalidateProduct(productId: String) {
+        cacheManager.remove("products:$productId")
+        cacheManager.removePattern("products:*:$productId:*")
+    }
+
+    /**
+     * Invalidate all product caches
+     */
+    suspend fun invalidateAllProducts() {
+        cacheManager.removePattern("products:*")
+    }
+
+    /**
+     * Invalidate user-specific caches
+     */
+    suspend fun invalidateUserCaches(userId: String) {
+        cacheManager.removePattern("user:$userId:*")
+        cacheManager.removePattern("profile:$userId")
+        cacheManager.removePattern("orders:$userId:*")
+    }
+
+    /**
+     * Invalidate on logout
+     */
+    suspend fun invalidateOnLogout() {
+        cacheManager.removePattern("user:*")
+        cacheManager.removePattern("auth:*")
+        cacheManager.removePattern("profile:*")
+    }
+
+    /**
+     * Clear all caches (use sparingly)
+     */
+    suspend fun clearAll() {
+        cacheManager.clearAll()
+    }
+}
+```
+
+### Event-Driven Invalidation
+
+```kotlin
+sealed class DataEvent {
+    data class ProductUpdatedEvent(val productId: String) : DataEvent()
+    data class ProductDeletedEvent(val productId: String) : DataEvent()
+    data class OrderStatusChangedEvent(val orderId: String, val newStatus: OrderStatus) : DataEvent()
+    data class ProfileUpdatedEvent(val userId: String) : DataEvent()
+    data class UserLoggedOutEvent(val userId: String) : DataEvent()
+    // ... more events
+}
+
+class EventBus @Inject constructor() {
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val subscribers = ConcurrentHashMap<KClass<*>, MutableList<suspend (Any) -> Unit>>()
+
+    inline fun <reified T : DataEvent> subscribe(crossinline handler: suspend (T) -> Unit) {
+        val list = subscribers.getOrPut(T::class) { mutableListOf() }
+        list.add { event -> handler(event as T) }
+    }
+
+    fun publish(event: DataEvent) {
+        scope.launch {
+            subscribers[event::class]?.forEach { handler ->
+                try {
+                    handler(event)
+                } catch (e: Exception) {
+                    Timber.e(e, "Event handler failed")
+                }
+            }
+        }
+    }
+}
+```
+
+## Cache Health Monitoring
+
+### Health Metrics
+
+```kotlin
+data class CacheStats(
+    val totalEntries: Int,
+    val totalSize: Long,
+    val hitCount: Long,
+    val missCount: Long,
+    val evictionCount: Long,
+    val hitRate: Double,
+    val averageEntryAge: Duration,
+    val staleEntryCount: Int,
+    val expiredEntryCount: Int
 )
-```
 
-### Per-Request Configuration
-Override global settings for specific requests:
-
-```kotlin
-val requestSpecificPolicy = CachePolicy(
-    strategy = CacheStrategy.NETWORK_FIRST,
-    ttl = 1.hour,
-    maxSize = 50,
-    evictionPolicy = EvictionPolicy.LFU
+data class CacheHealthMetrics(
+    val hitRate: Double,              // Target: > 0.7
+    val staleRate: Double,            // Target: < 0.3
+    val evictionRate: Double,         // Target: < 0.1 per minute
+    val averageLatency: Duration,     // Target: < 10ms (L1), < 100ms (L2)
+    val memoryUsage: Double,          // Target: < 0.8
+    val diskUsage: Double,            // Target: < 0.9
+    val errorRate: Double             // Target: < 0.01
 )
-```
 
-## Security Considerations
-
-### Data Encryption
-Encrypt sensitive data in cache:
-
-```kotlin
-class EncryptedCacheManager : CacheManager {
-    override suspend fun <T> put(key: String, data: T, policy: CachePolicy?) {
-        val encryptedData = encrypt(data)
-        internalCache.put(key, encryptedData, policy)
-    }
-    
-    override suspend fun <T> get(key: String): T? {
-        val encryptedData = internalCache.get<ByteArray>(key) ?: return null
-        return decrypt<T>(encryptedData)
-    }
+enum class CacheHealthStatus {
+    HEALTHY,      // All metrics within targets
+    DEGRADED,     // Some metrics outside targets
+    CRITICAL      // Multiple metrics critical
 }
 ```
 
-### Sensitive Data Filtering
-Sanitize data before caching:
-
-```kotlin
-suspend fun <T> putSafe(key: String, data: T, policy: CachePolicy?) {
-    val sanitizedData = sanitizeSensitiveFields(data)
-    cacheManager.put(key, sanitizedData, policy)
-}
-```
-
-## Monitoring and Health Checks
-
-### Health Status
-Monitor cache health:
-
-```kotlin
-data class CacheHealthStatus(
-    val isHealthy: Boolean,
-    val hitRatio: Double,
-    val responseTime: Duration,
-    val memoryUsage: Long,
-    val maxSize: Long,
-    val errorRate: Double
-)
-```
-
-### Health Check Implementation
-Regular health monitoring:
+### Health Monitor Implementation
 
 ```kotlin
 class CacheHealthMonitor @Inject constructor(
-    private val cacheManager: CacheManager
+    private val cacheManager: CacheManager,
+    private val metricsCollector: MetricsCollector
 ) {
-    
-    suspend fun checkHealth(): CacheHealthStatus {
-        val metrics = cacheManager.metrics
-        val hitRatio = metrics.hitCount.toDouble() / (metrics.hitCount + metrics.missCount).toDouble()
-        val memoryUsage = cacheManager.memoryUsage
-        
-        return CacheHealthStatus(
-            isHealthy = hitRatio > HEALTH_THRESHOLD && 
-                       memoryUsage < MAX_MEMORY_USAGE &&
-                       metrics.errorRate < ERROR_RATE_THRESHOLD,
-            hitRatio = hitRatio,
-            responseTime = metrics.averageResponseTime,
-            memoryUsage = memoryUsage,
-            maxSize = cacheManager.maxSize,
-            errorRate = metrics.errorRate
+    private val healthHistory = ConcurrentLinkedQueue<CacheHealthMetrics>()
+
+    /**
+     * Get current cache health
+     */
+    fun getHealth(): CacheHealthMetrics {
+        val stats = cacheManager.getStats()
+
+        return CacheHealthMetrics(
+            hitRate = stats.hitCount.toDouble() / (stats.hitCount + stats.missCount),
+            staleRate = stats.staleEntryCount.toDouble() / stats.totalEntries,
+            evictionRate = stats.evictionCount.toDouble() / TimeUnit.MINUTES.toSeconds(1),
+            averageLatency = metricsCollector.getAverageCacheLatency(),
+            memoryUsage = getMemoryUsage(),
+            diskUsage = getDiskUsage(),
+            errorRate = metricsCollector.getCacheErrorRate()
         )
     }
-    
-    companion object {
-        private const val HEALTH_THRESHOLD = 0.8
-        private const val MAX_MEMORY_USAGE = 0.8 // 80% of max
-        private const val ERROR_RATE_THRESHOLD = 0.05 // 5%
+
+    /**
+     * Check and report health status
+     */
+    suspend fun checkAndReport(): CacheHealthStatus {
+        val metrics = getHealth()
+        healthHistory.add(metrics)
+
+        // Prune old history
+        if (healthHistory.size > 100) {
+            healthHistory.poll()
+        }
+
+        return when {
+            metrics.hitRate < 0.5 || metrics.errorRate > 0.05 -> {
+                Timber.e("Cache health CRITICAL: ${formatMetrics(metrics)}")
+                CacheHealthStatus.CRITICAL
+            }
+            metrics.hitRate < 0.7 || metrics.staleRate > 0.3 -> {
+                Timber.w("Cache health DEGRADED: ${formatMetrics(metrics)}")
+                CacheHealthStatus.DEGRADED
+            }
+            else -> {
+                CacheHealthStatus.HEALTHY
+            }
+        }
+    }
+
+    /**
+     * Get health trend
+     */
+    fun getHealthTrend(): HealthTrend {
+        if (healthHistory.size < 10) return HealthTrend.STABLE
+
+        val recent = healthHistory.takeLast(10)
+        val hitRateTrend = recent.map { it.hitRate }.average()
+        val previous = healthHistory.take(10).map { it.hitRate }.average()
+
+        return when {
+            hitRateTrend > previous * 1.1 -> HealthTrend.IMPROVING
+            hitRateTrend < previous * 0.9 -> HealthTrend.DECLINING
+            else -> HealthTrend.STABLE
+        }
+    }
+
+    enum class HealthTrend {
+        IMPROVING, STABLE, DECLINING
+    }
+
+    private fun formatMetrics(metrics: CacheHealthMetrics): String {
+        return "hitRate=${metrics.hitRate}, staleRate=${metrics.staleRate}, " +
+               "evictionRate=${metrics.evictionRate}, memoryUsage=${metrics.memoryUsage}"
+    }
+
+    private fun getMemoryUsage(): Double {
+        val runtime = Runtime.getRuntime()
+        val used = runtime.totalMemory() - runtime.freeMemory()
+        return used.toDouble() / runtime.maxMemory()
+    }
+
+    private fun getDiskUsage(): Double {
+        val cacheDir = File(CACHE_DIR)
+        val total = cacheDir.totalSpace.toDouble()
+        val free = cacheDir.freeSpace.toDouble()
+        return 1.0 - (free / total)
     }
 }
 ```
 
 ## Performance Optimization
 
-### Cache Warming
-Pre-populate cache with commonly accessed data:
+### Memory Management
 
 ```kotlin
-class CacheWarmer @Inject constructor(
-    private val cacheManager: CacheManager,
-    private val dataSource: DataSource
+class MemoryCache @Inject constructor(
+    private val config: CacheConfig
 ) {
-    
-    suspend fun warmCache() {
-        // Pre-load frequently accessed data
-        val commonKeys = getCommonKeys()
-        commonKeys.forEach { key ->
-            try {
-                val data = dataSource.fetch(key)
-                cacheManager.put(key, data, getWarmupPolicy())
-            } catch (e: Exception) {
-                // Log error but continue warming
-                Timber.w(e, "Failed to warm cache for key: $key")
-            }
-        }
-    }
-}
-```
-
-### Adaptive TTL
-Adjust TTL based on access patterns:
-
-```kotlin
-class AdaptiveCachePolicy : CachePolicy {
-    private val accessPatterns = mutableMapOf<String, MutableList<Instant>>()
-    
-    fun updateTtl(key: String, newTtl: Duration) {
-        // Adjust TTL based on access frequency
-        val accesses = accessPatterns[key] ?: emptyList()
-        val frequency = calculateAccessFrequency(accesses)
-        
-        // Increase TTL for frequently accessed items
-        val adjustedTtl = if (frequency > FREQUENCY_THRESHOLD) {
-            newTtl * 2
-        } else {
-            newTtl
-        }
-        
-        // Store adjusted TTL
-    }
-}
-```
-
-## Testing Cache Management
-
-### Unit Testing Pattern
-```kotlin
-@Test
-fun `cache put and get operations work correctly`() = runTest {
-    // Given
-    val cacheManager = InMemoryCacheManager()
-    val testData = "test data"
-    val testKey = "test-key"
-    
-    // When
-    cacheManager.put(testKey, testData)
-    val result = cacheManager.get<String>(testKey)
-    
-    // Then
-    assertEquals(testData, result)
-}
-
-@Test
-fun `expired cache entries are removed`() = runTest {
-    // Given
-    val cacheManager = InMemoryCacheManager()
-    val testData = "test data"
-    val testKey = "test-key"
-    val shortTtlPolicy = CachePolicy(
-        strategy = CacheStrategy.TTL,
-        ttl = 1.milliseconds,
-        maxSize = 100,
-        evictionPolicy = EvictionPolicy.LRU
+    private val cache = LruCache<String, CacheEntry<*>>(
+        maxSize = calculateMaxSize()
     )
-    
-    // When
-    cacheManager.put(testKey, testData, shortTtlPolicy)
-    delay(5) // Wait for expiration
-    
-    // Then
-    assertNull(cacheManager.get<String>(testKey))
+
+    private fun calculateMaxSize(): Int {
+        val maxMemory = Runtime.getRuntime().maxMemory() / 1024
+        return (maxMemory / 8).toInt() // Use 1/8 of available heap
+    }
+
+    suspend fun <T> get(key: String): T? {
+        @Suppress("UNCHECKED_CAST")
+        return cache.get(key) as CacheEntry<T>?
+    }
+
+    suspend fun <T> put(key: String, value: T, config: CacheConfig) {
+        val entry = CacheEntry(
+            value = value,
+            createdAt = Instant.now(),
+            ttl = config.ttl,
+            priority = config.priority
+        )
+        cache.put(key, entry)
+    }
+
+    suspend fun remove(key: String) {
+        cache.remove(key)
+    }
+
+    suspend fun clear() {
+        cache.evictAll()
+    }
+
+    fun getStats(): MemoryCacheStats {
+        return MemoryCacheStats(
+            size = cache.size(),
+            maxSize = cache.maxSize(),
+            hitCount = cache.hitCount(),
+            missCount = cache.missCount()
+        )
+    }
+}
+```
+
+### Disk Cache
+
+```kotlin
+class DiskCache @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+) {
+    private val cacheDir = File(context.cacheDir, "http").apply {
+        mkdirs()
+    }
+
+    private val maxSize = 50 * 1024 * 1024L // 50 MB
+
+    suspend fun <T> get(key: String): T? = withContext(dispatcher) {
+        try {
+            val file = getFileForKey(key)
+            if (!file.exists()) return@withContext null
+
+            val entry = readEntry(file)
+            if (entry.isExpired) {
+                file.delete()
+                return@withContext null
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            entry.value as T
+        } catch (e: Exception) {
+            Timber.e(e, "Disk cache get failed")
+            null
+        }
+    }
+
+    suspend fun <T> put(key: String, value: T, config: CacheConfig) = withContext(dispatcher) {
+        try {
+            val file = getFileForKey(key)
+            val entry = CacheEntry(
+                value = value,
+                createdAt = Instant.now(),
+                ttl = config.ttl
+            )
+
+            writeEntry(file, entry)
+            trimToSize(maxSize)
+        } catch (e: Exception) {
+            Timber.e(e, "Disk cache put failed")
+        }
+    }
+
+    private fun trimToSize(maxSize: Long) {
+        // LRU eviction logic
+        val files = cacheDir.listFiles()?.sortedBy { it.lastModified() } ?: return
+        var size = files.sumOf { it.length() }
+
+        while (size > maxSize && files.isNotEmpty()) {
+            val oldest = files.first()
+            size -= oldest.length()
+            oldest.delete()
+            files.removeAt(0)
+        }
+    }
+
+    suspend fun clear() = withContext(dispatcher) {
+        cacheDir.deleteRecursively()
+    }
+
+    fun getStats(): DiskCacheStats {
+        val files = cacheDir.listFiles() ?: return DiskCacheStats(0, 0)
+        return DiskCacheStats(
+            size = files.size,
+            totalSize = files.sumOf { it.length() }
+        )
+    }
+}
+```
+
+## Testing Cache
+
+### Unit Testing
+
+```kotlin
+@ExperimentalCoroutinesApi
+class CacheManagerTest {
+    @get:Rule
+    val instantExecutorRule = InstantTaskExecutorRule()
+
+    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var memoryCache: MemoryCache
+    private lateinit var diskCache: DiskCache
+    private lateinit var cacheManager: CacheManager
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+        memoryCache = mockk()
+        diskCache = mockk()
+        cacheManager = CacheManagerImpl(memoryCache, diskCache)
+    }
+
+    @Test
+    fun `get returns cached data on hit`() = runTest {
+        // Given
+        val testData = ProductList(products = emptyList())
+        coEvery { memoryCache.get<ProductList>("products") } returns testData
+
+        // When
+        val result = cacheManager.get<ProductList>("products")
+
+        // Then
+        assertThat(result).isEqualTo(testData)
+    }
+
+    @Test
+    fun `put stores data in memory cache`() = runTest {
+        // Given
+        val testData = ProductList(products = emptyList())
+        val config = CacheConfigs.PRODUCT_LIST
+        coEvery { memoryCache.put("products", testData, config) } just Runs
+
+        // When
+        cacheManager.put("products", testData, config)
+
+        // Then
+        coVerify { memoryCache.put("products", testData, config) }
+    }
+
+    @Test
+    fun `get falls back to disk cache on memory miss`() = runTest {
+        // Given
+        val testData = ProductList(products = emptyList())
+        coEvery { memoryCache.get<ProductList>("products") } returns null
+        coEvery { diskCache.get<ProductList>("products") } returns testData
+
+        // When
+        val result = cacheManager.get<ProductList>("products")
+
+        // Then
+        assertThat(result).isEqualTo(testData)
+    }
 }
 ```
 
 ### Integration Testing
+
 ```kotlin
-@HiltTest
+@HiltAndroidTest
 class CacheIntegrationTest {
-    @get:Rule
+    @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
-    
+
     @Inject
     lateinit var cacheManager: CacheManager
-    
+
+    @Inject
+    lateinit var fetcherCoordinator: FetcherCoordinator
+
     @Test
-    fun `cache metrics are updated correctly`() = runTest {
+    fun `fetcher uses cache correctly`() = runTest {
         // Given
-        val testKey = "metric-test"
-        val testData = "test data"
-        
+        val testData = ProductList(products = listOf(createTestProduct()))
+        cacheManager.put("products", testData, CacheConfigs.PRODUCT_LIST)
+
         // When
-        cacheManager.put(testKey, testData)
-        val result1 = cacheManager.get<String>(testKey) // Cache hit
-        val result2 = cacheManager.get<String>("non-existent") // Cache miss
-        
+        val request = ClientRequest(
+            key = "products",
+            fetcher = { throw IllegalStateException("Should not be called") },
+            cachePolicy = CachePolicy.CACHE_FIRST
+        )
+        val result = fetcherCoordinator.fetch(request)
+
         // Then
-        assertNotNull(result1)
-        assertNull(result2)
-        
-        // Verify metrics
-        val metrics = cacheManager.metrics
-        assertTrue(metrics.hitCount >= 1)
-        assertTrue(metrics.missCount >= 1)
+        assertThat(result).isInstanceOf(Resource.Success::class.java)
+        assertThat((result as Resource.Success).data).isEqualTo(testData.products)
     }
 }
 ```
@@ -585,24 +879,100 @@ class CacheIntegrationTest {
 
 ### Common Issues
 
-#### Cache Miss Issues
-- **Symptom**: High cache miss rate
-- **Solution**: Review TTL settings and access patterns
+**Problem**: Cache not being hit when expected
+- **Cause**: Key mismatch, TTL too short, premature invalidation
+- **Solution**:
+  1. Verify cache key consistency
+  2. Check TTL configuration
+  3. Review invalidation triggers
+  4. Enable cache logging
 
-#### Memory Issues
-- **Symptom**: OutOfMemoryError or high memory usage
-- **Solution**: Adjust cache size limits and eviction policies
+**Problem**: Memory pressure or OOM errors
+- **Cause**: Cache size too large, insufficient eviction
+- **Solution**:
+  1. Reduce max cache size
+  2. Implement stricter LRU eviction
+  3. Add memory pressure callbacks
+  4. Monitor memory usage metrics
 
-#### Stale Data Issues
-- **Symptom**: Serving outdated data
-- **Solution**: Review TTL settings and implement proper invalidation
+**Problem**: Stale data being served too long
+- **Cause**: TTL too long, stale-while-revalidate misconfigured
+- **Solution**:
+  1. Reduce TTL for dynamic content
+  2. Set appropriate maxStale limits
+  3. Implement proactive refresh
+  4. Add staleness indicators to UI
 
-#### Thread Safety Issues
-- **Symptom**: ConcurrentModificationException
-- **Solution**: Ensure thread-safe cache implementations
+**Problem**: Cache invalidation not working
+- **Cause**: Event not published, pattern mismatch
+- **Solution**:
+  1. Verify event publication
+  2. Check invalidation patterns
+  3. Add invalidation logging
+  4. Test invalidation scenarios
 
-### Debugging Tips
-- Enable detailed logging for cache operations
-- Monitor cache hit ratios to identify performance issues
-- Use cache statistics to optimize configuration
-- Implement cache warming for critical data
+## Best Practices
+
+### Cache Key Design
+
+```kotlin
+// Good: Consistent, hierarchical keys
+val keys = listOf(
+    "products:all",
+    "products:$productId",
+    "products:$productId:images",
+    "user:$userId:profile",
+    "user:$userId:orders:$orderId",
+    "farm:$farmId:monitoring:growth"
+)
+
+// Bad: Inconsistent keys
+val badKeys = listOf(
+    "product_list",        // Inconsistent separator
+    "product_123",         // Different prefix
+    "userProfile_john",    // No separator
+    "orders"               // Too generic
+)
+```
+
+### TTL Guidelines
+
+| Data Type | Recommended TTL | Rationale |
+|-----------|----------------|-----------|
+| Product listings | 5-15 minutes | Frequently updated, high traffic |
+| User profiles | 30 minutes - 1 hour | Rarely changes |
+| Order status | 30 seconds - 2 minutes | Critical freshness |
+| Farm monitoring | 2-5 minutes | Real-time data |
+| Reference data | 24 hours - 7 days | Static content |
+| Analytics | 1-6 hours | Aggregated data |
+
+### Invalidation Guidelines
+
+1. **Invalidate on write**: Always invalidate cache after successful write
+2. **Use events**: Publish events for cross-module invalidation
+3. **Be specific**: Invalidate minimum required keys
+4. **Test scenarios**: Test invalidation in unit tests
+
+## Related Documentation
+
+- `fetcher-system.md` - Fetcher System integration
+- `data-layer-architecture.md` - Data layer patterns
+- `performance-optimization.md` - Performance tuning
+- `testing-strategy.md` - Testing approaches
+
+## Appendix: File Locations
+
+```
+data/cache/
+├── CacheManager.kt              # Main cache API
+├── CacheManagerImpl.kt          # Implementation
+├── CacheHealthMonitor.kt        # Health monitoring
+├── CacheInvalidator.kt          # Invalidation logic
+├── CachePolicy.kt               # Policy definitions
+├── CacheEntry.kt                # Entry metadata
+├── CacheConfig.kt               # Configuration
+├── CacheStats.kt                # Statistics
+├── MemoryCache.kt               # L1 cache
+├── DiskCache.kt                 # L2 cache
+└── LruCache.kt                  # LRU implementation
+```

@@ -2,5 +2,6 @@
     "debug.allowBreakpointsEverywhere": true,
     "debug.closeReadonlyTabsOnEnd": true,
     "window.autoDetectColorScheme": false,
-    "kiroAgent.configureMCP": "Disabled"
+    "kiroAgent.configureMCP": "Disabled",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

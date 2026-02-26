@@ -67,6 +67,18 @@ interface RoleMigrationDao {
     
     @Query("""
         UPDATE role_migrations 
+        SET metadataJson = :metadataJson,
+            updatedAt = :timestamp
+        WHERE migrationId = :migrationId
+    """)
+    suspend fun updateMetadata(
+        migrationId: String,
+        metadataJson: String,
+        timestamp: Long = System.currentTimeMillis()
+    )
+    
+    @Query("""
+        UPDATE role_migrations 
         SET status = :status, 
             errorMessage = :errorMessage,
             updatedAt = :timestamp

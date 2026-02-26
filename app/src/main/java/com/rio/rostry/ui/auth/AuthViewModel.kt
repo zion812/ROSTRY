@@ -14,7 +14,6 @@ import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.session.SessionManager
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.normalizeToE164
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
 import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
@@ -28,6 +27,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
+import android.util.Log
 import javax.inject.Inject
 
 @HiltViewModel
@@ -43,17 +43,9 @@ class AuthViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class UiState(
-        val phoneInput: String = "",
-        val e164: String? = null,
-        val otp: String = "",
-        val verificationId: String? = null,
         val isLoading: Boolean = false,
         val error: String? = null,
-        val resendCooldownSec: Int = 0,
-        val needsPhoneLink: Boolean = false,
-        val authProvider: String? = null,
-        val isNewUser: Boolean = false,
-        val pendingPhoneVerificationReason: String? = null
+        val isNewUser: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -63,58 +55,15 @@ class AuthViewModel @Inject constructor(
     val navigation = _navigation.asSharedFlow()
 
     sealed class NavAction {
-        data class ToOtp(val verificationId: String): NavAction()
         data class ToHome(val userType: UserType): NavAction()
         object ToUserSetup : NavAction()
+        object ToOtpPlaceholder : NavAction() // Kept for minimal compatibility if needed
     }
-
-    private var cooldownJob: kotlinx.coroutines.Job? = null
-
-    private var lastStartVerificationAt: Long? = null
-    private var lastVerifyOtpAt: Long? = null
 
     init {
         viewModelScope.launch {
-            authRepository.currentVerificationId.collectLatest { vid ->
-                _uiState.value = _uiState.value.copy(verificationId = vid)
-            }
-        }
-        viewModelScope.launch {
-            authRepository.currentPhoneE164.collectLatest { phone ->
-                _uiState.value = _uiState.value.copy(e164 = phone)
-            }
-        }
-        viewModelScope.launch {
             authRepository.events.collectLatest { event ->
                 when (event) {
-                    is AuthEvent.CodeSent -> {
-                        _uiState.value = _uiState.value.copy(verificationId = event.verificationId, isLoading = false)
-                        startResendCooldown()
-                        if (!_uiState.value.needsPhoneLink) {
-                            _navigation.tryEmit(NavAction.ToOtp(event.verificationId))
-                        }
-                    }
-                    is AuthEvent.AutoVerified -> {
-                        _uiState.value = _uiState.value.copy(isLoading = false)
-                        postAuthBootstrapAndNavigate()
-                    }
-                    is AuthEvent.VerificationFailed -> {
-                        _uiState.value = _uiState.value.copy(isLoading = false, error = event.message)
-                    }
-                    is AuthEvent.PhoneLinkSuccess -> {
-                        _uiState.value = _uiState.value.copy(isLoading = false, needsPhoneLink = false)
-                        val uid = firebaseAuth.currentUser?.uid
-                        if (uid != null) {
-                            viewModelScope.launch { userRepository.refreshPhoneNumber(uid) }
-                        }
-                        authAnalytics.trackPhoneVerifySuccess(_uiState.value.authProvider ?: "unknown")
-                        postAuthBootstrapAndNavigate()
-                    }
-                    is AuthEvent.PhoneLinkFailed -> {
-                        _uiState.value = _uiState.value.copy(isLoading = false, error = event.message)
-                        authAnalytics.trackPhoneVerifyFail(_uiState.value.authProvider ?: "unknown", event.message)
-                    }
-                    // Google Sign-In events (Free Tier primary auth)
                     is AuthEvent.GoogleSignInSuccess -> {
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         authAnalytics.trackAuthComplete("google", false)
@@ -129,132 +78,13 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    private fun decidePendingPhoneVerification(
-        isNewUser: Boolean,
-        hasPhone: Boolean,
-        fromGuest: Boolean,
-        provider: String
-    ): String? {
-        val requirePhone = featureToggles.isPhoneVerificationRequired()
-        if (!requirePhone || hasPhone) return null
-
-        return when {
-            fromGuest -> "guest_upgrade"
-            isNewUser && provider != "phone" -> "new_user_${provider}"
-            else -> null
-        }
-    }
-
-    fun onPhoneChanged(input: String) {
-        val e164 = normalizeToE164(input)
-        _uiState.value = _uiState.value.copy(phoneInput = input, e164 = e164)
-        savedStateHandle["phoneE164"] = e164
-    }
-
-    fun onOtpChanged(code: String) {
-        _uiState.value = _uiState.value.copy(otp = code)
-    }
-
-    fun startVerification(activity: Activity) {
-        val now = System.currentTimeMillis()
-        val lastStartAt = lastStartVerificationAt
-        if (lastStartAt != null && now - lastStartAt < 60000) {
-            val remaining = ((60000 - (now - lastStartAt)) / 1000).toInt()
-            _uiState.value = _uiState.value.copy(error = "Please wait ${remaining}s before requesting another OTP")
-            return
-        }
-        val normalized = _uiState.value.e164
-        if (normalized == null) {
-            _uiState.value = _uiState.value.copy(error = "Enter a valid phone number (E.164, e.g. +1234567890)")
-            return
-        }
-        val maskedPhone = normalized.replaceRange(0, normalized.length - 4, "*".repeat(normalized.length - 4))
-        SecurityManager.audit("AUTH_START_VERIFICATION", mapOf("phone" to maskedPhone, "cooldown" to 60))
-        lastStartVerificationAt = now
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val res = authRepository.startPhoneVerification(activity, normalized)) {
-                is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
-                    lastStartVerificationAt = null // reset on error
-                }
-                else -> Unit
-            }
-        }
-    }
-
-    fun verifyOtpAndSignIn() {
-        val now = System.currentTimeMillis()
-        val lastVerifyAt = lastVerifyOtpAt
-        if (lastVerifyAt != null && now - lastVerifyAt < 60000) {
-            val remaining = ((60000 - (now - lastVerifyAt)) / 1000).toInt()
-            _uiState.value = _uiState.value.copy(error = "Please wait ${remaining}s before verifying another OTP")
-            return
-        }
-        val verificationId = authRepository.currentVerificationId.value
-        if (verificationId == null) {
-            _uiState.value = _uiState.value.copy(error = "Verification session expired")
-            return
-        }
-        val code = _uiState.value.otp
-        if (code.length != 6 || !code.all { it.isDigit() }) {
-            _uiState.value = _uiState.value.copy(error = "Enter a valid 6-digit OTP")
-            return
-        }
-        lastVerifyOtpAt = now
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val res = authRepository.verifyOtp(verificationId, code)) {
-                is Resource.Success -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                    postAuthBootstrapAndNavigate()
-                }
-                is Resource.Error -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
-                    lastVerifyOtpAt = null // reset on error
-                }
-                else -> Unit
-            }
-        }
-    }
-
-    fun resendOtp(activity: Activity) {
-        if (_uiState.value.resendCooldownSec > 0) return
-        SecurityManager.audit("AUTH_RESEND_OTP", mapOf("attempt" to true, "cooldown" to _uiState.value.resendCooldownSec))
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val res = authRepository.resendVerificationCode(activity)) {
-                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
-                else -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, otp = "")
-                }
-            }
-        }
-    }
-
     fun handleFirebaseUIResult(response: IdpResponse?, resultCode: Int) {
         if (resultCode == android.app.Activity.RESULT_OK) {
             val user = firebaseAuth.currentUser
             val meta = user?.metadata
             val isNew = meta?.creationTimestamp == meta?.lastSignInTimestamp
-            val hasPhone = user?.phoneNumber != null
             val provider = response?.providerType ?: "unknown"
-            val fromGuest = savedStateHandle.get<Boolean>("fromGuest") ?: false
-            val reason = decidePendingPhoneVerification(isNew == true, hasPhone, fromGuest, provider)
-            if (reason != null) {
-                _uiState.value = _uiState.value.copy(pendingPhoneVerificationReason = reason)
-                if (fromGuest) {
-                    authAnalytics.trackAuthComplete(provider, true)
-                    postAuthBootstrapAndNavigate()
-                } else {
-                    authAnalytics.trackPhoneVerifyStart(true)
-                    _uiState.value = _uiState.value.copy(needsPhoneLink = true, authProvider = provider, isNewUser = true)
-                }
-                if (reason != null) {
-                    authAnalytics.trackPhoneVerificationDeferred(reason)
-                }
-                return
-            }
+            
             authAnalytics.trackAuthComplete(provider, isNew == true)
             postAuthBootstrapAndNavigate()
         } else {
@@ -271,153 +101,62 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun startPhoneLinking(activity: Activity) {
-        val normalized = _uiState.value.e164
-        if (normalized == null) {
-            _uiState.value = _uiState.value.copy(error = "Enter a valid Indian number")
-            return
-        }
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val res = authRepository.linkPhoneToCurrentUser(activity, normalized)) {
-                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
-                else -> Unit
-            }
-        }
-    }
-
-    fun verifyOtpAndLinkPhone() {
-        val verificationId = authRepository.currentVerificationId.value
-        if (verificationId == null) {
-            _uiState.value = _uiState.value.copy(error = "Verification session expired")
-            return
-        }
-        val code = _uiState.value.otp
-        if (code.length != 6 || !code.all { it.isDigit() }) {
-            _uiState.value = _uiState.value.copy(error = "Enter a valid 6-digit OTP")
-            return
-        }
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val res = authRepository.verifyOtpAndLink(verificationId, code)) {
-                is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = res.message)
-                else -> Unit
-            }
-        }
-    }
-
-    private fun startResendCooldown(seconds: Int = 60) {
-        cooldownJob?.cancel()
-        cooldownJob = viewModelScope.launch {
-            var remaining = seconds
-            while (remaining >= 0) {
-                _uiState.value = _uiState.value.copy(resendCooldownSec = remaining)
-                kotlinx.coroutines.delay(1000)
-                remaining--
-            }
-        }
-    }
-
     private fun postAuthBootstrapAndNavigate() {
         viewModelScope.launch {
-            timber.log.Timber.d("AuthVM: postAuthBootstrapAndNavigate started")
+            Log.d("AuthViewModel", "postAuthBootstrapAndNavigate started")
             
-            // Force refresh user profile from server to ensure latest role
             val uid = firebaseAuth.currentUser?.uid
             if (uid == null) {
-                timber.log.Timber.w("AuthVM: No UID after auth, navigating to setup")
+                Log.w("AuthViewModel", "No UID after auth, navigating to setup")
                 _navigation.tryEmit(NavAction.ToUserSetup)
                 return@launch
             }
             
-            // Refresh with timeout - don't let this block forever
             try {
-                timber.log.Timber.d("AuthVM: Attempting refreshCurrentUser...")
+                Log.d("AuthViewModel", "Attempting refreshCurrentUser...")
                 withTimeoutOrNull(3000) {
                     userRepository.refreshCurrentUser(uid)
                 }
-                timber.log.Timber.d("AuthVM: refreshCurrentUser completed (or timed out/failed silently)")
             } catch (e: Exception) {
-                timber.log.Timber.e(e, "AuthVM: refreshCurrentUser CRITICAL FAILURE")
+                Log.e("AuthViewModel", "refreshCurrentUser failure", e)
             }
 
-            // Try to hydrate user profile quickly; reduce timeout from 5s to 3s
-            timber.log.Timber.d("AuthVM: Fetching user profile...")
+            Log.d("AuthViewModel", "Fetching user profile...")
             val resource = withTimeoutOrNull(3000) { userRepository.getCurrentUser().first() }
-            timber.log.Timber.d("AuthVM: getCurrentUser result type = ${resource?.javaClass?.simpleName}")
             
             when (resource) {
                 is Resource.Success -> {
                     val user = resource.data
                     if (user != null) {
-                        timber.log.Timber.d("AuthVM: User found, role=${user.role}, navigating...")
+                        Log.d("AuthViewModel", "User found, role=${user.role}, navigating...")
                         
-                        // Check if this is a guest upgrade
                         val isGuest = sessionManager.isGuestSession().first()
-                        val fromGuest = savedStateHandle.get<Boolean>("fromGuest") ?: false
-
                         if (isGuest) {
-                             timber.log.Timber.d("AuthVM: Upgrading GUEST session...")
-                            // This is a guest session being upgraded
+                            Log.d("AuthViewModel", "Upgrading GUEST session...")
                             val guestStartedAt = sessionManager.getGuestSessionStartedAt()
                             val now = System.currentTimeMillis()
                             sessionManager.upgradeGuestToAuthenticated(user.role, now)
                             if (guestStartedAt != null) {
-                                val duration = (now - guestStartedAt) / 1000 // in seconds
+                                val duration = (now - guestStartedAt) / 1000
                                 flowAnalyticsTracker.trackGuestModeUpgraded(user.role.name, duration)
                             }
-
-                            // Check if this was a guest upgrade that should defer phone verification
-                            val fromGuestForDefer = savedStateHandle.get<Boolean>("fromGuest") ?: false
-                            if (fromGuestForDefer) {
-                                // Clear the fromGuest flag after processing
-                                savedStateHandle["fromGuest"] = null
-
-                                val reason = decidePendingPhoneVerification(
-                                    isNewUser = false, // Not a new user in Firebase terms, but upgrading guest
-                                    hasPhone = !user.phoneNumber.isNullOrBlank(),
-                                    fromGuest = true,
-                                    provider = "guest_upgrade" // Use a placeholder since provider isn't directly available here
-                                )
-                                if (reason != null) {
-                                    _uiState.value = _uiState.value.copy(pendingPhoneVerificationReason = reason)
-                                    authAnalytics.trackPhoneVerificationDeferred(reason)
-                                }
-                            }
                         } else {
-                            // Regular authentication
-                            timber.log.Timber.d("AuthVM: Marking authenticated session...")
+                            Log.d("AuthViewModel", "Marking authenticated session...")
                             sessionManager.markAuthenticated(System.currentTimeMillis(), user.role)
                         }
 
                         if (user.role == UserType.GENERAL) {
-                            timber.log.Timber.d("AuthVM: Navigating to UserSetup (GENERAL role)")
                             _navigation.tryEmit(NavAction.ToUserSetup)
                         } else {
-                            timber.log.Timber.d("AuthVM: Navigating to Home for role=${user.role}")
                             _navigation.tryEmit(NavAction.ToHome(user.role))
                         }
                     } else {
-                        // No profile yet; go to setup to complete essentials
-                        timber.log.Timber.d("AuthVM: No user data (null data), navigating to UserSetup")
+                        Log.d("AuthViewModel", "No user data, navigating to UserSetup")
                         _navigation.tryEmit(NavAction.ToUserSetup)
                     }
                 }
-                is Resource.Error -> {
-                    timber.log.Timber.e("AuthVM: getCurrentUser error = ${resource.message}")
-                    _uiState.value = _uiState.value.copy(error = resource.message)
-                    // Consider NOT navigating on error to prevent loops? 
-                    // But we likely want them to retry setup.
-                    _navigation.tryEmit(NavAction.ToUserSetup)
-                }
-                is Resource.Loading -> {
-                    // If still loading after timeout window, proceed to setup
-                    timber.log.Timber.w("AuthVM: getCurrentUser still loading, navigating to setup")
-                    _navigation.tryEmit(NavAction.ToUserSetup)
-                }
-                null -> {
-                    // Timed out waiting; proceed to setup to avoid spinner lock
-                    timber.log.Timber.w("AuthVM: getCurrentUser timed out (null), navigating to setup")
+                else -> {
+                    Log.w("AuthViewModel", "User fetch failed or timed out, navigating to setup")
                     _navigation.tryEmit(NavAction.ToUserSetup)
                 }
             }
@@ -428,20 +167,12 @@ class AuthViewModel @Inject constructor(
         savedStateHandle["fromGuest"] = fromGuest
     }
 
-    fun deferPhoneVerification(reason: String) {
-        _uiState.value = _uiState.value.copy(pendingPhoneVerificationReason = reason)
-        authAnalytics.trackPhoneVerificationDeferred(reason)
-    }
-
-    fun cancelPhoneLinking() {
+    fun signOut() {
         viewModelScope.launch {
-            // Log cancel and sign out to return to entry screen
-            authAnalytics.trackAuthCancel(_uiState.value.authProvider ?: "unknown")
             authRepository.signOut()
-            _uiState.value = _uiState.value.copy(needsPhoneLink = false, isLoading = false, error = null)
         }
     }
 }
 
 val AuthViewModel.UiState.needsPhoneVerificationBanner: Boolean
-    get() = pendingPhoneVerificationReason != null
+    get() = false // Phone verification no longer required

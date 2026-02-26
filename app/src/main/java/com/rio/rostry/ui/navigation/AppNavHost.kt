@@ -77,9 +77,6 @@ import androidx.compose.animation.core.tween
 import com.rio.rostry.ui.auth.AuthViewModel
 import com.rio.rostry.ui.auth.AuthWelcomeViewModel
 import com.rio.rostry.ui.auth.AuthWelcomeScreen
-import com.rio.rostry.ui.auth.PhoneAuthScreenNew
-import com.rio.rostry.ui.auth.OtpVerificationScreenNew
-import com.rio.rostry.ui.auth.PhoneVerificationScreen
 import com.rio.rostry.ui.splash.SplashScreen
 import com.rio.rostry.ui.product.ProductDetailsScreen
 import com.rio.rostry.ui.profile.ProfileScreen
@@ -372,9 +369,9 @@ private fun AuthFlow(
     LaunchedEffect(Unit) {
         authVm.navigation.collectLatest { event ->
             when (event) {
-                is AuthViewModel.NavAction.ToOtp -> navController.navigate("auth/otp/${event.verificationId}")
                 is AuthViewModel.NavAction.ToHome -> onAuthenticated()
                 is AuthViewModel.NavAction.ToUserSetup -> navController.navigate("onboard/user_setup")
+                else -> { /* ignore other actions */ }
             }
         }
     }
@@ -387,8 +384,17 @@ private fun AuthFlow(
                     onAuthenticated()
                 }
                 is AuthWelcomeViewModel.NavigationEvent.ToAuth -> {
-                    // Navigate to phone auth with role context
-                    navController.navigate("auth/phone")
+                    // Trigger Google Sign-In directly for Free Tier
+                    val providers = listOf(
+                        com.firebase.ui.auth.AuthUI.IdpConfig.GoogleBuilder().build(),
+                        com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
+                    )
+                    val intent = com.firebase.ui.auth.AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setAvailableProviders(providers)
+                        .setIsSmartLockEnabled(false, true)
+                        .build()
+                    launcher.launch(intent)
                 }
             }
         }
@@ -418,158 +424,6 @@ private fun AuthFlow(
                     welcomeVm.startAuthentication(role)
                 },
                 isLoading = isLoading
-            )
-        }
-        
-        // Phone authentication flow - slide from right
-        composable(
-            route = "auth/phone",
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(400)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it / 3 },
-                    animationSpec = tween(400)
-                ) + fadeOut(animationSpec = tween(400))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it / 3 },
-                    animationSpec = tween(400)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(400)
-                ) + fadeOut(animationSpec = tween(400))
-            }
-        ) {
-            // FREE TIER: Phone Auth is disabled - show placeholder and redirect
-            val FREE_TIER_MODE = true
-            
-            if (FREE_TIER_MODE) {
-                // Show a message that phone auth is disabled
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.PhoneAndroid,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Text(
-                            "Phone Sign-In Unavailable",
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                        Text(
-                            "Please use 'Sign in with Google' instead.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        
-                        // Google Sign-In Button
-                        Button(
-                            onClick = {
-                                val providers = listOf(
-                                    com.firebase.ui.auth.AuthUI.IdpConfig.GoogleBuilder().build(),
-                                    com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
-                                )
-                                val intent = com.firebase.ui.auth.AuthUI.getInstance()
-                                    .createSignInIntentBuilder()
-                                    .setAvailableProviders(providers)
-                                    .setIsSmartLockEnabled(false, true) // Disabled - causes hangs
-                                    .build()
-                                launcher.launch(intent)
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Sign in with Google")
-                        }
-
-                        TextButton(onClick = { navController.popBackStack() }) {
-                            Text("Go Back")
-                        }
-                    }
-                }
-            } else {
-                PhoneAuthScreenNew(
-                    onCodeSent = { verificationId ->
-                        val isGuest = fromGuest
-                        navController.navigate("auth/otp/$verificationId?fromGuest=$isGuest")
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-        }
-        
-        // OTP verification - slide from right
-        composable(
-            route = "auth/otp/{verificationId}?fromGuest={fromGuest}",
-            arguments = listOf(
-                navArgument("verificationId") { type = NavType.StringType },
-                navArgument("fromGuest") {
-                    type = NavType.BoolType
-                    defaultValue = false
-                }
-            ),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(400)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it / 3 },
-                    animationSpec = tween(400)
-                ) + fadeOut(animationSpec = tween(400))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it / 3 },
-                    animationSpec = tween(400)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(400)
-                ) + fadeOut(animationSpec = tween(400))
-            }
-        ) { backStackEntry ->
-            val verificationId = backStackEntry.arguments?.getString("verificationId") ?: ""
-            val isFromGuest = backStackEntry.arguments?.getBoolean("fromGuest") ?: false
-
-            // Set the fromGuest flag in the AuthViewModel before navigating
-            val authVm: AuthViewModel = hiltViewModel()
-            LaunchedEffect(isFromGuest) {
-                authVm.setFromGuest(isFromGuest)
-            }
-
-            OtpVerificationScreenNew(
-                verificationId = verificationId,
-                fromGuest = isFromGuest,
-                onVerified = {
-                    onAuthenticated()
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
             )
         }
         

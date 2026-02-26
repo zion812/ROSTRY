@@ -172,10 +172,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CircuitBreakerMetricsEntity::class,
         MediaMetadataEntity::class,
         HubAssignmentEntity::class,
-        ProfitabilityMetricsEntity::class
+        ProfitabilityMetricsEntity::class,
+        ModerationBlocklistEntity::class
     ],
-    version = 90, // 89 -> 90 (Production Readiness: Hub Assignments, Profitability Metrics, Table Modifications)
-    exportSchema = true // Export Room schema JSONs to support migration testing.
+    version = 91, // 90 -> 91 (Production Readiness: Moderation Blocklist)
+    exportSchema = true 
 )
 @TypeConverters(AppDatabase.Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -356,6 +357,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun mediaMetadataDao(): MediaMetadataDao
     abstract fun hubAssignmentDao(): HubAssignmentDao
     abstract fun profitabilityMetricsDao(): ProfitabilityMetricsDao
+    abstract fun referentialIntegrityDao(): ReferentialIntegrityDao
+    abstract fun moderationBlocklistDao(): ModerationBlocklistDao
 
     object Converters {
         @TypeConverter
@@ -2739,8 +2742,16 @@ abstract class AppDatabase : RoomDatabase() {
         // Add eggsCount and sourceCollectionId to hatching_batches (23 -> 24)
         val MIGRATION_23_24 = object : Migration(23, 24) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                try { db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `eggsCount` INTEGER") } catch (_: Exception) {}
-                try { db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `sourceCollectionId` TEXT") } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `eggsCount` INTEGER")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "eggsCount column might already exist", e)
+                }
+                try {
+                    db.execSQL("ALTER TABLE `hatching_batches` ADD COLUMN `sourceCollectionId` TEXT")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "sourceCollectionId column might already exist", e)
+                }
             }
         }
 
@@ -2765,9 +2776,17 @@ abstract class AppDatabase : RoomDatabase() {
         // Add updatedAt to enthusiast_dashboard_snapshots (25 -> 26)
         val MIGRATION_25_26 = object : Migration(25, 26) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                try { db.execSQL("ALTER TABLE `enthusiast_dashboard_snapshots` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0") } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE `enthusiast_dashboard_snapshots` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "updatedAt column might already exist", e)
+                }
                 // Backfill updatedAt = createdAt where possible
-                try { db.execSQL("UPDATE enthusiast_dashboard_snapshots SET updatedAt = createdAt WHERE updatedAt = 0") } catch (_: Exception) {}
+                try {
+                    db.execSQL("UPDATE enthusiast_dashboard_snapshots SET updatedAt = createdAt WHERE updatedAt = 0")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "Failed to backfill updatedAt", e)
+                }
             }
         }
 

@@ -109,13 +109,30 @@ class VoiceLogParser @Inject constructor() {
     }
     
     /**
-     * Extract numbers from text (handles decimals and common formats).
+     * Extract numbers from text (handles decimals, common formats, and text digits).
      */
     private fun extractNumbers(text: String): List<Double> {
         val numberPattern = Regex("""(\d+\.?\d*)""")
-        return numberPattern.findAll(text)
+        val numericMatches = numberPattern.findAll(text)
             .mapNotNull { it.value.toDoubleOrNull() }
             .toList()
+            
+        if (numericMatches.isNotEmpty()) return numericMatches
+        
+        // Try text-based numbers if no numeric digits found
+        val textNumbers = mapOf(
+            "zero" to 0.0, "one" to 1.0, "two" to 2.0, "three" to 3.0, "four" to 4.0,
+            "five" to 5.0, "six" to 6.0, "seven" to 7.0, "eight" to 8.0, "nine" to 9.0, "ten" to 10.0
+        )
+        
+        val foundTextNumbers = mutableListOf<Double>()
+        for ((word, value) in textNumbers) {
+            if (text.contains(word)) {
+                foundTextNumbers.add(value)
+            }
+        }
+        
+        return foundTextNumbers
     }
     
     /**
@@ -126,6 +143,10 @@ class VoiceLogParser @Inject constructor() {
         val batchPattern = Regex("""batch\s+(\w+)""", RegexOption.IGNORE_CASE)
         batchPattern.find(text)?.let { return it.groupValues[1] }
         
+        // Use a more specific pattern for "batch [name]" or "[name] batch"
+        val namedBatchPattern = Regex("""(\w+)\s+batch""", RegexOption.IGNORE_CASE)
+        namedBatchPattern.find(text)?.let { return it.groupValues[1].replaceFirstChar { c -> c.uppercase() } }
+
         // Bird type mentions
         val birdTypes = listOf("rooster", "hen", "cock", "pullet", "chick", "stag", "aseel", "asil")
         for (bird in birdTypes) {

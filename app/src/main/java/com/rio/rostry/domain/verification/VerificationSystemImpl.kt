@@ -2,15 +2,20 @@ package com.rio.rostry.domain.verification
 
 import android.util.Log
 import com.google.firebase.firestore.GeoPoint
+import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.KycVerificationDao
 import com.rio.rostry.data.database.dao.ProductVerificationDraftDao
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.dao.VerificationRequestDao
+import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.KycVerificationEntity
 import com.rio.rostry.data.database.entity.ProductVerificationDraftEntity
+import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.validation.CoordinateValidator
 import com.rio.rostry.domain.validation.InputValidationError
 import com.rio.rostry.domain.validation.InputValidationResult
+import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.notifications.VerificationEventType
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.UUID
@@ -34,6 +39,9 @@ class VerificationSystemImpl @Inject constructor(
     private val kycDao: KycVerificationDao,
     private val verificationRequestDao: VerificationRequestDao,
     private val userDao: UserDao,
+    private val auditLogDao: AuditLogDao,
+    private val userRepository: UserRepository,
+    private val notificationService: IntelligentNotificationService,
     private val gson: Gson
 ) : VerificationSystem {
 
@@ -132,6 +140,27 @@ class VerificationSystemImpl @Inject constructor(
                 status = DraftStatus.MERGED.name,
                 mergedAt = now,
                 mergedInto = verificationId
+            )
+
+            // AUDIT LOG: Insert audit log entry for draft merge
+            val mergedDraftIdsJson = gson.toJson(request.draftIds)
+            auditLogDao.insert(
+                AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "DRAFT_MERGED",
+                    refId = verificationId,
+                    action = "MERGE_VERIFICATION_DRAFTS",
+                    actorUserId = request.mergedByUserId ?: "system",
+                    detailsJson = gson.toJson(
+                        mapOf(
+                            "productId" to request.productId,
+                            "mergedDraftIds" to request.draftIds,
+                            "mergedDraftIdsJson" to mergedDraftIdsJson,
+                            "mergedBy" to (request.mergedByUserId ?: "system")
+                        )
+                    ),
+                    createdAt = now
+                )
             )
 
             Log.i(TAG, "Merged ${request.draftIds.size} drafts into verification $verificationId for product ${request.productId}")
@@ -257,6 +286,11 @@ class VerificationSystemImpl @Inject constructor(
     ): Result<Unit> {
         return try {
             val now = System.currentTimeMillis()
+            
+            // Get the current verification to get userId and previous status
+            val verification = kycDao.getVerification(verificationId)
+            val previousStatus = verification?.status
+            
             kycDao.updateStatus(
                 verificationId = verificationId,
                 status = status.name,
@@ -265,11 +299,72 @@ class VerificationSystemImpl @Inject constructor(
                 rejectionReason = rejectionReason
             )
 
-            // If approved, update user role (notify via log for now)
+            // AUDIT LOG: Insert audit log for KYC status change
+            auditLogDao.insert(
+                AuditLogEntity(
+                    logId = UUID.randomUUID().toString(),
+                    type = "KYC_STATUS_CHANGED",
+                    refId = verificationId,
+                    action = "KYC_REVIEW",
+                    actorUserId = reviewerId,
+                    detailsJson = gson.toJson(
+                        mapOf(
+                            "userId" to (verification?.userId ?: "unknown"),
+                            "previousStatus" to (previousStatus ?: "UNKNOWN"),
+                            "newStatus" to status.name,
+                            "reviewerId" to reviewerId,
+                            "rejectionReason" to (rejectionReason ?: "")
+                        )
+                    ),
+                    createdAt = now
+                )
+            )
+
+            // If approved, update user verification status and send notification
             if (status == KycStatus.APPROVED) {
-                val verification = kycDao.getVerification(verificationId)
-                if (verification != null) {
-                    Log.i(TAG, "KYC APPROVED for user ${verification.userId} by reviewer $reviewerId. User role upgrade pending.")
+                verification?.let { kyc ->
+                    val userId = kyc.userId
+                    
+                    // Update user verification status
+                    userRepository.updateVerificationStatus(userId, VerificationStatus.VERIFIED)
+                    
+                    // Send notification to user
+                    notificationService.notifyVerificationEvent(
+                        type = VerificationEventType.VERIFICATION_APPROVED,
+                        userId = userId,
+                        title = "KYC Verification Approved",
+                        message = "Your KYC verification has been approved. You now have full access to all features."
+                    )
+                    
+                    Log.i(TAG, "KYC APPROVED for user $userId by reviewer $reviewerId. User role upgraded to VERIFIED.")
+                }
+            } else if (status == KycStatus.REJECTED) {
+                verification?.let { kyc ->
+                    val userId = kyc.userId
+                    
+                    // Send rejection notification
+                    notificationService.notifyVerificationEvent(
+                        type = VerificationEventType.VERIFICATION_REJECTED,
+                        userId = userId,
+                        title = "KYC Verification Rejected",
+                        message = "Your KYC verification was rejected. Reason: ${rejectionReason ?: "Please review requirements and resubmit."}"
+                    )
+                    
+                    Log.w(TAG, "KYC REJECTED for user ${kyc.userId} by reviewer $reviewerId. Reason: $rejectionReason")
+                }
+            } else if (status == KycStatus.PENDING) {
+                verification?.let { kyc ->
+                    val userId = kyc.userId
+                    
+                    // Send pending notification
+                    notificationService.notifyVerificationEvent(
+                        type = VerificationEventType.VERIFICATION_PENDING,
+                        userId = userId,
+                        title = "KYC Verification Under Review",
+                        message = "Your KYC verification is being reviewed by our team."
+                    )
+                    
+                    Log.i(TAG, "KYC PENDING for user ${kyc.userId} by reviewer $reviewerId.")
                 }
             }
 

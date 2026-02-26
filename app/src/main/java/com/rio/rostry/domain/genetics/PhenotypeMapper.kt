@@ -10,15 +10,12 @@ object PhenotypeMapper {
 
     /**
      * Determine sex from genotype using the S locus (sex-linked, Z chromosome).
-     * In poultry: ZZ = Male (homozygous), ZW = Female (hemizygous).
-     * We detect this by checking if both S locus alleles are present and identical (ZZ = male)
-     * vs. having a mismatch or null-equivalent (ZW = female).
+     * In poultry: ZZ = Male (homoz/heteroz), ZW = Female (hemizygous).
+     * We detect this by checking if the second S allele is present.
      */
     fun determineSex(genotype: GeneticProfile): Boolean {
-        // S locus is sex-linked (Z chromosome). 
-        // Males (ZZ) have two S alleles, Females (ZW) effectively have one.
-        // We approximate: if both alleles are the same = male (ZZ), different = female (ZW)
-        return genotype.sLocus.first == genotype.sLocus.second
+        // Males (ZZ) have two S alleles, Females (ZW) have one allele + NONE marker.
+        return genotype.sLocus.second != AlleleS.NONE
     }
 
     fun mapToAppearance(genotype: GeneticProfile, ageWeeks: Int): BirdAppearance {
