@@ -56,7 +56,7 @@ class HubAssignmentDaoTest {
         assertNotNull(retrieved)
         assertEquals(hubAssignment.productId, retrieved?.productId)
         assertEquals(hubAssignment.hubId, retrieved?.hubId)
-        assertEquals(hubAssignment.distanceKm, retrieved?.distanceKm, 0.01)
+        assertEquals(hubAssignment.distanceKm, retrieved!!.distanceKm, 0.01)
     }
 
     @Test

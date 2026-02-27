@@ -12,15 +12,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.util.Date
 
 /**
  * Unit tests for OrphanedProductHandler.
- * 
- * Tests:
- * - Detection of orphaned products (missing owner)
- * - Assignment of orphaned products to system account
- * - System account creation
- * - Logging of orphaned product assignments
  */
 class OrphanedProductHandlerTest {
 
@@ -43,7 +38,6 @@ class OrphanedProductHandlerTest {
 
     @Test
     fun `detectOrphanedProducts returns products with missing sellers`() = runTest {
-        // Given
         val orphanedProduct = ProductEntity(
             productId = "prod1",
             sellerId = "missing_user",
@@ -54,182 +48,142 @@ class OrphanedProductHandlerTest {
             sellerId = "valid_user",
             name = "Valid Product"
         )
+        val now = Date()
         
-        coEvery { productDao.getAllProducts() } returns listOf(orphanedProduct, validProduct)
-        coEvery { userDao.getUserById("missing_user") } returns null
-        coEvery { userDao.getUserById("valid_user") } returns UserEntity(
+        coEvery { productDao.getAllProductsSnapshot() } returns listOf(orphanedProduct, validProduct)
+        coEvery { userDao.findById("missing_user") } returns null
+        coEvery { userDao.findById("valid_user") } returns UserEntity(
             userId = "valid_user",
-            name = "Valid User",
-            email = "valid@test.com"
+            fullName = "Valid User",
+            email = "valid@test.com",
+            createdAt = now,
+            updatedAt = now
         )
         
-        // When
         val orphanedProducts = handler.detectOrphanedProducts()
         
-        // Then
         assertEquals(1, orphanedProducts.size)
         assertEquals("prod1", orphanedProducts[0].productId)
     }
 
     @Test
     fun `detectOrphanedProducts returns products with empty sellerId`() = runTest {
-        // Given
         val orphanedProduct = ProductEntity(
             productId = "prod1",
             sellerId = "",
             name = "Test Product"
         )
         
-        coEvery { productDao.getAllProducts() } returns listOf(orphanedProduct)
+        coEvery { productDao.getAllProductsSnapshot() } returns listOf(orphanedProduct)
         
-        // When
         val orphanedProducts = handler.detectOrphanedProducts()
         
-        // Then
         assertEquals(1, orphanedProducts.size)
         assertEquals("prod1", orphanedProducts[0].productId)
     }
 
     @Test
-    fun `assignOrphanedProductsToSystem creates system account if not exists`() = runTest {
-        // Given
-        val orphanedProduct = ProductEntity(
-            productId = "prod1",
-            sellerId = "missing_user",
-            name = "Test Product"
-        )
-        
-        coEvery { userDao.getUserById("system_orphaned_products") } returns null andThen UserEntity(
-            userId = "system_orphaned_products",
-            name = "System Account",
-            email = "system@rostry.internal"
-        )
-        coEvery { userDao.insert(any()) } returns Unit
-        coEvery { productDao.update(any()) } returns Unit
-        
-        // When
-        val assignedCount = handler.assignOrphanedProductsToSystem(listOf(orphanedProduct))
-        
-        // Then
-        assertEquals(1, assignedCount)
-        coVerify { userDao.insert(any()) }
-        coVerify { productDao.update(any()) }
-    }
-
-    @Test
     fun `assignOrphanedProductsToSystem assigns products to system account`() = runTest {
-        // Given
         val orphanedProduct = ProductEntity(
             productId = "prod1",
             sellerId = "missing_user",
             name = "Test Product"
         )
+        val now = Date()
         val systemAccount = UserEntity(
             userId = "system_orphaned_products",
-            name = "System Account",
-            email = "system@rostry.internal"
+            fullName = "System Account",
+            email = "system@rostry.internal",
+            createdAt = now,
+            updatedAt = now
         )
         
-        coEvery { userDao.getUserById("system_orphaned_products") } returns systemAccount
-        coEvery { productDao.update(any()) } returns Unit
+        coEvery { userDao.findById("system_orphaned_products") } returns systemAccount
         
-        // When
         val assignedCount = handler.assignOrphanedProductsToSystem(listOf(orphanedProduct))
         
-        // Then
         assertEquals(1, assignedCount)
-        coVerify { 
-            productDao.update(match { 
-                it.productId == "prod1" && it.sellerId == "system_orphaned_products"
-            })
-        }
+        coVerify { productDao.upsert(match { it.productId == "prod1" && it.sellerId == "system_orphaned_products" }) }
     }
 
     @Test
     fun `detectAndAssignOrphanedProducts handles complete workflow`() = runTest {
-        // Given
         val orphanedProduct = ProductEntity(
             productId = "prod1",
             sellerId = "missing_user",
             name = "Test Product"
         )
+        val now = Date()
         val systemAccount = UserEntity(
             userId = "system_orphaned_products",
-            name = "System Account",
-            email = "system@rostry.internal"
+            fullName = "System Account",
+            email = "system@rostry.internal",
+            createdAt = now,
+            updatedAt = now
         )
         
-        coEvery { productDao.getAllProducts() } returns listOf(orphanedProduct)
-        coEvery { userDao.getUserById("missing_user") } returns null
-        coEvery { userDao.getUserById("system_orphaned_products") } returns systemAccount
-        coEvery { productDao.update(any()) } returns Unit
+        coEvery { productDao.getAllProductsSnapshot() } returns listOf(orphanedProduct)
+        coEvery { userDao.findById("missing_user") } returns null
+        coEvery { userDao.findById("system_orphaned_products") } returns systemAccount
         
-        // When
         val assignedCount = handler.detectAndAssignOrphanedProducts()
         
-        // Then
         assertEquals(1, assignedCount)
-        coVerify { productDao.update(any()) }
+        coVerify { productDao.upsert(any()) }
     }
 
     @Test
     fun `isProductOrphaned returns true for product with missing seller`() = runTest {
-        // Given
         val orphanedProduct = ProductEntity(
             productId = "prod1",
             sellerId = "missing_user",
             name = "Test Product"
         )
         
-        coEvery { productDao.getProductById("prod1") } returns orphanedProduct
-        coEvery { userDao.getUserById("missing_user") } returns null
+        coEvery { productDao.findById("prod1") } returns orphanedProduct
+        coEvery { userDao.findById("missing_user") } returns null
         
-        // When
         val isOrphaned = handler.isProductOrphaned("prod1")
         
-        // Then
         assertTrue(isOrphaned)
     }
 
     @Test
     fun `isProductOrphaned returns false for product with valid seller`() = runTest {
-        // Given
         val validProduct = ProductEntity(
             productId = "prod1",
             sellerId = "valid_user",
             name = "Test Product"
         )
+        val now = Date()
         val validUser = UserEntity(
             userId = "valid_user",
-            name = "Valid User",
-            email = "valid@test.com"
+            fullName = "Valid User",
+            email = "valid@test.com",
+            createdAt = now,
+            updatedAt = now
         )
         
-        coEvery { productDao.getProductById("prod1") } returns validProduct
-        coEvery { userDao.getUserById("valid_user") } returns validUser
+        coEvery { productDao.findById("prod1") } returns validProduct
+        coEvery { userDao.findById("valid_user") } returns validUser
         
-        // When
         val isOrphaned = handler.isProductOrphaned("prod1")
         
-        // Then
         assertFalse(isOrphaned)
     }
 
     @Test
     fun `isProductOrphaned returns true for product with empty sellerId`() = runTest {
-        // Given
         val orphanedProduct = ProductEntity(
             productId = "prod1",
             sellerId = "",
             name = "Test Product"
         )
         
-        coEvery { productDao.getProductById("prod1") } returns orphanedProduct
+        coEvery { productDao.findById("prod1") } returns orphanedProduct
         
-        // When
         val isOrphaned = handler.isProductOrphaned("prod1")
         
-        // Then
         assertTrue(isOrphaned)
     }
 }

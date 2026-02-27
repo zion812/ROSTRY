@@ -4,6 +4,7 @@ import com.rio.rostry.data.database.dao.UploadTaskDao
 import com.rio.rostry.data.resilience.CircuitBreakerRegistry
 import com.rio.rostry.domain.error.ErrorHandler
 import com.rio.rostry.domain.manager.DegradationManager
+import com.rio.rostry.domain.validation.FileUploadValidator
 import com.rio.rostry.domain.validation.ValidationFramework
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -24,6 +25,7 @@ class MediaUploadServiceTest {
     private lateinit var errorHandler: ErrorHandler
     private lateinit var degradationManager: DegradationManager
     private lateinit var validationFramework: ValidationFramework
+    private lateinit var fileUploadValidator: FileUploadValidator
     private lateinit var mediaUploadService: MediaUploadService
 
     @Before
@@ -33,13 +35,15 @@ class MediaUploadServiceTest {
         errorHandler = mockk(relaxed = true)
         degradationManager = mockk(relaxed = true)
         validationFramework = mockk(relaxed = true)
+        fileUploadValidator = mockk(relaxed = true)
         
         mediaUploadService = MediaUploadService(
             uploadTaskDao,
             circuitBreakerRegistry,
             errorHandler,
             degradationManager,
-            validationFramework
+            validationFramework,
+            fileUploadValidator
         )
     }
 
@@ -56,7 +60,7 @@ class MediaUploadServiceTest {
         )
         
         coEvery { 
-            validationFramework.validate(any(), any()) 
+            validationFramework.validate(any<File>(), any<FileUploadValidator>()) 
         } returns com.rio.rostry.domain.validation.InputValidationResult.Invalid(
             listOf(
                 com.rio.rostry.domain.validation.InputValidationError(

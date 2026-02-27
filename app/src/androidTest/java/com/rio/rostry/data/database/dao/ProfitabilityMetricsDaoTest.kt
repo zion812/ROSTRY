@@ -60,9 +60,9 @@ class ProfitabilityMetricsDaoTest {
 
         assertNotNull(retrieved)
         assertEquals(metrics.id, retrieved?.id)
-        assertEquals(metrics.revenue, retrieved?.revenue, 0.01)
-        assertEquals(metrics.profit, retrieved?.profit, 0.01)
-        assertEquals(metrics.profitMargin, retrieved?.profitMargin, 0.01)
+        assertEquals(metrics.revenue, retrieved!!.revenue, 0.01)
+        assertEquals(metrics.profit, retrieved.profit, 0.01)
+        assertEquals(metrics.profitMargin, retrieved.profitMargin, 0.01)
     }
 
     @Test

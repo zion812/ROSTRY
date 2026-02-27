@@ -19,12 +19,12 @@ class ProductEligibilityValidatorTest {
     }
 
     @Test
-    fun validate_acceptsVerifiedProduct() {
+    fun validate_acceptsAvailableProduct() {
         val product = ProductEntity(
-            id = "prod1",
+            productId = "prod1",
             name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = "VERIFIED",
+            sellerId = "user1",
+            status = "available",
             isDeleted = false
         )
         
@@ -35,12 +35,12 @@ class ProductEligibilityValidatorTest {
     }
 
     @Test
-    fun validate_rejectsPendingVerification() {
+    fun validate_rejectsPrivateProduct() {
         val product = ProductEntity(
-            id = "prod1",
+            productId = "prod1",
             name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = "PENDING",
+            sellerId = "user1",
+            status = "private",
             isDeleted = false
         )
         
@@ -49,16 +49,16 @@ class ProductEligibilityValidatorTest {
         
         assertTrue(result is InputValidationResult.Invalid)
         val errors = (result as InputValidationResult.Invalid).errors
-        assertTrue(errors.any { it.code == "PRODUCT_NOT_VERIFIED" })
+        assertTrue(errors.any { it.code == "PRODUCT_NOT_AVAILABLE" })
     }
 
     @Test
-    fun validate_rejectsRejectedVerification() {
+    fun validate_rejectsPendingApprovalProduct() {
         val product = ProductEntity(
-            id = "prod1",
+            productId = "prod1",
             name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = "REJECTED",
+            sellerId = "user1",
+            status = "pending_approval",
             isDeleted = false
         )
         
@@ -67,34 +67,16 @@ class ProductEligibilityValidatorTest {
         
         assertTrue(result is InputValidationResult.Invalid)
         val errors = (result as InputValidationResult.Invalid).errors
-        assertTrue(errors.any { it.code == "PRODUCT_NOT_VERIFIED" })
-    }
-
-    @Test
-    fun validate_rejectsNullVerification() {
-        val product = ProductEntity(
-            id = "prod1",
-            name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = null,
-            isDeleted = false
-        )
-        
-        val request = ProductEligibilityRequest(product, "user1")
-        val result = validator.validate(request)
-        
-        assertTrue(result is InputValidationResult.Invalid)
-        val errors = (result as InputValidationResult.Invalid).errors
-        assertTrue(errors.any { it.code == "PRODUCT_NOT_VERIFIED" })
+        assertTrue(errors.any { it.code == "PRODUCT_NOT_AVAILABLE" })
     }
 
     @Test
     fun validate_rejectsOwnershipMismatch() {
         val product = ProductEntity(
-            id = "prod1",
+            productId = "prod1",
             name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = "VERIFIED",
+            sellerId = "user1",
+            status = "available",
             isDeleted = false
         )
         
@@ -109,10 +91,10 @@ class ProductEligibilityValidatorTest {
     @Test
     fun validate_rejectsDeletedProduct() {
         val product = ProductEntity(
-            id = "prod1",
+            productId = "prod1",
             name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = "VERIFIED",
+            sellerId = "user1",
+            status = "available",
             isDeleted = true
         )
         
@@ -127,10 +109,10 @@ class ProductEligibilityValidatorTest {
     @Test
     fun validate_returnsMultipleErrors() {
         val product = ProductEntity(
-            id = "prod1",
+            productId = "prod1",
             name = "Test Product",
-            ownerId = "user1",
-            verificationStatus = "PENDING",
+            sellerId = "user1",
+            status = "private",
             isDeleted = true
         )
         
@@ -142,7 +124,7 @@ class ProductEligibilityValidatorTest {
         
         // Should have multiple errors
         assertTrue(errors.size >= 2)
-        assertTrue(errors.any { it.code == "PRODUCT_NOT_VERIFIED" })
+        assertTrue(errors.any { it.code == "PRODUCT_NOT_AVAILABLE" })
         assertTrue(errors.any { it.code == "OWNERSHIP_MISMATCH" })
         assertTrue(errors.any { it.code == "PRODUCT_DELETED" })
     }

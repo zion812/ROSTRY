@@ -3,6 +3,9 @@ package com.rio.rostry.domain.validation
 import org.junit.Assert.*
 import org.junit.Test
 
+/** Test enum defined at file level (Kotlin doesn't allow local enum classes in functions) */
+private enum class TestEnum { VALUE1, VALUE2, VALUE3 }
+
 class ValidatorsTest {
 
     @Test
@@ -43,7 +46,6 @@ class ValidatorsTest {
 
     @Test
     fun enumValidator_acceptsValidValue() {
-        enum class TestEnum { VALUE1, VALUE2, VALUE3 }
         val validator = EnumValidator(TestEnum::class.java, "testField")
         val result = validator.validate("VALUE1")
         assertTrue(result is InputValidationResult.Valid)
@@ -51,7 +53,6 @@ class ValidatorsTest {
 
     @Test
     fun enumValidator_rejectsInvalidValue() {
-        enum class TestEnum { VALUE1, VALUE2, VALUE3 }
         val validator = EnumValidator(TestEnum::class.java, "testField")
         val result = validator.validate("INVALID")
         assertTrue(result is InputValidationResult.Invalid)
@@ -62,7 +63,6 @@ class ValidatorsTest {
 
     @Test
     fun enumValidator_rejectsBlankValue() {
-        enum class TestEnum { VALUE1, VALUE2, VALUE3 }
         val validator = EnumValidator(TestEnum::class.java, "testField")
         val result = validator.validate("")
         assertTrue(result is InputValidationResult.Invalid)

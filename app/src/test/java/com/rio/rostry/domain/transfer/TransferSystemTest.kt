@@ -244,16 +244,14 @@ class TransferSystemTest {
         id: String,
         sellerId: String,
         name: String,
-        category: String? = null,
-        verificationStatus: String = "VERIFIED"
+        category: String? = null
     ): ProductEntity {
         return ProductEntity(
             productId = id,
             sellerId = sellerId,
             name = name,
-            category = category,
-            verificationStatus = verificationStatus,
-            status = "ACTIVE",
+            category = category ?: "",
+            status = "available",
             price = 100.0,
             imageUrls = listOf("https://example.com/image.jpg"),
             createdAt = System.currentTimeMillis(),
@@ -264,16 +262,15 @@ class TransferSystemTest {
     private fun createTestUser(
         id: String,
         name: String,
-        email: String? = null,
-        username: String? = null
+        email: String? = null
     ): UserEntity {
+        val now = java.util.Date()
         return UserEntity(
             userId = id,
             fullName = name,
             email = email,
-            username = username,
-            createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
+            createdAt = now,
+            updatedAt = now
         )
     }
 }

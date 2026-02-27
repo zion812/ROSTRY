@@ -83,7 +83,15 @@ class SyncStatusViewModel @Inject constructor(
                     )
                 }
 
-                val errorMessage = if (progress.errors.isNotEmpty()) progress.errors.joinToString("; ") else null
+                val errorMessage = if (progress.errors.isNotEmpty()) {
+                    // Show a user-friendly summary instead of dumping all raw errors
+                    val count = progress.errors.size
+                    if (count == 1) {
+                        progress.errors.first().substringBefore(":").trim() + " sync failed"
+                    } else {
+                        "Sync partially failed ($count issues). Tap to retry."
+                    }
+                } else null
 
                 val status = when {
                     !connectivity.isOnline -> SyncStatus.OFFLINE

@@ -37,7 +37,7 @@ class FallbackManagerTest {
 
     @Test
     fun withFallback_primaryFails_returnsStaleFromCache() = runTest {
-        val cachedData = CacheResult("Stale data", 60000L)
+        val cachedData = CacheResult("Stale data", true, 60000L)
         coEvery { cacheManager.getStale<String>("test_key") } returns cachedData
 
         val result = fallbackManager.withFallback(
