@@ -2,6 +2,7 @@ package com.rio.rostry.domain.error
 
 import com.rio.rostry.data.resilience.CircuitOpenException
 import com.rio.rostry.data.resilience.RetryBudgetExhaustedException
+import com.google.firebase.firestore.FirebaseFirestoreException
 import retrofit2.HttpException
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -40,6 +41,8 @@ object UserFacingErrorMapper {
             is RetryBudgetExhaustedException ->
                 "Too many requests. Please wait a moment before trying again."
 
+            is FirebaseFirestoreException -> getFirestoreErrorMessage(error)
+
             is SecurityException ->
                 "You don't have permission to perform this action. Please contact support if you believe this is an error."
 
@@ -67,6 +70,7 @@ object UserFacingErrorMapper {
                 "Connection Error"
             is IOException -> "Network Error"
             is HttpException -> "Server Error"
+            is FirebaseFirestoreException -> "Data Error"
             is CircuitOpenException -> "Service Unavailable"
             is SecurityException -> "Permission Denied"
             is IllegalArgumentException -> "Invalid Input"
@@ -84,6 +88,11 @@ object UserFacingErrorMapper {
             is IOException -> true
             is CircuitOpenException -> true
             is HttpException -> error.code() in listOf(408, 429, 500, 502, 503, 504)
+            is FirebaseFirestoreException -> error.code in listOf(
+                FirebaseFirestoreException.Code.UNAVAILABLE,
+                FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
+                FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED
+            )
             else -> false
         }
     }
@@ -100,6 +109,29 @@ object UserFacingErrorMapper {
             500, 502, 503 -> "The server is experiencing issues. Please try again in a few minutes."
             504 -> "The server took too long to respond. Please try again."
             else -> "Server error (${error.code()}). Please try again later."
+        }
+    }
+
+    private fun getFirestoreErrorMessage(error: FirebaseFirestoreException): String {
+        return when (error.code) {
+            FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+                "You don't have permission to access this data. Try signing out and back in."
+            FirebaseFirestoreException.Code.UNAUTHENTICATED ->
+                "Your session has expired. Please sign in again."
+            FirebaseFirestoreException.Code.NOT_FOUND ->
+                "The requested data could not be found."
+            FirebaseFirestoreException.Code.UNAVAILABLE ->
+                "The service is temporarily unavailable. Please try again in a moment."
+            FirebaseFirestoreException.Code.DEADLINE_EXCEEDED ->
+                "The request took too long. Please check your connection and try again."
+            FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED ->
+                "Too many requests. Please wait a moment before trying again."
+            FirebaseFirestoreException.Code.ALREADY_EXISTS ->
+                "This item already exists."
+            FirebaseFirestoreException.Code.CANCELLED ->
+                "The operation was cancelled."
+            else ->
+                "A data error occurred. Please try again."
         }
     }
 

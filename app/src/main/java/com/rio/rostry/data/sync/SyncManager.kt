@@ -142,6 +142,25 @@ class SyncManager @Inject constructor(
         return false
     }
 
+    /**
+     * Converts raw exception messages to user-friendly descriptions for sync errors.
+     * Prevents technical Firebase/network errors like "PERMISSION_DENIED: Missing or
+     * insufficient permissions." from appearing in the UI.
+     */
+    private fun friendlyError(e: Throwable): String {
+        val msg = e.message ?: return "Unknown error"
+        return when {
+            msg.contains("PERMISSION_DENIED", ignoreCase = true) -> "Permission denied"
+            msg.contains("UNAUTHENTICATED", ignoreCase = true) -> "Session expired"
+            msg.contains("NOT_FOUND", ignoreCase = true) -> "Not found"
+            msg.contains("UNAVAILABLE", ignoreCase = true) -> "Temporarily unavailable"
+            msg.contains("DEADLINE_EXCEEDED", ignoreCase = true) -> "Timed out"
+            msg.contains("RESOURCE_EXHAUSTED", ignoreCase = true) -> "Rate limited"
+            msg.contains("network", ignoreCase = true) || msg.contains("connect", ignoreCase = true) -> "Network error"
+            else -> msg.take(60) // Truncate to prevent very long messages
+        }
+    }
+
     private fun isTerminalTransferStatus(status: String?): Boolean {
         return when (status?.uppercase()) {
             "COMPLETED", "CANCELLED", "TIMED_OUT" -> true
@@ -399,7 +418,7 @@ class SyncManager @Inject constructor(
             }
         } catch (e: Exception) {
             Timber.e(e, "Product Tracking sync failed")
-            errors.add("Tracking: ${e.message}")
+            errors.add("Tracking: ${friendlyError(e)}")
         }
         return SyncResult(pulls, pushes, 0, errors)
     }
@@ -469,7 +488,7 @@ class SyncManager @Inject constructor(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Enthusiast sync failed")
-                errors.add("Enthusiast Data: ${e.message}")
+                errors.add("Enthusiast Data: ${friendlyError(e)}")
             }
         }
         return SyncResult(pulls, pushes, 0, errors)
@@ -488,7 +507,7 @@ class SyncManager @Inject constructor(
             }
         } catch (e: Exception) {
             Timber.e(e, "Users sync failed")
-            errors.add("Users: ${e.message}")
+            errors.add("Users: ${friendlyError(e)}")
         }
         return SyncResult(pulls, 0, 0, errors)
     }
@@ -619,7 +638,7 @@ class SyncManager @Inject constructor(
 
         } catch (e: Exception) {
             Timber.e(e, "Products sync failed")
-            errors.add("Products: ${e.message}")
+            errors.add("Products: ${friendlyError(e)}")
         }
         return SyncResult(pulls, pushes, 0, errors)
     }
@@ -652,7 +671,7 @@ class SyncManager @Inject constructor(
             orderDao.purgeDeleted()
         } catch (e: Exception) {
             Timber.e(e, "Orders sync failed")
-            errors.add("Orders: ${e.message}")
+            errors.add("Orders: ${friendlyError(e)}")
         }
         return SyncResult(pulls, pushes, 0, errors)
     }
@@ -695,7 +714,7 @@ class SyncManager @Inject constructor(
             transferDao.purgeDeleted()
         } catch (e: Exception) {
             Timber.e(e, "Transfers sync failed")
-            errors.add("Transfers: ${e.message}")
+            errors.add("Transfers: ${friendlyError(e)}")
         }
         return SyncResult(pulls, pushes, 0, errors)
     }
@@ -727,7 +746,7 @@ class SyncManager @Inject constructor(
             chatMessageDao.purgeDeleted()
         } catch (e: Exception) {
             Timber.e(e, "Chat sync failed")
-            errors.add("Chat: ${e.message}")
+            errors.add("Chat: ${friendlyError(e)}")
         }
         return SyncResult(pulls, 0, 0, errors)
     }
@@ -769,7 +788,7 @@ class SyncManager @Inject constructor(
                             } catch (t: Throwable) {
                                 outboxDao.incrementRetry(e.outboxId, ctx.now)
                                 outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
-                                errors.add("Transfer push failed for ${transfer.transferId}: ${t.message}")
+                                errors.add("Transfer push failed: ${friendlyError(t)}")
                             }
                             processedCount++
                         }
@@ -784,7 +803,7 @@ class SyncManager @Inject constructor(
                             } catch (t: Throwable) {
                                 outboxDao.incrementRetry(e.outboxId, ctx.now)
                                 outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
-                                errors.add("Tracking push failed: ${t.message}")
+                                errors.add("Tracking push failed: ${friendlyError(t)}")
                             }
                             processedCount++
                         }
@@ -817,7 +836,7 @@ class SyncManager @Inject constructor(
                                 } else {
                                     outboxDao.incrementRetry(e.outboxId, ctx.now)
                                     outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
-                                    errors.add("Listing push failed: ${t.message}")
+                                    errors.add("Listing push failed: ${friendlyError(t)}")
                                 }
                             }
                             processedCount++
@@ -833,7 +852,7 @@ class SyncManager @Inject constructor(
                             } catch (t: Throwable) {
                                 outboxDao.incrementRetry(e.outboxId, ctx.now)
                                 outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
-                                errors.add("Chat message push failed: ${t.message}")
+                                errors.add("Chat push failed: ${friendlyError(t)}")
                             }
                             processedCount++
                         }
@@ -856,7 +875,7 @@ class SyncManager @Inject constructor(
                             } catch (t: Throwable) {
                                 outboxDao.incrementRetry(e.outboxId, ctx.now)
                                 outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
-                                errors.add("Task push failed: ${t.message}")
+                                errors.add("Task push failed: ${friendlyError(t)}")
                             }
                             processedCount++
                         }
@@ -871,7 +890,7 @@ class SyncManager @Inject constructor(
                             } catch (t: Throwable) {
                                 outboxDao.incrementRetry(e.outboxId, ctx.now)
                                 outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
-                                errors.add("Order push failed: ${t.message}")
+                                errors.add("Order push failed: ${friendlyError(t)}")
                             }
                             processedCount++
                         }
@@ -896,7 +915,7 @@ class SyncManager @Inject constructor(
             
         } catch (e: Exception) {
             Timber.e(e, "Outbox processing failed")
-            errors.add("Outbox: ${e.message}")
+            errors.add("Outbox: ${friendlyError(e)}")
         }
         return SyncResult(0, 0, processedCount, errors)
     }
@@ -933,7 +952,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Breeding Pairs sync failed")
-                    errors.add("Breeding Pairs: ${e.message}")
+                    errors.add("Breeding Pairs: ${friendlyError(e)}")
                 }
                 
                 // Farm Alerts
@@ -954,7 +973,7 @@ class SyncManager @Inject constructor(
                     farmAlertDao.deleteExpired(ctx.now)
                 } catch (e: Exception) {
                     Timber.e(e, "Farm Alerts sync failed")
-                    errors.add("Alerts: ${e.message}")
+                    errors.add("Alerts: ${friendlyError(e)}")
                 }
                 
                 // Dashboard Snapshots
@@ -974,7 +993,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Dashboard Snapshots sync failed")
-                    errors.add("Dashboard: ${e.message}")
+                    errors.add("Dashboard: ${friendlyError(e)}")
                 }
                 
                 // Vaccination Records
@@ -994,7 +1013,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Vaccination sync failed")
-                    errors.add("Vaccinations: ${e.message}")
+                    errors.add("Vaccinations: ${friendlyError(e)}")
                 }
                 
                 // Growth Records
@@ -1014,7 +1033,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Growth sync failed")
-                    errors.add("Growth: ${e.message}")
+                    errors.add("Growth: ${friendlyError(e)}")
                 }
                 
                 // Quarantine Records
@@ -1034,7 +1053,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Quarantine sync failed")
-                    errors.add("Quarantine: ${e.message}")
+                    errors.add("Quarantine: ${friendlyError(e)}")
                 }
                 
                 // Mortality Records
@@ -1054,7 +1073,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Mortality sync failed")
-                    errors.add("Mortality: ${e.message}")
+                    errors.add("Mortality: ${friendlyError(e)}")
                 }
                 
                 // Hatching Batches
@@ -1074,7 +1093,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Hatching Batches sync failed")
-                    errors.add("Hatching: ${e.message}")
+                    errors.add("Hatching: ${friendlyError(e)}")
                 }
                 
                 // Hatching Logs
@@ -1094,7 +1113,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Hatching Logs sync failed")
-                    errors.add("Hatching Logs: ${e.message}")
+                    errors.add("Hatching Logs: ${friendlyError(e)}")
                 }
                 
                 // Batch Summaries
@@ -1114,7 +1133,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "BatchSummaries sync failed")
-                    errors.add("BatchSummaries: ${e.message}")
+                    errors.add("BatchSummaries: ${friendlyError(e)}")
                 }
                 
                 // Tasks
@@ -1134,7 +1153,7 @@ class SyncManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Timber.e(e, "Tasks sync failed")
-                    errors.add("Tasks: ${e.message}")
+                    errors.add("Tasks: ${friendlyError(e)}")
                 }
             }
         }

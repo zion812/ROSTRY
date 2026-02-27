@@ -50,7 +50,7 @@ class BirdStudioViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BirdStudioState())
     val uiState: StateFlow<BirdStudioState> = _uiState.asStateFlow()
 
-    private val birdId: String? = savedStateHandle.get<String>("birdId")
+    private val birdId: String? = savedStateHandle.get<String>("productId")
 
     init {
         if (birdId != null) {
