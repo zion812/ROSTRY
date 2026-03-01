@@ -640,13 +640,11 @@ class IntelligentNotificationService @Inject constructor(
 
     private fun generateId(prefix: String): String = "$prefix${System.currentTimeMillis()}"
 
-    private fun markDisplayed(notificationId: String) {
+    private suspend fun markDisplayed(notificationId: String) {
         val now = System.currentTimeMillis()
         // Reuse batch method to set displayedAt for a single notification
         // It also ensures isBatched is false (no-op if already false)
-        kotlinx.coroutines.runBlocking {
-            notificationDao.markBatchDisplayed(listOf(notificationId), now)
-        }
+        notificationDao.markBatchDisplayed(listOf(notificationId), now)
     }
 
     private suspend fun shouldNotify(userId: String, category: String): Boolean {

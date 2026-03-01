@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import com.rio.rostry.utils.Resource
+import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -349,7 +350,7 @@ class FarmAlertNotificationService @Inject constructor(
         val delay = dueDate - System.currentTimeMillis()
         if (delay <= 0) {
             // Already overdue, send immediately
-            kotlinx.coroutines.runBlocking { sendTaskOverdueReminder(taskId, dueDate) }
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { sendTaskOverdueReminder(taskId, dueDate) }
         } else {
             val data = Data.Builder()
                 .putString("taskId", taskId)

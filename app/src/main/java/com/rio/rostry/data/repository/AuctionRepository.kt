@@ -55,7 +55,7 @@ class AuctionRepositoryImpl @Inject constructor(
                         
                         // Also update local cache
                         auction?.let { 
-                            kotlinx.coroutines.GlobalScope.launch {
+                            this@callbackFlow.launch {
                                 auctionDao.upsert(it)
                             }
                         }

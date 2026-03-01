@@ -3,6 +3,7 @@ package com.rio.rostry.domain.batch
 import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.domain.validation.ValidationFramework
 import com.rio.rostry.domain.validation.InputValidator
+import androidx.room.withTransaction
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,10 +59,8 @@ class BatchOperationHelper @Inject constructor(
             validator = validator,
             operation = operation,
             transactionBlock = { block ->
-                database.runInTransaction {
-                    kotlinx.coroutines.runBlocking {
-                        block()
-                    }
+                database.withTransaction {
+                    block()
                 }
             }
         )

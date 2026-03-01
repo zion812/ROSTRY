@@ -471,8 +471,9 @@ class MediaUploadService @Inject constructor(
             val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
-            BitmapFactory.decodeStream(inputStream, null, options)
-            inputStream.close()
+            inputStream.use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
 
             // Calculate sample size for efficient decoding
             val scaleFactor = maxOf(
@@ -485,8 +486,9 @@ class MediaUploadService @Inject constructor(
             }
 
             val stream2 = context.contentResolver.openInputStream(imageUri) ?: return null
-            val bitmap = BitmapFactory.decodeStream(stream2, null, decodeOptions)
-            stream2.close()
+            val bitmap = stream2.use { stream ->
+                BitmapFactory.decodeStream(stream, null, decodeOptions)
+            }
 
             bitmap?.let {
                 Bitmap.createScaledBitmap(it, THUMBNAIL_SIZE, THUMBNAIL_SIZE, true)
