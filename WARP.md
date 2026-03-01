@@ -6,7 +6,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ROSTRY is an Android AgriTech marketplace application for the poultry industry, combining social networking, e-commerce, and farm management tools. Built with Kotlin, Jetpack Compose, and modern Android development practices.
 
-**Version**: 1.0.0 (80% production-ready)  
+**Version**: v1.0
 **Min SDK**: 24 | **Target SDK**: 36 | **Compile SDK**: 36
 
 ## Essential Commands
@@ -87,8 +87,9 @@ ROSTRY is an Android AgriTech marketplace application for the poultry industry, 
   - `data/database/entity/`: 60+ Room entities
   - `data/database/dao/`: Data Access Objects
 - `di/`: Hilt modules for DI configuration
-  - `AppModule`, `DatabaseModule`, `RepositoryModule`, `NetworkModule`, etc.
-- `workers/`: 20+ WorkManager background jobs
+  - `AppModule`, `DatabaseModule`, `RepositoryModule`, `NetworkModule`,
+> [!NOTE]
+> `SyncWorker` is scheduled every 8 hours (reduced from 4h for Quota Optimization).
   - `SyncWorker`, `FarmMonitoringWorker`, `VaccinationReminderWorker`, etc.
 - `utils/`: Validation, encryption, analytics, notifications
 - `domain/`: Use cases and business logic
@@ -101,7 +102,7 @@ ROSTRY is an Android AgriTech marketplace application for the poultry industry, 
 
 ### Background Jobs
 Scheduled in `RostryApp.onCreate()` with 3-second startup delay:
-- **SyncWorker**: Bidirectional Room/Firebase sync every 6 hours
+- **SyncWorker**: Bidirectional Room/Firebase sync (every 8 hours)
 - **LifecycleWorker**: Farm milestone reminders
 - **TransferTimeoutWorker**: SLA enforcement for ownership transfers
 - **ModerationWorker**: Content scanning
@@ -336,6 +337,6 @@ firebase emulators:start
 
 - Internal documentation: `docs/` directory
 - GitHub Issues for bugs/feature requests
-- Code of Conduct: `CONTRIBUTING.md`
+- Code of Conduct: `CODE_OF_CONDUCT.md`
 - Security Policy: `SECURITY.md` (report vulnerabilities privately)
 

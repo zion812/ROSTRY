@@ -1,3 +1,10 @@
+---
+Version: 2.1
+Last Updated: 2026-03-01
+Audience: Contributors
+Status: Active
+---
+
 # ROSTRY Code Style Guide
 
 This document defines coding conventions for consistency, readability, and maintainability across the ROSTRY codebase.

@@ -1,3 +1,10 @@
+---
+Version: 1.1
+Last Updated: 2026-03-01
+Audience: Developers
+Status: Active
+---
+
 # 🛠️ Developer Cheat Sheet
 
 Copy-paste friendly commands & patterns.

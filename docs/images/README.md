@@ -1,40 +1,29 @@
-# Images & Diagrams
+# ROSTRY Image Assets
 
-This directory stores exported diagrams, screenshots, and other visual assets referenced by the documentation.
+This directory contains visual assets for the ROSTRY project documentation.
 
 ## Directory Structure
-```
-images/
-├── architecture/     # Architecture diagrams
-├── screenshots/      # App screenshots
-├── workflows/        # Process/flow diagrams
-├── ui-mockups/       # Design mockups
-└── diagrams/         # General diagrams
-```
+
+- `architecture/`: Technical diagrams (Mermaid exports, etc.)
+- `screenshots/`: High-resolution app previews
+- `workflows/`: UI flow and process diagrams
+- `ui/`: Component-level visual documentation
+
+## Asset Naming Conventions
+
+To maintain consistency, please follow these naming patterns:
+
+- **Screenshots**: `<feature>_<sub-feature>_preview.png` (e.g., `digital_farm_isometric_preview.png`)
+- **Diagrams**: `<system_component>_<process>_diagram.png` (e.g., `auth_otp_flow_diagram.png`)
+- **UI Components**: `ui_<component_name>_spec.png`
 
 ## Guidelines
-- Prefer **SVG** for diagrams, **PNG** for screenshots
-- Use descriptive names, e.g. `marketplace-listing-view.png`, `rbac-architecture.svg`
-- Keep files under ~1MB when possible; optimize images before committing
-- Export Mermaid diagrams as images for environments without Mermaid support
-- Include alt text in Markdown for accessibility
 
-## Creating Diagrams
-- Use Mermaid in docs and export via Mermaid CLI or editor extensions
-- Tools: draw.io, Excalidraw, Figma
+1. **Format**: Prefer `.png` for screenshots and `.svg` for diagrams where possible.
+2. **Size**: Keep file sizes optimized for web (under 500KB per image).
+3. **Alt Text**: Always provide descriptive alt text when embedding in markdown.
+4. **Placeholders**: If an image is pending, use the `> [!NOTE]` callout in the markdown file instead of a blank image link.
 
-## Inventory
+---
 
-- architecture/
-  - system-context.svg (pending/export later)
-- screenshots/
-  - home-screen.png (placeholder pending)
-- workflows/
-  - (none yet)
-
-Note: If no assets are present yet, references in docs should be temporarily hidden or point to this README for status.
-
-## Contributing
-- Place new assets in the appropriate subfolder
-- Update the referencing docs with relative paths
-- Remove or replace outdated images when docs change
+*For help with assets, contact the design lead or documentation maintainer.*

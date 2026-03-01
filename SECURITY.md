@@ -1,8 +1,11 @@
-# Security Policy
+---
+Version: 1.1
+Last Updated: 2026-03-01
+Audience: Security Researchers, Developers
+Status: Active
+---
 
-**Version:** 1.0  
-**Last Updated:** 2025-01-15  
-**Maintainers:** ROSTRY Security Team
+# Security Policy
 
 ---
 

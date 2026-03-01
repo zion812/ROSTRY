@@ -1,0 +1,14 @@
+# Global owners
+* @zion812
+
+# Documentation
+*.md @zion812
+docs/ @zion812
+
+# Firebase rules
+firebase/ @zion812
+firestore.rules @zion812
+
+# Build configuration
+*.gradle.kts @zion812
+gradle/ @zion812

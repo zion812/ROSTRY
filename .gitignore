@@ -40,3 +40,11 @@ app/google-services.json
 # OS-specific files
 .DS_Store
 Thumbs.db
+
+# Build & signing artifacts
+build_output.txt
+build_log.txt
+test_output.txt
+signing_report.txt
+signing_output.txt
+commit_message.txt

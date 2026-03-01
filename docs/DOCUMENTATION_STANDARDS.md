@@ -1,8 +1,11 @@
-# Documentation Standards
-
-Version: 1.0
-Last Updated: 2025-01-15
+---
+Version: 1.1
+Last Updated: 2026-03-01
 Audience: All contributors
+Status: Active
+---
+
+# Documentation Standards
 
 ---
 

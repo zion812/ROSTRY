@@ -1,7 +1,11 @@
-# Contributing to ROSTRY
+---
+Version: 2.1
+Last Updated: 2026-03-01
+Audience: Contributors
+Status: Active
+---
 
-**Version:** 2.0  
-**Last Updated:** 2025-01-15
+# Contributing to ROSTRY
 
 ---
 
@@ -23,7 +27,7 @@ Thank you for your interest in contributing! This guide explains how to set up y
 - [Release Process](#release-process)
 
 ## 📝 Quick Contribution Checklist
-- [ ] Read the **[Quick Start](../QUICK_START.md)** and run the app
+- [ ] Read the **[Quick Start](QUICK_START.md)** and run the app
 - [ ] Create a feature branch: `feat/<short-description>`
 - [ ] Follow **[CODE_STYLE.md](CODE_STYLE.md)** conventions
 - [ ] Write or update **tests** and **docs** (see `docs/README-docs.md` for index)
@@ -264,11 +268,10 @@ Brief description of changes
 
 ### Required CI Checks
 
-All PRs must pass:
-- Lint checks (ktlint, detekt)
-- Unit tests
-- Build verification
-- Code coverage threshold
+All PRs must pass the following automated checks in GitHub Actions:
+- **lint**: Runs `./gradlew ktlintCheck detekt`
+- **build**: Runs `./gradlew assembleDebug`
+- **test**: Runs `./gradlew test` (Unit tests)
 
 ## Code Review
 

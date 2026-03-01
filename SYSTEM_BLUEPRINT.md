@@ -22,6 +22,7 @@ Tags: [system-architecture, blueprint, overview, enterprise]
 
 ROSTRY follows clean architecture with clear layer separation.
 
+```mermaid
 graph TB
     subgraph "Presentation Layer"
         UI[Jetpack Compose UI]

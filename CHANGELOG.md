@@ -1,7 +1,7 @@
 ---
 
-[Unreleased]: https://github.com/your-org/ROSTRY/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/your-org/ROSTRY/releases/tag/v1.0.0
+[Unreleased]: https://github.com/zion812/ROSTRY/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/zion812/ROSTRY/releases/tag/v1.0.0
 # Changelog
 
 All notable changes to this project will be documented in this file.

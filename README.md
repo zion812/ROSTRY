@@ -1,291 +1,64 @@
 ---
-Version: 1.0
-Last Updated: 2026-01-06
-Audience: Developers, Product Owners
+Version: 1.1
+Last Updated: 2026-03-01
+Audience: Developers, Contributors, Users
 Status: Active
 ---
 
-# ROSTRY Android Application
+# ROSTRY
 
-## ⚡ Quick Links
-- 📘 **[R&D Master Doc](ROSTRY_COMPLETE_RND_DOCUMENTATION.md)**
-- 🗺️ [System Blueprint](SYSTEM_BLUEPRINT.md)
-- 🚀 [5-Minute Quick Start](QUICK_START.md)
-- 🛠️ [Developer Cheat Sheet](CHEAT_SHEET.md)
-- 📚 [Documentation Index](docs/README-docs.md)
-- 🏗️ [Architecture Guide](docs/architecture.md)
+![CI](https://github.com/zion812/ROSTRY/actions/workflows/ci.yml/badge.svg)
+![Version](https://img.shields.io/badge/version-v1.0-blue)
+![Platform](https://img.shields.io/badge/platform-Android-brightgreen)
 
+ROSTRY is an Android AgriTech marketplace application for the poultry industry, combining social networking, e-commerce, and farm management tools. Built with Kotlin, Jetpack Compose, and modern Android development practices.
 
-ROSTRY is an AgriTech marketplace application built with modern Android development practices, combining social networking, e-commerce, and advanced farm management tools for the poultry industry.
+## 🚀 Quick Links
 
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-—-informational)
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Android](https://img.shields.io/badge/Android-15-green)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple)
-![Min SDK](https://img.shields.io/badge/Min%20SDK-24-orange)
+- **[Quick Start](QUICK_START.md)** — 5-minute setup guide
+- **[System Blueprint](SYSTEM_BLUEPRINT.md)** — High-level architecture and functional breakdown
+- **[Documentation Index](docs/README-docs.md)** — Complete guide to our 50+ documentation files
+- **[R&D Master Doc](docs/ROSTRY_COMPLETE_RND_DOCUMENTATION.md)** — Deep technical reference for contributors
+- **[Roadmap](ROADMAP.md)** — See our 2026 goals and planned features
 
----
+## ✨ Core Features
 
-## Table of Contents
+- **Biometric Security**: SQLCipher encryption and biometric app lock.
+- **Offline-First**: Reliable performance in rural areas with full background sync.
+- **Traceability**: Complete lineage tracking for all poultry products.
+- **Digital Farm**: Isometric 2.5D visualization for batch management and alerts.
+- **Community Hub**: Integrated social platform for farmers, enthusiasts, and experts.
+- **Secure Marketplace**: UPI-integrated payment gateway and evidence-based transfer system.
 
-- [Features Overview](#features-overview)
-- [Screenshots](#screenshots)
-- [Prerequisites](#prerequisites)
-- [Project Setup](#project-setup)
-- [Technology Stack](#technology-stack)
-- [Architecture](#architecture)
-- [Quick Start (Developers)](#quick-start-developers)
-- [Building](#building)
-- [Testing](#testing)
-- [Project Status](#project-status)
-- [Recent Major Features](#recent-major-features)
-- [Contributing & Code Style](#contributing--code-style)
-- [Community Standards](#community-standards)
-- [Support](#support)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+## 🛠️ Tech Stack
 
----
+- **Language**: Kotlin 2.0+
+- **UI Framework**: Jetpack Compose
+- **Architecture**: Clean Architecture + MVVM
+- **Dependency Injection**: Hilt
+- **Local Database**: Room (+ SQLCipher)
+- **Backend Service**: Firebase (Auth, Firestore, Storage, Functions, Messaging)
+- **Background Work**: WorkManager (30+ specialized workers)
 
-## Features Overview
+## 🤝 Community Standards
 
-- **Social Platform**: Posts, messaging integration, groups, events, community engagement hub
-- **Marketplace**: Smart filtering (public/private), listings, auctions, secure payments
-- **Enhanced Explore**: Map visualization for nearby farmers, profile navigation, educational content
-- **Secure Transfers**: Ownership transfers with guided flow, verification, and audit
-- **Farm Monitoring**: Growth, vaccination, hatching, analytics, quick actions, alert
-- **Advanced Analytics**: Dashboards, performance insights, AI recommendations, exports
-- **Notifications**: Push/local notifications with deep links
-- **UX Enhancements**: Multi-step wizards, tooltips, animations, contextual help
+We are committed to a professional and welcoming environment.
+- **[Contributing Guide](CONTRIBUTING.md)** — How to submit PRs and follow code standards
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** — Our pledge and behavior standards
+- **[Security Policy](SECURITY.md)** — How to report vulnerabilities
 
----
+## 📸 Screenshots
 
-## Authentication & Security
+> [!NOTE]
+> Screenshots are currently being updated for v1.0. High-resolution previews of the Digital Farm and Marketplace will be available soon in `docs/images/screenshots/`.
 
--   **Primary Flow**: Phone OTP is the active and primary authentication method.
--   **Secondary Providers**: Google Sign-In and Email/Password are supported as secondary options.
--   **Security Rules**: The canonical security rules are located in `firebase/firestore.rules`. These rules strictly enforce access via **custom claims** (`role`, `verified`), not just document fields.
--   **Cloud Functions**: Authentication claims are kept in sync by Cloud Functions defined in `firebase/functions/src/index.ts` and `roles.ts`. These must be deployed correctly for the RBAC system to function.
+> [!NOTE]
+> Detailed screenshots and UI components are documented in [docs/ui/](docs/ui/).
 
-### Setup Notes
+## ⚖️ License
 
-1.  **Enable Providers**: In Firebase Console, enable **Phone**, **Google**, and **Email/Password** providers.
-2.  **Phone Auth Config**: 
-    - Add SHA-1 and SHA-256 fingerprints to your Firebase project settings.
-    - For local debugging, the flag `PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING` is enabled in `debug` builds (see `app/build.gradle.kts`) to bypass SafetyNet/Play Integrity during development.
-3.  **Custom Claims**: Note that rules depend on claims. If a user cannot access data despite having the correct `userType` in Firestore, verify their custom claims via the Admin SDK or Firebase Functions logs.
----
-
-## Firestore Index Management
-
-Firestore composite indexes are required for efficient querying of collections with multiple filter conditions. The app defines these indexes in `firebase/firestore.indexes.json`.
-
-### Index Configuration
-
-- **Location**: `firebase/firestore.indexes.json` contains all composite index definitions
-- **Structure**: Each index specifies collection, query scope, field paths, sort order, and density
-- **Required Indexes**: The `orders` collection requires two composite indexes for efficient user-specific queries:
-  - Buyer orders: `(buyerId ASC, updatedAt ASC, __name__ ASC)`
-  - Seller orders: `(sellerId ASC, updatedAt ASC, __name__ ASC)`
-
-### Deployment Methods
-
-Deploy indexes using either of these methods:
-
-#### Automatic Deployment
-```bash
-firebase deploy --only firestore:indexes
-```
-
-#### Manual Deployment
-- Check Firebase Console for FAILED_PRECONDITION error messages with index creation URLs
-- Follow the URLs to create missing indexes directly in the Firebase Console
-- Monitor index build status in Firestore indexes tab
-
-### Index Build Time
-
-- Firestore indexes are built incrementally and can take several minutes to complete
-- Large collections may require longer build times
-- Monitor index status in Firebase Console before testing queries
-
-### Troubleshooting Sync Failures
-
-When experiencing sync issues, check for these common index-related problems:
-
-1. **FAILED_PRECONDITION Errors**: Look for index creation URLs in logcat
-   - Search for "Firestore" or "FAILED_PRECONDITION" in Android Studio Logcat
-   - Follow provided Firebase Console URLs to create missing indexes
-
-2. **Index Status Verification**:
-   - Navigate to Firestore indexes in Firebase Console
-   - Verify required indexes are in "Enabled" state (not "Building" or "Error")
-   - Check that `firestore.indexes.json` matches deployed indexes
-
-3. **Query Structure Changes**:
-   - Any changes to query filters or ordering may require new indexes
-   - Update `firebase/firestore.indexes.json` when modifying Firestore queries
-   - Deploy updated indexes to Firebase before releasing query changes
-
-### Common Pitfalls
-
-- **Forgotten Index Deployment**: Modifying queries without deploying corresponding indexes
-- **Incomplete Index Builds**: Testing queries before indexes finish building
-- **Data Constraints**: Index build failures due to existing data that violates new index constraints
-- **Sync Failures**: OutboxSyncWorker failing indefinitely due to missing indexes, resulting in offline indicators in the UI
+ROSTRY is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 ---
 
-## Screenshots
-
-Temporarily hidden until assets are added. Target path: `docs/images/screenshots/`.
-
----
-
-## Getting Started
-
-- Use [QUICK_START.md](QUICK_START.md) for 5‑minute local setup and first run.
-- Firebase and keys: see `docs/firebase-setup.md` and `docs/api-keys-setup.md`.
-- Commands and patterns: see [CHEAT_SHEET.md](CHEAT_SHEET.md).
-
-## Documentation
-
-📘 **R&D Master Documentation**: For the most comprehensive, technical, and detailed view of the system (implementation details, ViewModels, Database Schema), see `ROSTRY_COMPLETE_RND_DOCUMENTATION.md`. This is the primary resource for the R&D team.
-
-📚 **Comprehensive documentation available.** See `docs/README-docs.md` for the complete index including architecture guides, feature documentation, and operational procedures.
-
-- Central index: `docs/README-docs.md`
-- Architecture: `docs/architecture.md`
-- Testing: `docs/testing-strategy.md`
-- Security: `docs/security-encryption.md`
-- Feature guides: `docs/ai-personalization.md` (AI recommendations), `docs/gamification.md` (achievements & rewards), `docs/traceability.md` (lineage tracking), `docs/worker-catalog.md` (background jobs), `docs/export-utilities.md` (data export)
-
-## Architecture (highlights)
-
-- Clean Architecture + MVVM, Jetpack Compose UI
-- Hilt DI, StateFlow for state, Navigation for flows
-- Room (SQLCipher) as source of truth; offline‑first
-- Firebase (Auth, Firestore, Storage, Functions, FCM)
-- WorkManager for background jobs
-- More in `docs/architecture.md`
-
----
-
-## Technology (highlights)
-
-- Compose UI (Material 3), Coil, MPAndroidChart
-- Hilt DI, Navigation, Coroutines/Flow
-- Room + SQLCipher, DataStore
-- Firebase (Auth, Firestore, Storage, Functions, FCM)
-- Retrofit/Gson
-- Quality: ktlint, detekt, Dokka
-
----
-
-## Quick Start (Developers)
-
-See [QUICK_START.md](QUICK_START.md). For demo accounts, see `docs/demo_quick_start.md`.
-
-## Building
-
-*   **Debug builds**: Standard build process from Android Studio.
-*   **Release builds**: Minification is enabled. ProGuard rules are in `app/proguard-rules.pro`.
-
-## Testing
-
--   **Note**: Test suites are not yet checked in. Standard unit and instrumentation test suites are currently being finalized.
--   Unit tests will live in `app/src/test/java/`.
--   Instrumented tests will live in `app/src/androidTest/java/`.
--   Libraries: Mockito (core, inline, kotlin), MockK, kotlinx-coroutines-test, Robolectric.
--   See `docs/testing-strategy.md` for the planned testing approach.
-
-Run Dokka API docs:
-```
-./gradlew :app:dokkaHtml
-```
-Output is under `app/build/dokka/html`.
-
-## Project Status
-
-- Version: 1.0 (9)
-- Status: Production-ready (Active development)
-- Active development; see [CHANGELOG.md](CHANGELOG.md)
-- Future plans: see [ROADMAP.md](ROADMAP.md)
-
----
-
-## Recent Major Features
-
-See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
-
-- **Enhanced Explore Experience**: Map view for nearby farmers, profile navigation, educational content
-- **Social Integration**: Direct messaging from profiles, context-aware threads
-- **Marketplace Improvements**: Public/private product filtering, better farm management separation
-- **Community Engagement System**: Messenger-like hub with context-aware messaging and intelligent recommendations
-- **UX Enhancements**: Multi-step wizards, filter presets, guided flows, tooltips, animations
-- **Database Migration 15→16**: Added community features with 4 new entities
-- **Enhanced Farm Monitoring**: Quick actions, alert system, real-time metrics
-- **New Feature Documentation**: Guides for AI/personalization, gamification, traceability, worker catalog
-
----
-
-## Contributing & Code Style
-
-- Read [CONTRIBUTING.md](CONTRIBUTING.md) for workflow and PR process
-- Follow [CODE_STYLE.md](CODE_STYLE.md) and `docs/code-style-quick-reference.md`
-
----
-
-## Community Standards
-
-We commit to a welcoming and inclusive environment. Please follow the guidelines in
-[`CONTRIBUTING.md`](CONTRIBUTING.md) (Code of Conduct summary included).
-
-### Security
-
-Security is a top priority. Please review our [Security Policy](SECURITY.md) for:
-- Supported versions
-- Reporting vulnerabilities privately
-- Security best practices
-- Known security features
-
-**Report security issues**: Do NOT create public issues. Follow the private reporting process in [SECURITY.md](SECURITY.md).
-
-### License
-
-This project is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for the full text.
-
-**TL;DR**: You can use, modify, and distribute this software freely, with attribution and under the same license.
-
----
-
-## Support
-
-- Docs hub: `docs/README-docs.md`
-- Troubleshooting: `docs/troubleshooting.md`
-- Issues/Discussions: GitHub
-
----
-
-## Troubleshooting
-
-See [troubleshooting.md](docs/troubleshooting.md) for common issues and fixes.
-
-**Quick Fixes**:
-
-- **Build fails**: Clean project (Build → Clean) and rebuild
-- **Gradle sync fails**: Invalidate caches (File → Invalidate Caches / Restart)
-- **App crashes**: Check `google-services.json` is present
-- **Firebase errors**: Verify Firebase configuration
-
----
-
-## Credits
-
-- Contributors: see GitHub contributors graph
-- Libraries: see `build.gradle.kts`
-
----
-
-Made with 🐔 by the ROSTRY Team
+© 2026 ROSTRY. Built for the future of poultry farming.
