@@ -57,7 +57,7 @@ class EnthusiastProfileViewModel @Inject constructor(
             userRepository.getCurrentUser()
                 .flatMapLatest { userRes ->
                     if (userRes is Resource.Success<UserEntity?> && userRes.data != null) {
-                        val user = userRes.data
+                        val user = userRes.data ?: return@flatMapLatest flowOf(_uiState.value)
                         val userId = user.userId
 
                         combine(

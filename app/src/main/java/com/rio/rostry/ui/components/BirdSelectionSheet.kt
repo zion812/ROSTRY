@@ -158,9 +158,10 @@ fun BirdSelectionItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!product.birdCode.isNullOrBlank()) {
+                    val bc = product.birdCode
+                    if (!bc.isNullOrBlank()) {
                         Text(
-                            text = product.birdCode,
+                            text = bc,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium

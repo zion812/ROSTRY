@@ -17,8 +17,9 @@ class AssetPrettyPrinter @Inject constructor(
             appendLine("Type: ${asset.assetType} - ${asset.breed}")
             appendLine("Status: ${asset.status}")
             appendLine("Created: ${dateFormat.format(Date(asset.createdAt))}")
-            if (asset.birthDate != null) {
-                appendLine("DOB/Hatch Date: ${dateFormat.format(Date(asset.birthDate))}")
+            val bd = asset.birthDate
+            if (bd != null) {
+                appendLine("DOB/Hatch Date: ${dateFormat.format(Date(bd))}")
             }
             appendLine("Current Location: ${asset.locationName ?: "Unknown"}")
             

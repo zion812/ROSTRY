@@ -131,8 +131,9 @@ class TransferAnalyticsService @Inject constructor(
         // We'll compute from conflict transfers + non-conflict for completeness
         val allTransfers = transferAnalyticsDao.getTransfersWithConflicts(0, endDate) // rough estimate
         for (t in allTransfers) {
-            if (t.completedAt != null && t.durationSeconds != null) {
-                totalCompletionTime += t.durationSeconds
+            val ds = t.durationSeconds
+            if (t.completedAt != null && ds != null) {
+                totalCompletionTime += ds
                 completedCount++
             }
         }

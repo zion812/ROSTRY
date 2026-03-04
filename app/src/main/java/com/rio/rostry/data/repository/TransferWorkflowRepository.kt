@@ -406,8 +406,9 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                 return@withContext Resource.Error("You are not authorized to verify this transfer")
             }
             // GPS within 100m if both coordinates present
-            val gpsOk = if (transfer.gpsLat != null && transfer.gpsLng != null && buyerGpsLat != null && buyerGpsLng != null) {
-                VerificationUtils.withinRadius(transfer.gpsLat, transfer.gpsLng, buyerGpsLat, buyerGpsLng, 100.0)
+            val tLat = transfer.gpsLat; val tLng = transfer.gpsLng
+            val gpsOk = if (tLat != null && tLng != null && buyerGpsLat != null && buyerGpsLng != null) {
+                VerificationUtils.withinRadius(tLat, tLng, buyerGpsLat, buyerGpsLng, 100.0)
             } else true
 
             // Farm data consistency check: verify product status hasn't changed since initiation
@@ -542,9 +543,10 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
 
             // 2. Update Product Ownership (The Core "Digital Asset" Handover)
             val product = productDao.findById(pid)
-            if (product != null && transfer.toUserId != null) {
+            val toUid = transfer.toUserId
+            if (product != null && toUid != null) {
                 val updatedProduct = product.copy(
-                    sellerId = transfer.toUserId, // Handover ownership
+                    sellerId = toUid, // Handover ownership
                     status = "private", // Reset to private for the new owner
                     updatedAt = now(),
                     lastModifiedAt = now(),
@@ -555,7 +557,7 @@ class TransferWorkflowRepositoryImpl @Inject constructor(
                 // Queue product update to outbox
                 val productOutboxEntry = OutboxEntity(
                     outboxId = UUID.randomUUID().toString(),
-                    userId = transfer.toUserId, // New owner context
+                    userId = toUid, // New owner context
                     entityType = OutboxEntity.TYPE_PRODUCT,
                     entityId = pid,
                     operation = "UPDATE",

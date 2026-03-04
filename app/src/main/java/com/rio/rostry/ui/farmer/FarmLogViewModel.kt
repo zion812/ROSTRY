@@ -82,9 +82,9 @@ class FarmLogViewModel @Inject constructor(
                 // Daily Summaries Logic
                 val summaries = grouped.mapValues { (_, groupLogs) ->
                     val breakdown = groupLogs
-                        .filter { it.amountInr != null && it.amountInr > 0 }
+                        .filter { it.amountInr != null && (it.amountInr ?: 0.0) > 0 }
                         .groupBy { it.activityType }
-                        .mapValues { (_, logs) -> logs.sumOf { it.amountInr!! } }
+                        .mapValues { (_, logs) -> logs.sumOf { it.amountInr ?: 0.0 } }
 
                     DailySummary(
                         feedKg = groupLogs.filter { it.activityType == "FEED" }.sumOf { it.quantity ?: 0.0 },

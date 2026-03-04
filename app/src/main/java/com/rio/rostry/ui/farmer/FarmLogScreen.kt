@@ -261,7 +261,7 @@ private fun ActivityLogCard(
                     log.quantity != null -> when (log.activityType) {
                         "FEED" -> "${log.quantity}kg"
                         "WEIGHT" -> "${log.quantity}g"
-                        "MORTALITY" -> "${log.quantity.toInt()} birds"
+                        "MORTALITY" -> { val q = log.quantity; "${q?.toInt()} birds" }
                         else -> log.quantity.toString()
                     }
                     else -> log.description ?: ""

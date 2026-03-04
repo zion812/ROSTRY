@@ -63,7 +63,8 @@ class DewormingRecommendationEngine @Inject constructor() {
                 
                 // Eligibility
                 if (ageDays < deworming.minAgeDays) continue
-                if (deworming.maxAgeDays != null && ageDays > deworming.maxAgeDays) continue
+                val maxAge = deworming.maxAgeDays
+                if (maxAge != null && ageDays > maxAge) continue
 
                 // Check History (One-Time Milestone)
                 val isDone = assetDewormingHistory.any { event ->

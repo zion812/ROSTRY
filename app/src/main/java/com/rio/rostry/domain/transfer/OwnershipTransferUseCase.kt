@@ -155,7 +155,8 @@ class OwnershipTransferUseCase @Inject constructor(
                 
                 // Check expiration
                 val now = System.currentTimeMillis()
-                if (transfer.timeoutAt != null && now > transfer.timeoutAt) {
+                val ta = transfer.timeoutAt
+                if (ta != null && now > ta) {
                     // Mark as expired
                     val expired = transfer.copy(
                         status = STATUS_EXPIRED,

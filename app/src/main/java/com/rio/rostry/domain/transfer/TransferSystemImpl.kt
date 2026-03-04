@@ -71,10 +71,8 @@ class TransferSystemImpl @Inject constructor(
                     val matchesVerification = request.filters.verificationStatus == null
                     
                     // Filter by price range
-                    val matchesPrice = (request.filters.minPrice == null || 
-                        product.price >= request.filters.minPrice) &&
-                        (request.filters.maxPrice == null || 
-                        product.price <= request.filters.maxPrice)
+                    val matchesPrice = (request.filters.minPrice?.let { product.price >= it } ?: true) &&
+                        (request.filters.maxPrice?.let { product.price <= it } ?: true)
                     
                     matchesQuery && matchesCategory && matchesVerification && matchesPrice
                 }

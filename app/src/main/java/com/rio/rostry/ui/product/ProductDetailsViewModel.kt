@@ -179,8 +179,9 @@ class ProductDetailsViewModel @Inject constructor(
     private fun checkForAuction(productId: String) {
         viewModelScope.launch {
             val result = auctionRepository.getAuctionByProductId(productId)
-            if (result is Resource.Success && result.data != null) {
-                _auctionId.value = result.data.auctionId
+            if (result is Resource.Success) {
+                val auction = result.data
+                _auctionId.value = auction?.auctionId
             } else {
                 _auctionId.value = null
             }

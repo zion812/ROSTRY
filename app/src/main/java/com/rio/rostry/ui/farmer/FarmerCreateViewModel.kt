@@ -320,15 +320,18 @@ class FarmerCreateViewModel @Inject constructor(
                 val vaccinations = vaccinationRepository.observe(productId).first()
                 
                 // Calculate age group from birth date
-                val ageGroup = if (product.birthDate != null) {
-                    val ageInDays = ((System.currentTimeMillis() - product.birthDate) / (24 * 60 * 60 * 1000)).toInt()
-                    when {
-                        ageInDays <= 30 -> AgeGroup.Chick
-                        ageInDays <= 90 -> AgeGroup.Grower
-                        ageInDays <= 365 -> AgeGroup.Adult
-                        else -> AgeGroup.Senior
-                    }
-                } else AgeGroup.Grower
+                val ageGroup = run {
+                    val bd = product.birthDate
+                    if (bd != null) {
+                        val ageInDays = ((System.currentTimeMillis() - bd) / (24 * 60 * 60 * 1000)).toInt()
+                        when {
+                            ageInDays <= 30 -> AgeGroup.Chick
+                            ageInDays <= 90 -> AgeGroup.Grower
+                            ageInDays <= 365 -> AgeGroup.Adult
+                            else -> AgeGroup.Senior
+                        }
+                    } else AgeGroup.Grower
+                }
                 
                 // Map product category - only use existing enum values (Meat, Adoption)
                 val category = when {

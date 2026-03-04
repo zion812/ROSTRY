@@ -711,10 +711,11 @@ class EvidenceOrderRepositoryImpl @Inject constructor(
             // GPS CHECK
             if (verifierLat != null && verifierLng != null) {
                 val quote = quoteDao.getLatestQuote(orderId)
-                if (quote != null && quote.deliveryLatitude != null && quote.deliveryLongitude != null) {
+                val dLat = quote?.deliveryLatitude; val dLng = quote?.deliveryLongitude
+                if (quote != null && dLat != null && dLng != null) {
                     val distanceKm = LocationUtils.calculateDistance(
                         verifierLat, verifierLng,
-                        quote.deliveryLatitude, quote.deliveryLongitude
+                        dLat, dLng
                     )
                     
                     // Allow 0.5km (500m) radius

@@ -194,11 +194,14 @@ fun AuctionContent(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(top = 8.dp)
                         )
-                    } else if (auction.winnerId != null) {
-                        Text(
-                            "Highest Bidder: ${auction.winnerId.take(4)}...",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                    } else {
+                        val wId = auction.winnerId
+                        if (wId != null) {
+                            Text(
+                                "Highest Bidder: ${wId.take(4)}...",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }

@@ -158,9 +158,10 @@ fun AssetSelectionItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!asset.birdCode.isNullOrBlank()) {
+                    val bc = asset.birdCode
+                    if (!bc.isNullOrBlank()) {
                         Text(
-                            text = asset.birdCode,
+                            text = bc,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium

@@ -95,11 +95,11 @@ class FarmDocumentationService @Inject constructor(
             .sumOf { it.quantity ?: 0.0 }
         
         val totalExpensesInr = allActivities
-            .filter { it.amountInr != null && it.amountInr > 0 }
+            .filter { val amt = it.amountInr; amt != null && amt > 0 }
             .sumOf { it.amountInr ?: 0.0 }
         
         val expensesByType = allActivities
-            .filter { it.amountInr != null && it.amountInr > 0 }
+            .filter { val amt = it.amountInr; amt != null && amt > 0 }
             .groupBy { it.activityType }
             .mapValues { entry -> entry.value.sumOf { it.amountInr ?: 0.0 } }
         
@@ -149,15 +149,16 @@ class FarmDocumentationService @Inject constructor(
                 .sumOf { it.quantity ?: 0.0 }
             
             val expensesInr = activities
-                .filter { it.amountInr != null && it.amountInr > 0 }
+                .filter { val amt = it.amountInr; amt != null && amt > 0 }
                 .sumOf { it.amountInr ?: 0.0 }
             
             val currentWeight = growthRecords
                 .maxByOrNull { it.createdAt }
                 ?.weightGrams
             
-            val daysActive = if (asset.birthDate != null) {
-                val diffMs = System.currentTimeMillis() - asset.birthDate
+            val bd = asset.birthDate
+            val daysActive = if (bd != null) {
+                val diffMs = System.currentTimeMillis() - bd
                 (diffMs / (1000 * 60 * 60 * 24)).toInt()
             } else {
                 0

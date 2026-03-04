@@ -8,7 +8,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.rio.rostry.data.repository.AssetDocumentation
 import com.rio.rostry.data.repository.LifecycleTimelineEntry
-import com.rio.rostry.ui.components.MediaItem
+import com.rio.rostry.domain.model.media.SimpleMediaItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,7 +33,7 @@ class AssetExportManager @Inject constructor(
     suspend fun exportAssetPackage(
         documentation: AssetDocumentation,
         timeline: List<LifecycleTimelineEntry>,
-        mediaItems: List<MediaItem> // All gathered media
+        mediaItems: List<SimpleMediaItem> // All gathered media
     ): ExportResult = withContext(Dispatchers.IO) {
         val tempDir = File(context.cacheDir, "export_${System.currentTimeMillis()}")
         tempDir.mkdirs()

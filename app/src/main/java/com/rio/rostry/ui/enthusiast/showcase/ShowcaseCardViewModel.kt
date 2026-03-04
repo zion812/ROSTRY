@@ -93,11 +93,12 @@ class ShowcaseCardViewModel @Inject constructor(
                     vaccinationCount = vaccinationCount
                 )) {
                     is Resource.Success -> {
-                        currentCard = result.data
+                        val card = result.data ?: return@launch
+                        currentCard = card
                         _uiState.value = ShowcaseCardUiState.Success(
-                            cardBitmap = result.data!!.bitmap,
+                            cardBitmap = card.bitmap,
                             birdName = bird.name,
-                            file = result.data.file
+                            file = card.file
                         )
                     }
                     is Resource.Error -> {

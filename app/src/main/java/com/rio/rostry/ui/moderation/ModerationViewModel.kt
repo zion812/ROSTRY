@@ -155,8 +155,9 @@ class ModerationViewModel @Inject constructor(
                 userRepository.updateVerificationSubmissionStatus(submission.submissionId, submission.userId, VerificationStatus.VERIFIED, adminId)
 
                 // 2. If it's a role upgrade, update the user role
-                if (submission.targetRole != null && submission.targetRole != submission.currentRole) {
-                    userRepository.updateUserType(submission.userId, submission.targetRole)
+                val targetRole = submission.targetRole
+                if (targetRole != null && targetRole != submission.currentRole) {
+                    userRepository.updateUserType(submission.userId, targetRole)
                 }
                 
                 // 3. Notify user

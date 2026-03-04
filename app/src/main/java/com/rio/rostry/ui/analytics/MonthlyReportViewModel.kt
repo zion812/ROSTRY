@@ -73,7 +73,7 @@ class MonthlyReportViewModel @Inject constructor(
                 return@launch
             }
             
-            val user = userResult.data
+            val user = userResult.data ?: return@launch
             
             when (val result = reportRepository.generateMonthlyReport(
                 farmerId = user.userId,

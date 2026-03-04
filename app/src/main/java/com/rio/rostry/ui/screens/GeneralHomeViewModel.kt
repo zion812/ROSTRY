@@ -56,15 +56,17 @@ class GeneralHomeViewModel @Inject constructor(
 
         // 2. Nearby (within 50km)
         val nearbyCount = products.count { product ->
-            if (product.latitude != null && product.longitude != null) {
-                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, product.latitude, product.longitude) <= 50.0
+            val lat = product.latitude; val lng = product.longitude
+            if (lat != null && lng != null) {
+                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, lat, lng) <= 50.0
             } else false
         }
 
         // 3. Recommended: Sort by distance, then freshness
         val recommended = products.sortedBy { product ->
-            if (product.latitude != null && product.longitude != null) {
-                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, product.latitude, product.longitude)
+            val lat = product.latitude; val lng = product.longitude
+            if (lat != null && lng != null) {
+                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, lat, lng)
             } else Double.MAX_VALUE // Push unknown locations to end
         }.take(10)
 

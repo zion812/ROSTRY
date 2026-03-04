@@ -137,11 +137,11 @@ fun FarmActivityDetailScreen(
                 LogDetailRow(icon = Icons.Default.Category, label = "Category", value = log.category ?: "General")
                 
                 if (log.description != null) {
-                    LogDetailRow(icon = Icons.Default.Description, label = "Description", value = log.description)
+                    LogDetailRow(icon = Icons.Default.Description, label = "Description", value = log.description ?: "")
                 }
                 
                 if (log.notes != null) {
-                    LogDetailRow(icon = Icons.Default.Notes, label = "Notes", value = log.notes)
+                    LogDetailRow(icon = Icons.Default.Notes, label = "Notes", value = log.notes ?: "")
                 }
 
                 // Related Asset

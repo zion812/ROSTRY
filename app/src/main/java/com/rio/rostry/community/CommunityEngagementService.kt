@@ -129,9 +129,10 @@ class CommunityEngagementService @Inject constructor(
     fun getActiveThreads(userId: String): Flow<List<ThreadPreview>> {
         return threadMetadataDao.streamUserThreads(userId).map { metadataList ->
             metadataList.map { metadata ->
-                val context = if (metadata.contextType != null) {
+                val ctxType = metadata.contextType
+                val context = if (ctxType != null) {
                     ThreadContext(
-                        type = metadata.contextType,
+                        type = ctxType,
                         relatedEntityId = metadata.relatedEntityId,
                         topic = metadata.topic
                     )
@@ -211,9 +212,10 @@ class CommunityEngagementService @Inject constructor(
 
     suspend fun getThreadContext(threadId: String): ThreadContext? {
         val metadata = threadMetadataDao.getByThreadId(threadId) ?: return null
-        return if (metadata.contextType != null) {
+        val ctxType = metadata.contextType
+        return if (ctxType != null) {
             ThreadContext(
-                type = metadata.contextType,
+                type = ctxType,
                 relatedEntityId = metadata.relatedEntityId,
                 topic = metadata.topic
             )

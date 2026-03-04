@@ -202,9 +202,10 @@ fun DisputeCard(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                if (dispute.resolvedAt != null && dispute.resolvedAt > 0) {
+                val ra = dispute.resolvedAt
+                if (ra != null && ra > 0) {
                     Text(
-                        "Resolved: ${dateFormatter.format(Date(dispute.resolvedAt))}",
+                        "Resolved: ${dateFormatter.format(Date(ra))}",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.Gray
                     )

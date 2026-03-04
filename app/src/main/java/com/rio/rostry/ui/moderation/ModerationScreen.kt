@@ -356,10 +356,11 @@ fun VerificationDetailDialog(
                      Text(url.substringAfterLast("/"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
                 
-                if (submission.farmLocation != null) {
+                val location = submission.farmLocation
+                if (location != null) {
                     Spacer(Modifier.height(8.dp))
                     Text("Location", style = MaterialTheme.typography.titleSmall)
-                    Text("Lat: ${submission.farmLocation["lat"]}, Lng: ${submission.farmLocation["lng"]}")
+                    Text("Lat: ${location["lat"]}, Lng: ${location["lng"]}")
                 }
             }
         },

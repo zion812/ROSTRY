@@ -56,7 +56,7 @@ class FarmerProfileViewModel @Inject constructor(
                 // Actually, assuming userRepo.getCurrentUser() returns Flow<Resource<UserEntity?>>
                 .flatMapLatest { userRes ->
                     if (userRes is Resource.Success<UserEntity?> && userRes.data != null) {
-                        val user = userRes.data
+                        val user = userRes.data ?: return@flatMapLatest flowOf(_uiState.value)
                         
                         // Combine flows to update state with fresh user data
                         combine(

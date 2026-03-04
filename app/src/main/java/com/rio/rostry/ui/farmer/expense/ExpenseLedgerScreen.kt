@@ -307,9 +307,10 @@ private fun ExpenseItemCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
-                if (!expense.description.isNullOrBlank()) {
+                val desc = expense.description
+                if (!desc.isNullOrBlank()) {
                     Text(
-                        text = expense.description,
+                        text = desc,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

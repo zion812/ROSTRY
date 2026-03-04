@@ -135,7 +135,7 @@ class ReportGenerationRepository @Inject constructor(
         // Get activity logs for expenses
         val activityLogs = database.farmActivityLogDao().observeForFarmerBetween(farmerId, startDate, endDate).first()
         val expensesByCategory = activityLogs
-            .filter { it.amountInr != null && it.amountInr > 0 }
+            .filter { val amt = it.amountInr; amt != null && amt > 0 }
             .groupBy { it.category ?: "Other" }
             .mapValues { entry -> entry.value.sumOf { it.amountInr ?: 0.0 } }
         val totalExpenses = expensesByCategory.values.sum()

@@ -312,20 +312,22 @@ class BreedingCompatibilityCalculator @Inject constructor(
             if (depth >= maxDepth) continue
 
             // Check Parent Male
-            if (!current.parentMaleId.isNullOrBlank()) {
-                if (!ancestors.containsKey(current.parentMaleId)) {
-                    ancestors[current.parentMaleId] = depth
+            val pmId = current.parentMaleId
+            if (!pmId.isNullOrBlank()) {
+                if (!ancestors.containsKey(pmId)) {
+                    ancestors[pmId] = depth
                     // Fetch entity
-                    val parent = productRepository.findById(current.parentMaleId)
+                    val parent = productRepository.findById(pmId)
                     if (parent != null) queue.add(parent to depth + 1)
                 }
             }
 
             // Check Parent Female
-            if (!current.parentFemaleId.isNullOrBlank()) {
-                if (!ancestors.containsKey(current.parentFemaleId)) {
-                    ancestors[current.parentFemaleId] = depth
-                    val parent = productRepository.findById(current.parentFemaleId)
+            val pfId = current.parentFemaleId
+            if (!pfId.isNullOrBlank()) {
+                if (!ancestors.containsKey(pfId)) {
+                    ancestors[pfId] = depth
+                    val parent = productRepository.findById(pfId)
                     if (parent != null) queue.add(parent to depth + 1)
                 }
             }

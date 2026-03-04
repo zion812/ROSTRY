@@ -19,12 +19,21 @@ import androidx.activity.viewModels
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.session.SessionManager
+import com.rio.rostry.ui.theme.AppRole
 import com.rio.rostry.ui.theme.ROSTRYTheme
 import com.rio.rostry.ui.navigation.AppNavHost
 import com.rio.rostry.utils.network.FeatureToggles
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import javax.inject.Inject
+
+/** Maps a domain [UserType] to the design-system [AppRole]. */
+private fun UserType?.toAppRole(): AppRole? = when (this) {
+    UserType.FARMER -> AppRole.FARMER
+    UserType.ENTHUSIAST -> AppRole.ENTHUSIAST
+    UserType.GENERAL, UserType.ADMIN, UserType.SUPPORT, UserType.MODERATOR -> AppRole.GENERAL
+    null -> null
+}
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -71,7 +80,7 @@ class MainActivity : ComponentActivity() {
                 },
                 label = "role_transition"
             ) { role ->
-                ROSTRYTheme(userRole = role) {
+                ROSTRYTheme(appRole = role.toAppRole()) {
                     AppNavHost(featureToggles = featureToggles, firebaseAuth = firebaseAuth)
                 }
             }

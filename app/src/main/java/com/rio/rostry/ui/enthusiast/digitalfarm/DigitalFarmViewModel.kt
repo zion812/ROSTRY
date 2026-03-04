@@ -369,8 +369,8 @@ class DigitalFarmViewModel @Inject constructor(
             
             // Ready for sale (gold star)
             entity.readyForSale || 
-            (entity.weightGrams != null && entity.targetWeight != null && 
-             entity.weightGrams >= entity.targetWeight) -> DigitalFarmZone.READY_DISPLAY
+            run { val wg = entity.weightGrams; val tw = entity.targetWeight; wg != null && tw != null && 
+             wg >= tw } -> DigitalFarmZone.READY_DISPLAY
              
             // Quarantine (Sick or isolated)
             entity.healthStatus?.lowercase() in listOf("sick", "quarantined", "isolated", "injured") -> DigitalFarmZone.QUARANTINE
@@ -523,8 +523,8 @@ class DigitalFarmViewModel @Inject constructor(
         
         val statusIndicator = when {
             this.readyForSale || 
-            (this.weightGrams != null && this.targetWeight != null && 
-             this.weightGrams >= this.targetWeight) -> BirdStatusIndicator.WEIGHT_READY
+            run { val wg = this.weightGrams; val tw = this.targetWeight; wg != null && tw != null && 
+             wg >= tw } -> BirdStatusIndicator.WEIGHT_READY
             this.healthStatus?.lowercase() == "sick" -> BirdStatusIndicator.SICK
             // Add more status checks as needed
             else -> BirdStatusIndicator.NONE

@@ -235,10 +235,13 @@ class VerificationValidationService(
         if (user.verificationStatus?.name in setOf("PENDING", "VERIFIED")) return true
         // Check verification collection for recent submission
         val verDetails = userRepository.getVerificationDetailsOnce(userId)
-        if (verDetails is Resource.Success && verDetails.data != null) {
-            val last = (verDetails.data["submittedAt"] as? Number)?.toLong() ?: 0L
-            val now = System.currentTimeMillis()
-            return (now - last) < 24L * 60 * 60 * 1000
+        if (verDetails is Resource.Success) {
+            val detailsData = verDetails.data
+            if (detailsData != null) {
+                val last = (detailsData["submittedAt"] as? Number)?.toLong() ?: 0L
+                val now = System.currentTimeMillis()
+                return (now - last) < 24L * 60 * 60 * 1000
+            }
         }
         return false
     }

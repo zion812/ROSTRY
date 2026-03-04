@@ -183,7 +183,7 @@ private fun ProfileHeader(profile: FarmProfileEntity, badges: List<String>) {
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        profile.locationName,
+                        profile.locationName ?: "",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -202,7 +202,7 @@ private fun ProfileHeader(profile: FarmProfileEntity, badges: List<String>) {
             if (!profile.farmBio.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    profile.farmBio,
+                    profile.farmBio ?: "",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )

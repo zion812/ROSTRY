@@ -187,7 +187,7 @@ private fun HatchingBatchCard(
     val nowTs = currentTime
     val totalCount = tasks.size
     val overdueCount = tasks.count { it.completedAt == null && it.dueAt < nowTs }
-    val dueCount = tasks.count { it.completedAt == null && (it.snoozeUntil == null || it.snoozeUntil <= nowTs) && it.dueAt <= nowTs }
+    val dueCount = tasks.count { val su = it.snoozeUntil; it.completedAt == null && (su == null || su <= nowTs) && it.dueAt <= nowTs }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

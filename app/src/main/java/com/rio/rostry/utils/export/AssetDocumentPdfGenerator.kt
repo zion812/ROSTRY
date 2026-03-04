@@ -342,7 +342,7 @@ class AssetDocumentPdfGenerator @Inject constructor(
         
         // Expenses by type
         val expensesByType = doc.activities
-            .filter { it.amountInr != null && it.amountInr > 0 }
+            .filter { it.amountInr != null && (it.amountInr ?: 0.0) > 0 }
             .groupBy { it.activityType }
             .mapValues { (_, logs) -> logs.sumOf { it.amountInr ?: 0.0 } }
         

@@ -212,7 +212,7 @@ fun MortalityDetailScreen(
         val record = state.record
         val mediaItems = record?.getMediaItems() ?: emptyList()
         RecordMediaGallerySheet(
-            mediaItems = mediaItems,
+            mediaItems = mediaItems.map { MediaItem(url = it.url, caption = it.caption, timestamp = it.timestamp, recordType = it.recordType, recordId = it.recordId) },
             initialIndex = 0,
             onDismiss = { showMediaGallery = false },
             showActions = false

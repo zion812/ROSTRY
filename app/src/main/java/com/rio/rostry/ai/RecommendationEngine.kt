@@ -86,8 +86,9 @@ class RecommendationEngine @Inject constructor(
                 }
                 
                 // Age group matching (medium weight) - using birthDate
-                if (product.birthDate != null && targetProduct.birthDate != null) {
-                    val ageDiffDays = kotlin.math.abs(product.birthDate - targetProduct.birthDate) / (24 * 60 * 60 * 1000)
+                val pBirth = product.birthDate; val tBirth = targetProduct.birthDate
+                if (pBirth != null && tBirth != null) {
+                    val ageDiffDays = kotlin.math.abs(pBirth - tBirth) / (24 * 60 * 60 * 1000)
                     if (ageDiffDays < 30) {
                         similarityScore += 25.0
                     }

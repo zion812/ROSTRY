@@ -56,7 +56,8 @@ class AuctionCloserWorker @AssistedInject constructor(
             val newStatus: String
             
             if (winningBid != null) {
-                val reserveMet = auction.reservePrice == null || winningBid.amount >= auction.reservePrice
+                val rp = auction.reservePrice
+                val reserveMet = rp == null || winningBid.amount >= rp
                 if (reserveMet) {
                     closeResult = CloseResult.Sold
                     newStatus = "SOLD"

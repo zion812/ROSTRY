@@ -189,8 +189,9 @@ fun LogEntryCard(log: DailyBirdLogEntity, onDelete: () -> Unit) {
             }
             Spacer(Modifier.height(4.dp))
             Text(log.activityType, style = MaterialTheme.typography.titleMedium)
-            if (!log.notes.isNullOrBlank()) {
-                Text(log.notes, style = MaterialTheme.typography.bodyMedium)
+            val logNotes = log.notes
+            if (!logNotes.isNullOrBlank()) {
+                Text(logNotes, style = MaterialTheme.typography.bodyMedium)
             }
             
             // Render attached images if any

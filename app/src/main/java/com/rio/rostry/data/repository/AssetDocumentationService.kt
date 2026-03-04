@@ -77,7 +77,7 @@ class AssetDocumentationService @Inject constructor(
             .sumOf { it.quantity ?: 0.0 }
         
         val totalExpensesInr = activities
-            .filter { it.amountInr != null && it.amountInr > 0 }
+            .filter { val amt = it.amountInr; amt != null && amt > 0 }
             .sumOf { it.amountInr ?: 0.0 }
         
         val totalMortality = mortalityRecords.sumOf { it.quantity.toInt() }
@@ -182,9 +182,9 @@ class AssetDocumentationService @Inject constructor(
     /**
      * Gather all media items associated with this asset from activities and logs.
      */
-    suspend fun getAssetMedia(assetId: String): List<com.rio.rostry.ui.components.MediaItem> {
+    suspend fun getAssetMedia(assetId: String): List<com.rio.rostry.domain.model.media.SimpleMediaItem> {
         val doc = loadDocumentation(assetId) ?: return emptyList()
-        val mediaList = mutableListOf<com.rio.rostry.ui.components.MediaItem>()
+        val mediaList = mutableListOf<com.rio.rostry.domain.model.media.SimpleMediaItem>()
         
         // 1. From Activities
         doc.activities.forEach { activity ->

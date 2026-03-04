@@ -633,8 +633,8 @@ private fun KeyAttributesSection(product: ProductEntity) {
             product.breed?.let { AttributeRow("Breed", it) }
             product.gender?.let { AttributeRow("Gender", it) }
             product.color?.let { AttributeRow("Color", it) }
-            if (product.birthDate != null) {
-                val ageInDays = ((System.currentTimeMillis() - product.birthDate) / (24 * 60 * 60 * 1000)).toInt()
+            product.birthDate?.let { bd ->
+                val ageInDays = ((System.currentTimeMillis() - bd) / (24 * 60 * 60 * 1000)).toInt()
                 AttributeRow("Age", "$ageInDays days")
             }
             product.weightGrams?.let { AttributeRow("Weight", "${it}g") }

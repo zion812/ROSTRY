@@ -324,9 +324,10 @@ fun ShowRecordCard(
                     text = "Date: ${dateFormat.format(Date(record.eventDate))}",
                     style = MaterialTheme.typography.bodySmall
                 )
-                if (!record.eventLocation.isNullOrBlank()) {
+                val loc = record.eventLocation
+                if (!loc.isNullOrBlank()) {
                     Text(
-                        text = record.eventLocation,
+                        text = loc,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -380,9 +381,10 @@ fun ShowRecordCard(
                 )
             }
             
-            if (!record.notes.isNullOrBlank()) {
+            val rNotes = record.notes
+            if (!rNotes.isNullOrBlank()) {
                 Text(
-                    text = record.notes,
+                    text = rNotes,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

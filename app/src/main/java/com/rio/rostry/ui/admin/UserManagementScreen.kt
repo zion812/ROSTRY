@@ -271,8 +271,9 @@ fun UserListItem(
         },
         supportingContent = {
             Column {
-                if (!user.email.isNullOrBlank()) {
-                    Text(user.email, style = MaterialTheme.typography.bodySmall)
+                val em = user.email
+                if (!em.isNullOrBlank()) {
+                    Text(em, style = MaterialTheme.typography.bodySmall)
                 }
                 Text(
                     "Role: ${user.userType}",

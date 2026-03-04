@@ -66,8 +66,9 @@ class EggTrayViewModel @Inject constructor(
 
                 // Check if eggs were set for hatching and have a linked batch
                 var hatchedCount = 0
-                if (collection.setForHatching && collection.linkedBatchId != null) {
-                    hatchedCount = hatchingLogDao.countByBatchAndType(collection.linkedBatchId, "HATCHED")
+                val lbi = collection.linkedBatchId
+                if (collection.setForHatching && lbi != null) {
+                    hatchedCount = hatchingLogDao.countByBatchAndType(lbi, "HATCHED")
                 }
 
                 // Build egg statuses from real data

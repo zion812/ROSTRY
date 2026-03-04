@@ -211,7 +211,7 @@ class DailyLogViewModel @Inject constructor(
         updateCurrent { cur ->
             val items = cur.getMediaItems().toMutableList()
             items.add(
-                com.rio.rostry.ui.components.MediaItem(
+                com.rio.rostry.domain.model.media.SimpleMediaItem(
                     url = url,
                     caption = "Photo ${items.size + 1}",
                     recordType = "DAILY_LOG",

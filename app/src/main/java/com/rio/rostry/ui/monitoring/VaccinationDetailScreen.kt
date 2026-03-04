@@ -139,16 +139,19 @@ fun VaccinationDetailScreen(
                             // Details Grid
                             DetailRow(label = "Scheduled Date", value = dateFormatter.format(Date(vaccination.scheduledAt)))
                             
-                            if (vaccination.administeredAt != null) {
-                                DetailRow(label = "Administered Date", value = dateFormatter.format(Date(vaccination.administeredAt)))
+                            val admAt = vaccination.administeredAt
+                            if (admAt != null) {
+                                DetailRow(label = "Administered Date", value = dateFormatter.format(Date(admAt)))
                             }
                             
-                            if (!vaccination.supplier.isNullOrBlank()) {
-                                DetailRow(label = "Supplier", value = vaccination.supplier)
+                            val sup = vaccination.supplier
+                            if (!sup.isNullOrBlank()) {
+                                DetailRow(label = "Supplier", value = sup)
                             }
                             
-                            if (!vaccination.batchCode.isNullOrBlank()) {
-                                DetailRow(label = "Batch Code", value = vaccination.batchCode)
+                            val bc = vaccination.batchCode
+                            if (!bc.isNullOrBlank()) {
+                                DetailRow(label = "Batch Code", value = bc)
                             }
                             
                             if (vaccination.doseMl != null) {
@@ -288,7 +291,7 @@ fun VaccinationDetailScreen(
         val vaccination = state.vaccination
         val mediaItems = vaccination?.getMediaItems() ?: emptyList()
         RecordMediaGallerySheet(
-            mediaItems = mediaItems,
+            mediaItems = mediaItems.map { MediaItem(url = it.url, caption = it.caption, timestamp = it.timestamp, recordType = it.recordType, recordId = it.recordId) },
             initialIndex = galleryInitialIndex,
             onDismiss = { showMediaGallery = false },
             showActions = false

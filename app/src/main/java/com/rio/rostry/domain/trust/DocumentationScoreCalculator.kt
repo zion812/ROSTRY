@@ -48,7 +48,7 @@ class DocumentationScoreCalculator @Inject constructor() {
         breakdown["birthDate"] = DocumentationItem("Birth Date Known", birthDateKnown, 10)
 
         // 3. Weight recorded (5%)
-        val hasWeight = product.weightGrams != null && product.weightGrams > 0
+        val wg = product.weightGrams; val hasWeight = wg != null && wg > 0
         breakdown["weight"] = DocumentationItem("Weight Recorded", hasWeight, 5)
 
         // 4. Gender identified (5%)

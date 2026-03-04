@@ -1,3 +1,5 @@
+includeBuild("build-logic")
+
 pluginManagement {
     repositories {
         google {
@@ -26,3 +28,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "ROSTRY"
 include(":app")
+include(":core:designsystem")
+include(":core:common")
+include(":core:model")
+include(":core:database")
+include(":core:network")
+include(":core:domain")

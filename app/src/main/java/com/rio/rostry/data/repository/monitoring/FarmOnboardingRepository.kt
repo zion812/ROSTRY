@@ -122,9 +122,10 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
             growthRepository.upsert(initialGrowthRecord)
 
             // Create vaccination schedule based on age
-            if (product.birthDate != null) {
-                val ageInDays = ((now - product.birthDate) / TimeUnit.DAYS.toMillis(1)).toInt()
-                createVaccinationSchedule(productId, farmerId, product.birthDate, ageInDays)
+            val bd = product.birthDate
+            if (bd != null) {
+                val ageInDays = ((now - bd) / TimeUnit.DAYS.toMillis(1)).toInt()
+                createVaccinationSchedule(productId, farmerId, bd, ageInDays)
             }
 
             // Seed initial daily log (idempotent via DailyLogRepository merge)
@@ -141,10 +142,11 @@ class FarmOnboardingRepositoryImpl @Inject constructor(
             dailyLogRepository.upsert(initialLog)
 
             // Create initial tasks (vaccination next 7 days for chicks; weekly growth)
-            if (product.birthDate != null) {
-                val ageDays = ((now - product.birthDate) / TimeUnit.DAYS.toMillis(1)).toInt()
+            val bd2 = product.birthDate
+            if (bd2 != null) {
+                val ageDays = ((now - bd2) / TimeUnit.DAYS.toMillis(1)).toInt()
                 if (ageDays < 35) {
-                    val dueVax = product.birthDate + TimeUnit.DAYS.toMillis(7)
+                    val dueVax = bd2 + TimeUnit.DAYS.toMillis(7)
                     val vaxTask = TaskEntity(
                         taskId = generateId("task_vax_"),
                         farmerId = farmerId,

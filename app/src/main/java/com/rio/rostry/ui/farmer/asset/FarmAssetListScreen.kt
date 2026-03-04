@@ -810,9 +810,10 @@ fun FarmAssetItem(
                         }
                         
                         // Weight if available
-                        if (asset.weightGrams != null && asset.weightGrams > 0) {
+                        val wg = asset.weightGrams
+                        if (wg != null && wg > 0) {
                             Text(
-                                text = "%.1fkg".format(asset.weightGrams / 1000),
+                                text = "%.1fkg".format(wg / 1000),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

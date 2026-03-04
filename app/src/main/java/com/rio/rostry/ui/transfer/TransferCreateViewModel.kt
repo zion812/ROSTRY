@@ -356,8 +356,10 @@ class TransferCreateViewModel @Inject constructor(
 
                 // Biosecurity Check
                 val currentUser = userRepository.getCurrentUserSuspend()
-                if (currentUser?.farmLocationLat != null && currentUser.farmLocationLng != null) {
-                    val status = biosecurityRepository.checkLocation(currentUser.farmLocationLat, currentUser.farmLocationLng)
+                val lat = currentUser?.farmLocationLat
+                val lng = currentUser?.farmLocationLng
+                if (lat != null && lng != null) {
+                    val status = biosecurityRepository.checkLocation(lat, lng)
                     if (status is com.rio.rostry.data.repository.BiosecurityStatus.Blocked) {
                         val zoneNames = status.zones.joinToString { it.reason }
                         _state.value = s.copy(loading = false, error = "Transfer Blocked: You are in a Red Zone ($zoneNames)")

@@ -251,15 +251,14 @@ class FarmAssetListViewModel @Inject constructor(
             QuickFilter.ALL -> filtered
             QuickFilter.READY_TO_LAY -> filtered.filter { 
                 it.gender?.equals("FEMALE", ignoreCase = true) == true && 
-                it.ageWeeks != null && it.ageWeeks in 18..22 
+                (it.ageWeeks?.let { age -> age in 18..22 } == true)
             }
             QuickFilter.CULL_CANDIDATES -> filtered.filter { 
                 it.healthStatus.equals("POOR", ignoreCase = true) || 
-                (it.ageWeeks != null && it.ageWeeks > 72) 
+                (it.ageWeeks?.let { age -> age > 72 } == true)
             }
             QuickFilter.VACCINATION_DUE -> filtered.filter { 
-                it.nextVaccinationDate != null && 
-                it.nextVaccinationDate <= System.currentTimeMillis() + (3 * 24 * 60 * 60 * 1000)
+                it.nextVaccinationDate?.let { nvd -> nvd <= System.currentTimeMillis() + (3 * 24 * 60 * 60 * 1000) } == true
             }
             QuickFilter.HEALTHY -> filtered.filter { 
                 it.healthStatus.equals("HEALTHY", ignoreCase = true) 

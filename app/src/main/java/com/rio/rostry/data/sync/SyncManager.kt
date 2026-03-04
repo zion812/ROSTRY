@@ -227,9 +227,13 @@ class SyncManager @Inject constructor(
             } else local.parentFemaleId
 
         // Prefer stage based on lastStageTransitionAt recency (not updatedAt)
-        val stageByTransition = when {
-            remote.lastStageTransitionAt != null && (local.lastStageTransitionAt == null || remote.lastStageTransitionAt > local.lastStageTransitionAt) -> remote.stage
-            else -> local.stage
+        val stageByTransition = run {
+            val rLst = remote.lastStageTransitionAt
+            val lLst = local.lastStageTransitionAt
+            when {
+                rLst != null && (lLst == null || rLst > lLst) -> remote.stage
+                else -> local.stage
+            }
         }
 
         // Prefer lifecycleStatus based on breederEligibleAt recency when applicable; otherwise fallback to LWW
@@ -248,9 +252,13 @@ class SyncManager @Inject constructor(
             stage = stageByTransition,
             lifecycleStatus = lifecycleByEligibility,
             ageWeeks = ageWeeksResolved,
-            lastStageTransitionAt = when {
-                remote.lastStageTransitionAt != null && (local.lastStageTransitionAt == null || remote.lastStageTransitionAt > local.lastStageTransitionAt) -> remote.lastStageTransitionAt
-                else -> local.lastStageTransitionAt
+            lastStageTransitionAt = run {
+                val rLst = remote.lastStageTransitionAt
+                val lLst = local.lastStageTransitionAt
+                when {
+                    rLst != null && (lLst == null || rLst > lLst) -> rLst
+                    else -> lLst
+                }
             },
             breederEligibleAt = when {
                 (remote.breederEligibleAt ?: 0L) > (local.breederEligibleAt

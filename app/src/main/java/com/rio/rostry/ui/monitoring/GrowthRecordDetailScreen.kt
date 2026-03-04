@@ -163,7 +163,8 @@ fun GrowthRecordDetailScreen(
                     }
 
                     // Milestone
-                    if (!record.milestone.isNullOrBlank()) {
+                    val ms = record.milestone
+                    if (!ms.isNullOrBlank()) {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
@@ -173,7 +174,7 @@ fun GrowthRecordDetailScreen(
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 Text(
-                                    text = record.milestone,
+                                    text = ms,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
@@ -253,7 +254,7 @@ fun GrowthRecordDetailScreen(
         val mediaItems = record?.getMediaItems() ?: emptyList()
         if (mediaItems.isNotEmpty()) {
             RecordMediaGallerySheet(
-                mediaItems = mediaItems,
+                mediaItems = mediaItems.map { MediaItem(url = it.url, caption = it.caption, timestamp = it.timestamp, recordType = it.recordType, recordId = it.recordId) },
                 initialIndex = 0,
                 onDismiss = { showMediaGallery = false },
                 showActions = false

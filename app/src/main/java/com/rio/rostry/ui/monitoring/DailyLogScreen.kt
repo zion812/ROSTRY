@@ -520,13 +520,15 @@ fun DailyLogScreen(
                                  val dateStr = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(log.logDate))
                                  Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                      Text(dateStr, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                                     if (log.weightGrams != null) {
-                                         Text("${log.weightGrams}g", style = MaterialTheme.typography.bodyMedium)
+                                     val wg = log.weightGrams
+                                     if (wg != null) {
+                                         Text("${wg}g", style = MaterialTheme.typography.bodyMedium)
                                      }
                                  }
                                  Spacer(Modifier.height(4.dp))
-                                 if (!log.notes.isNullOrBlank()) {
-                                     Text(log.notes, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                                 val logNotes = log.notes
+                                 if (!logNotes.isNullOrBlank()) {
+                                     Text(logNotes, style = MaterialTheme.typography.bodySmall, maxLines = 2)
                                      Spacer(Modifier.height(4.dp))
                                  }
                                  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -558,7 +560,7 @@ fun DailyLogScreen(
         }
         
         com.rio.rostry.ui.components.RecordMediaGallerySheet(
-            mediaItems = mediaItems,
+            mediaItems = mediaItems.map { com.rio.rostry.ui.components.MediaItem(url = it.url, caption = it.caption, timestamp = it.timestamp, recordType = it.recordType, recordId = it.recordId) },
             onDismiss = { showMediaGallery = false },
             onDelete = { index -> vm.removeMediaItem(index) }
         )

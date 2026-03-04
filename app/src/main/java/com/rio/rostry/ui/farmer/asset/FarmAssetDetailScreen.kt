@@ -318,10 +318,10 @@ fun FarmAssetDetailScreen(
                                     value = "${asset.ageWeeks ?: 0}",
                                     unit = "weeks"
                                 )
-                                if (asset.weightGrams != null) {
+                                asset.weightGrams?.let { wg ->
                                     MetricBox(
                                         label = "Weight",
-                                        value = "${(asset.weightGrams / 1000).format(1)}",
+                                        value = "${(wg / 1000).format(1)}",
                                         unit = "kg"
                                     )
                                 }
@@ -493,18 +493,18 @@ fun FarmAssetDetailScreen(
                                 label = "Asset ID",
                                 value = asset.assetId.take(12) + "..."
                             )
-                            if (!asset.birdCode.isNullOrBlank()) {
+                            asset.birdCode?.takeIf { it.isNotBlank() }?.let { code ->
                                 InfoRow(
                                     icon = Icons.Default.Tag,
                                     label = "Bird Code",
-                                    value = asset.birdCode
+                                    value = code
                                 )
                             }
-                            if (!asset.origin.isNullOrBlank()) {
+                            asset.origin?.takeIf { it.isNotBlank() }?.let { orig ->
                                 InfoRow(
                                     icon = Icons.Default.Place,
                                     label = "Origin",
-                                    value = asset.origin.replace("_", " ").lowercase()
+                                    value = orig.replace("_", " ").lowercase()
                                         .replaceFirstChar { it.uppercase() }
                                 )
                             }

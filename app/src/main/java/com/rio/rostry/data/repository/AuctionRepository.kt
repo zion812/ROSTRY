@@ -176,9 +176,10 @@ class AuctionRepositoryImpl @Inject constructor(
             transaction.set(bidRef, bid)
             
             // Mark previous highest bidder as outbid (if exists) and Notify
-            if (auction.winnerId != null && auction.winnerId != userId) {
-                // Determine previous winner ID (it's auction.winnerId)
-                val outbidUserId = auction.winnerId
+            val prevWinner = auction.winnerId
+            if (prevWinner != null && prevWinner != userId) {
+                // Determine previous winner ID
+                val outbidUserId = prevWinner
                 
                 // Create Outbid Notification
                 val notificationId = java.util.UUID.randomUUID().toString()
@@ -280,9 +281,10 @@ class AuctionRepositoryImpl @Inject constructor(
         }
         
         val now = System.currentTimeMillis()
+        val bnp = auction.buyNowPrice ?: return Resource.Error("Buy Now price unavailable")
         val updated = auction.copy(
             status = "SOLD",
-            currentPrice = auction.buyNowPrice,
+            currentPrice = bnp,
             winnerId = buyerId,
             closedAt = now,
             closedBy = "BUYER",
