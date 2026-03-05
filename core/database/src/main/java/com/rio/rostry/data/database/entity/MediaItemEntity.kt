@@ -23,6 +23,8 @@ data class MediaItemEntity(
     val mediaType: String, // IMAGE, VIDEO
     val caption: String? = null,
     val notes: String? = null,
+    val assetName: String? = null,
+    val assetIdentifier: String? = null,
     val dateAdded: Long,
     val fileSize: Long,
     val width: Int?,

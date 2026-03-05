@@ -65,6 +65,25 @@ fun MediaItemCard(
             modifier = Modifier.fillMaxSize()
         )
 
+        // Asset Identifier Badge (Top Left)
+        if (!mediaItem.assetIdentifier.isNullOrBlank() || !mediaItem.assetName.isNullOrBlank()) {
+            val displayText = mediaItem.assetIdentifier ?: mediaItem.assetName ?: ""
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = displayText,
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+
         // Video Indicator
         if (mediaItem.mediaType == MediaType.VIDEO) {
             Row(

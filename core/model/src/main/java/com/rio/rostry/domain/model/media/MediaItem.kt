@@ -10,6 +10,8 @@ data class MediaItem(
     val tags: List<MediaTag>,
     val caption: String? = null,
     val notes: String? = null,
+    val assetName: String? = null,
+    val assetIdentifier: String? = null,
     val dateAdded: Long,
     val fileSize: Long,
     val width: Int?,

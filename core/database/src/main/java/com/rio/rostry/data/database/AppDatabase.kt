@@ -175,7 +175,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ProfitabilityMetricsEntity::class,
         ModerationBlocklistEntity::class
     ],
-    version = 92, // 91 -> 92 (Multimedia Gallery: ownerId, caption, notes)
+    version = 93, // 92 -> 93 (Multimedia Gallery Phase 2: assetName, assetIdentifier)
     exportSchema = true 
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -1249,6 +1249,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `media_items` ADD COLUMN `caption` TEXT")
                 db.execSQL("ALTER TABLE `media_items` ADD COLUMN `notes` TEXT")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_items_ownerId` ON `media_items` (`ownerId`)")
+            }
+        }
+
+        // Multimedia Gallery Phase 2: asset identification (92 → 93)
+        val MIGRATION_92_93 = object : Migration(92, 93) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `media_items` ADD COLUMN `assetName` TEXT")
+                db.execSQL("ALTER TABLE `media_items` ADD COLUMN `assetIdentifier` TEXT")
             }
         }
 
