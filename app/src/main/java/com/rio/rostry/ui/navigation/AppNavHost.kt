@@ -2027,8 +2027,8 @@ private fun RoleNavGraph(
         composable(Routes.FarmerNav.GALLERY) {
             com.rio.rostry.ui.shared.gallery.GalleryScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToMediaViewer = { assetId ->
-                    navController.navigate(Routes.FarmerNav.assetMedia(assetId))
+                onNavigateToMediaViewer = { mediaId ->
+                    navController.navigate(Routes.FarmerNav.mediaViewer(mediaId))
                 }
             )
         }
@@ -2041,8 +2041,22 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.shared.gallery.AssetMediaScreen(
                 assetId = assetId,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToMediaViewer = { mediaUrl -> /* TODO */ },
-                onNavigateToUpload = { aId -> /* TODO */ }
+                onNavigateToMediaViewer = { mediaId ->
+                    navController.navigate(Routes.FarmerNav.mediaViewer(mediaId))
+                },
+                onNavigateToUpload = { aId -> /* TODO: Launch System Camera/Gallery Picker Intent */ }
+            )
+        }
+
+        // Media Viewer (Farmer)
+        composable(
+            route = Routes.FarmerNav.MEDIA_VIEWER,
+            arguments = listOf(navArgument("mediaId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val mediaId = backStackEntry.arguments?.getString("mediaId") ?: ""
+            com.rio.rostry.ui.shared.gallery.MediaViewerScreen(
+                mediaId = mediaId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -2235,8 +2249,8 @@ private fun RoleNavGraph(
         composable(Routes.EnthusiastNav.GALLERY) {
             com.rio.rostry.ui.shared.gallery.GalleryScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToMediaViewer = { assetId ->
-                    navController.navigate(Routes.EnthusiastNav.assetMedia(assetId))
+                onNavigateToMediaViewer = { mediaId ->
+                    navController.navigate(Routes.EnthusiastNav.mediaViewer(mediaId))
                 }
             )
         }
@@ -2249,8 +2263,22 @@ private fun RoleNavGraph(
             com.rio.rostry.ui.shared.gallery.AssetMediaScreen(
                 assetId = assetId,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToMediaViewer = { mediaUrl -> /* TODO */ },
-                onNavigateToUpload = { aId -> /* TODO */ }
+                onNavigateToMediaViewer = { mediaId ->
+                    navController.navigate(Routes.EnthusiastNav.mediaViewer(mediaId))
+                },
+                onNavigateToUpload = { aId -> /* TODO: Launch System Camera/Gallery Picker Intent */ }
+            )
+        }
+
+        // Media Viewer (Enthusiast)
+        composable(
+            route = Routes.EnthusiastNav.MEDIA_VIEWER,
+            arguments = listOf(navArgument("mediaId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val mediaId = backStackEntry.arguments?.getString("mediaId") ?: ""
+            com.rio.rostry.ui.shared.gallery.MediaViewerScreen(
+                mediaId = mediaId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         

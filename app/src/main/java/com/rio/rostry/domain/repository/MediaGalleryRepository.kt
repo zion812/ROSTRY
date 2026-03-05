@@ -68,4 +68,14 @@ interface MediaGalleryRepository {
      * Sync state with backend.
      */
     suspend fun syncWithRemote(): Result<Unit>
+
+    /**
+     * Observe all media items for a specific asset owned by a specific user.
+     */
+    fun getMediaForAsset(ownerId: String, assetId: String): Flow<List<MediaItem>>
+
+    /**
+     * Update the caption and notes for a specific media item.
+     */
+    suspend fun updateCaption(mediaId: String, caption: String?, notes: String?): Result<Unit>
 }

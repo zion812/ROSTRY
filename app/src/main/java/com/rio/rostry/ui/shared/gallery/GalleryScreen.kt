@@ -25,10 +25,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.rio.rostry.domain.model.media.MediaItem
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rio.rostry.ui.shared.gallery.components.GalleryFilterRow
@@ -45,6 +51,8 @@ fun GalleryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
+    
+    var editingCaptionFor by remember { mutableStateOf<MediaItem?>(null) }
 
     // Infinite scroll detection
     val isScrollToEnd by remember {
@@ -133,7 +141,8 @@ fun GalleryScreen(
                                     viewModel.onEvent(GalleryEvent.EnterSelectionMode)
                                 }
                                 viewModel.onEvent(GalleryEvent.ToggleSelection(mediaItem.mediaId))
-                            }
+                            },
+                            onEditCaption = { editingCaptionFor = mediaItem }
                         )
                     }
                 }
@@ -152,5 +161,53 @@ fun GalleryScreen(
                 }
             }
         }
+    }
+
+    // Caption Editing Dialog
+    editingCaptionFor?.let { mediaItem ->
+        var captionText by remember { mutableStateOf(mediaItem.caption ?: "") }
+        var notesText by remember { mutableStateOf(mediaItem.notes ?: "") }
+        
+        AlertDialog(
+            onDismissRequest = { editingCaptionFor = null },
+            title = { Text("Edit Documentation") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextField(
+                        value = captionText,
+                        onValueChange = { captionText = it },
+                        label = { Text("Caption") },
+                        singleLine = true
+                    )
+                    TextField(
+                        value = notesText,
+                        onValueChange = { notesText = it },
+                        label = { Text("Notes (optional)") },
+                        maxLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onEvent(
+                            GalleryEvent.UpdateCaption(
+                                mediaId = mediaItem.mediaId,
+                                caption = captionText.takeIf { it.isNotBlank() },
+                                notes = notesText.takeIf { it.isNotBlank() }
+                            )
+                        )
+                        editingCaptionFor = null
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingCaptionFor = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

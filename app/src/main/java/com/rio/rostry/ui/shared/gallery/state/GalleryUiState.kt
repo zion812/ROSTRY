@@ -29,4 +29,5 @@ sealed class GalleryEvent {
     data class ShareSelected(val onShareReady: (List<java.io.File>) -> Unit) : GalleryEvent()
     object Retry : GalleryEvent()
     data class SyncCache(val onComplete: () -> Unit) : GalleryEvent()
+    data class UpdateCaption(val mediaId: String, val caption: String?, val notes: String?) : GalleryEvent()
 }

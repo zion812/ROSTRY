@@ -3,10 +3,13 @@ package com.rio.rostry.domain.model.media
 data class MediaItem(
     val mediaId: String,
     val assetId: String?,
+    val ownerId: String? = null,
     val url: String,
     val localPath: String?,
     val mediaType: MediaType,
     val tags: List<MediaTag>,
+    val caption: String? = null,
+    val notes: String? = null,
     val dateAdded: Long,
     val fileSize: Long,
     val width: Int?,

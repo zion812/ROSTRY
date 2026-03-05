@@ -1,6 +1,7 @@
 package com.rio.rostry.domain.model.media
 
 data class MediaFilter(
+    val ownerId: String? = null,
     val assetId: String? = null,
     val ageGroups: Set<AgeGroup> = emptySet(),
     val sourceTypes: Set<SourceType> = emptySet(),

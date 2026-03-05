@@ -284,7 +284,9 @@ object Routes {
         // NEW: Multimedia Gallery Routes
         const val GALLERY = "farmer/gallery"
         const val ASSET_MEDIA = "farmer/asset_media/{assetId}"
+        const val MEDIA_VIEWER = "farmer/media_viewer/{mediaId}"
         fun assetMedia(assetId: String) = "farmer/asset_media/$assetId"
+        fun mediaViewer(mediaId: String) = "farmer/media_viewer/$mediaId"
         
         // Glass Box Farm Profile Routes
         const val PUBLIC_PROFILE_PREVIEW = "farmer/profile/preview"  // Farmer previews own public profile
@@ -383,7 +385,9 @@ object Routes {
         // NEW: Multimedia Gallery Routes
         const val GALLERY = "enthusiast/gallery"
         const val ASSET_MEDIA = "enthusiast/asset_media/{assetId}"
+        const val MEDIA_VIEWER = "enthusiast/media_viewer/{mediaId}"
         fun assetMedia(assetId: String) = "enthusiast/asset_media/$assetId"
+        fun mediaViewer(mediaId: String) = "enthusiast/media_viewer/$mediaId"
     }
     
     // NEW: Enhanced Egg Log and Hatchability Routes
@@ -526,6 +530,7 @@ object Routes {
             // Multimedia Gallery
             FarmerNav.GALLERY,
             FarmerNav.ASSET_MEDIA,
+            FarmerNav.MEDIA_VIEWER,
             // Feed History
             FarmerNav.FEED_HISTORY,
             // Farm Activity Log
@@ -698,6 +703,7 @@ object Routes {
             // Multimedia Gallery
             EnthusiastNav.GALLERY,
             EnthusiastNav.ASSET_MEDIA,
+            EnthusiastNav.MEDIA_VIEWER,
             // Settings
             Settings.BACKUP_RESTORE,
             // Farmer Parity Features - Farm Management

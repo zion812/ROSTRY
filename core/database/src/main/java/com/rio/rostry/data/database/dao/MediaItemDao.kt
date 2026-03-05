@@ -81,4 +81,42 @@ interface MediaItemDao {
         LIMIT :limit OFFSET :offset
     """)
     fun observeMedia(limit: Int, offset: Int): Flow<List<MediaItemEntity>>
+
+    @Query("""
+        SELECT * FROM media_items 
+        WHERE ownerId = :ownerId
+        AND uploadStatus = 'COMPLETED'
+        ORDER BY dateAdded DESC 
+        LIMIT :limit OFFSET :offset
+    """)
+    fun observeMediaByOwner(ownerId: String, limit: Int, offset: Int): Flow<List<MediaItemEntity>>
+
+    @Query("""
+        SELECT * FROM media_items 
+        WHERE (:ownerId IS NULL OR ownerId = :ownerId)
+        AND (:assetId IS NULL OR assetId = :assetId)
+        AND (:mediaType IS NULL OR mediaType = :mediaType)
+        AND uploadStatus = 'COMPLETED'
+        ORDER BY dateAdded DESC 
+        LIMIT :limit OFFSET :offset
+    """)
+    fun observeMediaFiltered(
+        ownerId: String?,
+        assetId: String?,
+        mediaType: String?,
+        limit: Int,
+        offset: Int
+    ): Flow<List<MediaItemEntity>>
+
+    @Query("""
+        SELECT * FROM media_items 
+        WHERE ownerId = :ownerId AND assetId = :assetId
+        AND uploadStatus = 'COMPLETED'
+        ORDER BY dateAdded DESC
+    """)
+    fun getMediaByOwnerAndAsset(ownerId: String, assetId: String): Flow<List<MediaItemEntity>>
+
+    @Query("UPDATE media_items SET caption = :caption, notes = :notes, updatedAt = :updatedAt, dirty = 1 WHERE mediaId = :mediaId")
+    suspend fun updateCaption(mediaId: String, caption: String?, notes: String?, updatedAt: Long = System.currentTimeMillis())
 }
+

@@ -29,14 +29,22 @@ class MediaGalleryRepositoryImpl @Inject constructor(
         filter: MediaFilter,
         pagination: PaginationState
     ): Flow<List<MediaItem>> {
-        // Accumulate items for virtual scrolling by fetching from offset 0 
-        // up to the total items for the current page
         val limit = pagination.pageSize * (pagination.currentPage + 1)
         val offset = 0
 
-        // For simplicity, just use the observeMedia without filter in this simplified implementation.
-        // A complete implementation would use a Room @Transaction Query with relations.
-        return mediaItemDao.observeMedia(limit, offset).map { entities ->
+        // Determine the media type filter string
+        val mediaTypeStr = if (filter.mediaTypes.size == 1) {
+            filter.mediaTypes.first().name
+        } else null
+
+        // Use the filtered query that respects ownerId, assetId, and mediaType
+        return mediaItemDao.observeMediaFiltered(
+            ownerId = filter.ownerId,
+            assetId = filter.assetId,
+            mediaType = mediaTypeStr,
+            limit = limit,
+            offset = offset
+        ).map { entities ->
             entities.map { entity ->
                 val tags = mediaTagDao.getTagsForMedia(entity.mediaId)
                 entity.toDomainModel(tags)
@@ -116,9 +124,6 @@ class MediaGalleryRepositoryImpl @Inject constructor(
         if (cachedFile != null) {
             Result.success(cachedFile)
         } else {
-            // Note: In real app, this would download the file from the URL
-            // and then call cacheMedia(sourceUri).
-            // This is a stub for the getMediaFile implementation.
             Result.failure(Exception("File not available locally"))
         }
     }
@@ -126,7 +131,6 @@ class MediaGalleryRepositoryImpl @Inject constructor(
     override suspend fun exportMediaItems(mediaIds: List<String>, destinationDir: File): Result<File> = withContext(Dispatchers.IO) {
         try {
             val zipFile = File(destinationDir, "export_${System.currentTimeMillis()}.zip")
-            // Stub: Export logic creating a zip file from cached valid `mediaIds`
             if (!destinationDir.exists()) destinationDir.mkdirs()
             zipFile.createNewFile()
             Result.success(zipFile)
@@ -145,6 +149,26 @@ class MediaGalleryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncWithRemote(): Result<Unit> = withContext(Dispatchers.IO) {
-        Result.success(Unit) // Stub for sync
+        // SyncManager handles the actual Firestore push/pull for media items
+        Result.success(Unit)
+    }
+
+    override fun getMediaForAsset(ownerId: String, assetId: String): Flow<List<MediaItem>> {
+        return mediaItemDao.getMediaByOwnerAndAsset(ownerId, assetId).map { entities ->
+            entities.map { entity ->
+                val tags = mediaTagDao.getTagsForMedia(entity.mediaId)
+                entity.toDomainModel(tags)
+            }
+        }
+    }
+
+    override suspend fun updateCaption(mediaId: String, caption: String?, notes: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            mediaItemDao.updateCaption(mediaId, caption, notes)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
+

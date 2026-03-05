@@ -10,15 +10,19 @@ import androidx.room.PrimaryKey
         Index(value = ["assetId"]),
         Index(value = ["dateAdded"]),
         Index(value = ["uploadStatus"]),
-        Index(value = ["mediaType"])
+        Index(value = ["mediaType"]),
+        Index(value = ["ownerId"])
     ]
 )
 data class MediaItemEntity(
     @PrimaryKey val mediaId: String,
     val assetId: String?,
+    val ownerId: String? = null,
     val url: String,
     val localPath: String?,
     val mediaType: String, // IMAGE, VIDEO
+    val caption: String? = null,
+    val notes: String? = null,
     val dateAdded: Long,
     val fileSize: Long,
     val width: Int?,
@@ -32,3 +36,4 @@ data class MediaItemEntity(
     val lastAccessedAt: Long? = null,
     val dirty: Boolean = false
 )
+

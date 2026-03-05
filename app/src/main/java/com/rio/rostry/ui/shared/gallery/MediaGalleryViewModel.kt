@@ -15,15 +15,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
+import com.rio.rostry.data.repository.UserRepository
 
 @HiltViewModel
 class MediaGalleryViewModel @Inject constructor(
     private val repository: MediaGalleryRepository,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GalleryUiState())
@@ -55,6 +58,7 @@ class MediaGalleryViewModel @Inject constructor(
             is GalleryEvent.ShareSelected -> shareSelected(event.onShareReady)
             GalleryEvent.Retry -> observeMedia()
             is GalleryEvent.SyncCache -> syncCache(event.onComplete)
+            is GalleryEvent.UpdateCaption -> updateCaption(event.mediaId, event.caption, event.notes)
         }
     }
 
@@ -80,7 +84,12 @@ class MediaGalleryViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             
-            repository.observeMedia(_uiState.value.filter, _uiState.value.pagination)
+            // Auto-scope by current user ownerId
+            val currentUserResource = userRepository.getCurrentUser().firstOrNull()
+            val currentUser = currentUserResource?.data
+            val filteredState = _uiState.value.filter.copy(ownerId = currentUser?.userId)
+            
+            repository.observeMedia(filteredState, _uiState.value.pagination)
                 .catch { e ->
                     _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load media") }
                 }
@@ -207,6 +216,15 @@ class MediaGalleryViewModel @Inject constructor(
             }
             if (filesToShare.isNotEmpty()) {
                 onShareReady(filesToShare)
+            }
+        }
+    }
+
+    private fun updateCaption(mediaId: String, caption: String?, notes: String?) {
+        viewModelScope.launch {
+            val result = repository.updateCaption(mediaId, caption, notes)
+            if (result.isFailure) {
+                _uiState.update { it.copy(error = "Failed to update caption") }
             }
         }
     }
