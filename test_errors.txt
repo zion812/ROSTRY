@@ -1,0 +1,25 @@
+﻿
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/androidTest/java/com/rio/rostry/data/database/MigrationTest
+.kt:34:83 Unresolved reference 'MIGRATION_87_88'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/androidTest/java/com/rio/rostry/data/database/MigrationTest
+.kt:43:83 Unresolved reference 'MIGRATION_88_89'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/androidTest/java/com/rio/rostry/data/database/MigrationTest
+.kt:52:83 Unresolved reference 'MIGRATION_89_90'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/androidTest/java/com/rio/rostry/data/database/MigrationTest
+.kt:65:36 Unresolved reference 'MIGRATION_87_88'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/androidTest/java/com/rio/rostry/data/database/MigrationTest
+.kt:66:36 Unresolved reference 'MIGRATION_88_89'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/androidTest/java/com/rio/rostry/data/database/MigrationTest
+.kt:67:36 Unresolved reference 'MIGRATION_89_90'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/app/sr
+c/test/java/com/rio/rostry/domain/transfer/TransferSystemTest
+.kt:196:39 Cannot infer type for this parameter. Specify it 
+explicitly.
+
+

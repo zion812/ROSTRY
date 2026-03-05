@@ -193,9 +193,9 @@ class TransferSystemTest {
         
         // Then
         assertTrue(result is TransferOperationResult.Success)
-        coVerify { transferDao.upsert(any()) }
-        coVerify { transferAnalyticsDao.insert(any()) }
-        coVerify { auditLogDao.insert(any()) }
+        coVerify { transferDao.upsert(any<com.rio.rostry.data.database.entity.TransferEntity>()) }
+        coVerify { transferAnalyticsDao.insert(any<com.rio.rostry.data.database.entity.TransferAnalyticsEntity>()) }
+        coVerify { auditLogDao.insert(any<com.rio.rostry.data.database.entity.AuditLogEntity>()) }
     }
     
     @Test

@@ -31,7 +31,7 @@ class MigrationTest {
         helper.createDatabase(TEST_DB, 87).apply {
             close()
         }
-        helper.runMigrationsAndValidate(TEST_DB, 88, true, AppDatabase.Converters.MIGRATION_87_88)
+        helper.runMigrationsAndValidate(TEST_DB, 88, true, AppDatabase.MIGRATION_87_88)
     }
 
     @Test
@@ -40,7 +40,7 @@ class MigrationTest {
         helper.createDatabase(TEST_DB, 88).apply {
             close()
         }
-        helper.runMigrationsAndValidate(TEST_DB, 89, true, AppDatabase.Converters.MIGRATION_88_89)
+        helper.runMigrationsAndValidate(TEST_DB, 89, true, AppDatabase.MIGRATION_88_89)
     }
 
     @Test
@@ -49,7 +49,7 @@ class MigrationTest {
         helper.createDatabase(TEST_DB, 89).apply {
             close()
         }
-        helper.runMigrationsAndValidate(TEST_DB, 90, true, AppDatabase.Converters.MIGRATION_89_90)
+        helper.runMigrationsAndValidate(TEST_DB, 90, true, AppDatabase.MIGRATION_89_90)
     }
 
     @Test
@@ -62,9 +62,9 @@ class MigrationTest {
             TEST_DB,
             90,
             true,
-            AppDatabase.Converters.MIGRATION_87_88,
-            AppDatabase.Converters.MIGRATION_88_89,
-            AppDatabase.Converters.MIGRATION_89_90
+            AppDatabase.MIGRATION_87_88,
+            AppDatabase.MIGRATION_88_89,
+            AppDatabase.MIGRATION_89_90
         )
     }
 }
