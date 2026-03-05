@@ -1,7 +1,0 @@
-{
-    "debug.allowBreakpointsEverywhere": true,
-    "debug.closeReadonlyTabsOnEnd": true,
-    "window.autoDetectColorScheme": false,
-    "kiroAgent.configureMCP": "Disabled",
-    "java.configuration.updateBuildConfiguration": "automatic"
-}
