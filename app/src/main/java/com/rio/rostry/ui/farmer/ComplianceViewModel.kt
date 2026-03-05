@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 data class ComplianceUiState(
@@ -29,7 +31,8 @@ data class ComplianceAlertItem(
 @HiltViewModel
 class ComplianceViewModel @Inject constructor(
     private val traceabilityRepository: TraceabilityRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ComplianceUiState())
@@ -42,6 +45,13 @@ class ComplianceViewModel @Inject constructor(
     fun loadComplianceData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
+
+            try {
+                // Ensure data is up to date before rendering alerts
+                syncManager.syncAll()
+            } catch (e: Exception) {
+                Timber.e(e, "Compliance sync failed")
+            }
             
             userRepository.getCurrentUser().collectLatest { userRes ->
                 if (userRes is Resource.Success) {

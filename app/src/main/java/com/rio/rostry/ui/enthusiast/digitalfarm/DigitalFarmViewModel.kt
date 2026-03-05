@@ -9,7 +9,9 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.domain.model.*
 import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -34,7 +36,8 @@ class DigitalFarmViewModel @Inject constructor(
     private val currentUserProvider: CurrentUserProvider,
     private val coinLedgerDao: CoinLedgerDao,
     private val farmAssetDao: FarmAssetDao,
-    private val breedingRepository: com.rio.rostry.data.repository.EnthusiastBreedingRepository
+    private val breedingRepository: com.rio.rostry.data.repository.EnthusiastBreedingRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DigitalFarmState(isLoading = true))
@@ -223,6 +226,8 @@ class DigitalFarmViewModel @Inject constructor(
         loadFarmData()
     }
 
+    private var isSyncing = false
+
     fun loadFarmData(snapshotTime: Long? = null) {
         viewModelScope.launch {
             try {
@@ -231,6 +236,25 @@ class DigitalFarmViewModel @Inject constructor(
                     _uiState.value = DigitalFarmState(error = "User not authenticated")
                     return@launch
                 }
+                
+                // Trigger background sync to fill data gaps (Offline-First)
+                if (!isSyncing && snapshotTime == null) {
+                    isSyncing = true
+                    launch(Dispatchers.IO) {
+                        try {
+                            if (_config.value.mode == DigitalFarmMode.FARMER) {
+                                syncManager.syncFarmerDigitalFarm()
+                            } else {
+                                syncManager.syncAll() // Enthusiast needs everything: genetics, logs, etc.
+                            }
+                        } catch(e: Exception) {
+                            Timber.e(e, "Background sync failed")
+                        } finally {
+                            isSyncing = false
+                        }
+                    }
+                }
+                
                 productRepository.getProductsBySeller(userId)
                     .catch { e ->
                         Timber.e(e, "Failed to load farm data")

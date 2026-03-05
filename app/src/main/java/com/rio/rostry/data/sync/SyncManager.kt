@@ -58,7 +58,9 @@ class SyncManager @Inject constructor(
     private val sessionManager: SessionManager,
     // Split-Brain Data Architecture
     private val batchSummaryDao: com.rio.rostry.data.database.dao.BatchSummaryDao,
-    private val circuitBreakerRegistry: com.rio.rostry.data.resilience.CircuitBreakerRegistry
+    private val circuitBreakerRegistry: com.rio.rostry.data.resilience.CircuitBreakerRegistry,
+    // Multimedia Sync
+    private val mediaItemDao: com.rio.rostry.data.database.dao.MediaItemDao
 ) {
     companion object {
         // Overall sync timeout to prevent indefinite operations
@@ -342,9 +344,11 @@ class SyncManager @Inject constructor(
             val r7 = syncChat(ctx)
             val r8 = processOutbox(ctx)
             val r9 = syncFarmMonitoring(ctx)
+            val r10 = syncTasks(ctx)
+            val r11 = syncMediaItems(ctx)
             
             // Aggregate results
-            val allResults = listOf(r1, r2, r3, r4, r5, r6, r7, r8, r9)
+            val allResults = listOf(r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11)
             val totalPulls = allResults.sumOf { it.pulls }
             val totalPushes = allResults.sumOf { it.pushes }
             val totalProcessed = r8.processed
@@ -396,6 +400,77 @@ class SyncManager @Inject constructor(
             return Resource.Error(e.message ?: "Sync failed")
         }
     }
+
+    /**
+     * Targeted sync for the Digital Farm (Farmer Mode).
+     * Skips heavy things like chat, orders, and enthusiast logs.
+     */
+    suspend fun syncFarmerDigitalFarm(now: Long = System.currentTimeMillis()): Resource<SyncStats> =
+        withContext(Dispatchers.IO) {
+            val timedOutDomains = mutableListOf<String>()
+
+            try {
+                withTimeout(OVERALL_SYNC_TIMEOUT_MS) {
+                    val state = syncStateDao.get() ?: SyncStateEntity()
+                    val userId = firebaseAuth.currentUser?.uid
+                    val role = UserType.FARMER // explicit intent
+                    
+                    val ctx = SyncContext(userId, role, now, state, timedOutDomains)
+                    
+                    // Execute specific domains needed for farmer digital farm
+                    val r1 = syncProducts(ctx)
+                    val r2 = syncTransfers(ctx)
+                    val r3 = processOutbox(ctx)
+                    val r4 = syncFarmMonitoring(ctx) // e.g., feeding schedules, vaccines
+                    val r5 = syncTasks(ctx)
+                    
+                    val allResults = listOf(r1, r2, r3, r4, r5)
+                    val totalPulls = allResults.sumOf { it.pulls }
+                    val totalPushes = allResults.sumOf { it.pushes }
+                    val totalProcessed = r3.processed
+                    val allErrors = allResults.flatMap { it.errors }
+                    
+                    // Update sync state for touched domains only
+                    syncStateDao.upsert(
+                        state.copy(
+                            lastProductSyncAt = now,
+                            lastTransferSyncAt = now,
+                            lastAlertSyncAt = now,
+                            lastVaccinationSyncAt = now,
+                            lastGrowthSyncAt = now,
+                            lastQuarantineSyncAt = now,
+                            lastMortalitySyncAt = now,
+                            lastHatchingSyncAt = now,
+                            lastDailyLogSyncAt = now,
+                            lastBatchSummarySyncAt = now,
+                            lastTaskSyncAt = now
+                        )
+                    )
+
+                    syncProgressFlow.emit(
+                         SyncProgress(
+                             0,
+                             0,
+                             "COMPLETED",
+                             allErrors
+                         )
+                    )
+
+                    val stats =
+                        SyncStats(totalPushes, totalPulls, outboxProcessed = totalProcessed, timedOutDomains = timedOutDomains)
+                    if (timedOutDomains.isNotEmpty()) {
+                        Timber.w("Farmer Digital Farm sync completed with timeouts in: ${timedOutDomains.joinToString()}")
+                    }
+                    Resource.Success(stats)
+                }
+            } catch (e: TimeoutCancellationException) {
+                Timber.e(e, "Farmer sync timeout after ${OVERALL_SYNC_TIMEOUT_MS}ms")
+                Resource.Error("Sync timed out. Partial sync may have completed.")
+            } catch (e: Exception) {
+                Timber.e(e, "syncFarmerDigitalFarm failed")
+                Resource.Error(e.message ?: "Sync failed")
+            }
+        }
     
     // ==========================================
     // Refactored Helper Methods
@@ -1144,26 +1219,73 @@ class SyncManager @Inject constructor(
                     errors.add("BatchSummaries: ${friendlyError(e)}")
                 }
                 
-                // Tasks
-                try {
-                    val remoteTasks = withRetry { firestoreService.fetchUpdatedTasks(ctx.userId, role, ctx.state.lastTaskSyncAt) }
-                    if (remoteTasks.isNotEmpty()) {
-                         val localDirtyIds = taskDao.getDirty().map { it.taskId }.toHashSet()
-                         val toUpsert = remoteTasks.filter { it.taskId !in localDirtyIds }
-                         if (toUpsert.isNotEmpty()) taskDao.upsert(toUpsert)
-                         pulls += toUpsert.size
-                    }
-                    val localDirty = taskDao.getDirty()
-                    if (localDirty.isNotEmpty()) {
-                        withRetry { firestoreService.pushTasks(ctx.userId, role, localDirty) }
-                        taskDao.clearDirty(localDirty.map { it.taskId }, ctx.now)
-                        pushes += localDirty.size
-                    }
-                } catch (e: Exception) {
-                    Timber.e(e, "Tasks sync failed")
-                    errors.add("Tasks: ${friendlyError(e)}")
-                }
             }
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncTasks(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+
+        if (ctx.userId == null || ctx.role == null) return SyncResult(0, 0, 0, errors)
+
+        try {
+            // Pull
+            val remoteTasks = withRetry { firestoreService.fetchUpdatedTasks(ctx.userId, ctx.role, ctx.state.lastTaskSyncAt) }
+            if (remoteTasks.isNotEmpty()) {
+                val localDirtyIds = taskDao.getDirty().map { it.taskId }.toHashSet()
+                val toUpsert = remoteTasks.filter { it.taskId !in localDirtyIds }
+                if (toUpsert.isNotEmpty()) taskDao.upsert(toUpsert)
+                pulls += toUpsert.size
+            }
+
+            // Push (dirty only)
+            val localDirty = taskDao.getDirty()
+            if (localDirty.isNotEmpty()) {
+                withRetry { firestoreService.pushTasks(ctx.userId, ctx.role, localDirty) }
+                taskDao.clearDirty(localDirty.map { it.taskId }, ctx.now)
+                pushes += localDirty.size
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Tasks sync failed")
+            errors.add("Tasks: ${friendlyError(e)}")
+        }
+        return SyncResult(pulls, pushes, 0, errors)
+    }
+
+    private suspend fun syncMediaItems(ctx: SyncContext): SyncResult {
+        var pulls = 0
+        var pushes = 0
+        val errors = mutableListOf<String>()
+
+        if (ctx.userId == null) return SyncResult(0, 0, 0, errors)
+
+        try {
+            // Pull
+            val remoteMedia = withRetry { firestoreService.fetchUpdatedMediaItems(ctx.userId, ctx.state.lastProductSyncAt) }
+            if (remoteMedia.isNotEmpty()) {
+                val localMediaMap = mediaItemDao.queryMedia(null, 1000, 0).associateBy { it.mediaId }
+                val toUpsert = remoteMedia.filter { 
+                    val local = localMediaMap[it.mediaId]
+                    local == null || local.updatedAt < it.updatedAt
+                }
+                if (toUpsert.isNotEmpty()) {
+                    toUpsert.forEach { mediaItemDao.insertMedia(it) }
+                }
+                pulls += toUpsert.size
+            }
+
+            // Push (For simplicity, since we didn't add the `dirty` field extraction in Dao, using a fallback push strategy)
+            val dirtyMedia = mediaItemDao.queryMedia(null, 1000, 0).filter { it.dirty }
+            if (dirtyMedia.isNotEmpty()) {
+                withRetry { firestoreService.pushMediaItems(ctx.userId, dirtyMedia) }
+                pushes += dirtyMedia.size
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Media sync failed")
+            errors.add("Media: ${friendlyError(e)}")
         }
         return SyncResult(pulls, pushes, 0, errors)
     }

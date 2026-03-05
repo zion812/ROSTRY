@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.ui.components.getSyncState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 enum class TaskTab { DUE, OVERDUE, COMPLETED }
@@ -22,6 +24,7 @@ enum class TaskTab { DUE, OVERDUE, COMPLETED }
 @HiltViewModel
 class TasksViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
+    private val syncManager: SyncManager,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
@@ -61,6 +64,17 @@ class TasksViewModel @Inject constructor(
             }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TasksUiState())
+
+    init {
+        viewModelScope.launch {
+            try {
+                // Ensure the tasks are up to date over the network
+                syncManager.syncAll()
+            } catch (e: Exception) {
+                Timber.e(e, "Initial tasks sync failed")
+            }
+        }
+    }
 
     fun selectTab(tab: TaskTab) { selectedTab.value = tab }
 

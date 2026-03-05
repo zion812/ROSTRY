@@ -6,6 +6,7 @@ import com.rio.rostry.domain.model.media.MediaFilter
 import com.rio.rostry.domain.model.media.PaginationState
 import com.rio.rostry.domain.model.media.TagType
 import com.rio.rostry.domain.repository.MediaGalleryRepository
+import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.ui.shared.gallery.state.GalleryEvent
 import com.rio.rostry.ui.shared.gallery.state.GalleryUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,17 +17,28 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class MediaGalleryViewModel @Inject constructor(
-    private val repository: MediaGalleryRepository
+    private val repository: MediaGalleryRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GalleryUiState())
     val uiState: StateFlow<GalleryUiState> = _uiState.asStateFlow()
 
     init {
+        // Trigger a background network sync on launch, without blocking the UI observing below
+        viewModelScope.launch {
+            try {
+                syncManager.syncAll()
+            } catch (e: Exception) {
+                Timber.e(e, "Initial gallery sync failed")
+            }
+        }
+        
         loadFilterOptions()
         observeMedia()
     }

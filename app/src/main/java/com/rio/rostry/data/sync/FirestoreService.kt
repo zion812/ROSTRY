@@ -82,6 +82,10 @@ interface SyncRemote {
     // Split-Brain Data Architecture: BatchSummary sync (replaces DailyLogs for cloud sync)
     suspend fun fetchUpdatedBatchSummaries(userId: String, since: Long, limit: Int = 500): List<BatchSummaryEntity>
     suspend fun pushBatchSummaries(userId: String, entities: List<BatchSummaryEntity>): Int
+
+    // Multimedia Sync
+    suspend fun fetchUpdatedMediaItems(userId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.MediaItemEntity>
+    suspend fun pushMediaItems(userId: String, entities: List<com.rio.rostry.data.database.entity.MediaItemEntity>): Int
 }
 
 /**
@@ -661,6 +665,32 @@ class FirestoreService @Inject constructor(
         }
         batch.commit().await()
         Timber.d("Pushed ${entities.size} batch summaries for user=$userId")
+        return entities.size
+    }
+
+    // ==============================
+    // Multimedia Sync
+    // ==============================
+
+    override suspend fun fetchUpdatedMediaItems(userId: String, since: Long, limit: Int): List<com.rio.rostry.data.database.entity.MediaItemEntity> =
+        firestore.collection("users").document(userId).collection("media_gallery")
+            .whereGreaterThan("updatedAt", since)
+            .orderBy("updatedAt", Query.Direction.ASCENDING)
+            .limit(limit.toLong())
+            .get().await()
+            .documents.mapNotNull { it.toObject(com.rio.rostry.data.database.entity.MediaItemEntity::class.java) }
+
+    override suspend fun pushMediaItems(userId: String, entities: List<com.rio.rostry.data.database.entity.MediaItemEntity>): Int {
+        if (entities.isEmpty()) return 0
+        val batch = firestore.batch()
+        val col = firestore.collection("users").document(userId).collection("media_gallery")
+        val now = System.currentTimeMillis()
+        entities.forEach { e ->
+            val doc = col.document(e.mediaId)
+            batch.set(doc, e, SetOptions.merge())
+            batch.update(doc, mapOf("updatedAt" to now))
+        }
+        batch.commit().await()
         return entities.size
     }
 
