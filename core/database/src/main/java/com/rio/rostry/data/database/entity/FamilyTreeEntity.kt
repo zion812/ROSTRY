@@ -28,18 +28,24 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index("productId"),
-        Index("parentProductId"),
-        Index("childProductId"),
-        Index(value = ["productId", "parentProductId", "childProductId"], unique = true)
+        Index(value = ["productId"]),
+        Index(value = ["parentProductId"]),
+        Index(value = ["childProductId"]),
+        Index(value = ["assetId"]),
+        Index(value = ["parentAssetId"]),
+        Index(value = ["childAssetId"])
     ]
 )
 data class FamilyTreeEntity(
-    @PrimaryKey val nodeId: String,
-    val productId: String,
+    @PrimaryKey val treeId: String,
+    val productId: String?,
     val parentProductId: String?,
     val childProductId: String?,
-    val relationType: String? = null, // e.g., parent, child, sibling, etc.
+    val assetId: String?,
+    val parentAssetId: String?,
+    val childAssetId: String?,
+    val relationType: String, // e.g. PATERNAL, MATERNAL
+    val confidence: Double = 1.0,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false,

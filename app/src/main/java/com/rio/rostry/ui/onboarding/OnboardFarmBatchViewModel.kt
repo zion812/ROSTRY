@@ -255,20 +255,26 @@ class OnboardFarmBatchViewModel @Inject constructor(
                         // Family tree linkages for batch to parents
                         if (!_state.value.lineage.maleParentId.isNullOrBlank()) {
                             val node = FamilyTreeEntity(
-                                nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
+                                treeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
                                 productId = newId,
                                 parentProductId = _state.value.lineage.maleParentId,
                                 childProductId = newId,
+                                assetId = null,
+                                parentAssetId = null,
+                                childAssetId = null,
                                 relationType = "father"
                             )
                             familyTreeRepository.upsert(node)
                         }
                         if (!_state.value.lineage.femaleParentId.isNullOrBlank()) {
                             val node = FamilyTreeEntity(
-                                nodeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
+                                treeId = "ft_${System.currentTimeMillis()}_${UUID.randomUUID()}",
                                 productId = newId,
                                 parentProductId = _state.value.lineage.femaleParentId,
                                 childProductId = newId,
+                                assetId = null,
+                                parentAssetId = null,
+                                childAssetId = null,
                                 relationType = "mother"
                             )
                             familyTreeRepository.upsert(node)

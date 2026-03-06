@@ -91,6 +91,9 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE sellerId = :sellerId ORDER BY createdAt DESC")
     suspend fun getProductsBySellerSuspend(sellerId: String): List<ProductEntity>
+    
+    @Query("SELECT * FROM products WHERE sellerId = :sellerId AND isDeleted = 0 AND (lifecycleStatus = 'ACTIVE' OR lifecycleStatus IS NULL)")
+    suspend fun getActiveBySellerList(sellerId: String): List<ProductEntity>
 
     @Query("SELECT * FROM products WHERE category = :category ORDER BY name ASC")
     fun getProductsByCategory(category: String): Flow<List<ProductEntity>>

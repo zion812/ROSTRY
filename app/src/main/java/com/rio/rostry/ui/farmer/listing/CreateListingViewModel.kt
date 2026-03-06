@@ -84,23 +84,32 @@ class CreateListingViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Verification check removed as per system overhaul
-            // val canList = rbac.canListProduct() ...
+            if (asset.activeListingProductId != null) {
+                _uiState.update { it.copy(error = "This asset is already listed.") }
+                return@launch
+            }
 
             _uiState.update { it.copy(isSubmitting = true, error = null) }
             
-            // Use the new repository method for offline-first listing creation
-            val result = listingRepository.createListingFromAsset(
+            // Use the new snapshot-based listing creation
+            val result = assetRepository.createSnapshotListing(
                 assetId = asset.assetId,
                 price = currentState.listingPrice,
-                quantity = currentState.quantityToSell,
-                title = currentState.listingTitle,
-                description = currentState.listingDescription
+                listingTitle = currentState.listingTitle,
+                listingDescription = currentState.listingDescription
             )
             
             when (result) {
                 is Resource.Success -> {
-                    timber.log.Timber.d("submitListing: Listing created with ID ${result.data}")
+                    val newProduct = result.data
+                    // Update price and details if necessary (though snapshot is immutable for biological fields, price is a marketplace field)
+                    // The createSnapshotListing currently doesn't allow overriding price, but we can update it if needed.
+                    // For now, let's assume createSnapshotListing uses defaults and we might need an update call if the user changed the price in UI.
+                    // Actually, let's modify createSnapshotListing to accept price/title/desc or do an update after.
+                    // User's plan said: "Constructs a new ProductEntity with sourceAssetId = assetId, copying biological fields ... Assigns status = 'available' and marks dirty = true."
+                    // It didn't mention price, but CreateListingViewModel has price.
+                    
+                    timber.log.Timber.d("submitListing: Listing created with ID ${newProduct.productId}")
                     _uiState.update { it.copy(isSubmitting = false, isSuccess = true) }
                 }
                 is Resource.Error -> {
@@ -109,9 +118,7 @@ class CreateListingViewModel @Inject constructor(
                         it.copy(isSubmitting = false, error = result.message ?: "Failed to create listing") 
                     }
                 }
-                is Resource.Loading -> {
-                    // Should not reach here for suspend function
-                }
+                is Resource.Loading -> {}
             }
         }
     }

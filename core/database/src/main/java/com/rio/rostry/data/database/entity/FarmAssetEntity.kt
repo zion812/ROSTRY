@@ -101,7 +101,8 @@ data class FarmAssetEntity(
     val updatedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false,
     val deletedAt: Long? = null,
-    val dirty: Boolean = false // For sync
+    val dirty: Boolean = false, // For sync
+    val activeListingProductId: String? = null // Reference to current ProductEntity snapshot
 ) {
     val isEligibleForGraduation: Boolean
         get() = (assetType == "BATCH" || assetType == "FLOCK") &&

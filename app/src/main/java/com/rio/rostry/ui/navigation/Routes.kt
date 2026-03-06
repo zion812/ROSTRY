@@ -309,6 +309,7 @@ object Routes {
         const val TRANSFERS = "enthusiast/transfers"
         const val PROFILE = "enthusiast/profile"  // Dedicated Enthusiast profile
         const val EGG_COLLECTION = "enthusiast/egg_collection"
+        const val LINEAGE_FEED = "enthusiast/lineage_feed"
         const val DIGITAL_FARM = "enthusiast/digital_farm" // Evolutionary Visuals Feature
         const val ROOSTER_CARD = "enthusiast/rooster_card/{productId}"
         const val BREEDING_CALCULATOR = "enthusiast/breeding_calculator"
@@ -560,6 +561,7 @@ object Routes {
             Common.VERIFY_ENTHUSIAST_KYC,
             // Farm asset pedigree and showcase card views
             EnthusiastNav.PEDIGREE,
+            EnthusiastNav.LINEAGE_FEED,
             EnthusiastNav.SHOWCASE_CARD,
             EnthusiastNav.BIRD_STUDIO,
             // Glass Box Farm Profile
@@ -664,6 +666,7 @@ object Routes {
             Upgrade.POST_ONBOARDING,
             // Digital Coop Features
             EnthusiastNav.PEDIGREE,
+            EnthusiastNav.LINEAGE_FEED,
             EnthusiastNav.PEDIGREE_EXPORT,
             EnthusiastNav.TRANSFER_CODE,
             EnthusiastNav.CLAIM_TRANSFER,

@@ -659,6 +659,16 @@ fun FarmerHomeScreen(
                         item {
                             KpiCard("Mortality", "${(snapshot.mortalityRate * 100).toInt()}%")
                         }
+                        uiState.avgFcr?.let { fcr ->
+                            item {
+                                KpiCard("Avg FCR", "%.2f".format(fcr))
+                            }
+                        }
+                        uiState.daysUntilHarvest?.let { days ->
+                            item {
+                                KpiCard("Harvest", if (days == 0) "Ready" else "${days}d")
+                            }
+                        }
                     }
                 }
             }

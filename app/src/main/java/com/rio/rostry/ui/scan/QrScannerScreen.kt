@@ -101,6 +101,22 @@ fun QrScannerScreen(
                                                 if (scanning) {
                                                     val text = barcodes.firstOrNull()?.rawValue
                                                     if (!text.isNullOrBlank()) {
+                                                        if (text.startsWith("ROSTRY_HANDSHAKE:")) {
+                                                            val handshakeData = com.rio.rostry.utils.qr.QRCodeParser.parseHandshakeQR(text)
+                                                            if (handshakeData != null) {
+                                                                CoroutineScope(Dispatchers.Main).launch {
+                                                                    val now = System.currentTimeMillis()
+                                                                    if (now - lastEmittedAt < 1200 || isChecking) return@launch
+                                                                    isChecking = true
+                                                                    withContext(Dispatchers.IO) { vm.watchLineage(handshakeData.assetId, handshakeData.lineageHash) }
+                                                                    lastEmittedAt = now
+                                                                    scanning = false
+                                                                    onResult("HANDSHAKE:${handshakeData.assetId}")
+                                                                    isChecking = false
+                                                                }
+                                                                return@addOnSuccessListener
+                                                            }
+                                                        }
                                                         val productId = parseProductId(text)
                                                         if (productId.isNotBlank()) {
                                                             CoroutineScope(Dispatchers.Main).launch {
@@ -180,6 +196,18 @@ fun QrScannerScreen(
                     Button(onClick = {
                         val input = value.trim()
                         if (input.isBlank()) return@Button
+                        
+                        if (input.startsWith("ROSTRY_HANDSHAKE:")) {
+                            val handshakeData = com.rio.rostry.utils.qr.QRCodeParser.parseHandshakeQR(input)
+                            if (handshakeData != null) {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    withContext(Dispatchers.IO) { vm.watchLineage(handshakeData.assetId, handshakeData.lineageHash) }
+                                    onResult("HANDSHAKE:${handshakeData.assetId}")
+                                }
+                                return@Button
+                            }
+                        }
+                        
                         val productId = parseProductId(input)
                         if (productId.isBlank()) {
                             error = "Invalid QR content"

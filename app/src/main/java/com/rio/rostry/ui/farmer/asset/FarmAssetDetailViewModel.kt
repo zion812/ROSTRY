@@ -18,7 +18,8 @@ class FarmAssetDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: FarmAssetRepository,
     private val activityLogDao: com.rio.rostry.data.database.dao.FarmActivityLogDao,
-    private val financialsRepository: FarmFinancialsRepository
+    private val financialsRepository: FarmFinancialsRepository,
+    private val verifiedLineageBadgeUseCase: com.rio.rostry.domain.usecase.VerifiedLineageBadgeUseCase
 ) : ViewModel() {
 
     private val assetId: String = savedStateHandle.get<String>("assetId") ?: ""
@@ -42,6 +43,7 @@ class FarmAssetDetailViewModel @Inject constructor(
             loadAsset()
             loadRecentEvents()
             loadCostAnalysis()
+            loadLineageVerification()
         } else {
             _uiState.update { it.copy(isLoading = false, error = "Invalid asset ID") }
         }
@@ -252,6 +254,13 @@ class FarmAssetDetailViewModel @Inject constructor(
         }
     }
 
+    private fun loadLineageVerification() {
+        viewModelScope.launch {
+            val result = verifiedLineageBadgeUseCase(assetId)
+            _uiState.update { it.copy(isLineageVerified = result) }
+        }
+    }
+
     fun canCreateListing(): Boolean {
         val asset = _uiState.value.asset ?: return false
         // Cannot list quarantined or archived assets
@@ -270,7 +279,8 @@ data class FarmAssetDetailUiState(
     val tagGroups: List<TagGroup> = emptyList(),
     val performance: BatchPerformance? = null,
     val error: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val isLineageVerified: Boolean = false
 )
 
 data class BatchPerformance(

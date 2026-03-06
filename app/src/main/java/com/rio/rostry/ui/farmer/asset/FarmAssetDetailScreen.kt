@@ -16,6 +16,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.rio.rostry.utils.qr.QRCodeGenerator
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.background
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,6 +216,34 @@ fun FarmAssetDetailScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(Modifier.height(8.dp))
+                                }
+                                
+                                // Verified Lineage Badge
+                                if (state.isLineageVerified) {
+                                    Surface(
+                                        color = Color(0xFFE8F5E9),
+                                        shape = androidx.compose.foundation.shape.CircleShape,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Verified,
+                                                contentDescription = null,
+                                                tint = Color(0xFF4CAF50),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                "Verified Lineage",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color(0xFF2E7D32),
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
                                 
                                 // Quick Actions
@@ -651,6 +684,65 @@ fun FarmAssetDetailScreen(
                                 Icon(Icons.Default.AutoAwesome, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Generate Shareable Card")
+                            }
+                        }
+                    }
+
+                    // Lineage Handshake QR (Social Virality)
+                    if (asset.assetType == "ANIMAL" || asset.assetType == "FLOCK" || asset.assetType == "BATCH") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "Lineage Handshake",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    "Enthusiasts can scan this to follow this bird's lineage feed.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                
+                                val context = LocalContext.current
+                                val qrGenerator = remember(context) { QRCodeGenerator(context) }
+                                val handshakeBitmapState = remember { androidx.compose.runtime.mutableStateOf<android.graphics.Bitmap?>(null) }
+                                
+                                androidx.compose.runtime.LaunchedEffect(asset.assetId) {
+                                    handshakeBitmapState.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                                        qrGenerator.generateHandshakeQR(asset.assetId, asset.assetId)
+                                    }
+                                }
+                                
+                                if (handshakeBitmapState.value != null) {
+                                    Box(
+                                        modifier = Modifier.background(Color.White, MaterialTheme.shapes.medium)
+                                            .padding(12.dp)
+                                    ) {
+                                        Image(
+                                            bitmap = handshakeBitmapState.value!!.asImageBitmap(),
+                                            contentDescription = "Handshake QR",
+                                            modifier = Modifier.size(200.dp)
+                                        )
+                                    }
+                                } else {
+                                    CircularProgressIndicator(modifier = Modifier.padding(32.dp))
+                                }
+                                
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "ID: ${asset.assetId.take(8)}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
                             }
                         }
                     }

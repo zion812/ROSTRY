@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 93,
-    "identityHash": "de6f5dec211b6e8cd0e4c6395a63100f",
+    "version": 94,
+    "identityHash": "12921c3badb6b523e107b56f5c0d828d",
     "entities": [
       {
         "tableName": "users",
@@ -15885,11 +15885,119 @@
             "term"
           ]
         }
+      },
+      {
+        "tableName": "watched_lineages",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`watchId` TEXT NOT NULL, `assetId` TEXT NOT NULL, `lineageHash` TEXT NOT NULL, `birdName` TEXT, `breed` TEXT, `ownerName` TEXT, `ownerAvatarUrl` TEXT, `isDiscoveryFeedEnabled` INTEGER NOT NULL, `lastUpdateReceivedAt` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, PRIMARY KEY(`watchId`))",
+        "fields": [
+          {
+            "fieldPath": "watchId",
+            "columnName": "watchId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "assetId",
+            "columnName": "assetId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lineageHash",
+            "columnName": "lineageHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birdName",
+            "columnName": "birdName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "breed",
+            "columnName": "breed",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerName",
+            "columnName": "ownerName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerAvatarUrl",
+            "columnName": "ownerAvatarUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isDiscoveryFeedEnabled",
+            "columnName": "isDiscoveryFeedEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdateReceivedAt",
+            "columnName": "lastUpdateReceivedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dirty",
+            "columnName": "dirty",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "watchId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_watched_lineages_assetId",
+            "unique": false,
+            "columnNames": [
+              "assetId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_watched_lineages_assetId` ON `${TABLE_NAME}` (`assetId`)"
+          },
+          {
+            "name": "index_watched_lineages_lineageHash",
+            "unique": false,
+            "columnNames": [
+              "lineageHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_watched_lineages_lineageHash` ON `${TABLE_NAME}` (`lineageHash`)"
+          },
+          {
+            "name": "index_watched_lineages_isDiscoveryFeedEnabled",
+            "unique": false,
+            "columnNames": [
+              "isDiscoveryFeedEnabled"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_watched_lineages_isDiscoveryFeedEnabled` ON `${TABLE_NAME}` (`isDiscoveryFeedEnabled`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'de6f5dec211b6e8cd0e4c6395a63100f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '12921c3badb6b523e107b56f5c0d828d')"
     ]
   }
 }

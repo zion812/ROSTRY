@@ -20,7 +20,7 @@ interface FamilyTreeRepository {
      * Upserts a family tree node. Cross-owner lineage links are permitted as long as the child product belongs to the current user.
      */
     suspend fun upsert(node: FamilyTreeEntity)
-    suspend fun softDelete(nodeId: String)
+    suspend fun softDelete(treeId: String)
 }
 
 @Singleton
@@ -30,6 +30,7 @@ class FamilyTreeRepositoryImpl @Inject constructor(
     private val auditLogDao: AuditLogDao,
     private val currentUserProvider: CurrentUserProvider,
     private val productDao: ProductDao,
+    private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
     private val gson: Gson
 ) : FamilyTreeRepository {
     override fun getForProduct(productId: String): Flow<List<FamilyTreeEntity>> = dao.getForProduct(productId)
@@ -41,9 +42,20 @@ class FamilyTreeRepositoryImpl @Inject constructor(
             throw SecurityException("You don't have permission to edit lineage")
         }
         
-        val product = productDao.findById(node.productId) ?: throw SecurityException("Product not found")
-        if (product.sellerId != currentUserProvider.userIdOrNull()) {
-            throw SecurityException("You can only edit lineage for your own products")
+        if (node.productId == null && node.assetId == null) {
+            throw IllegalArgumentException("Either productId or assetId is required for lineage")
+        }
+        
+        if (node.productId != null) {
+            val product = productDao.findById(node.productId!!) ?: throw SecurityException("Product not found")
+            if (product.sellerId != currentUserProvider.userIdOrNull()) {
+                throw SecurityException("You can only edit lineage for your own products")
+            }
+        } else if (node.assetId != null) {
+            val asset = farmAssetDao.findById(node.assetId!!) ?: throw SecurityException("Asset not found")
+            if (asset.farmerId != currentUserProvider.userIdOrNull()) {
+                throw SecurityException("You can only edit lineage for your own assets")
+            }
         }
         
         node.parentProductId?.let { parentId ->
@@ -58,7 +70,7 @@ class FamilyTreeRepositoryImpl @Inject constructor(
                 auditLogDao.insert(AuditLogEntity(
                     logId = UUID.randomUUID().toString(),
                     type = "LINEAGE_CROSS_OWNER_LINK",
-                    refId = node.nodeId,
+                    refId = node.treeId,
                     action = "UPSERT",
                     actorUserId = currentUserProvider.userIdOrNull(),
                     detailsJson = gson.toJson(mapOf(
@@ -78,7 +90,7 @@ class FamilyTreeRepositoryImpl @Inject constructor(
         auditLogDao.insert(AuditLogEntity(
             logId = UUID.randomUUID().toString(),
             type = "LINEAGE",
-            refId = node.nodeId,
+            refId = node.treeId,
             action = "UPSERT",
             actorUserId = currentUserProvider.userIdOrNull() ?: "",
             detailsJson = gson.toJson(node),
@@ -86,12 +98,23 @@ class FamilyTreeRepositoryImpl @Inject constructor(
         ))
     }
     
-    override suspend fun softDelete(nodeId: String) {
-        val node = dao.findById(nodeId) ?: throw SecurityException("Node not found")
+    override suspend fun softDelete(treeId: String) {
+        val node = dao.findById(treeId) ?: throw SecurityException("Node not found")
         
-        val product = productDao.findById(node.productId) ?: throw SecurityException("Product not found")
-        if (product.sellerId != currentUserProvider.userIdOrNull()) {
-            throw SecurityException("You can only delete lineage for your own products")
+        if (node.productId == null && node.assetId == null) {
+            throw IllegalArgumentException("Node has no associated product or asset")
+        }
+        
+        if (node.productId != null) {
+            val product = productDao.findById(node.productId!!) ?: throw SecurityException("Product not found")
+            if (product.sellerId != currentUserProvider.userIdOrNull()) {
+                throw SecurityException("You can only delete lineage for your own products")
+            }
+        } else if (node.assetId != null) {
+            val asset = farmAssetDao.findById(node.assetId!!) ?: throw SecurityException("Asset not found")
+            if (asset.farmerId != currentUserProvider.userIdOrNull()) {
+                throw SecurityException("You can only delete lineage for your own assets")
+            }
         }
         
         if (!rbacGuard.canEditLineage()) {
@@ -104,18 +127,27 @@ class FamilyTreeRepositoryImpl @Inject constructor(
         auditLogDao.insert(AuditLogEntity(
             logId = UUID.randomUUID().toString(),
             type = "LINEAGE",
-            refId = nodeId,
+            refId = treeId,
             action = "DELETE",
             actorUserId = currentUserProvider.userIdOrNull() ?: "",
-            detailsJson = gson.toJson(mapOf("nodeId" to nodeId, "deletedAt" to now)),
+            detailsJson = gson.toJson(mapOf("treeId" to treeId, "deletedAt" to now)),
             createdAt = now
         ))
     }
     
     private suspend fun validateRelationships(node: FamilyTreeEntity) {
-        // Check target product exists
-        if (productDao.findById(node.productId) == null) {
-            throw SecurityException("Invalid product ID")
+        if (node.productId == null && node.assetId == null) {
+            throw IllegalArgumentException("Either productId or assetId is required")
+        }
+        
+        if (node.productId != null) {
+            if (productDao.findById(node.productId!!) == null) {
+                throw SecurityException("Invalid product ID")
+            }
+        } else if (node.assetId != null) {
+            if (farmAssetDao.findById(node.assetId!!) == null) {
+                throw SecurityException("Invalid asset ID")
+            }
         }
         // Validate parent/child product links if provided
         node.parentProductId?.let { parentId ->

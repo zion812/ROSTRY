@@ -50,5 +50,10 @@ data class OutboxEntity(
         const val TYPE_IOT_DEVICE = "IOT_DEVICE"
         const val TYPE_IOT_DATA = "IOT_DATA"
         const val TYPE_PRODUCT_TRACKING = "PRODUCT_TRACKING"
+        const val TYPE_FARM_ASSET_DELTA = "FARM_ASSET_DELTA"
+        
+        // CRDT Delta Constants
+        const val OP_DELTA_ADD = "DELTA_ADD"
+        const val OP_DELTA_SUB = "DELTA_SUB"
     }
 }

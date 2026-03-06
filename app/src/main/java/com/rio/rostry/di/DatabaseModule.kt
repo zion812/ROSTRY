@@ -280,7 +280,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_88_89,
             AppDatabase.MIGRATION_89_90,
             AppDatabase.MIGRATION_91_92,
-            AppDatabase.MIGRATION_92_93
+            AppDatabase.MIGRATION_92_93,
+            AppDatabase.MIGRATION_93_94
         )
 
         // Optional: allow destructive migrations only for debug builds
@@ -802,5 +803,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideCircuitBreakerMetricsDao(db: AppDatabase): com.rio.rostry.data.database.dao.CircuitBreakerMetricsDao = db.circuitBreakerMetricsDao()
+
+    @Provides
+    @Singleton
+    fun provideWatchedLineageDao(db: AppDatabase): com.rio.rostry.data.database.dao.WatchedLineageDao = db.watchedLineageDao()
 }
 

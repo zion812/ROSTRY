@@ -24,6 +24,7 @@ import com.rio.rostry.utils.MilestoneNotifier
 import com.rio.rostry.utils.notif.EnthusiastNotifier
 import com.rio.rostry.utils.notif.FarmNotifier
 import com.rio.rostry.workers.processors.*
+import com.rio.rostry.utils.Resource
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -70,56 +71,42 @@ class LifecycleWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
             val now = System.currentTimeMillis()
-            val startTime = now
-            MilestoneNotifier.ensureChannel(applicationContext)
             
-            // ============================================================
-            // MODULAR PROCESSORS: Delegate to specialized processors
-            // ============================================================
-            runProcessors(now)
+            // 1. Update basic ages first (Local only, light-weight)
+            farmAssetAgeProcessor.process(now)
             
-            // ============================================================
-            // CORE LIFECYCLE: Stage transitions, milestones, batch splits
-            // ============================================================
-            processProductLifecycles(now)
+            // 2. Schedule the chain of specialized workers
+            val workManager = WorkManager.getInstance(applicationContext)
             
-            // Phase 3: Auto-expire market listings older than 30 days
+            val stageTransitionRequest = androidx.work.OneTimeWorkRequestBuilder<StageTransitionWorker>().build()
+            val taskGenRequest = androidx.work.OneTimeWorkRequestBuilder<TaskGenerationWorker>().build()
+            val healthAnomalyRequest = androidx.work.OneTimeWorkRequestBuilder<HealthAnomalyWorker>().build()
+            val dashboardCacheRequest = androidx.work.OneTimeWorkRequestBuilder<DashboardCacheWorker>().build()
+
+            workManager.beginUniqueWork("LifecycleChain", androidx.work.ExistingWorkPolicy.REPLACE, stageTransitionRequest)
+                .then(taskGenRequest)
+                .then(healthAnomalyRequest)
+                .then(dashboardCacheRequest)
+                .enqueue()
+
+            // 3. Keep minimal legacy cleanup for now
             val thirtyDaysAgo = now - (30L * 24 * 60 * 60 * 1000)
             productDao.purgeStaleMarketplace(thirtyDaysAgo)
             
-            Timber.d("LifecycleWorker completed in ${System.currentTimeMillis() - startTime}ms")
             Result.success()
         } catch (e: Exception) {
-            Timber.e(e, "LifecycleWorker failed")
+            Timber.e(e, "LifecycleWorker sequencing failed")
             Result.retry()
         }
     }
     
-    /**
-     * Run all modular processors.
-     */
-    private suspend fun runProcessors(now: Long) {
-        val processors = listOf(
-            dailyBriefingProcessor,
-            farmAssetAgeProcessor,
-            marketReadyProcessor,
-            underperformingBirdProcessor,
-            taskGenerationProcessor,
-            dashboardCacheProcessor // Run last as it depends on updated data
-        )
-        
-        for (processor in processors) {
-            try {
-                processor.process(now)
-            } catch (e: Exception) {
-                Timber.e(e, "Processor ${processor.processorName} failed")
-            }
-        }
-    }
+    // These methods are now handled by specialized workers. 
+    // Keeping minimal references or removing as needed.
     
     /**
      * Core lifecycle processing for products.
      * Handles stage transitions, milestones, and batch splits.
+     * This method is now largely handled by StageTransitionWorker.
      */
     private suspend fun processProductLifecycles(now: Long) {
         val products = productDao.getActiveWithBirth()
@@ -128,14 +115,8 @@ class LifecycleWorker @AssistedInject constructor(
             val week = p.birthDate?.let { 
                 com.rio.rostry.utils.LifecycleRules.calculateAgeInWeeks(it, now) 
             } ?: continue
-            val stage = LifecycleStage.fromWeeks(week)
 
-            // Batch split detection: recommend split at >= 12 weeks
-            if (p.isBatch == true && (p.lifecycleStatus == "ACTIVE" || p.lifecycleStatus == null)) {
-                if (week >= 12 && p.splitAt == null) {
-                    processBatchSplit(p, week, now)
-                }
-            }
+            val stage = LifecycleStage.fromWeeks(week)
 
             // Persist age cache
             productDao.updateAgeWeeks(p.productId, week)

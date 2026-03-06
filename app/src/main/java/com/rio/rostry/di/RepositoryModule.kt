@@ -73,6 +73,8 @@ import com.rio.rostry.data.repository.InventoryRepository
 import com.rio.rostry.data.repository.InventoryRepositoryImpl
 import com.rio.rostry.data.repository.MarketListingRepository
 import com.rio.rostry.data.repository.MarketListingRepositoryImpl
+import com.rio.rostry.data.repository.WatchedLineagesRepository
+import com.rio.rostry.data.repository.WatchedLineagesRepositoryImpl
 import com.rio.rostry.domain.pedigree.PedigreeRepository
 import com.rio.rostry.domain.pedigree.PedigreeRepositoryImpl
 import com.rio.rostry.marketplace.payment.DefaultPaymentGateway
@@ -362,6 +364,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindMediaGalleryRepository(impl: com.rio.rostry.data.repository.MediaGalleryRepositoryImpl): com.rio.rostry.domain.repository.MediaGalleryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchedLineagesRepository(impl: WatchedLineagesRepositoryImpl): WatchedLineagesRepository
 }
 
 @Module

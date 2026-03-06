@@ -121,8 +121,10 @@ class MarketListingRepositoryImpl @Inject constructor(
      * 4. Create MarketListingEntity (dirty=true)
      * 5. Mark source asset as LISTED
      * 
+     *
      * SyncWorker will handle Firestore uploads later.
      */
+    @Deprecated("Use FarmAssetRepository.createSnapshotListing instead", ReplaceWith("farmAssetRepository.createSnapshotListing(assetId, price, quantity, title, description)"))
     override suspend fun createListingFromAsset(
         assetId: String,
         price: Double,

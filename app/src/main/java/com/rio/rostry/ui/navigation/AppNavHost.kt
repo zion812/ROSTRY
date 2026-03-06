@@ -2842,6 +2842,12 @@ private fun RoleNavGraph(
 
         // Show Records Screen
 
+        composable(Routes.EnthusiastNav.LINEAGE_FEED) {
+            com.rio.rostry.ui.enthusiast.EnthusiastLineageFeedScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
 
         // --- Enthusiast Premium Toolset Routes ---
 
@@ -3185,6 +3191,9 @@ private fun RoleNavGraph(
                 QrScannerScreen(
                     onResult = { productId ->
                         when (ctx) {
+                            "handshake" -> {
+                                navController.navigate(Routes.EnthusiastNav.LINEAGE_FEED)
+                            }
                             "family_tree" -> {
                                 navController.navigate(Routes.Builders.traceability(productId))
                             }

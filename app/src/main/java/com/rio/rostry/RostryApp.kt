@@ -301,6 +301,7 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         com.rio.rostry.workers.EnthusiastPerformanceWorker.schedule(this)
         com.rio.rostry.workers.OutboxSyncWorker.schedule(this)
         com.rio.rostry.workers.PullSyncWorker.schedule(this)
+        com.rio.rostry.workers.CrdtSyncWorker.schedule(this)
         OrderStatusWorker.schedule(this)
         com.rio.rostry.workers.PrefetchWorker.schedule(this)
         com.rio.rostry.workers.PersonalizationWorker.schedule(this)

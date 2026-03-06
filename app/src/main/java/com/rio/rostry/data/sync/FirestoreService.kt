@@ -32,6 +32,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
+import com.rio.rostry.utils.Resource
 import javax.inject.Inject
 import javax.inject.Singleton
 /**
@@ -86,6 +87,7 @@ interface SyncRemote {
     // Multimedia Sync
     suspend fun fetchUpdatedMediaItems(userId: String, since: Long, limit: Int = 500): List<com.rio.rostry.data.database.entity.MediaItemEntity>
     suspend fun pushMediaItems(userId: String, entities: List<com.rio.rostry.data.database.entity.MediaItemEntity>): Int
+    suspend fun incrementFarmAssetField(assetId: String, field: String, delta: Double): Resource<Unit>
 }
 
 /**
@@ -694,4 +696,14 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
+    override suspend fun incrementFarmAssetField(assetId: String, field: String, delta: Double): Resource<Unit> {
+        return try {
+            firestore.collection("farm_assets").document(assetId)
+                .update(field, com.google.firebase.firestore.FieldValue.increment(delta))
+                .await()
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to increment field")
+        }
+    }
 }

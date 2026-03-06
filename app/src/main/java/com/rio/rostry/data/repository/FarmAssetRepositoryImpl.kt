@@ -11,12 +11,17 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import com.rio.rostry.data.repository.StorageRepository
 import timber.log.Timber
+import androidx.room.withTransaction
+import com.rio.rostry.data.database.AppDatabase
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class FarmAssetRepositoryImpl @Inject constructor(
+    private val database: AppDatabase,
     private val dao: FarmAssetDao,
+    private val productDao: com.rio.rostry.data.database.dao.ProductDao,
+    private val outboxDao: com.rio.rostry.data.database.dao.OutboxDao,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val storageRepository: StorageRepository
@@ -110,6 +115,29 @@ class FarmAssetRepositoryImpl @Inject constructor(
         dao.updateQuantity(assetId, quantity, now)
         // Trigger generic sync or use WorkManager if immediate consistency needed
         return Resource.Success(Unit)
+    }
+
+    override suspend fun applyQuantityDelta(assetId: String, delta: Double): Resource<Unit> {
+        return try {
+            val asset = dao.findById(assetId) ?: return Resource.Error("Asset not found")
+            database.withTransaction {
+                dao.updateQuantity(assetId, asset.quantity + delta, System.currentTimeMillis())
+                val outbox = com.rio.rostry.data.database.entity.OutboxEntity(
+                    outboxId = java.util.UUID.randomUUID().toString(),
+                    userId = asset.farmerId,
+                    entityType = "FARM_ASSET_DELTA",
+                    entityId = assetId,
+                    operation = if (delta >= 0) com.rio.rostry.data.database.entity.OutboxEntity.OP_DELTA_ADD else com.rio.rostry.data.database.entity.OutboxEntity.OP_DELTA_SUB,
+                    payloadJson = com.google.gson.Gson().toJson(mapOf("field" to "quantity", "delta" to delta)),
+                    createdAt = System.currentTimeMillis()
+                )
+                outboxDao.insert(outbox)
+            }
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to apply quantity delta")
+            Resource.Error(e.message ?: "Update failed")
+        }
     }
 
     override suspend fun updateHealthStatus(assetId: String, status: String): Resource<Unit> {
@@ -237,6 +265,92 @@ class FarmAssetRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Failed to update metadataJson for $assetId")
             Resource.Error(e.message ?: "Failed to save appearance")
+        }
+    }
+
+    override suspend fun createSnapshotListing(
+        assetId: String,
+        price: Double,
+        listingTitle: String?,
+        listingDescription: String?
+    ): Resource<com.rio.rostry.data.database.entity.ProductEntity> {
+        return try {
+            val asset = dao.findById(assetId) ?: return Resource.Error("Asset not found")
+            if (asset.activeListingProductId != null) {
+                return Resource.Error("Asset is already listed")
+            }
+
+            val now = System.currentTimeMillis()
+            val productId = "prod_snap_${java.util.UUID.randomUUID()}"
+            
+            // Create the snapshot listing
+            val snapshot = com.rio.rostry.data.database.entity.ProductEntity(
+                productId = productId,
+                sellerId = asset.farmerId,
+                name = listingTitle ?: asset.name,
+                description = listingDescription ?: asset.description,
+                category = asset.category,
+                sourceAssetId = assetId,
+                birthDate = asset.birthDate,
+                gender = asset.gender,
+                breed = asset.breed,
+                color = asset.color,
+                weightGrams = asset.weightGrams,
+                price = price,
+                healthStatus = asset.healthStatus,
+                parentIdsJson = asset.parentIdsJson,
+                birdCode = asset.birdCode,
+                raisingPurpose = asset.raisingPurpose,
+                status = "available",
+                createdAt = now,
+                updatedAt = now,
+                dirty = true
+            )
+
+            // Atomic update inside a transaction
+            database.withTransaction {
+                productDao.upsert(snapshot)
+                dao.linkActiveListing(assetId, productId, now)
+            }
+
+            // Queue for remote sync
+            val outbox = com.rio.rostry.data.database.entity.OutboxEntity(
+                outboxId = java.util.UUID.randomUUID().toString(),
+                userId = asset.farmerId,
+                entityType = com.rio.rostry.data.database.entity.OutboxEntity.TYPE_LISTING,
+                entityId = productId,
+                operation = "CREATE",
+                payloadJson = com.google.gson.Gson().toJson(snapshot),
+                createdAt = now,
+                priority = "HIGH"
+            )
+            outboxDao.insert(outbox)
+
+            Resource.Success(snapshot)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to create snapshot listing for $assetId")
+            Resource.Error(e.message ?: "Failed to create listing")
+        }
+    }
+
+    override suspend fun delistAsset(assetId: String): Resource<Unit> {
+        return try {
+            val asset = dao.findById(assetId) ?: return Resource.Error("Asset not found")
+            val now = System.currentTimeMillis()
+            database.withTransaction {
+                asset.activeListingProductId?.let { productId ->
+                    val listing = productDao.findById(productId)
+                    if (listing != null) {
+                        productDao.upsert(listing.copy(isDeleted = true, deletedAt = now, dirty = true))
+                    }
+                }
+                dao.unlinkActiveListing(assetId, now)
+            }
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to delist asset $assetId")
+            Resource.Error(e.message ?: "Failed to delist asset")
         }
     }
 }

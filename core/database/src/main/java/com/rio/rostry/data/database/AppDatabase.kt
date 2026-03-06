@@ -173,9 +173,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MediaMetadataEntity::class,
         HubAssignmentEntity::class,
         ProfitabilityMetricsEntity::class,
-        ModerationBlocklistEntity::class
+        ModerationBlocklistEntity::class,
+        WatchedLineageEntity::class
     ],
-    version = 93, // 92 -> 93 (Multimedia Gallery Phase 2: assetName, assetIdentifier)
+    version = 94, // 93 -> 94 (Enthusiast Social: Watched Lineages)
     exportSchema = true 
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -359,6 +360,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun profitabilityMetricsDao(): ProfitabilityMetricsDao
     abstract fun referentialIntegrityDao(): ReferentialIntegrityDao
     abstract fun moderationBlocklistDao(): ModerationBlocklistDao
+    
+    // Enthusiast Social DAOs
+    abstract fun watchedLineageDao(): WatchedLineageDao
 
     object Converters {
         @TypeConverter
@@ -1257,6 +1261,31 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `media_items` ADD COLUMN `assetName` TEXT")
                 db.execSQL("ALTER TABLE `media_items` ADD COLUMN `assetIdentifier` TEXT")
+            }
+        }
+
+        // Enthusiast Social: Watched Lineages (93 → 94)
+        val MIGRATION_93_94 = object : Migration(93, 94) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `watched_lineages` (
+                        `watchId` TEXT NOT NULL PRIMARY KEY,
+                        `assetId` TEXT NOT NULL,
+                        `lineageHash` TEXT NOT NULL,
+                        `birdName` TEXT,
+                        `breed` TEXT,
+                        `ownerName` TEXT,
+                        `ownerAvatarUrl` TEXT,
+                        `isDiscoveryFeedEnabled` INTEGER NOT NULL,
+                        `lastUpdateReceivedAt` INTEGER,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `dirty` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_lineages_assetId` ON `watched_lineages` (`assetId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_lineages_lineageHash` ON `watched_lineages` (`lineageHash`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watched_lineages_isDiscoveryFeedEnabled` ON `watched_lineages` (`isDiscoveryFeedEnabled`)")
             }
         }
 

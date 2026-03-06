@@ -45,6 +45,7 @@ interface MarketListingRepository {
      * @param description Description for the listing
      * @return Resource containing the new listing ID on success
      */
+    @Deprecated("Use FarmAssetRepository.createSnapshotListing instead", ReplaceWith("farmAssetRepository.createSnapshotListing(assetId, price, quantity, title, description)"))
     suspend fun createListingFromAsset(
         assetId: String,
         price: Double,

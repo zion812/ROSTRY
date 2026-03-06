@@ -184,22 +184,8 @@ class SyncManager @Inject constructor(
         return lineageKept
     }
 
-    private suspend fun mergeProductRemoteLocal(
-        remote: ProductEntity,
-        local: ProductEntity?
-    ): ProductEntity {
+    private suspend fun mergeProductRemoteLocal(remote: ProductEntity, local: ProductEntity?): ProductEntity {
         if (local == null) return remote
-        // Last-write-wins by updatedAt for general fields
-        fun pickString(
-            remoteVal: String?,
-            localVal: String?,
-            rUpdated: Long,
-            lUpdated: Long
-        ): String? =
-            if ((remoteVal != localVal) && (rUpdated > lUpdated)) remoteVal else localVal
-
-        fun pickInt(remoteVal: Int?, localVal: Int?, rUpdated: Long, lUpdated: Long): Int? =
-            if ((remoteVal != localVal) && (rUpdated > lUpdated)) remoteVal else localVal
 
         val rU = remote.updatedAt
         val lU = local.updatedAt
@@ -249,7 +235,10 @@ class SyncManager @Inject constructor(
         // Age weeks should be monotonic non-decreasing; do not use updatedAt to regress
         val ageWeeksResolved = listOfNotNull(remote.ageWeeks, local.ageWeeks).maxOrNull()
 
-        return local.copy(
+        // Base entity for Last-Write-Wins (LWW) resolution
+        val base = if (rU > lU) remote else local
+
+        return base.copy(
             // core simple fields via per-field strategies
             stage = stageByTransition,
             lifecycleStatus = lifecycleByEligibility,
@@ -270,9 +259,25 @@ class SyncManager @Inject constructor(
             },
             parentMaleId = acceptParentMale,
             parentFemaleId = acceptParentFemale,
+            
+            // Protect immutable biological snapshot fields (Local truth wins if present)
+            birthDate = local.birthDate ?: remote.birthDate,
+            gender = local.gender ?: remote.gender,
+            color = local.color ?: remote.color,
+            breed = local.breed ?: remote.breed,
+            birdCode = local.birdCode ?: remote.birdCode,
+            colorTag = local.colorTag ?: remote.colorTag,
+            isBatch = local.isBatch ?: remote.isBatch,
+            batchId = local.batchId ?: remote.batchId,
+            sourceAssetId = local.sourceAssetId ?: remote.sourceAssetId,
+            
             updatedAt = maxOf(rU, lU),
             dirty = false
         )
+    }
+
+    private fun pickString(remote: String?, local: String?, rU: Long, lU: Long): String? {
+        return if (rU > lU) remote ?: local else local ?: remote
     }
 
     private suspend fun <T> withRetry(
@@ -982,6 +987,22 @@ class SyncManager @Inject constructor(
                         for (e in entries) {
                             outboxDao.updateStatus(e.outboxId, "FAILED", ctx.now)
                             errors.add("No remote API for posts; marked FAILED")
+                            processedCount++
+                        }
+                    }
+                    "FARM_ASSET_DELTA" -> {
+                        for (e in entries) {
+                            try {
+                                val payload = gson.fromJson(e.payloadJson, Map::class.java) as Map<String, Any>
+                                val delta = payload["delta"] as Double
+                                val field = payload["field"] as String
+                                withRetry { firestoreService.incrementFarmAssetField(e.entityId, field, delta) }
+                                outboxDao.updateStatus(e.outboxId, "COMPLETED", ctx.now)
+                            } catch (t: Throwable) {
+                                outboxDao.incrementRetry(e.outboxId, ctx.now)
+                                outboxDao.updateStatus(e.outboxId, if ((e.retryCount + 1) < e.maxRetries) "PENDING" else "FAILED", ctx.now)
+                                errors.add("Asset delta push failed: ${friendlyError(t)}")
+                            }
                             processedCount++
                         }
                     }

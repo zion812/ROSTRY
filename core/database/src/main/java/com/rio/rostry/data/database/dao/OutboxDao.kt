@@ -65,4 +65,7 @@ interface OutboxDao {
 
     @Query("SELECT * FROM outbox WHERE status = 'FAILED' ORDER BY createdAt DESC LIMIT 10")
     fun getFailedOperations(): Flow<List<OutboxEntity>>
+
+    @Query("SELECT * FROM outbox WHERE entityId = :entityId AND operation IN ('DELTA_ADD', 'DELTA_SUB') AND status = 'PENDING'")
+    suspend fun getPendingDeltasForEntity(entityId: String): List<OutboxEntity>
 }

@@ -102,6 +102,9 @@ interface FarmAssetDao {
     /** Clear dirty flag after sync */
     @Query("UPDATE farm_assets SET dirty = 0 WHERE assetId = :assetId")
     suspend fun clearDirty(assetId: String)
+
+    @Query("UPDATE farm_assets SET quantity = quantity + :delta, updatedAt = :timestamp WHERE assetId = :id")
+    suspend fun applyDelta(id: String, delta: Double, timestamp: Long)
     
     /** Get assets for age update (have birthDate) */
     @Query("SELECT * FROM farm_assets WHERE farmerId = :farmerId AND birthDate IS NOT NULL AND isDeleted = 0")
@@ -170,5 +173,11 @@ interface FarmAssetDao {
     /** Update metadataJson for bird appearance customization */
     @Query("UPDATE farm_assets SET metadataJson = :metadataJson, updatedAt = :updatedAt, dirty = 1 WHERE assetId = :assetId")
     suspend fun updateMetadataJson(assetId: String, metadataJson: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE farm_assets SET activeListingProductId = :productId, listedAt = :now, listingId = :productId, status = 'LISTED', updatedAt = :now, dirty = 1 WHERE assetId = :assetId")
+    suspend fun linkActiveListing(assetId: String, productId: String, now: Long)
+
+    @Query("UPDATE farm_assets SET activeListingProductId = NULL, listedAt = NULL, listingId = NULL, status = 'ACTIVE', updatedAt = :now, dirty = 1 WHERE assetId = :assetId")
+    suspend fun unlinkActiveListing(assetId: String, now: Long)
 }
 

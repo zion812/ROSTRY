@@ -101,6 +101,9 @@ data class FarmerHomeUiState(
     val isHeatStress: Boolean = false,
     val weatherLoading: Boolean = true,
     val todayFeedLogAmount: Double = 0.0,
+    val avgFcr: Double? = null,
+    val daysUntilHarvest: Int? = null,
+    val estimatedHarvestDate: Long? = null,
 
     // Farm Log Fetcher 2.0
     val latestFarmLog: com.rio.rostry.data.database.entity.FarmActivityLogEntity? = null,
@@ -217,7 +220,8 @@ class FarmerHomeViewModel @Inject constructor(
     private val farmActivityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository, // Quick Log persistence
     private val weatherRepository: com.rio.rostry.data.repository.WeatherRepository, // Open-Meteo Weather API
     private val feedRecommendationEngine: com.rio.rostry.domain.usecase.FeedRecommendationEngine, // Predictive Feed
-    private val inventoryItemDao: com.rio.rostry.data.database.dao.InventoryItemDao
+    private val inventoryItemDao: com.rio.rostry.data.database.dao.InventoryItemDao,
+    private val watchedLineagesRepository: com.rio.rostry.data.repository.WatchedLineagesRepository // Enthusiast Social
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
@@ -257,6 +261,10 @@ class FarmerHomeViewModel @Inject constructor(
     val feedRecommendation: StateFlow<com.rio.rostry.domain.model.FeedRecommendation?> = _feedRecommendation
     
     private val _todayFeedLogAmount = MutableStateFlow(0.0)
+    
+    // Enthusiast Social Feed
+    val watchedLineages = watchedLineagesRepository.getWatchedLineages()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.rio.rostry.utils.Resource.Loading())
 
     companion object {
         /** Market price per kg (₹) for flock value estimation. Can be made configurable later. */
@@ -676,7 +684,12 @@ class FarmerHomeViewModel @Inject constructor(
                     
                     // UX Improvements: Estimated flock value (Birds × Avg Weight × ₹/kg)
                     // Using 1.5kg avg weight as default; can be refined with actual weight data later
-                    estimatedFlockValue = userContext.activeBirdCount * 1.5 * MARKET_PRICE_PER_KG
+                    estimatedFlockValue = userContext.activeBirdCount * 1.5 * MARKET_PRICE_PER_KG,
+                    
+                    // Predictive Insights from Cache
+                    avgFcr = _cachedState.value?.avgFcr,
+                    daysUntilHarvest = _cachedState.value?.daysUntilHarvest,
+                    estimatedHarvestDate = _cachedState.value?.estimatedHarvestDate
                 )
                 
                 // Generate dynamic widgets based on the computed state

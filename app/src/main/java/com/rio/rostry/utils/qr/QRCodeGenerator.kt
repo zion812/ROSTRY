@@ -85,6 +85,39 @@ class QRCodeGenerator @Inject constructor(
             null
         }
     }
+
+    /**
+     * Generate QR code for a "Lineage Handshake"
+     * Format: "ROSTRY_HANDSHAKE:{assetId}:{lineageHash}"
+     */
+    fun generateHandshakeQR(
+        assetId: String,
+        lineageHash: String,
+        size: Int = 512
+    ): Bitmap? {
+        return try {
+            val data = "ROSTRY_HANDSHAKE:$assetId:$lineageHash"
+            
+            val hints = hashMapOf<EncodeHintType, Any>().apply {
+                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H)
+                put(EncodeHintType.MARGIN, 2)
+            }
+
+            val qrCodeWriter = QRCodeWriter()
+            val bitMatrix = qrCodeWriter.encode(data, BarcodeFormat.QR_CODE, size, size, hints)
+
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565)
+            for (x in 0 until size) {
+                for (y in 0 until size) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                }
+            }
+            bitmap
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }
 
 /**
@@ -100,6 +133,11 @@ object QRCodeParser {
     data class ProductQRData(
         val productId: String,
         val birdCode: String?
+    )
+
+    data class HandshakeQRData(
+        val assetId: String,
+        val lineageHash: String
     )
 
     fun parseTransferQR(rawData: String): TransferQRData? {
@@ -124,6 +162,20 @@ object QRCodeParser {
                 ProductQRData(
                     productId = parts[1],
                     birdCode = parts[2].takeIf { it != "N/A" }
+                )
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun parseHandshakeQR(rawData: String): HandshakeQRData? {
+        return try {
+            val parts = rawData.split(":")
+            if (parts.size >= 3 && parts[0] == "ROSTRY_HANDSHAKE") {
+                HandshakeQRData(
+                    assetId = parts[1],
+                    lineageHash = parts[2]
                 )
             } else null
         } catch (e: Exception) {

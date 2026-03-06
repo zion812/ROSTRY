@@ -36,4 +36,14 @@ interface FarmAssetRepository {
 
     // Bird Studio - Appearance Customization
     suspend fun updateMetadataJson(assetId: String, metadataJson: String): Resource<Unit>
+
+    // Immutable Snapshot Pattern
+    suspend fun createSnapshotListing(
+        assetId: String,
+        price: Double = 0.0,
+        listingTitle: String? = null,
+        listingDescription: String? = null
+    ): Resource<com.rio.rostry.data.database.entity.ProductEntity>
+    suspend fun delistAsset(assetId: String): Resource<Unit>
+    suspend fun applyQuantityDelta(assetId: String, delta: Double): Resource<Unit>
 }
