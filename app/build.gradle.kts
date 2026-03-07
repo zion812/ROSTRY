@@ -132,6 +132,9 @@ android {
             buildConfigField("boolean", "PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING", "true")
         }
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -224,11 +227,20 @@ tasks.register("checkApkSize") {
 
 dependencies {
     implementation(project(":core:designsystem"))
+    implementation(project(":core:navigation"))
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:network"))
     implementation(project(":core:domain"))
+    implementation(project(":feature:achievements"))
+    implementation(project(":feature:leaderboard"))
+    implementation(project(":feature:notifications"))
+    implementation(project(":feature:events"))
+    implementation(project(":feature:expert"))
+    implementation(project(":feature:insights"))
+    implementation(project(":feature:feedback"))
+    implementation(project(":feature:support"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -341,6 +353,7 @@ implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Testing
+    testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)

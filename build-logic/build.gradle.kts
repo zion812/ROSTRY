@@ -18,5 +18,9 @@ gradlePlugin {
             id = "rostry.android.library.compose"
             implementationClass = "AndroidLibraryComposeConventionPlugin"
         }
+        register("kotlinLibrary") {
+            id = "rostry.kotlin.library"
+            implementationClass = "KotlinLibraryConventionPlugin"
+        }
     }
 }

@@ -27,6 +27,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 
+// Import NavigationRegistry for Phase 1 modularization
+import com.rio.rostry.core.navigation.NavigationRegistry
+
 /** Maps a domain [UserType] to the design-system [AppRole]. */
 private fun UserType?.toAppRole(): AppRole? = when (this) {
     UserType.FARMER -> AppRole.FARMER
@@ -42,26 +45,31 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var firebaseAuth: FirebaseAuth
     private val viewModel: com.rio.rostry.ui.main.MainViewModel by viewModels()
 
+    // Get NavigationRegistry from Application (Phase 1 modularization)
+    private val navigationRegistry: NavigationRegistry by lazy {
+        (application as RostryApp).navigationRegistry
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Trigger ViewModel init
         viewModel.fetchCurrentUserProfile()
-        
+
         setContent {
             val rawRoleState = sessionManager.sessionRole().collectAsStateWithLifecycle(initialValue = null)
-            
+
             // Debounce role state to prevent rapid UI transitions during upgrade
             // This ensures the role is stable for 500ms before triggering a navigation change
             var stableRole by remember { mutableStateOf<UserType?>(null) }
-            
+
             LaunchedEffect(rawRoleState.value) {
                 // If we have no current role, update immediately (first load)
                 if (stableRole == null && rawRoleState.value != null) {
                     stableRole = rawRoleState.value
                     return@LaunchedEffect
                 }
-                
+
                 // If role changed, wait for stability before updating
                 if (rawRoleState.value != stableRole) {
                     delay(500L) // Wait 500ms for role to stabilize
@@ -71,7 +79,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            
+
             AnimatedContent(
                 targetState = stableRole,
                 transitionSpec = {
@@ -81,7 +89,12 @@ class MainActivity : ComponentActivity() {
                 label = "role_transition"
             ) { role ->
                 ROSTRYTheme(appRole = role.toAppRole()) {
-                    AppNavHost(featureToggles = featureToggles, firebaseAuth = firebaseAuth)
+                    // Pass NavigationRegistry to AppNavHost for Phase 1 modularization
+                    AppNavHost(
+                        featureToggles = featureToggles,
+                        firebaseAuth = firebaseAuth,
+                        navigationRegistry = navigationRegistry
+                    )
                 }
             }
         }

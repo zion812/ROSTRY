@@ -40,7 +40,7 @@ class FallbackManagerTest {
         val cachedData = CacheResult("Stale data", true, 60000L)
         coEvery { cacheManager.getStale<String>("test_key") } returns cachedData
 
-        val result = fallbackManager.withFallback(
+        val result = fallbackManager.withFallback<String>(
             cacheKey = "test_key",
             primary = { throw IOException("Network error") }
         )
@@ -55,7 +55,7 @@ class FallbackManagerTest {
     fun withFallback_primaryFailsNoCacheAvailable_returnsFailed() = runTest {
         coEvery { cacheManager.getStale<String>("test_key") } returns null
 
-        val result = fallbackManager.withFallback(
+        val result = fallbackManager.withFallback<String>(
             cacheKey = "test_key",
             primary = { throw IOException("Network error") }
         )

@@ -74,6 +74,12 @@ class RetryPolicyManager @Inject constructor() {
                 circuitBreaker.onFailure()
                 budget.decrementAndGet()
                 
+                val isClientError = e is retrofit2.HttpException && e.code() in 400..499 && e.code() != 408 && e.code() != 429
+                if (isClientError) {
+                    Log.w(TAG, "Non-retryable client error for $key - error: ${e.message}")
+                    break
+                }
+                
                 if (attempt < policy.maxRetries) {
                     val delayMs = calculateBackoff(attempt, policy)
                     
@@ -109,15 +115,21 @@ class RetryPolicyManager @Inject constructor() {
                 Log.w(TAG, "All flow retry attempts exhausted for $key after ${attempt + 1} attempts")
                 false
             } else {
-                circuitBreaker.onFailure()
-                val delayMs = calculateBackoff(attempt, policy)
-                
-                // Log retry attempt
-                Log.d(TAG, "Flow retry attempt ${attempt + 1}/${policy.maxRetries} for $key - delaying ${delayMs}ms - error: ${cause.message}")
-                
-                delay(delayMs)
-                attempt++
-                true
+                val isClientError = cause is retrofit2.HttpException && cause.code() in 400..499 && cause.code() != 408 && cause.code() != 429
+                if (isClientError) {
+                    Log.w(TAG, "Non-retryable client error for $key - rejecting flow retry")
+                    false
+                } else {
+                    circuitBreaker.onFailure()
+                    val delayMs = calculateBackoff(attempt, policy)
+                    
+                    // Log retry attempt
+                    Log.d(TAG, "Flow retry attempt ${attempt + 1}/${policy.maxRetries} for $key - delaying ${delayMs}ms - error: ${cause.message}")
+                    
+                    delay(delayMs)
+                    attempt++
+                    true
+                }
             }
         }
     }

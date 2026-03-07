@@ -50,9 +50,24 @@ import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
+// Navigation providers for decentralized navigation
+import com.rio.rostry.core.navigation.NavigationRegistry
+import com.rio.rostry.core.navigation.NavigationRegistryImpl
+import com.rio.rostry.feature.achievements.navigation.AchievementsNavigationProvider
+import com.rio.rostry.feature.events.navigation.EventsNavigationProvider
+import com.rio.rostry.feature.expert.navigation.ExpertNavigationProvider
+import com.rio.rostry.feature.feedback.navigation.FeedbackNavigationProvider
+import com.rio.rostry.feature.insights.navigation.InsightsNavigationProvider
+import com.rio.rostry.feature.leaderboard.navigation.LeaderboardNavigationProvider
+import com.rio.rostry.feature.notifications.navigation.NotificationsNavigationProvider
+import com.rio.rostry.feature.support.navigation.SupportNavigationProvider
+
 @HiltAndroidApp
 class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Navigation Registry for decentralized navigation (Phase 1 modularization)
+    val navigationRegistry: NavigationRegistry by lazy { NavigationRegistryImpl() }
 
     @Inject
     lateinit var userSessionManager: UserSessionManager
@@ -92,9 +107,12 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
 
     override fun onCreate() {
         super.onCreate()
-        
+
         // Initialize Fetcher System
         initializeFetchers()
+
+        // Register Navigation Providers for decentralized navigation (Phase 1 modularization)
+        registerNavigationProviders()
 
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
@@ -394,7 +412,7 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
                 priority(com.rio.rostry.data.fetcher.FetcherPriority.HIGH)
             })
             register(com.rio.rostry.data.fetcher.fetcher<Any>(com.rio.rostry.data.fetcher.FetcherRegistry.ID_TASKS) {
-                name("Tasks") 
+                name("Tasks")
                 refreshEvery(com.rio.rostry.data.fetcher.FetcherDurations.MINUTES_5)
             })
             register(com.rio.rostry.data.fetcher.fetcher<Any>(com.rio.rostry.data.fetcher.FetcherRegistry.ID_VACCINATION) {
@@ -405,9 +423,42 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
                 cacheFor(com.rio.rostry.data.fetcher.FetcherDurations.HOURS_1)
             })
         }
-        
+
         // Start health monitoring
         fetcherHealthCheck.startHealthChecks()
         Timber.d("Fetcher system initialized and health checks started")
+    }
+
+    /**
+     * Register all NavigationProviders for decentralized navigation.
+     * Each feature module owns its navigation graph and registers itself.
+     * Phase 1: Shell and Navigation Extraction
+     */
+    private fun registerNavigationProviders() {
+        // Achievements feature
+        navigationRegistry.register(AchievementsNavigationProvider())
+        
+        // Events feature
+        navigationRegistry.register(EventsNavigationProvider())
+        
+        // Expert booking feature
+        navigationRegistry.register(ExpertNavigationProvider())
+        
+        // Feedback feature
+        navigationRegistry.register(FeedbackNavigationProvider())
+        
+        // Insights feature
+        navigationRegistry.register(InsightsNavigationProvider())
+        
+        // Leaderboard feature
+        navigationRegistry.register(LeaderboardNavigationProvider())
+        
+        // Notifications feature
+        navigationRegistry.register(NotificationsNavigationProvider())
+        
+        // Support feature
+        navigationRegistry.register(SupportNavigationProvider())
+        
+        Timber.d("Registered ${navigationRegistry.getProviders().size} navigation providers")
     }
 }

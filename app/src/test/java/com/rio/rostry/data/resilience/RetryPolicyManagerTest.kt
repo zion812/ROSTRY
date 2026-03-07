@@ -2,6 +2,7 @@ package com.rio.rostry.data.resilience
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.currentTime
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -9,6 +10,7 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
 import java.net.SocketTimeoutException
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 /**
  * Unit tests for RetryPolicyManager.
@@ -112,7 +114,7 @@ class RetryPolicyManagerTest {
         val operation = suspend {
             callCount++
             if (callCount < 2) {
-                throw HttpException(Response.error<Any>(502, okhttp3.ResponseBody.create(null, "")))
+                throw HttpException(Response.error<Any>(502, "".toResponseBody(null)))
             }
             "success"
         }
@@ -136,7 +138,7 @@ class RetryPolicyManagerTest {
         val operation = suspend {
             callCount++
             if (callCount < 2) {
-                throw HttpException(Response.error<Any>(503, okhttp3.ResponseBody.create(null, "")))
+                throw HttpException(Response.error<Any>(503, "".toResponseBody(null)))
             }
             "success"
         }
@@ -160,7 +162,7 @@ class RetryPolicyManagerTest {
         val operation = suspend {
             callCount++
             if (callCount < 2) {
-                throw HttpException(Response.error<Any>(504, okhttp3.ResponseBody.create(null, "")))
+                throw HttpException(Response.error<Any>(504, "".toResponseBody(null)))
             }
             "success"
         }
@@ -184,7 +186,7 @@ class RetryPolicyManagerTest {
         val operation = suspend {
             callCount++
             if (callCount < 2) {
-                throw HttpException(Response.error<Any>(408, okhttp3.ResponseBody.create(null, "")))
+                throw HttpException(Response.error<Any>(408, "".toResponseBody(null)))
             }
             "success"
         }
@@ -208,7 +210,7 @@ class RetryPolicyManagerTest {
         val operation = suspend {
             callCount++
             if (callCount < 2) {
-                throw HttpException(Response.error<Any>(429, okhttp3.ResponseBody.create(null, "")))
+                throw HttpException(Response.error<Any>(429, "".toResponseBody(null)))
             }
             "success"
         }
@@ -231,7 +233,7 @@ class RetryPolicyManagerTest {
         var callCount = 0
         val operation = suspend {
             callCount++
-            throw HttpException(Response.error<Any>(400, okhttp3.ResponseBody.create(null, "")))
+            throw HttpException(Response.error<Any>(400, "".toResponseBody(null)))
         }
 
         // When
@@ -252,7 +254,7 @@ class RetryPolicyManagerTest {
         var callCount = 0
         val operation = suspend {
             callCount++
-            throw HttpException(Response.error<Any>(404, okhttp3.ResponseBody.create(null, "")))
+            throw HttpException(Response.error<Any>(404, "".toResponseBody(null)))
         }
 
         // When
@@ -293,14 +295,14 @@ class RetryPolicyManagerTest {
         // Given
         var callCount = 0
         val delays = mutableListOf<Long>()
-        var lastTime = System.currentTimeMillis()
+        var lastTime = currentTime
         
         val operation = suspend {
             callCount++
             if (callCount > 1) {
-                val currentTime = System.currentTimeMillis()
-                delays.add(currentTime - lastTime)
-                lastTime = currentTime
+                val nowTime = currentTime
+                delays.add(nowTime - lastTime)
+                lastTime = nowTime
             }
             if (callCount <= 3) {
                 throw IOException("Network error")

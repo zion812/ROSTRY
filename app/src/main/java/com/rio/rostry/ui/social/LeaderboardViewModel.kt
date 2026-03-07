@@ -6,6 +6,7 @@ import com.rio.rostry.data.database.dao.LeaderboardDao
 import com.rio.rostry.data.database.dao.UserDao
 import com.rio.rostry.data.database.entity.LeaderboardEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,18 +17,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Data class for leaderboard entries with resolved display names.
- */
-data class LeaderboardEntry(
-    val userId: String,
-    val displayName: String,
-    val score: Long,
-    val rank: Int,
-    val avatarUrl: String? = null
-)
-
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class LeaderboardViewModel @Inject constructor(
     private val leaderboardDao: LeaderboardDao,
     private val userDao: UserDao

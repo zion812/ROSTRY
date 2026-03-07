@@ -3,7 +3,6 @@ package com.rio.rostry.ui.feedback
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.FeedbackRepository
-import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,16 +18,8 @@ class FeedbackViewModel @Inject constructor(
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
-    data class UiState(
-        val content: String = "",
-        val type: String = "General",
-        val isLoading: Boolean = false,
-        val submissionSuccess: Boolean = false,
-        val error: String? = null
-    )
-
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(FeedbackUiState())
+    val uiState: StateFlow<FeedbackUiState> = _uiState.asStateFlow()
 
     fun updateContent(text: String) {
         _uiState.update { it.copy(content = text) }

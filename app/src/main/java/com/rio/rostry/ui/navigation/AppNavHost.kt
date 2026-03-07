@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.*
+import com.rio.rostry.core.navigation.NavigationRegistry
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -175,17 +176,21 @@ import com.rio.rostry.session.CurrentUserProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.utils.network.FeatureToggles
 
+// Phase 1 modularization - NavigationRegistry import
+
+
 @Composable
 fun AppNavHost(
     featureToggles: FeatureToggles,
-    firebaseAuth: FirebaseAuth
+    firebaseAuth: FirebaseAuth,
+    navigationRegistry: NavigationRegistry
 ) {
     val sessionVm: SessionViewModel = hiltViewModel()
     val syncViewModel: SyncStatusViewModel = hiltViewModel()
     val state by sessionVm.uiState.collectAsState()
     val navConfig = state.navConfig
     val context = LocalContext.current
-    
+
     // Splash screen state
     var showSplash by remember { mutableStateOf(true) }
 
@@ -221,7 +226,14 @@ fun AppNavHost(
             // Phone linking is now OPTIONAL, not forced
             // Users can add phone later from settings if they want
             val isGuestMode = state.authMode == SessionManager.AuthMode.GUEST
-            RoleNavScaffold(navConfig, sessionVm, state, syncViewModel = syncViewModel, isGuestMode = isGuestMode)
+            RoleNavScaffold(
+                navConfig = navConfig,
+                sessionVm = sessionVm,
+                state = state,
+                syncViewModel = syncViewModel,
+                isGuestMode = isGuestMode,
+                navigationRegistry = navigationRegistry
+            )
         }
         state.isAuthenticated && state.error != null -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -324,150 +336,6 @@ internal fun roleGraphRegisteredRoutesBasic(): Set<String> = setOf(
     Routes.PRODUCT_SANDBOX,
     Routes.SYNC_ISSUES)
 
-@Composable
-private fun AuthFlow(
-    state: SessionViewModel.SessionUiState,
-    onAuthenticated: () -> Unit,
-    fromGuest: Boolean = false
-) {
-    val navController = rememberNavController()
-    val authVm: AuthViewModel = hiltViewModel()
-    val welcomeVm: AuthWelcomeViewModel = hiltViewModel()
-    val scope = rememberCoroutineScope()
-
-    val context = LocalContext.current
-    val activity = remember(context) {
-        var ctx = context
-        while (ctx is android.content.ContextWrapper) {
-            if (ctx is Activity) return@remember ctx
-            ctx = ctx.baseContext
-        }
-        ctx as? Activity
-    }
-    
-    val snackbarHostState = remember { SnackbarHostState() }
-    
-    // Show error if present
-    LaunchedEffect(state.error) {
-        state.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Long
-            )
-        }
-    }
-
-    // FirebaseUI launcher for Google/Email
-    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = com.firebase.ui.auth.FirebaseAuthUIActivityResultContract()
-    ) { res ->
-        // Set the fromGuest flag in the AuthViewModel before handling the result
-        authVm.setFromGuest(fromGuest)
-        authVm.handleFirebaseUIResult(res.idpResponse, res.resultCode)
-    }
-
-    // Observe auth navigation events
-    LaunchedEffect(Unit) {
-        authVm.navigation.collectLatest { event ->
-            when (event) {
-                is AuthViewModel.NavAction.ToHome -> onAuthenticated()
-                is AuthViewModel.NavAction.ToUserSetup -> navController.navigate("onboard/user_setup")
-                else -> { /* ignore other actions */ }
-            }
-        }
-    }
-
-    // Observe welcome screen navigation events for guest mode
-    LaunchedEffect(Unit) {
-        welcomeVm.navigationEvent.collectLatest { event ->
-            when (event) {
-                is AuthWelcomeViewModel.NavigationEvent.ToGuestHome -> {
-                    onAuthenticated()
-                }
-                is AuthWelcomeViewModel.NavigationEvent.ToAuth -> {
-                    // Trigger Google Sign-In directly for Free Tier
-                    val providers = listOf(
-                        com.firebase.ui.auth.AuthUI.IdpConfig.GoogleBuilder().build(),
-                        com.firebase.ui.auth.AuthUI.IdpConfig.EmailBuilder().build()
-                    )
-                    val intent = com.firebase.ui.auth.AuthUI.getInstance()
-                        .createSignInIntentBuilder()
-                        .setAvailableProviders(providers)
-                        .setIsSmartLockEnabled(false, true)
-                        .build()
-                    launcher.launch(intent)
-                }
-            }
-        }
-    }
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        // Main navigation host - Instagram style with slide animations
-        NavHost(
-            navController = navController,
-            startDestination = "auth/welcome",
-            modifier = Modifier.fillMaxSize().padding(padding)
-        ) {
-        // Welcome screen - role-first entry point (fade only)
-        composable(
-            route = "auth/welcome",
-            enterTransition = { fadeIn(animationSpec = tween(300)) },
-            exitTransition = { fadeOut(animationSpec = tween(300)) }
-        ) {
-            val isLoading by welcomeVm.isLoading.collectAsState()
-            AuthWelcomeScreen(
-                onPreviewAsRole = { role ->
-                    welcomeVm.startGuestMode(role)
-                },
-                onSignInAsRole = { role ->
-                    welcomeVm.startAuthentication(role)
-                },
-                isLoading = isLoading
-            )
-        }
-        
-        // User setup/onboarding
-        composable("onboard/user_setup") {
-            com.rio.rostry.ui.onboarding.UserSetupScreen(
-                onRoleSelected = onAuthenticated,
-                onSkip = onAuthenticated
-            )
-        }
-        
-        // Onboarding tour - role-specific feature walkthrough
-        composable(
-            route = "onboard/tour/{role}",
-            arguments = listOf(
-                navArgument("role") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val roleStr = backStackEntry.arguments?.getString("role") ?: "GENERAL"
-            val role = try {
-                com.rio.rostry.domain.model.UserType.valueOf(roleStr.uppercase())
-            } catch (e: Exception) {
-                com.rio.rostry.domain.model.UserType.GENERAL
-            }
-            
-            com.rio.rostry.ui.onboarding.UserOnboardingTourScreen(
-                userRole = role,
-                onComplete = { onAuthenticated() },
-                onSkip = { onAuthenticated() }
-            )
-        }
-
-
-        // Public Bird Lookup Screen
-        composable(Routes.PUBLIC_BIRD_LOOKUP) {
-            com.rio.rostry.ui.publicaccess.PublicBirdLookupScreen()
-        }
-    }
-}
-
-}
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RoleNavScaffold(
@@ -475,7 +343,8 @@ private fun RoleNavScaffold(
     sessionVm: SessionViewModel,
     state: SessionViewModel.SessionUiState,
     syncViewModel: SyncStatusViewModel,
-    isGuestMode: Boolean = false
+    isGuestMode: Boolean = false,
+    navigationRegistry: NavigationRegistry
 ) {
     val navController = rememberNavController()
     val syncState by syncViewModel.syncState.collectAsState()
@@ -699,7 +568,8 @@ private fun RoleNavScaffold(
                         pendingGuestAction = action
                         showSignInDialog = true
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    navigationRegistry = navigationRegistry
                 )
             }
         }
@@ -762,13 +632,19 @@ private fun RoleNavGraph(
     state: SessionViewModel.SessionUiState,
     isGuestMode: Boolean = false,
     onGuestActionAttempt: (String) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navigationRegistry: NavigationRegistry
 ) {
     NavHost(
         navController = navController,
         startDestination = navConfig.startDestination,
         modifier = modifier
     ) {
+        // Phase 1: Build registered navigation graphs from feature modules
+        // This allows feature modules to register their own navigation destinations
+        navigationRegistry.buildGraphs(navController = navController, navGraphBuilder = this)
+        
+        // Core app navigation destinations (to be gradually migrated to feature modules)
         // General navigation destinations
         composable(Routes.HOME_GENERAL) {
             com.rio.rostry.ui.general.GeneralUserScreen(
@@ -1501,31 +1377,6 @@ private fun RoleNavGraph(
                 onNavigateToBirdStudio = { productId ->
                     navController.navigate(Routes.EnthusiastNav.birdStudio(productId))
                 }
-            )
-        }
-
-        // ============ Admin Portal ============
-        composable(Routes.Admin.PORTAL) {
-            // We are now in the Admin Portal context
-            // The AdminShell provides its own internal navigation (AdminNavHost)
-            // and UI structure (Sidebar, TopBar)
-            
-            // Get necessary dependencies from parent scope
-            val currentUserProvider = sessionVm.currentUserProvider
-            
-            // We need to handle the exit callback to return to a safe state
-            // For now, we'll just sign out, but in future this could toggle modes
-            val onExit = { 
-                sessionVm.signOut() 
-            }
-            
-            com.rio.rostry.ui.admin.shell.AdminShell(
-                onExitAdmin = onExit,
-                onSignOut = { sessionVm.signOut() },
-                currentUserProvider = currentUserProvider,
-                pendingVerificationsCount = state.pendingVerificationCount, // Pass real count from session state
-                onSearchClick = { /* TODO: Global admin search */ },
-                onNotificationsClick = { navController.navigate(Routes.NOTIFICATIONS) }
             )
         }
 
@@ -3414,8 +3265,6 @@ private fun RoleNavGraph(
                 ) 
             }
         }
-        composable(Routes.EVENTS) { com.rio.rostry.ui.events.EventsScreen(onBack = { navController.popBackStack() }) }
-        composable(Routes.EXPERT_BOOKING) { com.rio.rostry.ui.expert.ExpertBookingScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.MODERATION) { 
             com.rio.rostry.ui.moderation.ModerationScreen(
                 onOpenVerifications = { navController.navigate(Routes.Social.MODERATION_VERIFICATIONS) }
@@ -3428,7 +3277,6 @@ private fun RoleNavGraph(
              // Let's assume ModerationScreen has a tab for verifications.
              com.rio.rostry.ui.moderation.ModerationScreen(initialTab = 1) // Assuming 1 is verifications
         }
-        composable(Routes.LEADERBOARD) { com.rio.rostry.ui.social.LeaderboardScreen() }
         composable(Routes.LIVE_BROADCAST) {
             if (BuildConfig.DEBUG) {
                 LiveBroadcastScreen(onBack = { navController.popBackStack() })
@@ -3485,17 +3333,6 @@ private fun RoleNavGraph(
             )
         }
 
-        composable(Routes.NOTIFICATIONS) {
-            val vm: NotificationsViewModel = hiltViewModel()
-            NotificationsScreen(
-                vm = vm,
-                onOpenMessages = { navController.navigate(Routes.MESSAGES_OUTBOX) },
-                onOpenOrders = { navController.navigate(Routes.TRANSFER_LIST) },
-                onBack = { navController.popBackStack() },
-                onOpenRoute = { route -> navController.navigate(route) }
-            )
-        }
-
         // Address Selection (Web-based via WebView)
         composable(Routes.ADDRESS_SELECTION) {
             com.rio.rostry.ui.settings.AddressSelectionWebViewScreen(
@@ -3510,184 +3347,7 @@ private fun RoleNavGraph(
             )
         }
 
-        composable(Routes.ANALYTICS_GENERAL) {
-            com.rio.rostry.ui.analytics.GeneralDashboardScreen(
-                onOpenReports = { navController.navigate(Routes.REPORTS) },
-                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
-            )
-        }
-        composable(Routes.ANALYTICS_FARMER) {
-            com.rio.rostry.ui.analytics.FarmerDashboardScreen(
-                onOpenReports = { navController.navigate(Routes.REPORTS) },
-                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
-            )
-        }
-        composable(Routes.ANALYTICS_ENTHUSIAST) {
-            com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
-                onOpenReports = { navController.navigate(Routes.REPORTS) },
-                onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
-            )
-        }
-        composable(Routes.REPORTS) { com.rio.rostry.ui.analytics.ReportsScreen() }
-
-        // Monitoring routes (wired to monitoring module screens)
-        composable(
-            route = Routes.MONITORING_VACCINATION,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/vaccination" })
-        ) {
-            com.rio.rostry.ui.monitoring.VaccinationScheduleScreen(
-                onListProduct = { productId ->
-                    navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId))
-                },
-                isPremium = true
-            )
-        }
-        composable(
-            route = Routes.MONITORING_MORTALITY,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/mortality" })
-        ) {
-            com.rio.rostry.ui.monitoring.MortalityTrackingScreen()
-        }
-        composable(
-            route = Routes.MONITORING_QUARANTINE,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/quarantine" })
-        ) {
-            com.rio.rostry.ui.monitoring.QuarantineManagementScreen()
-        }
-        composable(
-            route = Routes.MONITORING_GROWTH,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/growth" })
-        ) {
-            com.rio.rostry.ui.monitoring.GrowthTrackingScreen(
-                onListProduct = { productId ->
-                    navController.navigate(Routes.Builders.farmerCreateWithPrefill(productId))
-                },
-                isPremium = true
-            )
-        }
-        composable(
-            route = Routes.MONITORING_HATCHING,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/hatching" })
-        ) {
-            com.rio.rostry.ui.monitoring.HatchingProcessScreen()
-        }
-        composable(
-            route = Routes.MONITORING_DASHBOARD,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/dashboard" })
-        ) {
-            com.rio.rostry.ui.monitoring.FarmMonitoringScreen(
-                onOpenGrowth = { navController.navigate(Routes.MONITORING_GROWTH) },
-                onOpenVaccination = { navController.navigate(Routes.MONITORING_VACCINATION) },
-                onOpenBreeding = { navController.navigate(Routes.MONITORING_BREEDING) },
-                onOpenQuarantine = { navController.navigate(Routes.MONITORING_QUARANTINE) },
-                onOpenMortality = { navController.navigate(Routes.MONITORING_MORTALITY) },
-                onOpenHatching = { navController.navigate(Routes.MONITORING_HATCHING) },
-                onOpenPerformance = { navController.navigate(Routes.MONITORING_PERFORMANCE) }
-            )
-        }
-        composable(
-            route = Routes.MONITORING_PERFORMANCE,
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://monitoring/performance" })
-        ) {
-            com.rio.rostry.ui.monitoring.FarmPerformanceScreen()
-        }
-
-        composable(Routes.Monitoring.BREEDING_UNIT) {
-            com.rio.rostry.ui.farmer.breeding.BreedingUnitScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Monitoring.BREEDING_PERFORMANCE) {
-            com.rio.rostry.ui.monitoring.BreedingPerformanceScreen(
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(
-            route = Routes.MONITORING_DAILY_LOG_PRODUCT,
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
-            com.rio.rostry.ui.monitoring.DailyLogScreen(
-                productId = productId,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAddBird = { navController.navigate(Routes.Builders.onboardingFarmBird()) },
-                onNavigateToAddBatch = { navController.navigate(Routes.Builders.onboardingFarmBatch()) }
-            )
-        }
-        
-        // Farm Activity Detail Screen
-        composable(
-            route = Routes.Monitoring.FARM_ACTIVITY_DETAIL,
-            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
-            com.rio.rostry.ui.farmer.log.FarmActivityDetailScreen(
-                activityId = activityId,
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.MONITORING_FARM_LOG) {
-            com.rio.rostry.ui.farmer.FarmLogScreen(
-                onBack = { navController.popBackStack() },
-                onNavigateRoute = { route -> navController.navigate(route) },
-                onActivityClick = { activity -> 
-                     navController.navigate(Routes.Builders.farmActivityDetail(activity.activityId))
-                }
-            )
-        }
-        
-        // Farm-Marketplace Bridge: Deep link to add product to farm monitoring
-        composable(
-            route = "add-to-farm?productId={productId}",
-            arguments = listOf(
-                navArgument("productId") {
-                    type = NavType.StringType
-                }
-            ),
-            deepLinks = listOf(navDeepLink { uriPattern = "rostry://add-to-farm?productId={productId}" })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId")
-            val cartVm: com.rio.rostry.ui.general.cart.GeneralCartViewModel = hiltViewModel()
-            
-            // Trigger the dialog when this route is navigated to
-            LaunchedEffect(productId) {
-                if (productId != null) {
-                    cartVm.showAddToFarmDialogForProduct(productId)
-                }
-            }
-            
-            // Use GeneralCartRoute to display the dialog
-            com.rio.rostry.ui.general.cart.GeneralCartRoute(
-                onCheckoutComplete = { navController.popBackStack() },
-                viewModel = cartVm
-            )
-        }
-
-        // Loveable product features
-        composable(Routes.ACHIEVEMENTS) {
-            com.rio.rostry.ui.gamification.AchievementsScreen()
-        }
-        composable(Routes.INSIGHTS) {
-            com.rio.rostry.ui.insights.InsightsScreen()
-        }
-        composable(Routes.FEEDBACK) {
-            com.rio.rostry.ui.feedback.FeedbackScreen()
-        }
-        composable(Routes.HELP) {
-            com.rio.rostry.ui.support.HelpScreen()
-        }
-        composable(Routes.ONBOARD_GENERAL) {
-            com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.GENERAL, onComplete = { navController.popBackStack() })
-        }
-        composable(Routes.ONBOARD_FARMER) {
-            com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.FARMER, onComplete = { navController.popBackStack() })
-        }
-        composable(Routes.ONBOARD_ENTHUSIAST) {
-            com.rio.rostry.ui.onboarding.OnboardingScreen(role = com.rio.rostry.domain.model.UserType.ENTHUSIAST, onComplete = { navController.popBackStack() })
-        }
+        sharedFeatureNavGraph(navController)
 
         // Digital Farm - Evolutionary Visuals
         composable(Routes.EnthusiastNav.DIGITAL_FARM) {
@@ -3747,119 +3407,16 @@ private fun RoleNavGraph(
             SyncIssuesScreen(navController = navController)
         }
 
-        // Admin Portal - Full admin shell with sidebar navigation
-        composable(Routes.Admin.PORTAL) {
-            val pendingCount = state.pendingVerificationCount
-            com.rio.rostry.ui.admin.shell.AdminShell(
-                onExitAdmin = {
-                    // Try to pop. If we are at the root (Admin Portal as start destination),
-                    // fallback to navigating to General Home or User Profile to "Exit" the portal view.
-                    if (!navController.popBackStack()) {
-                         navController.navigate(Routes.HOME_GENERAL) {
-                             popUpTo(Routes.Admin.PORTAL) { inclusive = true }
-                         }
-                    }
-                },
-                onSignOut = { 
-                    sessionVm.signOut() 
-                },
-                onSearchClick = { 
-                    navController.navigate(Routes.GeneralNav.EXPLORE) 
-                },
-                onNotificationsClick = { 
-                    navController.navigate(Routes.NOTIFICATIONS) 
-                },
-                currentUserProvider = sessionVm.currentUserProvider,
-                pendingVerificationsCount = pendingCount
-            )
-        }
-
-        composable(Routes.Admin.DASHBOARD) {
-            val pendingCount = state.pendingVerificationCount
-            com.rio.rostry.ui.admin.AdminDashboardScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToVerification = { navController.navigate(Routes.Admin.VERIFICATION) },
-                onNavigateToUserManagement = { navController.navigate(Routes.Admin.USER_MANAGEMENT) },
-                onNavigateToBiosecurity = { navController.navigate(Routes.Admin.BIOSECURITY) },
-                onNavigateToMortality = { navController.navigate(Routes.Admin.MORTALITY_DASHBOARD) },
-                onNavigateToDisputes = { navController.navigate(Routes.Admin.DISPUTES) },
-                onNavigateTo = { navController.navigate(it) },
-                pendingVerificationsCount = pendingCount
-            )
-        }
-
-        composable(Routes.Admin.UPGRADE_REQUESTS) {
-            com.rio.rostry.ui.admin.AdminUpgradeRequestsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                currentUserProvider = sessionVm.currentUserProvider
-            )
-        }
-
-        composable(Routes.Admin.VERIFICATION) {
-            com.rio.rostry.ui.admin.AdminVerificationScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.USER_MANAGEMENT) {
-            com.rio.rostry.ui.admin.UserManagementScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onUserClick = { userId -> navController.navigate("admin/users/$userId") }
-            )
-        }
-
-        composable(Routes.Admin.BIOSECURITY) {
-            com.rio.rostry.ui.admin.biosecurity.BiosecurityManagementScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.MORTALITY_DASHBOARD) {
-            com.rio.rostry.ui.admin.mortality.MortalityDashboardScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Routes.Admin.DISPUTES) {
-            com.rio.rostry.ui.admin.dispute.AdminDisputeScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        // Commerce Admin Routes
-        composable(Routes.Admin.PRODUCT_MODERATION) {
-            com.rio.rostry.ui.admin.commerce.AdminProductScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.Admin.ORDER_INTERVENTION) {
-            com.rio.rostry.ui.admin.commerce.AdminOrderScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.Admin.AUDIT_LOGS) {
-            com.rio.rostry.ui.admin.audit.AdminAuditScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-        composable(Routes.Admin.INVOICES) {
-            com.rio.rostry.ui.admin.commerce.AdminInvoiceScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+        adminNavGraph(
+            navController = navController,
+            sessionVm = sessionVm,
+            state = state
+        )
     }
 }
 
 @Composable
-private fun ErrorScreen(message: String, onBack: () -> Unit) {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(text = message)
-        Button(onClick = onBack) { Text("Back") }
-    }
-}
-
-@Composable
-private fun RoleBottomBar(
+private fun legacyRoleBottomBar(
     navController: NavHostController,
     navConfig: RoleNavigationConfig,
     currentRoute: String?,
@@ -3949,7 +3506,7 @@ private fun iconForRoute(route: String): androidx.compose.ui.graphics.vector.Ima
 }
 
 @Composable
-private fun NotificationsAction(navController: NavHostController) {
+private fun legacyNotificationsAction(navController: NavHostController) {
     val vm: NotificationsViewModel = hiltViewModel()
     val state by vm.ui.collectAsState()
     LaunchedEffect(Unit) { vm.refresh() }
@@ -3964,7 +3521,7 @@ private fun NotificationsAction(navController: NavHostController) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AccountMenuAction(
+private fun legacyAccountMenuAction(
     navController: NavHostController,
     onSignOut: () -> Unit,
     isGuestMode: Boolean = false,
@@ -4009,7 +3566,7 @@ private fun AccountMenuAction(
  * Guest mode banner shown at top of screen
  */
 @Composable
-private fun GuestModeBanner(onSignInClick: () -> Unit) {
+private fun legacyGuestModeBanner(onSignInClick: () -> Unit) {
     androidx.compose.material3.Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -4039,7 +3596,7 @@ private fun GuestModeBanner(onSignInClick: () -> Unit) {
  * Dialog shown when guest user attempts write action
  */
 @Composable
-private fun GuestSignInDialog(
+private fun legacyGuestSignInDialog(
     onSignIn: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -4063,7 +3620,7 @@ private fun GuestSignInDialog(
 /**
  * Helper to determine if a route is a write action (create, edit, delete)
  */
-private fun isWriteAction(route: String): Boolean {
+private fun legacyIsWriteAction(route: String): Boolean {
     val writeRoutes = setOf(
         Routes.FarmerNav.CREATE,
         Routes.EnthusiastNav.CREATE,

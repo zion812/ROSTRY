@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.OrderRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.ui.notifications.NotificationItem
+import com.rio.rostry.ui.notifications.NotificationsUiState
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -20,26 +22,8 @@ class NotificationsViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val messagingRepository: MessagingRepository,
 ) : ViewModel() {
-
-    data class UiState(
-        val unreadMessages: Int = 0,
-        val pendingOrders: Int = 0,
-        val items: List<NotificationItem> = emptyList()
-    ) {
-        val total: Int get() = unreadMessages + pendingOrders
-    }
-
-    data class NotificationItem(
-        val id: String,
-        val title: String,
-        val body: String,
-        val route: String,
-        val type: String, // order, message, system
-        val timestamp: Long,
-    )
-
-    private val _ui = MutableStateFlow(UiState())
-    val ui: StateFlow<UiState> = _ui
+    private val _ui = MutableStateFlow(NotificationsUiState())
+    val ui: StateFlow<NotificationsUiState> = _ui
 
     fun refresh() {
         viewModelScope.launch {
