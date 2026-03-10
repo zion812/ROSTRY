@@ -32,8 +32,8 @@ class GeneralExploreViewModel @Inject constructor(
     private val userDao: com.rio.rostry.data.database.dao.UserDao,
     private val likesRepository: LikesRepository,
     private val userRepository: UserRepository,
-    private val breedRepository: com.rio.rostry.data.repository.BreedRepository,
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository
+    private val breedRepository: com.rio.rostry.domain.monitoring.repository.BreedRepository,
+    private val productRepository: com.rio.rostry.domain.commerce.repository.ProductRepository
 ) : ViewModel() {
 
 

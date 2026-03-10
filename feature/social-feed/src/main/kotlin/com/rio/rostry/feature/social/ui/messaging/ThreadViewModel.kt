@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.OutgoingMessageDao
 import com.rio.rostry.data.database.entity.OutgoingMessageEntity
-import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.domain.social.repository.MessagingRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -17,7 +17,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.domain.commerce.repository.OrderRepository
 import com.rio.rostry.data.database.entity.OrderEntity
 
 @HiltViewModel

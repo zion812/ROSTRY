@@ -3,7 +3,7 @@ package com.rio.rostry.ui.monitoring.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.TaskEntity
-import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.domain.monitoring.repository.TaskRepository
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.ui.components.getSyncState

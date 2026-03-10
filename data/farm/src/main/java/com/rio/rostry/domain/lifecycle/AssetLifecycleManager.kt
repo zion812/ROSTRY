@@ -1,9 +1,9 @@
 package com.rio.rostry.domain.lifecycle
 
-import com.rio.rostry.data.database.entity.AssetLifecycleEventEntity
-import com.rio.rostry.data.database.entity.FarmAssetEntity
-import com.rio.rostry.data.repository.FarmAssetRepository
-import com.rio.rostry.domain.repository.AssetLifecycleRepository
+import com.rio.rostry.core.model.AssetLifecycleEvent
+import com.rio.rostry.core.common.Result
+import com.rio.rostry.domain.farm.repository.FarmAssetRepository
+import com.rio.rostry.domain.farm.repository.AssetLifecycleRepository
 import java.util.UUID
 import javax.inject.Inject
 
@@ -12,7 +12,7 @@ class AssetLifecycleManager @Inject constructor(
     private val lifecycleRepository: AssetLifecycleRepository
 ) {
     suspend fun recordStageChange(assetId: String, farmerId: String, fromStage: String?, toStage: String, notes: String? = null) {
-        val event = AssetLifecycleEventEntity(
+        val event = AssetLifecycleEvent(
             eventId = UUID.randomUUID().toString(),
             assetId = assetId,
             farmerId = farmerId,
@@ -25,17 +25,12 @@ class AssetLifecycleManager @Inject constructor(
             recordedAt = System.currentTimeMillis(),
             recordedBy = farmerId,
             notes = notes,
-            mediaItemsJson = null,
-            dirty = true,
-            syncedAt = null
+            mediaItemsJson = null
         )
         lifecycleRepository.recordEvent(event)
-        
-        // Find existing asset and attempt to update its stage if possible. 
-        // This is a simplified interaction demonstrating the manager layer.
     }
 
-    suspend fun getLifecycleHistory(assetId: String): List<AssetLifecycleEventEntity> {
+    suspend fun getLifecycleHistory(assetId: String): Result<List<AssetLifecycleEvent>> {
         return lifecycleRepository.getEventsForAsset(assetId)
     }
 }

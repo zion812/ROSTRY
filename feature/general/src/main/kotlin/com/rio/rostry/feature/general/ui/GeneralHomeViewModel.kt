@@ -7,7 +7,9 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.core.common.analytics.FlowAnalyticsTracker
-
+import com.rio.rostry.utils.Resource
+import com.rio.rostry.utils.TimeUtils
+import com.rio.rostry.utils.LocationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,26 +42,28 @@ class GeneralHomeViewModel @Inject constructor(
     }
 
     private suspend fun loadHomeData() {
-        val userRes = userRepository.getCurrentUser().first()
-        val user = userRes.data
-        val name = user?.fullName
-        
+        val user = userRepository.getCurrentUser().first()
+        val name = user?.displayName ?: user?.email
+
         // Mock user location for 'Nearby' if not set (Center of Bangalore for demo)
         val userLat = user?.farmLocationLat ?: 12.9716
         val userLng = user?.farmLocationLng ?: 77.5946
 
-        val productsRes = productRepository.getAllProducts().first()
-        val products = if (productsRes is Resource.Success) productsRes.data ?: emptyList() else emptyList()
+        val productsResult = productRepository.getAllProducts().first()
+        val products = when (productsResult) {
+            is Resource.Success -> productsResult.data ?: emptyList()
+            else -> emptyList()
+        }
 
         // 1. New Listings Today
         // Use centralized TimeUtils for consistency
-        val newToday = products.count { com.rio.rostry.utils.TimeUtils.isRecent(it.createdAt, 1L) }
+        val newToday = products.count { TimeUtils.isRecent(it.createdAt, 1L) }
 
         // 2. Nearby (within 50km)
         val nearbyCount = products.count { product ->
             val lat = product.latitude; val lng = product.longitude
             if (lat != null && lng != null) {
-                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, lat, lng) <= 50.0
+                LocationUtils.calculateDistance(userLat, userLng, lat, lng) <= 50.0
             } else false
         }
 
@@ -67,7 +71,7 @@ class GeneralHomeViewModel @Inject constructor(
         val recommended = products.sortedBy { product ->
             val lat = product.latitude; val lng = product.longitude
             if (lat != null && lng != null) {
-                com.rio.rostry.utils.LocationUtils.calculateDistance(userLat, userLng, lat, lng)
+                LocationUtils.calculateDistance(userLat, userLng, lat, lng)
             } else Double.MAX_VALUE // Push unknown locations to end
         }.take(10)
 

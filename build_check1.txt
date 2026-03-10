@@ -1,0 +1,103 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: :domain:account:compileDebugKotlin :core:common:compileDebugKotlin
+
+> Configure project :app
+WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.newDsl=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Configure project :domain:account
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/domain/account/build.gradle.kts:5:1: 'fun Project.android(configure: Action<LibraryExtension>): Unit' is deprecated. Replaced by com.android.build.api.dsl.LibraryExtension.
+This class is not used for the public extensions in AGP when android.newDsl=true, which is the default in AGP 9.0, and will be removed in AGP 10.0.
+
+> Task :core:common:preBuild UP-TO-DATE
+> Task :core:database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:preBuild UP-TO-DATE
+> Task :domain:account:preBuild UP-TO-DATE
+> Task :domain:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:model:preBuild UP-TO-DATE
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:database:preBuild UP-TO-DATE
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:model:preDebugBuild UP-TO-DATE
+> Task :domain:account:preDebugBuild UP-TO-DATE
+> Task :core:common:preDebugBuild UP-TO-DATE
+> Task :core:database:preDebugBuild UP-TO-DATE
+> Task :core:domain:preDebugBuild UP-TO-DATE
+> Task :core:model:javaPreCompileDebug UP-TO-DATE
+> Task :core:domain:generateDebugResources UP-TO-DATE
+> Task :domain:account:generateDebugResources UP-TO-DATE
+> Task :core:common:javaPreCompileDebug UP-TO-DATE
+> Task :core:database:processDebugNavigationResources UP-TO-DATE
+> Task :core:common:processDebugNavigationResources UP-TO-DATE
+> Task :domain:account:processDebugNavigationResources UP-TO-DATE
+> Task :core:database:generateDebugResources UP-TO-DATE
+> Task :core:common:generateDebugResources UP-TO-DATE
+> Task :core:model:processDebugNavigationResources UP-TO-DATE
+> Task :core:model:generateDebugResources UP-TO-DATE
+> Task :core:domain:javaPreCompileDebug UP-TO-DATE
+> Task :core:domain:processDebugNavigationResources UP-TO-DATE
+> Task :core:model:packageDebugResources UP-TO-DATE
+> Task :core:database:packageDebugResources UP-TO-DATE
+> Task :core:domain:packageDebugResources UP-TO-DATE
+> Task :core:common:packageDebugResources UP-TO-DATE
+> Task :domain:account:packageDebugResources UP-TO-DATE
+> Task :core:database:javaPreCompileDebug UP-TO-DATE
+> Task :core:database:parseDebugLocalResources UP-TO-DATE
+> Task :domain:account:parseDebugLocalResources UP-TO-DATE
+> Task :core:domain:parseDebugLocalResources UP-TO-DATE
+> Task :core:common:parseDebugLocalResources UP-TO-DATE
+> Task :core:model:parseDebugLocalResources UP-TO-DATE
+> Task :core:model:generateDebugRFile UP-TO-DATE
+> Task :core:common:generateDebugRFile UP-TO-DATE
+> Task :core:database:generateDebugRFile UP-TO-DATE
+> Task :domain:account:generateDebugRFile UP-TO-DATE
+> Task :core:domain:generateDebugRFile UP-TO-DATE
+> Task :core:model:compileDebugKotlin UP-TO-DATE
+> Task :core:model:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:common:compileDebugKotlin UP-TO-DATE
+> Task :core:common:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:common:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:database:kspDebugKotlin UP-TO-DATE
+> Task :core:database:compileDebugKotlin UP-TO-DATE
+> Task :core:database:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:database:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:domain:compileDebugKotlin UP-TO-DATE
+> Task :core:domain:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:domain:bundleLibCompileToJarDebug UP-TO-DATE
+
+> Task :domain:account:compileDebugKotlin FAILED
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/domain/account/src/main/kotlin/com/rio/rostry/domain/account/rbac/RbacGuard.kt:6:28 Unresolved reference 'common'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/domain/account/src/main/kotlin/com/rio/rostry/domain/account/rbac/RbacGuard.kt:18:38 Unresolved reference 'CurrentUserProvider'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/domain/account/src/main/kotlin/com/rio/rostry/domain/account/rbac/RbacGuard.kt:26:42 Unresolved reference 'userIdOrNull'.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':domain:account:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 37s
+43 actionable tasks: 1 executed, 42 up-to-date
+Configuration cache entry stored.

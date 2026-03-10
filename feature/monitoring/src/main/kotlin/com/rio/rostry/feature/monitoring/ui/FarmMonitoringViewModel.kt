@@ -2,11 +2,11 @@ package com.rio.rostry.ui.monitoring.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.monitoring.GrowthRepository
-import com.rio.rostry.data.repository.monitoring.HatchingRepository
-import com.rio.rostry.data.repository.monitoring.MortalityRepository
-import com.rio.rostry.data.repository.monitoring.QuarantineRepository
-import com.rio.rostry.data.repository.monitoring.VaccinationRepository
+import com.rio.rostry.domain.monitoring.repository.GrowthRepository
+import com.rio.rostry.domain.monitoring.repository.HatchingRepository
+import com.rio.rostry.domain.monitoring.repository.MortalityRepository
+import com.rio.rostry.domain.monitoring.repository.QuarantineRepository
+import com.rio.rostry.domain.monitoring.repository.VaccinationRepository
 import com.rio.rostry.ui.monitoring.MonitoringSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers

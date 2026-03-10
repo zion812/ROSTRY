@@ -1,7 +1,9 @@
 package com.rio.rostry.data.monitoring.di
 
 import com.rio.rostry.data.monitoring.repository.*
+import com.rio.rostry.data.monitoring.repository.DailyLogRepositoryImpl
 import com.rio.rostry.domain.monitoring.repository.*
+import com.rio.rostry.domain.monitoring.repository.DailyLogRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -155,4 +157,10 @@ abstract class MonitoringDataModule {
     abstract fun bindProfitabilityRepository(
         impl: ProfitabilityRepositoryImpl
     ): ProfitabilityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDailyLogRepository(
+        impl: DailyLogRepositoryImpl
+    ): DailyLogRepository
 }

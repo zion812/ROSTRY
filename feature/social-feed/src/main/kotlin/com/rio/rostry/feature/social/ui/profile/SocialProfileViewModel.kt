@@ -6,8 +6,8 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel

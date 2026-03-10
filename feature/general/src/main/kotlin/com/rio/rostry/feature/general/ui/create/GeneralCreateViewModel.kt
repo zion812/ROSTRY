@@ -11,8 +11,6 @@ import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.core.common.analytics.GeneralAnalyticsTracker
 import com.rio.rostry.core.common.network.ConnectivityManager
-
-import com.rio.rostry.utils.media.MediaUploadManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +28,6 @@ class GeneralCreateViewModel @Inject constructor(
     private val analytics: GeneralAnalyticsTracker,
     private val outboxDao: OutboxDao,
     private val connectivityManager: ConnectivityManager,
-    private val mediaUploadManager: MediaUploadManager,
     private val gson: Gson
 ) : ViewModel() {
 

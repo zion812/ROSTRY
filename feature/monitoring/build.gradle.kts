@@ -48,6 +48,10 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:navigation"))
 
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
+
     // Domain
     implementation(project(":domain:monitoring"))
 

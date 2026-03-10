@@ -26,6 +26,7 @@ import com.rio.rostry.data.database.entity.DailyLogEntity
 import com.rio.rostry.data.database.entity.BatchSummaryEntity
 import com.rio.rostry.data.database.entity.TaskEntity
 import com.rio.rostry.data.database.entity.UserEntity
+import com.rio.rostry.data.database.entity.MediaItemEntity
 import com.rio.rostry.domain.model.UserType
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
@@ -35,6 +36,7 @@ import timber.log.Timber
 import com.rio.rostry.utils.Resource
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.rio.rostry.core.database.sync.SyncRemote
 /**
  * SyncRemote abstracts the remote API used by SyncManager. Implemented by FirestoreService in prod
  * and by fakes in androidTest.
@@ -696,14 +698,14 @@ class FirestoreService @Inject constructor(
         return entities.size
     }
 
-    override suspend fun incrementFarmAssetField(assetId: String, field: String, delta: Double): Resource<Unit> {
+    override suspend fun incrementFarmAssetField(assetId: String, field: String, delta: Double): com.rio.rostry.utils.Resource<Unit> {
         return try {
             firestore.collection("farm_assets").document(assetId)
                 .update(field, com.google.firebase.firestore.FieldValue.increment(delta))
                 .await()
-            Resource.Success(Unit)
+            com.rio.rostry.utils.Resource.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Failed to increment field")
+            com.rio.rostry.utils.Resource.Error(e.message ?: "Failed to increment field")
         }
     }
 }

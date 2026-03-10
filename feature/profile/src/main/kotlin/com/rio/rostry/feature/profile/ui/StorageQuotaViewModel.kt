@@ -4,8 +4,8 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.StorageQuotaEntity
-import com.rio.rostry.data.repository.StorageUsageRepository
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.StorageUsageRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.workers.DataExportWorker
 import dagger.hilt.android.lifecycle.HiltViewModel

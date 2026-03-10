@@ -10,6 +10,8 @@ import com.rio.rostry.data.farm.repository.TraceabilityRepositoryImpl
 import com.rio.rostry.data.farm.repository.TrackingRepositoryImpl
 import com.rio.rostry.data.farm.repository.TransferRepositoryImpl
 import com.rio.rostry.data.farm.repository.TransferWorkflowRepositoryImpl
+import com.rio.rostry.data.farm.repository.FarmFinancialsRepositoryImpl
+import com.rio.rostry.data.farm.repository.ProductSearchRepositoryImpl
 import com.rio.rostry.domain.farm.repository.AssetBatchOperationRepository
 import com.rio.rostry.domain.farm.repository.AssetLifecycleRepository
 import com.rio.rostry.domain.farm.repository.ExpenseRepository
@@ -20,6 +22,8 @@ import com.rio.rostry.domain.farm.repository.TraceabilityRepository
 import com.rio.rostry.domain.farm.repository.TrackingRepository
 import com.rio.rostry.domain.farm.repository.TransferRepository
 import com.rio.rostry.domain.farm.repository.TransferWorkflowRepository
+import com.rio.rostry.domain.farm.repository.FarmFinancialsRepository
+import com.rio.rostry.domain.farm.repository.ProductSearchRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -96,4 +100,16 @@ abstract class FarmDataModule {
     abstract fun bindAssetLifecycleRepository(
         impl: AssetLifecycleRepositoryImpl
     ): AssetLifecycleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFarmFinancialsRepository(
+        impl: FarmFinancialsRepositoryImpl
+    ): FarmFinancialsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProductSearchRepository(
+        impl: ProductSearchRepositoryImpl
+    ): ProductSearchRepository
 }

@@ -1,0 +1,801 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Reusing configuration cache.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:network:preBuild UP-TO-DATE
+> Task :core:common:preBuild UP-TO-DATE
+> Task :core:designsystem:preBuild UP-TO-DATE
+> Task :core:navigation:preBuild UP-TO-DATE
+> Task :core:domain:preBuild UP-TO-DATE
+> Task :core:database:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :core:model:preBuild UP-TO-DATE
+> Task :core:common:preDebugBuild UP-TO-DATE
+> Task :core:database:preDebugBuild UP-TO-DATE
+> Task :core:domain:preDebugBuild UP-TO-DATE
+> Task :core:navigation:preDebugBuild UP-TO-DATE
+> Task :core:designsystem:preDebugBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :core:network:preDebugBuild UP-TO-DATE
+> Task :core:model:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :core:navigation:processDebugNavigationResources UP-TO-DATE
+> Task :core:model:processDebugNavigationResources UP-TO-DATE
+> Task :core:common:processDebugNavigationResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :data:admin:preBuild UP-TO-DATE
+> Task :app:injectCrashlyticsVersionControlInfoDebug UP-TO-DATE
+> Task :data:admin:preDebugBuild UP-TO-DATE
+> Task :data:account:preBuild UP-TO-DATE
+> Task :data:commerce:preBuild UP-TO-DATE
+> Task :core:domain:processDebugNavigationResources UP-TO-DATE
+> Task :core:designsystem:processDebugNavigationResources UP-TO-DATE
+> Task :core:network:processDebugNavigationResources UP-TO-DATE
+> Task :core:database:processDebugNavigationResources UP-TO-DATE
+> Task :data:social:preBuild UP-TO-DATE
+> Task :domain:farm:preBuild UP-TO-DATE
+> Task :domain:farm:preDebugBuild UP-TO-DATE
+> Task :domain:monitoring:preBuild UP-TO-DATE
+> Task :data:monitoring:preBuild UP-TO-DATE
+> Task :domain:commerce:preBuild UP-TO-DATE
+> Task :data:farm:preBuild UP-TO-DATE
+> Task :app:injectCrashlyticsMappingFileIdDebug UP-TO-DATE
+> Task :domain:monitoring:preDebugBuild UP-TO-DATE
+> Task :data:commerce:preDebugBuild UP-TO-DATE
+> Task :data:farm:preDebugBuild UP-TO-DATE
+> Task :data:account:preDebugBuild UP-TO-DATE
+> Task :domain:account:preBuild UP-TO-DATE
+> Task :data:social:preDebugBuild UP-TO-DATE
+> Task :data:monitoring:preDebugBuild UP-TO-DATE
+> Task :domain:admin:preBuild UP-TO-DATE
+> Task :data:admin:processDebugNavigationResources UP-TO-DATE
+> Task :domain:commerce:preDebugBuild UP-TO-DATE
+> Task :domain:social:preBuild UP-TO-DATE
+> Task :domain:account:preDebugBuild UP-TO-DATE
+> Task :domain:farm:processDebugNavigationResources UP-TO-DATE
+> Task :domain:social:preDebugBuild UP-TO-DATE
+> Task :domain:admin:preDebugBuild UP-TO-DATE
+> Task :domain:monitoring:processDebugNavigationResources UP-TO-DATE
+> Task :feature:achievements:preBuild UP-TO-DATE
+> Task :feature:analytics:preBuild UP-TO-DATE
+> Task :feature:analytics:preDebugBuild UP-TO-DATE
+> Task :feature:achievements:preDebugBuild UP-TO-DATE
+> Task :data:commerce:processDebugNavigationResources UP-TO-DATE
+> Task :data:farm:processDebugNavigationResources UP-TO-DATE
+> Task :data:social:processDebugNavigationResources UP-TO-DATE
+> Task :feature:events:preBuild UP-TO-DATE
+> Task :feature:asset-management:preBuild UP-TO-DATE
+> Task :feature:asset-management:preDebugBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:preBuild UP-TO-DATE
+> Task :domain:commerce:processDebugNavigationResources UP-TO-DATE
+> Task :feature:expert:preBuild UP-TO-DATE
+> Task :feature:expert:preDebugBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:preDebugBuild UP-TO-DATE
+> Task :feature:events:preDebugBuild UP-TO-DATE
+> Task :domain:account:processDebugNavigationResources UP-TO-DATE
+> Task :data:monitoring:processDebugNavigationResources UP-TO-DATE
+> Task :data:account:processDebugNavigationResources UP-TO-DATE
+> Task :domain:social:processDebugNavigationResources UP-TO-DATE
+> Task :domain:admin:processDebugNavigationResources UP-TO-DATE
+> Task :feature:general:preBuild UP-TO-DATE
+> Task :feature:insights:preBuild UP-TO-DATE
+> Task :feature:general:preDebugBuild UP-TO-DATE
+> Task :feature:analytics:processDebugNavigationResources UP-TO-DATE
+> Task :feature:achievements:processDebugNavigationResources UP-TO-DATE
+> Task :feature:farm-dashboard:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:preBuild UP-TO-DATE
+> Task :feature:insights:preDebugBuild UP-TO-DATE
+> Task :feature:feedback:preBuild UP-TO-DATE
+> Task :feature:feedback:preDebugBuild UP-TO-DATE
+> Task :feature:leaderboard:preBuild UP-TO-DATE
+> Task :feature:farm-dashboard:preDebugBuild UP-TO-DATE
+> Task :feature:listing-management:preBuild UP-TO-DATE
+> Task :feature:expert:processDebugNavigationResources UP-TO-DATE
+> Task :feature:login:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:preDebugBuild UP-TO-DATE
+> Task :feature:leaderboard:preDebugBuild UP-TO-DATE
+> Task :feature:listing-management:preDebugBuild UP-TO-DATE
+> Task :feature:asset-management:processDebugNavigationResources UP-TO-DATE
+> Task :feature:enthusiast-tools:processDebugNavigationResources UP-TO-DATE
+> Task :feature:login:preDebugBuild UP-TO-DATE
+> Task :feature:monitoring:preBuild UP-TO-DATE
+> Task :feature:marketplace:preBuild UP-TO-DATE
+> Task :feature:marketplace:preDebugBuild UP-TO-DATE
+> Task :feature:monitoring:preDebugBuild UP-TO-DATE
+> Task :feature:general:processDebugNavigationResources UP-TO-DATE
+> Task :feature:notifications:preBuild UP-TO-DATE
+> Task :feature:notifications:preDebugBuild UP-TO-DATE
+> Task :feature:events:processDebugNavigationResources UP-TO-DATE
+> Task :feature:login:processDebugNavigationResources UP-TO-DATE
+> Task :feature:leaderboard:processDebugNavigationResources UP-TO-DATE
+> Task :feature:feedback:processDebugNavigationResources UP-TO-DATE
+> Task :feature:insights:processDebugNavigationResources UP-TO-DATE
+> Task :feature:farm-dashboard:processDebugNavigationResources UP-TO-DATE
+> Task :feature:traceability:preBuild UP-TO-DATE
+> Task :feature:traceability:preDebugBuild UP-TO-DATE
+> Task :feature:profile:preBuild UP-TO-DATE
+> Task :feature:profile:preDebugBuild UP-TO-DATE
+> Task :feature:onboarding:preBuild UP-TO-DATE
+> Task :feature:onboarding:preDebugBuild UP-TO-DATE
+> Task :feature:social-feed:preBuild UP-TO-DATE
+> Task :feature:social-feed:preDebugBuild UP-TO-DATE
+> Task :feature:support:preBuild UP-TO-DATE
+> Task :feature:notifications:processDebugNavigationResources UP-TO-DATE
+> Task :feature:support:preDebugBuild UP-TO-DATE
+> Task :feature:marketplace:processDebugNavigationResources UP-TO-DATE
+> Task :feature:transfers:preBuild UP-TO-DATE
+> Task :feature:transfers:preDebugBuild UP-TO-DATE
+> Task :feature:listing-management:processDebugNavigationResources UP-TO-DATE
+> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:monitoring:processDebugNavigationResources UP-TO-DATE
+> Task :feature:social-feed:processDebugNavigationResources UP-TO-DATE
+> Task :feature:traceability:processDebugNavigationResources UP-TO-DATE
+> Task :core:common:generateDebugResources UP-TO-DATE
+> Task :feature:profile:processDebugNavigationResources UP-TO-DATE
+> Task :feature:farmer-tools:processDebugNavigationResources UP-TO-DATE
+> Task :core:database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:designsystem:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:model:generateDebugResources UP-TO-DATE
+> Task :feature:onboarding:processDebugNavigationResources UP-TO-DATE
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:database:generateDebugResources UP-TO-DATE
+> Task :core:common:javaPreCompileDebug UP-TO-DATE
+> Task :feature:transfers:processDebugNavigationResources UP-TO-DATE
+> Task :core:navigation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:designsystem:generateDebugResources UP-TO-DATE
+> Task :feature:support:processDebugNavigationResources UP-TO-DATE
+> Task :core:model:javaPreCompileDebug UP-TO-DATE
+> Task :core:designsystem:javaPreCompileDebug UP-TO-DATE
+> Task :core:network:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:generateDebugResources UP-TO-DATE
+> Task :core:domain:javaPreCompileDebug UP-TO-DATE
+> Task :core:navigation:generateDebugResources UP-TO-DATE
+> Task :core:navigation:javaPreCompileDebug UP-TO-DATE
+> Task :core:network:generateDebugResources UP-TO-DATE
+> Task :core:network:javaPreCompileDebug UP-TO-DATE
+> Task :data:account:generateDebugResources UP-TO-DATE
+> Task :data:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:packageDebugResources UP-TO-DATE
+> Task :domain:account:javaPreCompileDebug UP-TO-DATE
+> Task :domain:account:generateDebugResources UP-TO-DATE
+> Task :core:designsystem:packageDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :core:database:javaPreCompileDebug UP-TO-DATE
+> Task :core:domain:packageDebugResources UP-TO-DATE
+> Task :core:database:packageDebugResources UP-TO-DATE
+> Task :core:navigation:packageDebugResources UP-TO-DATE
+> Task :core:network:packageDebugResources UP-TO-DATE
+> Task :core:model:packageDebugResources UP-TO-DATE
+> Task :data:admin:generateDebugResources UP-TO-DATE
+> Task :data:account:packageDebugResources UP-TO-DATE
+> Task :domain:account:packageDebugResources UP-TO-DATE
+> Task :data:account:javaPreCompileDebug UP-TO-DATE
+> Task :data:admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:admin:packageDebugResources UP-TO-DATE
+> Task :domain:admin:generateDebugResources UP-TO-DATE
+> Task :core:common:parseDebugLocalResources UP-TO-DATE
+> Task :core:network:parseDebugLocalResources UP-TO-DATE
+> Task :core:navigation:parseDebugLocalResources UP-TO-DATE
+> Task :data:account:parseDebugLocalResources UP-TO-DATE
+> Task :data:admin:parseDebugLocalResources UP-TO-DATE
+> Task :domain:account:parseDebugLocalResources UP-TO-DATE
+> Task :core:model:parseDebugLocalResources UP-TO-DATE
+> Task :domain:admin:packageDebugResources UP-TO-DATE
+> Task :domain:admin:parseDebugLocalResources UP-TO-DATE
+> Task :data:admin:generateDebugRFile UP-TO-DATE
+> Task :domain:account:generateDebugRFile UP-TO-DATE
+> Task :core:model:generateDebugRFile UP-TO-DATE
+> Task :domain:admin:javaPreCompileDebug UP-TO-DATE
+> Task :core:navigation:generateDebugRFile UP-TO-DATE
+> Task :data:commerce:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:network:generateDebugRFile UP-TO-DATE
+> Task :domain:commerce:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:generateDebugRFile UP-TO-DATE
+> Task :data:admin:javaPreCompileDebug UP-TO-DATE
+> Task :domain:commerce:generateDebugResources UP-TO-DATE
+> Task :domain:commerce:javaPreCompileDebug UP-TO-DATE
+> Task :data:farm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:farm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:commerce:javaPreCompileDebug UP-TO-DATE
+> Task :data:commerce:generateDebugResources UP-TO-DATE
+> Task :core:common:generateDebugRFile UP-TO-DATE
+> Task :domain:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:farm:generateDebugResources UP-TO-DATE
+> Task :domain:farm:javaPreCompileDebug UP-TO-DATE
+> Task :domain:farm:generateDebugResources UP-TO-DATE
+> Task :domain:monitoring:generateDebugResources UP-TO-DATE
+> Task :data:commerce:packageDebugResources UP-TO-DATE
+> Task :domain:monitoring:javaPreCompileDebug UP-TO-DATE
+> Task :domain:social:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:social:generateDebugResources UP-TO-DATE
+> Task :data:commerce:parseDebugLocalResources UP-TO-DATE
+> Task :domain:commerce:packageDebugResources UP-TO-DATE
+> Task :domain:monitoring:packageDebugResources UP-TO-DATE
+> Task :domain:farm:packageDebugResources UP-TO-DATE
+> Task :data:farm:packageDebugResources UP-TO-DATE
+> Task :domain:commerce:parseDebugLocalResources UP-TO-DATE
+> Task :domain:farm:parseDebugLocalResources UP-TO-DATE
+> Task :data:farm:parseDebugLocalResources UP-TO-DATE
+> Task :data:commerce:generateDebugRFile UP-TO-DATE
+> Task :domain:monitoring:parseDebugLocalResources UP-TO-DATE
+> Task :domain:social:packageDebugResources UP-TO-DATE
+> Task :domain:commerce:generateDebugRFile UP-TO-DATE
+> Task :domain:social:javaPreCompileDebug UP-TO-DATE
+> Task :domain:social:parseDebugLocalResources UP-TO-DATE
+> Task :data:farm:javaPreCompileDebug UP-TO-DATE
+> Task :data:farm:generateDebugRFile UP-TO-DATE
+> Task :domain:monitoring:generateDebugRFile UP-TO-DATE
+> Task :domain:farm:generateDebugRFile UP-TO-DATE
+> Task :data:social:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:monitoring:generateDebugResources UP-TO-DATE
+> Task :feature:achievements:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:social:generateDebugResources UP-TO-DATE
+> Task :data:monitoring:javaPreCompileDebug UP-TO-DATE
+> Task :data:social:javaPreCompileDebug UP-TO-DATE
+> Task :domain:social:generateDebugRFile UP-TO-DATE
+> Task :feature:analytics:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:achievements:generateDebugResources UP-TO-DATE
+> Task :feature:achievements:javaPreCompileDebug UP-TO-DATE
+> Task :feature:enthusiast-tools:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:analytics:generateDebugResources UP-TO-DATE
+> Task :feature:enthusiast-tools:generateDebugResources UP-TO-DATE
+> Task :data:account:generateDebugRFile UP-TO-DATE
+> Task :feature:enthusiast-tools:javaPreCompileDebug UP-TO-DATE
+> Task :feature:analytics:javaPreCompileDebug UP-TO-DATE
+> Task :feature:asset-management:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:asset-management:generateDebugResources UP-TO-DATE
+> Task :feature:asset-management:javaPreCompileDebug UP-TO-DATE
+> Task :feature:events:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:monitoring:packageDebugResources UP-TO-DATE
+> Task :feature:events:generateDebugResources UP-TO-DATE
+> Task :data:social:packageDebugResources UP-TO-DATE
+> Task :feature:analytics:packageDebugResources UP-TO-DATE
+> Task :feature:achievements:packageDebugResources UP-TO-DATE
+> Task :data:monitoring:parseDebugLocalResources UP-TO-DATE
+> Task :data:social:parseDebugLocalResources UP-TO-DATE
+> Task :feature:achievements:parseDebugLocalResources UP-TO-DATE
+> Task :feature:asset-management:packageDebugResources UP-TO-DATE
+> Task :feature:asset-management:parseDebugLocalResources UP-TO-DATE
+> Task :feature:analytics:parseDebugLocalResources UP-TO-DATE
+> Task :data:monitoring:generateDebugRFile UP-TO-DATE
+> Task :data:social:generateDebugRFile UP-TO-DATE
+> Task :feature:expert:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:achievements:generateDebugRFile UP-TO-DATE
+> Task :feature:events:javaPreCompileDebug UP-TO-DATE
+> Task :feature:expert:generateDebugResources UP-TO-DATE
+> Task :feature:expert:javaPreCompileDebug UP-TO-DATE
+> Task :feature:asset-management:generateDebugRFile UP-TO-DATE
+> Task :feature:farm-dashboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:analytics:generateDebugRFile UP-TO-DATE
+> Task :feature:farmer-tools:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:farm-dashboard:generateDebugResources UP-TO-DATE
+> Task :feature:farmer-tools:generateDebugResources UP-TO-DATE
+> Task :feature:farmer-tools:javaPreCompileDebug UP-TO-DATE
+> Task :feature:farm-dashboard:javaPreCompileDebug UP-TO-DATE
+> Task :feature:feedback:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:expert:packageDebugResources UP-TO-DATE
+> Task :feature:events:packageDebugResources UP-TO-DATE
+> Task :feature:feedback:generateDebugResources UP-TO-DATE
+> Task :feature:feedback:javaPreCompileDebug UP-TO-DATE
+> Task :feature:events:parseDebugLocalResources UP-TO-DATE
+> Task :feature:expert:parseDebugLocalResources UP-TO-DATE
+> Task :feature:general:generateDebugResources UP-TO-DATE
+> Task :feature:farmer-tools:packageDebugResources UP-TO-DATE
+> Task :feature:farm-dashboard:packageDebugResources UP-TO-DATE
+> Task :feature:events:generateDebugRFile UP-TO-DATE
+> Task :feature:general:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:farm-dashboard:parseDebugLocalResources UP-TO-DATE
+> Task :feature:enthusiast-tools:packageDebugResources UP-TO-DATE
+> Task :feature:general:javaPreCompileDebug UP-TO-DATE
+> Task :feature:farmer-tools:parseDebugLocalResources UP-TO-DATE
+> Task :feature:expert:generateDebugRFile UP-TO-DATE
+> Task :feature:enthusiast-tools:parseDebugLocalResources UP-TO-DATE
+> Task :feature:insights:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:insights:javaPreCompileDebug UP-TO-DATE
+> Task :feature:insights:generateDebugResources UP-TO-DATE
+> Task :feature:leaderboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:farm-dashboard:generateDebugRFile UP-TO-DATE
+> Task :feature:leaderboard:javaPreCompileDebug UP-TO-DATE
+> Task :feature:farmer-tools:generateDebugRFile UP-TO-DATE
+> Task :feature:listing-management:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:leaderboard:generateDebugResources UP-TO-DATE
+> Task :feature:listing-management:javaPreCompileDebug UP-TO-DATE
+> Task :feature:enthusiast-tools:generateDebugRFile UP-TO-DATE
+> Task :feature:listing-management:generateDebugResources UP-TO-DATE
+> Task :feature:login:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:login:generateDebugResources UP-TO-DATE
+> Task :feature:login:javaPreCompileDebug UP-TO-DATE
+> Task :feature:leaderboard:packageDebugResources UP-TO-DATE
+> Task :feature:marketplace:generateDebugResources UP-TO-DATE
+> Task :feature:listing-management:packageDebugResources UP-TO-DATE
+> Task :feature:insights:packageDebugResources UP-TO-DATE
+> Task :feature:leaderboard:parseDebugLocalResources UP-TO-DATE
+> Task :feature:insights:parseDebugLocalResources UP-TO-DATE
+> Task :feature:login:packageDebugResources UP-TO-DATE
+> Task :feature:marketplace:packageDebugResources UP-TO-DATE
+> Task :feature:login:parseDebugLocalResources UP-TO-DATE
+> Task :feature:listing-management:parseDebugLocalResources UP-TO-DATE
+> Task :feature:leaderboard:generateDebugRFile UP-TO-DATE
+> Task :feature:marketplace:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:insights:generateDebugRFile UP-TO-DATE
+> Task :feature:marketplace:parseDebugLocalResources UP-TO-DATE
+> Task :feature:marketplace:javaPreCompileDebug UP-TO-DATE
+> Task :feature:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:monitoring:generateDebugResources UP-TO-DATE
+> Task :feature:login:generateDebugRFile UP-TO-DATE
+> Task :feature:notifications:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:listing-management:generateDebugRFile UP-TO-DATE
+> Task :feature:notifications:generateDebugResources UP-TO-DATE
+> Task :feature:monitoring:javaPreCompileDebug UP-TO-DATE
+> Task :feature:notifications:javaPreCompileDebug UP-TO-DATE
+> Task :feature:onboarding:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:marketplace:generateDebugRFile UP-TO-DATE
+> Task :feature:monitoring:packageDebugResources UP-TO-DATE
+> Task :feature:onboarding:generateDebugResources UP-TO-DATE
+> Task :feature:onboarding:javaPreCompileDebug UP-TO-DATE
+> Task :feature:profile:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:profile:generateDebugResources UP-TO-DATE
+> Task :feature:monitoring:parseDebugLocalResources UP-TO-DATE
+> Task :feature:profile:javaPreCompileDebug UP-TO-DATE
+> Task :feature:notifications:packageDebugResources UP-TO-DATE
+> Task :feature:social-feed:generateDebugResources UP-TO-DATE
+> Task :feature:onboarding:packageDebugResources UP-TO-DATE
+> Task :feature:notifications:parseDebugLocalResources UP-TO-DATE
+> Task :feature:monitoring:generateDebugRFile UP-TO-DATE
+> Task :feature:onboarding:parseDebugLocalResources UP-TO-DATE
+> Task :feature:social-feed:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:social-feed:packageDebugResources UP-TO-DATE
+> Task :feature:notifications:generateDebugRFile UP-TO-DATE
+> Task :feature:support:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:profile:packageDebugResources UP-TO-DATE
+> Task :feature:social-feed:javaPreCompileDebug UP-TO-DATE
+> Task :feature:social-feed:parseDebugLocalResources UP-TO-DATE
+> Task :feature:support:javaPreCompileDebug UP-TO-DATE
+> Task :feature:support:generateDebugResources UP-TO-DATE
+> Task :feature:profile:parseDebugLocalResources UP-TO-DATE
+> Task :feature:onboarding:generateDebugRFile UP-TO-DATE
+> Task :feature:traceability:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:traceability:generateDebugResources UP-TO-DATE
+> Task :feature:social-feed:generateDebugRFile UP-TO-DATE
+> Task :feature:traceability:javaPreCompileDebug UP-TO-DATE
+> Task :feature:transfers:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:transfers:generateDebugResources UP-TO-DATE
+> Task :feature:profile:generateDebugRFile UP-TO-DATE
+> Task :feature:support:packageDebugResources UP-TO-DATE
+> Task :feature:transfers:javaPreCompileDebug UP-TO-DATE
+> Task :feature:support:parseDebugLocalResources UP-TO-DATE
+> Task :feature:traceability:packageDebugResources UP-TO-DATE
+> Task :feature:transfers:packageDebugResources UP-TO-DATE
+> Task :feature:traceability:parseDebugLocalResources UP-TO-DATE
+> Task :feature:support:generateDebugRFile UP-TO-DATE
+> Task :feature:transfers:parseDebugLocalResources UP-TO-DATE
+> Task :feature:traceability:generateDebugRFile UP-TO-DATE
+> Task :feature:transfers:generateDebugRFile UP-TO-DATE
+> Task :feature:feedback:packageDebugResources UP-TO-DATE
+> Task :feature:feedback:parseDebugLocalResources UP-TO-DATE
+> Task :feature:general:packageDebugResources UP-TO-DATE
+> Task :feature:feedback:generateDebugRFile UP-TO-DATE
+> Task :feature:general:parseDebugLocalResources UP-TO-DATE
+> Task :feature:general:generateDebugRFile UP-TO-DATE
+> Task :core:domain:parseDebugLocalResources UP-TO-DATE
+> Task :core:designsystem:parseDebugLocalResources UP-TO-DATE
+> Task :core:domain:generateDebugRFile UP-TO-DATE
+> Task :core:designsystem:generateDebugRFile UP-TO-DATE
+> Task :core:database:parseDebugLocalResources UP-TO-DATE
+> Task :core:database:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :core:model:compileDebugKotlin UP-TO-DATE
+> Task :core:model:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:model:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:admin:compileDebugKotlin UP-TO-DATE
+> Task :domain:account:compileDebugKotlin UP-TO-DATE
+> Task :domain:admin:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:account:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:admin:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:admin:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:account:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:account:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:common:compileDebugKotlin UP-TO-DATE
+> Task :core:common:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:common:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:common:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:commerce:compileDebugKotlin UP-TO-DATE
+> Task :domain:commerce:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:commerce:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:commerce:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:farm:compileDebugKotlin UP-TO-DATE
+> Task :domain:monitoring:compileDebugKotlin UP-TO-DATE
+> Task :domain:farm:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:monitoring:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:farm:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:monitoring:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:monitoring:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:farm:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:social:compileDebugKotlin UP-TO-DATE
+> Task :domain:social:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:social:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:social:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:network:compileDebugKotlin UP-TO-DATE
+> Task :core:network:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:network:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:network:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:database:kspDebugKotlin UP-TO-DATE
+> Task :core:navigation:compileDebugKotlin UP-TO-DATE
+> Task :core:navigation:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:navigation:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:navigation:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:database:compileDebugKotlin UP-TO-DATE
+> Task :core:database:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:database:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:database:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:domain:compileDebugKotlin UP-TO-DATE
+> Task :data:admin:kspDebugKotlin UP-TO-DATE
+> Task :data:social:kspDebugKotlin UP-TO-DATE
+> Task :core:domain:compileDebugJavaWithJavac NO-SOURCE
+> Task :data:monitoring:kspDebugKotlin UP-TO-DATE
+> Task :data:account:kspDebugKotlin UP-TO-DATE
+> Task :data:commerce:kspDebugKotlin UP-TO-DATE
+> Task :core:domain:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:domain:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:admin:compileDebugKotlin UP-TO-DATE
+> Task :core:designsystem:compileDebugKotlin UP-TO-DATE
+> Task :core:designsystem:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:designsystem:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:designsystem:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:social:compileDebugKotlin UP-TO-DATE
+> Task :data:account:compileDebugKotlin UP-TO-DATE
+> Task :data:commerce:compileDebugKotlin UP-TO-DATE
+> Task :feature:general:kspDebugKotlin UP-TO-DATE
+> Task :data:admin:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:social:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:commerce:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:admin:transformDebugClassesWithAsm
+> Task :data:admin:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:admin:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:monitoring:compileDebugKotlin
+> Task :data:monitoring:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:account:compileDebugJavaWithJavac
+> Task :data:social:transformDebugClassesWithAsm
+> Task :data:social:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:social:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:commerce:transformDebugClassesWithAsm
+> Task :data:commerce:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:commerce:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:account:transformDebugClassesWithAsm
+> Task :data:account:bundleLibRuntimeToJarDebug
+> Task :data:account:bundleLibCompileToJarDebug
+> Task :data:monitoring:transformDebugClassesWithAsm
+> Task :data:monitoring:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:monitoring:bundleLibCompileToJarDebug UP-TO-DATE
+
+> Task :feature:general:compileDebugKotlin
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:44:28 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:24 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:43 Unresolved reference 'Resource'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:61 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:73 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:81 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:81 Not enough information to infer type argument for 'T'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:98 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:52:98 Not enough information to infer type argument for 'T'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:56:81 Unresolved reference 'it'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:59:44 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:60:31 Unresolved reference 'latitude'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:60:59 Unresolved reference 'longitude'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:62:88 Argument type mismatch: actual type is 'Any', but 'Double' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:62:93 Argument type mismatch: actual type is 'Any', but 'Double' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:67:47 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:68:31 Unresolved reference 'latitude'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:68:59 Unresolved reference 'longitude'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:70:88 Argument type mismatch: actual type is 'Any', but 'Double' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/GeneralHomeViewModel.kt:70:93 Argument type mismatch: actual type is 'Any', but 'Double' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:19:47 Unresolved reference 'Receipt'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:38:8 Unresolved reference 'coil'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:40:37 Unresolved reference 'OnboardingChecklistCard'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:41:26 Unresolved reference 'navigation'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:42:26 Unresolved reference 'onboarding'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:55:16 Unresolved reference 'GeneralHomeViewModel'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:55:39 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:56:25 Unresolved reference 'OnboardingChecklistViewModel'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:56:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:59:17 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:59:20 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:59:30 Unresolved reference 'uiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:59:38 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:60:24 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:60:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:60:46 Unresolved reference 'uiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:60:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:69:31 Unresolved reference 'onBrowseMarketplaceClick'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:73:31 Unresolved reference 'onSearchProductsClick'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:77:31 Unresolved reference 'onViewWishlistClick'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:81:31 Unresolved reference 'onMyOrdersClick'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:87:41 Unresolved reference 'recommendedProducts'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:88:27 Unresolved reference 'onProductClicked'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:94:32 Unresolved reference 'isChecklistRelevant'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:95:17 Unresolved reference 'OnboardingChecklistCard'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:96:44 Function invocation 'items(...)' expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:97:59 Unresolved reference 'completionPercentage'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:98:36 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:101:54 Unresolved reference 'dismissChecklist'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:108:31 Unresolved reference 'onUpgradeToFarmerClick'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:112:31 Unresolved reference 'onUpgradeToEnthusiastClick'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:121:34 Unresolved reference 'GeneralHomeViewModel'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:124:40 Unresolved reference 'userName'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:128:31 Unresolved reference 'nearbyProductsCount'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:128:79 Unresolved reference 'newListingsToday'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:150:54 Unresolved reference 'Receipt'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/HomeGeneralScreen.kt:203:13 Unresolved reference 'AsyncImage'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:24:29 Unresolved reference 'notif'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:142:9 Return type mismatch: expected 'Flow<List<CartItemEntity>>?', actual 'Flow<List<CartItem>>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:146:9 Return type mismatch: expected 'Flow<List<OrderEntity>>?', actual 'Flow<List<Order>>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:153:70 Initializer type mismatch: expected 'StateFlow<Resource<List<ProductEntity>>>', actual 'StateFlow<Any>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:153:70 Type mismatch: inferred type is 'Result<List<Product>>', but 'Resource<List<ProductEntity>>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:161:66 Initializer type mismatch: expected 'StateFlow<Resource<UserEntity?>>', actual 'StateFlow<Any?>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:161:66 Type mismatch: inferred type is 'User?', but 'Resource<UserEntity?>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:419:27 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:420:38 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:429:27 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:430:38 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:518:37 Unresolved reference 'insertOrderWithItems'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:529:37 Unresolved reference 'insertOrderWithItems'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:535:40 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:535:88 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:537:45 Unresolved reference 'upsert'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:592:28 Unresolved reference 'firebaseAuth'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:648:26 Unresolved reference 'firebaseAuth'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:651:79 Argument type mismatch: actual type is 'Any', but 'String' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:655:13 Unresolved reference 'FarmNotifier'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:672:28 Unresolved reference 'firebaseAuth'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:677:60 Argument type mismatch: actual type is 'Any', but 'String' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/cart/GeneralCartViewModel.kt:697:26 Unresolved reference 'firebaseAuth'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/create/GeneralCreateViewModel.kt:21:8 Unresolved reference 'timber'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/create/GeneralCreateViewModel.kt:186:17 Unresolved reference 'Timber'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/create/GeneralCreateViewModel.kt:194:17 Unresolved reference 'Timber'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/create/GeneralCreateViewModel.kt:228:9 Unresolved reference 'Timber'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/create/GeneralCreateViewModel.kt:234:20 Unresolved reference 'MediaUploadManager'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/create/GeneralCreateViewModel.kt:240:9 Unresolved reference 'mediaUploadManager'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:39:50 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:39:58 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:43:43 Unresolved reference 'it'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:47:61 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:48:29 Unresolved reference 'customStatus'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:49:29 Unresolved reference 'name'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:50:29 Unresolved reference 'description'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:51:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:51:28 Not enough information to infer type argument for 'T'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:53:54 Unresolved reference 'it'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:58:43 Unresolved reference 'it'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/discover/DiscoverViewModel.kt:63:40 Argument type mismatch: actual type is 'Sequence<uninferred ERROR CLASS: Cannot infer argument for type parameter T>', but 'List<ProductEntity>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:6:17 Unresolved reference 'paging'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:7:17 Unresolved reference 'paging'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:8:17 Unresolved reference 'paging'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:9:17 Unresolved reference 'paging'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:75:67 Argument type mismatch: actual type is 'List<Breed>', but 'List<BreedEntity>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:118:20 Unresolved reference 'PagingData'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:118:57 Cannot access class 'PagingData'. Check your module classpath for missing or conflicting dependencies.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:118:66 Unresolved reference 'cachedIn'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:144:62 None of the following candidates is applicable:
+suspend fun <T> Flow<T>.first(): T
+suspend fun <T> Flow<T>.first(predicate: suspend (T) -> Boolean): T
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:145:28 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:146:37 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:151:51 Unresolved reference 'userId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:152:56 Unresolved reference 'fullName'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:153:54 Unresolved reference 'profilePictureUrl'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:154:53 Unresolved reference 'address'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:159:35 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/explore/GeneralExploreViewModel.kt:179:64 Argument type mismatch: actual type is 'List<Breed>', but 'List<BreedEntity>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:186:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:186:67 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:186:82 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:186:91 Unresolved reference 'name'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:187:20 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:187:59 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:254:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:255:55 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:255:70 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:255:79 Unresolved reference 'productId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:257:20 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:259:42 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:285:26 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:285:45 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:298:26 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:298:45 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:300:29 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:301:21 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:301:59 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:301:78 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:301:86 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:301:86 Not enough information to infer type argument for 'T'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:302:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:302:24 Not enough information to infer type argument for 'T'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:309:42 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:309:61 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:309:69 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:316:54 Argument type mismatch: actual type is 'List<ProductEntity>', but 'List<Product>?' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:317:26 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:317:45 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:354:54 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:354:73 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:355:51 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:355:70 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:365:62 Unresolved reference 'inventoryId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:369:63 Unresolved reference 'priceUnit'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:377:37 Unresolved reference 'status'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:377:70 Unresolved reference 'isActive'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:378:37 Unresolved reference 'status'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:379:37 Unresolved reference 'status'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:384:49 Unresolved reference 'listingId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:385:48 Unresolved reference 'sellerId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:386:44 Unresolved reference 'title'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:387:51 Unresolved reference 'description'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:388:40 Argument type mismatch: actual type is 'CharCategory', but 'String' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:391:45 Unresolved reference 'price'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:392:48 Unresolved reference 'locationName'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:393:48 Unresolved reference 'latitude'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:394:49 Unresolved reference 'longitude'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:395:49 Unresolved reference 'imageUrls'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:397:49 Unresolved reference 'createdAt'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:398:49 Unresolved reference 'updatedAt'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:400:55 Unresolved reference 'deliveryOptions'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:401:52 Unresolved reference 'deliveryCost'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:402:52 Unresolved reference 'leadTimeDays'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:405:100 Unresolved reference 'listingId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:413:34 Unresolved reference 'isPublic'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:413:49 Unresolved reference 'status'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:413:76 Unresolved reference 'status'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:413:104 Unresolved reference 'status'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:414:22 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:414:35 Unresolved reference 'productId'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:22 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:22 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:29 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:32 Not enough information to infer type argument for 'K'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:54 Not enough information to infer type argument for 'R'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:415:71 Unresolved reference 'updatedAt'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:417:53 One type argument expected. Use class 'Loading' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:418:53 One type argument expected. Use class 'Loading' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:419:55 One type argument expected. Use class 'Loading' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:425:42 Assignment type mismatch: actual type is 'List<Char>', but 'List<ProductEntity>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:466:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:467:20 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:467:47 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:523:36 Unresolved reference 'removeFromWishlist'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:525:36 Unresolved reference 'addToWishlist'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:542:32 Unresolved reference 'observeWishlistItems'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:542:71 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/market/GeneralMarketViewModel.kt:543:57 Unresolved reference 'it'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:28:27 Unresolved reference 'tasks'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:29:8 Unresolved reference 'timber'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:86:62 Initializer type mismatch: expected 'StateFlow<Resource<UserEntity?>>', actual 'StateFlow<Any?>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:86:62 Type mismatch: inferred type is 'User?', but 'Resource<UserEntity?>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:97:9 Return type mismatch: expected 'StateFlow<List<OrderEntity>>?', actual 'StateFlow<List<Order>>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:152:65 Argument type mismatch: actual type is 'UserEntity', but 'User' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:153:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:154:20 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:154:59 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:216:67 Argument type mismatch: actual type is 'UserEntity', but 'User' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:218:35 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:219:105 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/profile/GeneralProfileViewModel.kt:220:70 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:13:30 Unresolved reference 'repository'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:16:16 Unresolved reference 'PublicBirdLookupViewModel'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:16:44 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:19:17 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:19:20 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:19:30 Unresolved reference 'uiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:19:38 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:20:15 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:20:18 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:20:28 Unresolved reference 'query'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:20:34 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:35:40 Unresolved reference 'onQueryChanged'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:36:23 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:39:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:39:49 Unresolved reference 'lookup'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:49:16 Unresolved reference 'LookupUiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:54:16 Unresolved reference 'LookupUiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:56:34 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:61:16 Unresolved reference 'LookupUiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:62:40 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:63:24 Unresolved reference 'PublicBirdView'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:71:50 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:71:60 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:72:60 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:73:59 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:78:24 Unresolved reference 'PublicBirdView'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:90:59 Unresolved reference 'birdCode'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:91:50 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupScreen.kt:97:16 Unresolved reference 'LookupUiState'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupViewModel.kt:40:13 'when' expression must be exhaustive. Add the 'is Error', 'is Success<*>' branches or an 'else' branch.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupViewModel.kt:41:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupViewModel.kt:42:67 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupViewModel.kt:44:20 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupViewModel.kt:45:65 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/publicaccess/PublicBirdLookupViewModel.kt:47:20 One type argument expected. Use class 'Loading' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncConflictScreen.kt:158:58 Unresolved reference 'Pets'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncConflictScreen.kt:159:62 Unresolved reference 'Store'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncConflictScreen.kt:161:51 Unresolved reference 'Article'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncConflictScreen.kt:235:44 Unresolved reference 'PhoneAndroid'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncConflictScreen.kt:243:44 Unresolved reference 'Cloud'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncIssuesScreen.kt:26:23 Unresolved reference 'workers'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncIssuesScreen.kt:80:13 Unresolved reference 'OutboxSyncWorker'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/sync/SyncIssuesScreen.kt:97:17 Unresolved reference 'OutboxSyncWorker'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:67:28 Unresolved reference 'observeWishlistItems'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:70:70 Initializer type mismatch: expected 'StateFlow<Resource<List<ProductEntity>>>', actual 'StateFlow<Any>'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:70:70 Type mismatch: inferred type is 'Result<List<Product>>', but 'Resource<List<ProductEntity>>' was expected.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:167:45 Unresolved reference 'removeFromWishlist'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:169:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:187:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:187:100 Unresolved reference 'data'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:195:13 'when' expression must be exhaustive. Add the 'is Error', 'is Success<*>' branches or an 'else' branch.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:196:20 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:200:20 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:201:42 Unresolved reference 'message'.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:203:20 One type argument expected. Use class 'Loading' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:228:17 'when' expression must be exhaustive. Add the 'is Error', 'is Success<*>' branches or an 'else' branch.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:229:24 One type argument expected. Use class 'Success' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:233:24 One type argument expected. Use class 'Error' if you do not intend to pass type arguments.
+e: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/src/main/kotlin/com/rio/rostry/feature/general/ui/wishlist/WishlistViewModel.kt:236:24 One type argument expected. Use class 'Loading' if you do not intend to pass type arguments.
+
+> Task :feature:general:compileDebugKotlin FAILED
+> Task :data:farm:kspDebugKotlin
+e: [ksp] InjectProcessingStep was unable to process 'SyncManager(java.util.stream.SliceOps$1@6060524e, ...)' because 'com.google.firebase.auth.FirebaseAuth' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.data.sync.SyncManager
+    => element (CONSTRUCTOR): SyncManager(java.util.stream.SliceOps$1@21b031db, ...)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.UserDao,com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.OrderDao,com.rio.rostry.data.database.dao.ProductTrackingDao,com.rio.rostry.data.database.dao.ChatMessageDao,com.rio.rostry.data.database.dao.TransferDao,com.rio.rostry.data.database.dao.SyncStateDao,com.rio.rostry.data.database.dao.OutboxDao,com.rio.rostry.core.database.sync.SyncRemote,com.rio.rostry.core.common.network.ConnectivityManager,com.google.gson.Gson,com.rio.rostry.data.database.dao.BreedingPairDao,com.rio.rostry.data.database.dao.FarmAlertDao,com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,com.rio.rostry.data.database.dao.VaccinationRecordDao,com.rio.rostry.data.database.dao.GrowthRecordDao,com.rio.rostry.data.database.dao.QuarantineRecordDao,com.rio.rostry.data.database.dao.MortalityRecordDao,com.rio.rostry.data.database.dao.HatchingBatchDao,com.rio.rostry.data.database.dao.HatchingLogDao,com.rio.rostry.data.database.dao.DailyLogDao,com.rio.rostry.data.database.dao.TaskDao,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,com.rio.rostry.data.database.dao.RoleMigrationDao,com.google.firebase.auth.FirebaseAuth,TraceabilityRepository,com.rio.rostry.core.common.session.SessionManager,com.rio.rostry.data.database.dao.BatchSummaryDao,com.rio.rostry.data.resilience.CircuitBreakerRegistry,com.rio.rostry.data.database.dao.MediaItemDao)void
+    => type (ERROR parameter type): com.google.firebase.auth.FirebaseAuth
+
+If type 'com.google.firebase.auth.FirebaseAuth' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'com.google.firebase.auth.FirebaseAuth' is on your classpath.
+
+> Task :data:farm:kspDebugKotlin FAILED
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:general:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':data:farm:kspDebugKotlin'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 1m 10s
+334 actionable tasks: 11 executed, 323 up-to-date
+Configuration cache entry reused.

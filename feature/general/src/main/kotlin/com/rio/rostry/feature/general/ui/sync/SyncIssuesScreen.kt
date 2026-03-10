@@ -56,7 +56,6 @@ fun OutboxEntity.toFailedOperation(): FailedOperation {
 @HiltViewModel
 class SyncIssuesViewModel @Inject constructor(
     private val outboxDao: OutboxDao,
-    private val workManager: WorkManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 

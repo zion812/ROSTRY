@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.OutboxDao
 import com.rio.rostry.data.database.entity.OutboxEntity
-import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.domain.social.repository.MessagingRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job

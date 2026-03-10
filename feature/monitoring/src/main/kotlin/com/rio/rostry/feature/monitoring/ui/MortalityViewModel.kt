@@ -2,7 +2,7 @@ package com.rio.rostry.ui.monitoring.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.monitoring.MortalityRepository
+import com.rio.rostry.domain.monitoring.repository.MortalityRepository
 import com.rio.rostry.data.database.entity.MortalityRecordEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -7,6 +7,7 @@ import com.rio.rostry.data.commerce.repository.OrderRepositoryImpl
 import com.rio.rostry.data.commerce.repository.MarketplaceRepositoryImpl
 import com.rio.rostry.data.commerce.repository.ListingDraftRepositoryImpl
 import com.rio.rostry.data.commerce.repository.TransactionRepositoryImpl
+import com.rio.rostry.data.commerce.repository.AuctionRepositoryImpl
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.commerce.repository.CartRepository
 import com.rio.rostry.domain.commerce.repository.WishlistRepository
@@ -18,6 +19,7 @@ import com.rio.rostry.domain.commerce.repository.MarketListingRepository
 import com.rio.rostry.data.commerce.repository.MarketListingRepositoryImpl
 import com.rio.rostry.domain.commerce.repository.DisputeRepository
 import com.rio.rostry.data.commerce.repository.DisputeRepositoryImpl
+import com.rio.rostry.domain.commerce.repository.AuctionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -114,4 +116,13 @@ abstract class CommerceDataModule {
     abstract fun bindDisputeRepository(
         impl: DisputeRepositoryImpl
     ): DisputeRepository
+
+    /**
+     * Binds AuctionRepositoryImpl to AuctionRepository interface.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindAuctionRepository(
+        impl: AuctionRepositoryImpl
+    ): AuctionRepository
 }

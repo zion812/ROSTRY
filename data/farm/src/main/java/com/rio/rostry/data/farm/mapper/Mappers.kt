@@ -60,7 +60,7 @@ fun InventoryItemEntity.toDomainModel(): InventoryItem {
         id = inventoryId,
         farmAssetId = sourceAssetId ?: "",
         farmerId = farmerId,
-        quantity = quantityAvailable.toInt(),
+        quantity = quantityAvailable,
         unit = unit,
         harvestDate = producedAt,
         storageLocation = null, // Not in entity yet
@@ -70,8 +70,8 @@ fun InventoryItemEntity.toDomainModel(): InventoryItem {
             else -> QualityGrade.STANDARD
         },
         expiryDate = expiresAt,
-        availableQuantity = quantityAvailable.toInt(),
-        reservedQuantity = quantityReserved.toInt(),
+        availableQuantity = quantityAvailable,
+        reservedQuantity = quantityReserved,
         createdAt = createdAt,
         updatedAt = updatedAt
     )

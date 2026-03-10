@@ -4,7 +4,8 @@ import com.google.gson.Gson
 import com.rio.rostry.data.database.dao.*
 import com.rio.rostry.data.database.entity.*
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.network.ConnectivityManager
+import com.rio.rostry.core.common.network.ConnectivityManager
+import com.rio.rostry.domain.farm.repository.TraceabilityRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,12 +14,12 @@ import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.core.common.sync.SyncManager
 import com.rio.rostry.core.common.sync.SyncStats
 import com.rio.rostry.core.common.sync.SyncProgress
 import com.rio.rostry.core.common.sync.SyncConflict
+import com.rio.rostry.core.database.sync.SyncRemote
 import com.rio.rostry.domain.model.UserType
 import kotlinx.coroutines.flow.first
 
@@ -62,10 +63,10 @@ class SyncManager @Inject constructor(
     private val sessionManager: SessionManager,
     // Split-Brain Data Architecture
     private val batchSummaryDao: com.rio.rostry.data.database.dao.BatchSummaryDao,
-    private val circuitBreakerRegistry: com.rio.rostry.data.resilience.CircuitBreakerRegistry,
+    // private val circuitBreakerRegistry: com.rio.rostry.data.resilience.CircuitBreakerRegistry,
     // Multimedia Sync
     private val mediaItemDao: com.rio.rostry.data.database.dao.MediaItemDao
-) {
+) : com.rio.rostry.core.common.sync.SyncManager {
     companion object {
         // Overall sync timeout to prevent indefinite operations
         private const val OVERALL_SYNC_TIMEOUT_MS = 300_000L // 5 minutes
@@ -80,7 +81,7 @@ class SyncManager @Inject constructor(
 
 
     private val _syncProgressFlow = MutableSharedFlow<SyncProgress>()
-    override val syncProgressFlow = _syncProgressFlow
+    override val syncProgressFlow: kotlinx.coroutines.flow.Flow<SyncProgress> = _syncProgressFlow
 
     data class ConflictEvent(
         val entityType: String,
@@ -191,7 +192,7 @@ class SyncManager @Inject constructor(
                 remote.parentMaleId!!,
                 remote.parentFemaleId!!
             )) {
-                is Resource.Success -> res.data == true
+                is com.rio.rostry.core.model.Result.Success -> res.data == true
                 else -> false
             }
         } else false

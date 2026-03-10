@@ -53,6 +53,9 @@ include(":domain:commerce")
 include(":domain:farm")
 include(":domain:monitoring")
 include(":domain:social")
+include(":domain:health")
+include(":domain:recommendation")
+include(":domain:service")
 
 // ──────────────────────────────────────────────
 // Data Modules (implementations)

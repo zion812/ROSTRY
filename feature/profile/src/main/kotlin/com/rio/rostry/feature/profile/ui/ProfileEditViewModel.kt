@@ -3,7 +3,7 @@ package com.rio.rostry.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.analytics.FlowAnalyticsTracker

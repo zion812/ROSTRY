@@ -6,32 +6,38 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Repository contract for user profile management operations.
- * 
+ *
  * Phase 2: Domain and Data Decoupling
  * Defines user profile interfaces without implementation details.
  */
 interface UserRepository {
+    /**
+     * Get current authenticated user.
+     * @return Flow emitting the current user or null if not authenticated
+     */
+    fun getCurrentUser(): Flow<User?>
+
     /**
      * Get user by ID.
      * @param userId The user ID to fetch
      * @return Result containing the user or error
      */
     suspend fun getUserById(userId: String): Result<User>
-    
+
     /**
      * Observe user by ID.
      * @param userId The user ID to observe
      * @return Flow emitting the user or null if not found
      */
     fun observeUserById(userId: String): Flow<User?>
-    
+
     /**
      * Update user profile.
      * @param user The user with updated information
      * @return Result indicating success or error
      */
     suspend fun updateUserProfile(user: User): Result<Unit>
-    
+
     /**
      * Update user display name.
      * @param userId The user ID
@@ -39,7 +45,7 @@ interface UserRepository {
      * @return Result indicating success or error
      */
     suspend fun updateDisplayName(userId: String, displayName: String): Result<Unit>
-    
+
     /**
      * Update user photo URL.
      * @param userId The user ID
@@ -47,7 +53,7 @@ interface UserRepository {
      * @return Result indicating success or error
      */
     suspend fun updatePhotoUrl(userId: String, photoUrl: String): Result<Unit>
-    
+
     /**
      * Delete user account.
      * @param userId The user ID to delete

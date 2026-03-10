@@ -10,7 +10,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rio.rostry.data.database.AppDatabase
 import com.rio.rostry.data.database.entity.*
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -103,12 +103,11 @@ class BackupService @Inject constructor(
      */
     suspend fun exportUserData(): Resource<File> = withContext(Dispatchers.IO) {
         try {
-            val user = userRepository.getCurrentUser().first().let { 
-                if (it is Resource.Success) it.data else null
-            } ?: return@withContext Resource.Error("User not found")
+            val user = userRepository.getCurrentUser().first()
+                ?: return@withContext Resource.Error("User not found")
 
-            val userId = user.userId
-            
+            val userId = user.id
+
             // Collect all data
             val exportData = collectAllData(userId, user)
             
@@ -391,34 +390,42 @@ class BackupService @Inject constructor(
     /**
      * Collect all data for export.
      */
-    private suspend fun collectAllData(userId: String, user: UserEntity): ComprehensiveExportData {
+    private suspend fun collectAllData(userId: String, user: com.rio.rostry.core.model.User): ComprehensiveExportData {
         return ComprehensiveExportData(
-            user = user,
+            user = com.rio.rostry.data.database.entity.UserEntity(
+                userId = user.id,
+                fullName = user.displayName,
+                email = user.email,
+                phoneNumber = user.phoneNumber,
+                userType = "GENERAL",
+                createdAt = null,
+                updatedAt = null
+            ),
             products = database.productDao().getProductsBySeller(userId).first(),
             assets = database.farmAssetDao().getAssetsByFarmer(userId).first(),
             dailyLogs = database.dailyLogDao().observeForFarmerBetween(userId, 0, Long.MAX_VALUE).first(),
             growthRecords = database.growthRecordDao().getAllByFarmer(userId),
             vaccinationRecords = database.vaccinationRecordDao().observeByFarmer(userId).first(),
-            mortalityRecords = emptyList(), // Would need a DAO method
-            quarantineRecords = emptyList(), // Would need a DAO method
+            mortalityRecords = emptyList(),
+            quarantineRecords = emptyList(),
             hatchingBatches = database.hatchingBatchDao().observeActiveBatchesForFarmer(userId, 0).first(),
-            hatchingLogs = emptyList(), // Would need a DAO method
-            eggCollections = emptyList(), // Would need a DAO method
+            hatchingLogs = emptyList(),
+            eggCollections = emptyList(),
             farmActivityLogs = database.farmActivityLogDao().observeForFarmer(userId).first(),
-            dashboardSnapshots = emptyList(), // Would need a DAO method
-            breedingPairs = emptyList(), // Would need a DAO method
-            matingLogs = emptyList() // Would need a DAO method
+            dashboardSnapshots = emptyList(),
+            breedingPairs = emptyList(),
+            matingLogs = emptyList()
         )
     }
 
     /**
      * Create metadata for the backup.
      */
-    private fun createMetadata(userId: String, user: UserEntity, data: ComprehensiveExportData): BackupMetadata {
+    private fun createMetadata(userId: String, user: com.rio.rostry.core.model.User, data: ComprehensiveExportData): BackupMetadata {
         return BackupMetadata(
             version = BACKUP_VERSION,
             userId = userId,
-            userName = user.fullName,
+            userName = user.displayName ?: user.email ?: "Unknown",
             exportDate = System.currentTimeMillis(),
             entityCounts = mapOf(
                 "products" to data.products.size,

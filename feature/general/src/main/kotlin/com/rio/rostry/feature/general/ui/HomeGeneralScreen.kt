@@ -36,10 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.ui.components.OnboardingChecklistCard
-import com.rio.rostry.ui.navigation.RouteConstants
-import com.rio.rostry.ui.onboarding.OnboardingChecklistViewModel
+import com.rio.rostry.core.designsystem.components.OnboardingChecklistCard
+import com.rio.rostry.core.navigation.RouteConstants
+import com.rio.rostry.feature.onboarding.ui.OnboardingChecklistViewModel
 
 @Composable
 fun HomeGeneralScreen(

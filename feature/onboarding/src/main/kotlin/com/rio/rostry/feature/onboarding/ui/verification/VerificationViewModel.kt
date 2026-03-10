@@ -11,7 +11,7 @@ import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.UploadTaskDao
 import com.rio.rostry.data.database.entity.AuditLogEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.domain.model.FarmLocation
 import com.rio.rostry.domain.model.LocationComponent
 import com.rio.rostry.domain.model.UpgradeType

@@ -2,15 +2,15 @@ package com.rio.rostry.ui.monitoring.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.monitoring.HatchingRepository
-import com.rio.rostry.data.repository.monitoring.VaccinationRepository
-import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.domain.monitoring.repository.HatchingRepository
+import com.rio.rostry.domain.monitoring.repository.VaccinationRepository
+import com.rio.rostry.domain.monitoring.repository.TaskRepository
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.data.database.dao.HatchingBatchDao
 import com.rio.rostry.data.database.dao.EggCollectionDao
 import com.rio.rostry.data.database.dao.BreedingPairDao
 import com.rio.rostry.data.database.dao.BreedingRecordDao
-import com.rio.rostry.data.repository.EnthusiastBreedingRepository
+import com.rio.rostry.domain.farm.repository.EnthusiastBreedingRepository
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.model.LifecycleStage
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity

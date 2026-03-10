@@ -8,6 +8,8 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:common"))
+    implementation(project(":core:domain"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.javax.inject)
 

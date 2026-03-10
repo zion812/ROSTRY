@@ -50,6 +50,13 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:domain"))
 
+    // Gson
+    implementation(libs.gson)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
+
     // Domain
     implementation(project(":domain:social"))
 

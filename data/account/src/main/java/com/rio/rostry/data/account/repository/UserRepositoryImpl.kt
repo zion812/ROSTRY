@@ -26,6 +26,25 @@ class UserRepositoryImpl @Inject constructor(
 
     private val usersCollection = firestore.collection("users")
 
+    override fun getCurrentUser(): Flow<User?> = callbackFlow {
+        val userId = firebaseAuth.currentUser?.uid
+        if (userId == null) {
+            trySend(null)
+            awaitClose()
+            return@callbackFlow
+        }
+        val listener = usersCollection.document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+                val user = snapshot?.toObject(User::class.java)
+                trySend(user)
+            }
+        awaitClose { listener.remove() }
+    }
+
     override suspend fun getUserById(userId: String): Result<User> {
         return try {
             val document = usersCollection.document(userId).get().await()

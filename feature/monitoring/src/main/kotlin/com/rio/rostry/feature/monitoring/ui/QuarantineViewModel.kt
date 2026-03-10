@@ -2,8 +2,8 @@ package com.rio.rostry.ui.monitoring.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.monitoring.QuarantineRepository
-import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
+import com.rio.rostry.domain.monitoring.repository.QuarantineRepository
+import com.rio.rostry.domain.monitoring.repository.FarmAlertRepository
 import com.rio.rostry.data.database.entity.QuarantineRecordEntity
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.ui.navigation.RouteConstants

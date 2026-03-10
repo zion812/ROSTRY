@@ -44,6 +44,15 @@ dependencies {
     implementation(project(":core:navigation"))
     implementation(project(":core:database"))
 
+    // Feature modules
+    implementation(project(":feature:onboarding"))
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
+
+    // Gson
+    implementation(libs.gson)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -58,6 +67,6 @@ dependencies {
     ksp(libs.hilt.android.compiler)
 
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

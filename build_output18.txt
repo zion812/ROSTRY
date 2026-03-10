@@ -1,0 +1,1094 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Reusing configuration cache.
+> Task :core:navigation:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:network:preBuild UP-TO-DATE
+> Task :core:network:preDebugBuild UP-TO-DATE
+> Task :core:model:preBuild UP-TO-DATE
+> Task :core:database:preBuild UP-TO-DATE
+> Task :core:database:preDebugBuild UP-TO-DATE
+> Task :core:domain:preBuild UP-TO-DATE
+> Task :core:common:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :core:designsystem:preBuild UP-TO-DATE
+> Task :core:model:preDebugBuild UP-TO-DATE
+> Task :core:common:preDebugBuild UP-TO-DATE
+> Task :data:account:preBuild UP-TO-DATE
+> Task :core:domain:preDebugBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :core:navigation:preDebugBuild UP-TO-DATE
+> Task :core:designsystem:preDebugBuild UP-TO-DATE
+> Task :core:navigation:processDebugNavigationResources UP-TO-DATE
+> Task :data:account:preDebugBuild UP-TO-DATE
+> Task :core:common:processDebugNavigationResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :core:domain:processDebugNavigationResources UP-TO-DATE
+> Task :core:designsystem:processDebugNavigationResources UP-TO-DATE
+> Task :core:model:processDebugNavigationResources UP-TO-DATE
+> Task :core:database:processDebugNavigationResources UP-TO-DATE
+> Task :app:injectCrashlyticsMappingFileIdDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :core:network:processDebugNavigationResources UP-TO-DATE
+> Task :app:injectCrashlyticsVersionControlInfoDebug UP-TO-DATE
+> Task :data:monitoring:preBuild UP-TO-DATE
+> Task :data:admin:preBuild UP-TO-DATE
+> Task :data:commerce:preBuild UP-TO-DATE
+> Task :data:commerce:preDebugBuild UP-TO-DATE
+> Task :domain:admin:preBuild UP-TO-DATE
+> Task :domain:account:preBuild UP-TO-DATE
+> Task :data:social:preBuild UP-TO-DATE
+> Task :data:monitoring:preDebugBuild UP-TO-DATE
+> Task :data:social:preDebugBuild UP-TO-DATE
+> Task :domain:admin:preDebugBuild UP-TO-DATE
+> Task :data:farm:preBuild UP-TO-DATE
+> Task :domain:account:preDebugBuild UP-TO-DATE
+> Task :data:farm:preDebugBuild UP-TO-DATE
+> Task :domain:commerce:preBuild UP-TO-DATE
+> Task :data:admin:preDebugBuild UP-TO-DATE
+> Task :domain:farm:preBuild UP-TO-DATE
+> Task :domain:commerce:preDebugBuild UP-TO-DATE
+> Task :domain:farm:preDebugBuild UP-TO-DATE
+> Task :domain:monitoring:preBuild UP-TO-DATE
+> Task :domain:monitoring:preDebugBuild UP-TO-DATE
+> Task :domain:admin:processDebugNavigationResources UP-TO-DATE
+> Task :data:monitoring:processDebugNavigationResources UP-TO-DATE
+> Task :domain:farm:processDebugNavigationResources UP-TO-DATE
+> Task :data:commerce:processDebugNavigationResources UP-TO-DATE
+> Task :domain:social:preBuild UP-TO-DATE
+> Task :domain:social:preDebugBuild UP-TO-DATE
+> Task :feature:achievements:preBuild UP-TO-DATE
+> Task :feature:asset-management:preBuild UP-TO-DATE
+> Task :feature:asset-management:preDebugBuild UP-TO-DATE
+> Task :feature:analytics:preBuild UP-TO-DATE
+> Task :feature:achievements:preDebugBuild UP-TO-DATE
+> Task :feature:analytics:preDebugBuild UP-TO-DATE
+> Task :data:account:processDebugNavigationResources UP-TO-DATE
+> Task :domain:account:processDebugNavigationResources UP-TO-DATE
+> Task :domain:monitoring:processDebugNavigationResources UP-TO-DATE
+> Task :data:social:processDebugNavigationResources UP-TO-DATE
+> Task :data:farm:processDebugNavigationResources UP-TO-DATE
+> Task :domain:commerce:processDebugNavigationResources UP-TO-DATE
+> Task :data:admin:processDebugNavigationResources UP-TO-DATE
+> Task :feature:general:preBuild UP-TO-DATE
+> Task :feature:feedback:preBuild UP-TO-DATE
+> Task :feature:general:preDebugBuild UP-TO-DATE
+> Task :feature:feedback:preDebugBuild UP-TO-DATE
+> Task :feature:expert:preBuild UP-TO-DATE
+> Task :feature:events:preBuild UP-TO-DATE
+> Task :feature:analytics:processDebugNavigationResources UP-TO-DATE
+> Task :feature:achievements:processDebugNavigationResources UP-TO-DATE
+> Task :feature:enthusiast-tools:preBuild UP-TO-DATE
+> Task :feature:farm-dashboard:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:preDebugBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:preDebugBuild UP-TO-DATE
+> Task :feature:asset-management:processDebugNavigationResources UP-TO-DATE
+> Task :feature:farm-dashboard:preDebugBuild UP-TO-DATE
+> Task :feature:events:preDebugBuild UP-TO-DATE
+> Task :feature:listing-management:preBuild UP-TO-DATE
+> Task :feature:leaderboard:preBuild UP-TO-DATE
+> Task :domain:social:processDebugNavigationResources UP-TO-DATE
+> Task :feature:expert:preDebugBuild UP-TO-DATE
+> Task :feature:insights:preBuild UP-TO-DATE
+> Task :feature:feedback:processDebugNavigationResources UP-TO-DATE
+> Task :feature:login:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:processDebugNavigationResources UP-TO-DATE
+> Task :feature:listing-management:preDebugBuild UP-TO-DATE
+> Task :feature:marketplace:preBuild UP-TO-DATE
+> Task :feature:insights:preDebugBuild UP-TO-DATE
+> Task :feature:monitoring:preBuild UP-TO-DATE
+> Task :feature:leaderboard:preDebugBuild UP-TO-DATE
+> Task :feature:monitoring:preDebugBuild UP-TO-DATE
+> Task :feature:login:preDebugBuild UP-TO-DATE
+> Task :feature:events:processDebugNavigationResources UP-TO-DATE
+> Task :feature:marketplace:preDebugBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:processDebugNavigationResources UP-TO-DATE
+> Task :feature:general:processDebugNavigationResources UP-TO-DATE
+> Task :feature:onboarding:preBuild UP-TO-DATE
+> Task :feature:expert:processDebugNavigationResources UP-TO-DATE
+> Task :feature:notifications:preBuild UP-TO-DATE
+> Task :feature:notifications:preDebugBuild UP-TO-DATE
+> Task :feature:onboarding:preDebugBuild UP-TO-DATE
+> Task :feature:listing-management:processDebugNavigationResources UP-TO-DATE
+> Task :feature:social-feed:preBuild UP-TO-DATE
+> Task :feature:social-feed:preDebugBuild UP-TO-DATE
+> Task :feature:profile:preBuild UP-TO-DATE
+> Task :feature:support:preBuild UP-TO-DATE
+> Task :feature:profile:preDebugBuild UP-TO-DATE
+> Task :feature:support:preDebugBuild UP-TO-DATE
+> Task :feature:farm-dashboard:processDebugNavigationResources UP-TO-DATE
+> Task :feature:onboarding:processDebugNavigationResources UP-TO-DATE
+> Task :feature:login:processDebugNavigationResources UP-TO-DATE
+> Task :feature:monitoring:processDebugNavigationResources UP-TO-DATE
+> Task :feature:transfers:preBuild UP-TO-DATE
+> Task :feature:leaderboard:processDebugNavigationResources UP-TO-DATE
+> Task :feature:insights:processDebugNavigationResources UP-TO-DATE
+> Task :feature:traceability:preBuild UP-TO-DATE
+> Task :feature:transfers:preDebugBuild UP-TO-DATE
+> Task :feature:notifications:processDebugNavigationResources UP-TO-DATE
+> Task :feature:traceability:preDebugBuild UP-TO-DATE
+> Task :feature:marketplace:processDebugNavigationResources UP-TO-DATE
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:profile:processDebugNavigationResources UP-TO-DATE
+> Task :core:designsystem:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:transfers:processDebugNavigationResources UP-TO-DATE
+> Task :feature:social-feed:processDebugNavigationResources UP-TO-DATE
+> Task :core:common:generateDebugResources UP-TO-DATE
+> Task :feature:support:processDebugNavigationResources UP-TO-DATE
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:model:generateDebugResources UP-TO-DATE
+> Task :core:database:generateDebugResources UP-TO-DATE
+> Task :core:domain:generateDebugResources UP-TO-DATE
+> Task :core:model:javaPreCompileDebug UP-TO-DATE
+> Task :feature:traceability:processDebugNavigationResources UP-TO-DATE
+> Task :core:navigation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:javaPreCompileDebug UP-TO-DATE
+> Task :core:common:javaPreCompileDebug UP-TO-DATE
+> Task :core:network:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:designsystem:generateDebugResources UP-TO-DATE
+> Task :core:designsystem:javaPreCompileDebug UP-TO-DATE
+> Task :core:navigation:javaPreCompileDebug UP-TO-DATE
+> Task :core:navigation:generateDebugResources UP-TO-DATE
+> Task :data:account:generateDebugResources UP-TO-DATE
+> Task :core:network:generateDebugResources UP-TO-DATE
+> Task :core:network:javaPreCompileDebug UP-TO-DATE
+> Task :data:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :core:model:packageDebugResources UP-TO-DATE
+> Task :domain:account:generateDebugResources UP-TO-DATE
+> Task :domain:account:javaPreCompileDebug UP-TO-DATE
+> Task :core:database:javaPreCompileDebug UP-TO-DATE
+> Task :core:designsystem:packageDebugResources UP-TO-DATE
+> Task :core:database:packageDebugResources UP-TO-DATE
+> Task :data:account:packageDebugResources UP-TO-DATE
+> Task :core:common:packageDebugResources UP-TO-DATE
+> Task :data:admin:generateDebugResources UP-TO-DATE
+> Task :core:navigation:packageDebugResources UP-TO-DATE
+> Task :core:network:packageDebugResources UP-TO-DATE
+> Task :core:domain:packageDebugResources UP-TO-DATE
+> Task :domain:account:packageDebugResources UP-TO-DATE
+> Task :data:admin:packageDebugResources UP-TO-DATE
+> Task :data:account:javaPreCompileDebug UP-TO-DATE
+> Task :data:admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:generateDebugResources UP-TO-DATE
+> Task :core:network:parseDebugLocalResources UP-TO-DATE
+> Task :data:account:parseDebugLocalResources UP-TO-DATE
+> Task :core:model:parseDebugLocalResources UP-TO-DATE
+> Task :core:database:parseDebugLocalResources UP-TO-DATE
+> Task :core:common:parseDebugLocalResources UP-TO-DATE
+> Task :core:designsystem:parseDebugLocalResources UP-TO-DATE
+> Task :data:admin:parseDebugLocalResources UP-TO-DATE
+> Task :core:domain:parseDebugLocalResources UP-TO-DATE
+> Task :core:navigation:parseDebugLocalResources UP-TO-DATE
+> Task :domain:account:parseDebugLocalResources UP-TO-DATE
+> Task :domain:admin:packageDebugResources UP-TO-DATE
+> Task :domain:admin:parseDebugLocalResources UP-TO-DATE
+> Task :core:navigation:generateDebugRFile UP-TO-DATE
+> Task :core:common:generateDebugRFile UP-TO-DATE
+> Task :core:model:generateDebugRFile UP-TO-DATE
+> Task :data:admin:generateDebugRFile UP-TO-DATE
+> Task :core:database:generateDebugRFile UP-TO-DATE
+> Task :data:commerce:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:designsystem:generateDebugRFile UP-TO-DATE
+> Task :domain:account:generateDebugRFile UP-TO-DATE
+> Task :core:network:generateDebugRFile UP-TO-DATE
+> Task :domain:commerce:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:account:generateDebugRFile UP-TO-DATE
+> Task :core:domain:generateDebugRFile UP-TO-DATE
+> Task :data:farm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:farm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:javaPreCompileDebug UP-TO-DATE
+> Task :domain:commerce:generateDebugResources UP-TO-DATE
+> Task :domain:commerce:javaPreCompileDebug UP-TO-DATE
+> Task :domain:farm:generateDebugResources UP-TO-DATE
+> Task :domain:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:admin:javaPreCompileDebug UP-TO-DATE
+> Task :domain:social:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:commerce:generateDebugResources UP-TO-DATE
+> Task :data:farm:generateDebugResources UP-TO-DATE
+> Task :data:commerce:javaPreCompileDebug UP-TO-DATE
+> Task :domain:farm:javaPreCompileDebug UP-TO-DATE
+> Task :domain:monitoring:generateDebugResources UP-TO-DATE
+> Task :domain:social:generateDebugResources UP-TO-DATE
+> Task :domain:monitoring:javaPreCompileDebug UP-TO-DATE
+> Task :domain:admin:generateDebugRFile UP-TO-DATE
+> Task :data:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:social:javaPreCompileDebug UP-TO-DATE
+> Task :data:farm:javaPreCompileDebug UP-TO-DATE
+> Task :data:social:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:monitoring:javaPreCompileDebug UP-TO-DATE
+> Task :data:social:generateDebugResources UP-TO-DATE
+> Task :data:monitoring:generateDebugResources UP-TO-DATE
+> Task :feature:achievements:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:social:javaPreCompileDebug UP-TO-DATE
+> Task :feature:achievements:generateDebugResources UP-TO-DATE
+> Task :domain:commerce:packageDebugResources UP-TO-DATE
+> Task :feature:achievements:javaPreCompileDebug UP-TO-DATE
+> Task :domain:farm:packageDebugResources UP-TO-DATE
+> Task :data:commerce:packageDebugResources UP-TO-DATE
+> Task :data:farm:packageDebugResources UP-TO-DATE
+> Task :domain:monitoring:packageDebugResources UP-TO-DATE
+> Task :domain:social:packageDebugResources UP-TO-DATE
+> Task :domain:farm:parseDebugLocalResources UP-TO-DATE
+> Task :domain:commerce:parseDebugLocalResources UP-TO-DATE
+> Task :data:commerce:parseDebugLocalResources UP-TO-DATE
+> Task :data:monitoring:packageDebugResources UP-TO-DATE
+> Task :feature:analytics:generateDebugResources UP-TO-DATE
+> Task :data:social:packageDebugResources UP-TO-DATE
+> Task :data:farm:parseDebugLocalResources UP-TO-DATE
+> Task :domain:social:parseDebugLocalResources UP-TO-DATE
+> Task :data:monitoring:parseDebugLocalResources UP-TO-DATE
+> Task :domain:monitoring:parseDebugLocalResources UP-TO-DATE
+> Task :data:social:parseDebugLocalResources UP-TO-DATE
+> Task :data:commerce:generateDebugRFile UP-TO-DATE
+> Task :feature:analytics:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:commerce:generateDebugRFile UP-TO-DATE
+> Task :domain:farm:generateDebugRFile UP-TO-DATE
+> Task :feature:enthusiast-tools:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:farm:generateDebugRFile UP-TO-DATE
+> Task :data:monitoring:generateDebugRFile UP-TO-DATE
+> Task :feature:asset-management:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:achievements:packageDebugResources UP-TO-DATE
+> Task :feature:analytics:packageDebugResources UP-TO-DATE
+> Task :feature:enthusiast-tools:generateDebugResources UP-TO-DATE
+> Task :feature:asset-management:javaPreCompileDebug UP-TO-DATE
+> Task :feature:analytics:javaPreCompileDebug UP-TO-DATE
+> Task :feature:enthusiast-tools:javaPreCompileDebug UP-TO-DATE
+> Task :feature:events:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:expert:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:achievements:parseDebugLocalResources UP-TO-DATE
+> Task :feature:asset-management:generateDebugResources UP-TO-DATE
+> Task :data:social:generateDebugRFile UP-TO-DATE
+> Task :domain:monitoring:generateDebugRFile UP-TO-DATE
+> Task :domain:social:generateDebugRFile UP-TO-DATE
+> Task :feature:farm-dashboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:events:javaPreCompileDebug UP-TO-DATE
+> Task :feature:events:generateDebugResources UP-TO-DATE
+> Task :feature:analytics:parseDebugLocalResources UP-TO-DATE
+> Task :feature:farm-dashboard:generateDebugResources UP-TO-DATE
+> Task :feature:expert:javaPreCompileDebug UP-TO-DATE
+> Task :feature:farmer-tools:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:farmer-tools:generateDebugResources UP-TO-DATE
+> Task :feature:farmer-tools:javaPreCompileDebug UP-TO-DATE
+> Task :feature:farm-dashboard:javaPreCompileDebug UP-TO-DATE
+> Task :feature:feedback:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:achievements:generateDebugRFile UP-TO-DATE
+> Task :feature:analytics:generateDebugRFile UP-TO-DATE
+> Task :feature:general:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:expert:generateDebugResources UP-TO-DATE
+> Task :feature:enthusiast-tools:packageDebugResources UP-TO-DATE
+> Task :feature:asset-management:packageDebugResources UP-TO-DATE
+> Task :feature:feedback:generateDebugResources UP-TO-DATE
+> Task :feature:farm-dashboard:packageDebugResources UP-TO-DATE
+> Task :feature:feedback:javaPreCompileDebug UP-TO-DATE
+> Task :feature:enthusiast-tools:parseDebugLocalResources UP-TO-DATE
+> Task :feature:onboarding:generateDebugResources UP-TO-DATE
+> Task :feature:general:generateDebugResources UP-TO-DATE
+> Task :feature:farm-dashboard:parseDebugLocalResources UP-TO-DATE
+> Task :feature:onboarding:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:events:packageDebugResources UP-TO-DATE
+> Task :feature:onboarding:javaPreCompileDebug UP-TO-DATE
+> Task :feature:expert:packageDebugResources UP-TO-DATE
+> Task :feature:asset-management:parseDebugLocalResources UP-TO-DATE
+> Task :feature:events:parseDebugLocalResources UP-TO-DATE
+> Task :feature:farmer-tools:packageDebugResources UP-TO-DATE
+> Task :feature:general:javaPreCompileDebug UP-TO-DATE
+> Task :feature:insights:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:farm-dashboard:generateDebugRFile UP-TO-DATE
+> Task :feature:enthusiast-tools:generateDebugRFile UP-TO-DATE
+> Task :feature:leaderboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:expert:parseDebugLocalResources UP-TO-DATE
+> Task :feature:insights:generateDebugResources UP-TO-DATE
+> Task :feature:insights:javaPreCompileDebug UP-TO-DATE
+> Task :feature:farmer-tools:parseDebugLocalResources UP-TO-DATE
+> Task :feature:leaderboard:generateDebugResources UP-TO-DATE
+> Task :feature:events:generateDebugRFile UP-TO-DATE
+> Task :feature:asset-management:generateDebugRFile UP-TO-DATE
+> Task :feature:listing-management:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feedback:packageDebugResources UP-TO-DATE
+> Task :feature:general:packageDebugResources UP-TO-DATE
+> Task :feature:onboarding:packageDebugResources UP-TO-DATE
+> Task :feature:leaderboard:javaPreCompileDebug UP-TO-DATE
+> Task :feature:listing-management:javaPreCompileDebug UP-TO-DATE
+> Task :feature:login:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:listing-management:generateDebugResources UP-TO-DATE
+> Task :feature:onboarding:parseDebugLocalResources UP-TO-DATE
+> Task :feature:feedback:parseDebugLocalResources UP-TO-DATE
+> Task :feature:farmer-tools:generateDebugRFile UP-TO-DATE
+> Task :feature:general:parseDebugLocalResources UP-TO-DATE
+> Task :feature:login:generateDebugResources UP-TO-DATE
+> Task :feature:login:javaPreCompileDebug UP-TO-DATE
+> Task :feature:marketplace:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:leaderboard:packageDebugResources UP-TO-DATE
+> Task :feature:marketplace:generateDebugResources UP-TO-DATE
+> Task :feature:insights:packageDebugResources UP-TO-DATE
+> Task :feature:leaderboard:parseDebugLocalResources UP-TO-DATE
+> Task :feature:marketplace:javaPreCompileDebug UP-TO-DATE
+> Task :feature:onboarding:generateDebugRFile UP-TO-DATE
+> Task :feature:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:insights:parseDebugLocalResources UP-TO-DATE
+> Task :feature:monitoring:generateDebugResources UP-TO-DATE
+> Task :feature:feedback:generateDebugRFile UP-TO-DATE
+> Task :feature:listing-management:packageDebugResources UP-TO-DATE
+> Task :feature:notifications:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:monitoring:javaPreCompileDebug UP-TO-DATE
+> Task :feature:notifications:generateDebugResources UP-TO-DATE
+> Task :feature:listing-management:parseDebugLocalResources UP-TO-DATE
+> Task :feature:general:generateDebugRFile UP-TO-DATE
+> Task :feature:marketplace:packageDebugResources UP-TO-DATE
+> Task :feature:leaderboard:generateDebugRFile UP-TO-DATE
+> Task :feature:profile:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:login:packageDebugResources UP-TO-DATE
+> Task :feature:notifications:javaPreCompileDebug UP-TO-DATE
+> Task :feature:marketplace:parseDebugLocalResources UP-TO-DATE
+> Task :feature:profile:javaPreCompileDebug UP-TO-DATE
+> Task :feature:profile:generateDebugResources UP-TO-DATE
+> Task :feature:login:parseDebugLocalResources UP-TO-DATE
+> Task :feature:social-feed:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:social-feed:generateDebugResources UP-TO-DATE
+> Task :feature:insights:generateDebugRFile UP-TO-DATE
+> Task :feature:listing-management:generateDebugRFile UP-TO-DATE
+> Task :feature:support:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:notifications:packageDebugResources UP-TO-DATE
+> Task :feature:monitoring:packageDebugResources UP-TO-DATE
+> Task :feature:social-feed:javaPreCompileDebug UP-TO-DATE
+> Task :feature:support:generateDebugResources UP-TO-DATE
+> Task :feature:monitoring:parseDebugLocalResources UP-TO-DATE
+> Task :feature:marketplace:generateDebugRFile UP-TO-DATE
+> Task :feature:login:generateDebugRFile UP-TO-DATE
+> Task :feature:traceability:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:support:javaPreCompileDebug UP-TO-DATE
+> Task :feature:transfers:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:notifications:parseDebugLocalResources UP-TO-DATE
+> Task :feature:traceability:generateDebugResources UP-TO-DATE
+> Task :feature:transfers:generateDebugResources UP-TO-DATE
+> Task :feature:traceability:javaPreCompileDebug UP-TO-DATE
+> Task :feature:transfers:javaPreCompileDebug UP-TO-DATE
+> Task :feature:monitoring:generateDebugRFile UP-TO-DATE
+> Task :feature:social-feed:packageDebugResources UP-TO-DATE
+> Task :feature:social-feed:parseDebugLocalResources UP-TO-DATE
+> Task :feature:notifications:generateDebugRFile UP-TO-DATE
+> Task :feature:support:packageDebugResources UP-TO-DATE
+> Task :feature:traceability:packageDebugResources UP-TO-DATE
+> Task :feature:traceability:parseDebugLocalResources UP-TO-DATE
+> Task :feature:social-feed:generateDebugRFile UP-TO-DATE
+> Task :feature:support:parseDebugLocalResources UP-TO-DATE
+> Task :feature:expert:generateDebugRFile UP-TO-DATE
+> Task :feature:traceability:generateDebugRFile UP-TO-DATE
+> Task :feature:profile:packageDebugResources UP-TO-DATE
+> Task :feature:support:generateDebugRFile UP-TO-DATE
+> Task :feature:profile:parseDebugLocalResources UP-TO-DATE
+> Task :feature:profile:generateDebugRFile UP-TO-DATE
+> Task :feature:transfers:packageDebugResources UP-TO-DATE
+> Task :feature:transfers:parseDebugLocalResources UP-TO-DATE
+> Task :feature:transfers:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :core:model:compileDebugKotlin UP-TO-DATE
+> Task :core:model:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:model:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:model:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:account:compileDebugKotlin UP-TO-DATE
+> Task :domain:admin:compileDebugKotlin UP-TO-DATE
+> Task :domain:account:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:admin:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:admin:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:account:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:admin:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:account:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:common:compileDebugKotlin UP-TO-DATE
+> Task :core:common:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:common:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:common:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:commerce:compileDebugKotlin UP-TO-DATE
+> Task :domain:commerce:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:commerce:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:farm:compileDebugKotlin UP-TO-DATE
+> Task :domain:commerce:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:farm:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:monitoring:compileDebugKotlin UP-TO-DATE
+> Task :domain:farm:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:monitoring:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:farm:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:monitoring:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:monitoring:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :domain:social:compileDebugKotlin UP-TO-DATE
+> Task :domain:social:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:network:compileDebugKotlin UP-TO-DATE
+> Task :domain:social:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :domain:social:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:network:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:network:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:network:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:database:kspDebugKotlin UP-TO-DATE
+> Task :core:navigation:compileDebugKotlin UP-TO-DATE
+> Task :core:navigation:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:navigation:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:navigation:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:database:compileDebugKotlin UP-TO-DATE
+> Task :core:database:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:database:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:database:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:domain:compileDebugKotlin UP-TO-DATE
+> Task :core:domain:compileDebugJavaWithJavac NO-SOURCE
+> Task :data:social:kspDebugKotlin UP-TO-DATE
+> Task :core:domain:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:monitoring:kspDebugKotlin UP-TO-DATE
+> Task :data:commerce:kspDebugKotlin UP-TO-DATE
+> Task :core:domain:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:account:kspDebugKotlin UP-TO-DATE
+> Task :data:admin:kspDebugKotlin UP-TO-DATE
+> Task :core:designsystem:compileDebugKotlin UP-TO-DATE
+> Task :core:designsystem:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:designsystem:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:designsystem:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:admin:compileDebugKotlin UP-TO-DATE
+> Task :data:social:compileDebugKotlin UP-TO-DATE
+> Task :data:social:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:admin:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:account:compileDebugKotlin UP-TO-DATE
+> Task :data:monitoring:compileDebugKotlin UP-TO-DATE
+> Task :data:commerce:compileDebugKotlin UP-TO-DATE
+> Task :data:account:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:commerce:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:monitoring:compileDebugJavaWithJavac UP-TO-DATE
+> Task :data:social:transformDebugClassesWithAsm UP-TO-DATE
+> Task :data:admin:transformDebugClassesWithAsm UP-TO-DATE
+> Task :data:account:transformDebugClassesWithAsm UP-TO-DATE
+> Task :data:monitoring:transformDebugClassesWithAsm UP-TO-DATE
+> Task :data:commerce:transformDebugClassesWithAsm UP-TO-DATE
+> Task :data:admin:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:social:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:monitoring:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:account:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:commerce:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:social:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:admin:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:commerce:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:monitoring:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:account:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:farm:kspDebugKotlin
+
+> Task :data:farm:compileDebugKotlin
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/data/farm/src/main/java/com/rio/rostry/data/service/BackupService.kt:36:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/data/farm/src/main/java/com/rio/rostry/data/sync/SyncManager.kt:989:93 Unchecked cast of 'Map<*, *>!' to 'Map<String, Any>'.
+
+> Task :data:farm:compileDebugJavaWithJavac
+> Task :data:farm:transformDebugClassesWithAsm
+> Task :data:farm:bundleLibRuntimeToJarDebug
+> Task :data:farm:bundleLibCompileToJarDebug
+> Task :feature:listing-management:kspDebugKotlin
+> Task :feature:farm-dashboard:kspDebugKotlin
+
+> Task :feature:asset-management:kspDebugKotlin
+e: [ksp] InjectProcessingStep was unable to process 'HealthRecordsViewModel(com.rio.rostry.domain.health.AssetHealthManager,VaccinationProtocolEngine)' because 'VaccinationProtocolEngine' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.asset.health.HealthRecordsViewModel
+    => element (CONSTRUCTOR): HealthRecordsViewModel(com.rio.rostry.domain.health.AssetHealthManager,VaccinationProtocolEngine)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.health.AssetHealthManager,VaccinationProtocolEngine)void
+    => type (ERROR parameter type): VaccinationProtocolEngine
+
+If type 'VaccinationProtocolEngine' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'VaccinationProtocolEngine' is on your classpath.
+
+> Task :feature:asset-management:kspDebugKotlin FAILED
+
+> Task :feature:feedback:compileDebugKotlin
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/feedback/src/main/java/com/rio/rostry/ui/feedback/FeedbackScreen.kt:65:57 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+
+> Task :feature:events:compileDebugKotlin
+> Task :feature:expert:compileDebugKotlin
+> Task :feature:leaderboard:compileDebugKotlin
+
+> Task :feature:onboarding:kspDebugKotlin FAILED
+e: [ksp] InjectProcessingStep was unable to process 'RoleUpgradeViewModel(UserRepository,RbacGuard,FlowAnalyticsTracker,com.rio.rostry.domain.upgrade.RoleUpgradeManager,com.rio.rostry.data.repository.RoleMigrationRepository,com.rio.rostry.session.CurrentUserProvider)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.upgrade.RoleUpgradeViewModel
+    => element (CONSTRUCTOR): RoleUpgradeViewModel(UserRepository,RbacGuard,FlowAnalyticsTracker,com.rio.rostry.domain.upgrade.RoleUpgradeManager,com.rio.rostry.data.repository.RoleMigrationRepository,com.rio.rostry.session.CurrentUserProvider)
+    => type (EXECUTABLE constructor): (UserRepository,RbacGuard,FlowAnalyticsTracker,com.rio.rostry.domain.upgrade.RoleUpgradeManager,com.rio.rostry.data.repository.RoleMigrationRepository,com.rio.rostry.session.CurrentUserProvider)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'VerificationViewModel(java.util.stream.SliceOps$1@1f510717, ...)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.verification.VerificationViewModel
+    => element (CONSTRUCTOR): VerificationViewModel(java.util.stream.SliceOps$1@42d7bb95, ...)
+    => type (EXECUTABLE constructor): (UserRepository,MediaUploadManager,VerificationValidationService,VerificationNotificationService,com.rio.rostry.data.database.dao.AuditLogDao,VerificationRequirementProvider,android.content.Context,com.rio.rostry.core.common.session.CurrentUserProvider,PlacesClient,androidx.lifecycle.SavedStateHandle,VerificationDraftRepository,com.rio.rostry.data.database.dao.UploadTaskDao,com.rio.rostry.domain.validation.ValidationFramework)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+
+> Task :feature:achievements:compileDebugKotlin
+> Task :feature:insights:compileDebugKotlin
+
+> Task :feature:listing-management:compileDebugKotlin
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/listing-management/src/main/java/com/rio/rostry/feature/listing/management/ListingManagementScreen.kt:18:45 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+
+> Task :feature:farmer-tools:kspDebugKotlin
+e: [ksp] InjectProcessingStep was unable to process 'FarmerLocationVerificationViewModel(LocationSearchService)' because 'LocationSearchService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerLocationVerificationViewModel
+    => element (CONSTRUCTOR): FarmerLocationVerificationViewModel(LocationSearchService)
+    => type (EXECUTABLE constructor): (LocationSearchService)void
+    => type (ERROR parameter type): LocationSearchService
+
+If type 'LocationSearchService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'LocationSearchService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FetcherPerformanceViewModel(FetcherHealthCheck,CacheHealthMonitor)' because 'FetcherHealthCheck' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FetcherPerformanceViewModel
+    => element (CONSTRUCTOR): FetcherPerformanceViewModel(FetcherHealthCheck,CacheHealthMonitor)
+    => type (EXECUTABLE constructor): (FetcherHealthCheck,CacheHealthMonitor)void
+    => type (ERROR parameter type): FetcherHealthCheck
+
+If type 'FetcherHealthCheck' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FetcherHealthCheck' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmAssetDetailViewModel(androidx.lifecycle.SavedStateHandle,com.rio.rostry.domain.farm.repository.FarmAssetRepository,com.rio.rostry.data.database.dao.FarmActivityLogDao,FarmFinancialsRepository,com.rio.rostry.domain.usecase.VerifiedLineageBadgeUseCase)' because 'FarmFinancialsRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.asset.FarmAssetDetailViewModel
+    => element (CONSTRUCTOR): FarmAssetDetailViewModel(androidx.lifecycle.SavedStateHandle,com.rio.rostry.domain.farm.repository.FarmAssetRepository,com.rio.rostry.data.database.dao.FarmActivityLogDao,FarmFinancialsRepository,com.rio.rostry.domain.usecase.VerifiedLineageBadgeUseCase)
+    => type (EXECUTABLE constructor): (androidx.lifecycle.SavedStateHandle,com.rio.rostry.domain.farm.repository.FarmAssetRepository,com.rio.rostry.data.database.dao.FarmActivityLogDao,FarmFinancialsRepository,com.rio.rostry.domain.usecase.VerifiedLineageBadgeUseCase)void
+    => type (ERROR parameter type): FarmFinancialsRepository
+
+If type 'FarmFinancialsRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FarmFinancialsRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmAssetListViewModel(com.rio.rostry.domain.farm.repository.FarmAssetRepository,FarmFinancialsRepository,com.rio.rostry.data.repository.FarmActivityLogRepository,com.google.firebase.auth.FirebaseAuth)' because 'FarmFinancialsRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.asset.FarmAssetListViewModel
+    => element (CONSTRUCTOR): FarmAssetListViewModel(com.rio.rostry.domain.farm.repository.FarmAssetRepository,FarmFinancialsRepository,com.rio.rostry.data.repository.FarmActivityLogRepository,com.google.firebase.auth.FirebaseAuth)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.farm.repository.FarmAssetRepository,FarmFinancialsRepository,com.rio.rostry.data.repository.FarmActivityLogRepository,com.google.firebase.auth.FirebaseAuth)void
+    => type (ERROR parameter type): FarmFinancialsRepository
+
+If type 'FarmFinancialsRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FarmFinancialsRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BreedingUnitViewModel(EnthusiastBreedingRepository,com.google.firebase.auth.FirebaseAuth)' because 'EnthusiastBreedingRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.breeding.BreedingUnitViewModel
+    => element (CONSTRUCTOR): BreedingUnitViewModel(EnthusiastBreedingRepository,com.google.firebase.auth.FirebaseAuth)
+    => type (EXECUTABLE constructor): (EnthusiastBreedingRepository,com.google.firebase.auth.FirebaseAuth)void
+    => type (ERROR parameter type): EnthusiastBreedingRepository
+
+If type 'EnthusiastBreedingRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'EnthusiastBreedingRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmCalendarViewModel(FarmEventRepository,com.rio.rostry.core.common.session.SessionManager,com.google.firebase.auth.FirebaseAuth,com.rio.rostry.domain.service.GrowthPredictionService,com.rio.rostry.ui.farmer.calendar.ProjectedEventMapper,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.database.dao.GrowthRecordDao)' because 'FarmEventRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.calendar.FarmCalendarViewModel
+    => element (CONSTRUCTOR): FarmCalendarViewModel(FarmEventRepository,com.rio.rostry.core.common.session.SessionManager,com.google.firebase.auth.FirebaseAuth,com.rio.rostry.domain.service.GrowthPredictionService,com.rio.rostry.ui.farmer.calendar.ProjectedEventMapper,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.database.dao.GrowthRecordDao)
+    => type (EXECUTABLE constructor): (FarmEventRepository,com.rio.rostry.core.common.session.SessionManager,com.google.firebase.auth.FirebaseAuth,com.rio.rostry.domain.service.GrowthPredictionService,com.rio.rostry.ui.farmer.calendar.ProjectedEventMapper,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.database.dao.GrowthRecordDao)void
+    => type (ERROR parameter type): FarmEventRepository
+
+If type 'FarmEventRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FarmEventRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'ComplianceViewModel(com.rio.rostry.domain.farm.repository.TraceabilityRepository,UserRepository,com.rio.rostry.data.sync.SyncManager)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.ComplianceViewModel
+    => element (CONSTRUCTOR): ComplianceViewModel(com.rio.rostry.domain.farm.repository.TraceabilityRepository,UserRepository,com.rio.rostry.data.sync.SyncManager)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.farm.repository.TraceabilityRepository,UserRepository,com.rio.rostry.data.sync.SyncManager)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'AssetDocumentViewModel(androidx.lifecycle.SavedStateHandle,AssetDocumentationService,com.rio.rostry.utils.export.AssetExportManager)' because 'AssetDocumentationService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.documentation.AssetDocumentViewModel
+    => element (CONSTRUCTOR): AssetDocumentViewModel(androidx.lifecycle.SavedStateHandle,AssetDocumentationService,com.rio.rostry.utils.export.AssetExportManager)
+    => type (EXECUTABLE constructor): (androidx.lifecycle.SavedStateHandle,AssetDocumentationService,com.rio.rostry.utils.export.AssetExportManager)void
+    => type (ERROR parameter type): AssetDocumentationService
+
+If type 'AssetDocumentationService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'AssetDocumentationService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmDocumentViewModel(FarmDocumentationService,FarmDocumentPdfGenerator)' because 'FarmDocumentationService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.documentation.FarmDocumentViewModel
+    => element (CONSTRUCTOR): FarmDocumentViewModel(FarmDocumentationService,FarmDocumentPdfGenerator)
+    => type (EXECUTABLE constructor): (FarmDocumentationService,FarmDocumentPdfGenerator)void
+    => type (ERROR parameter type): FarmDocumentationService
+
+If type 'FarmDocumentationService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FarmDocumentationService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmerCommunityViewModel(CommunityEngagementService,CommunityRepository,MessagingRepository,UserRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.core.common.session.SessionManager)' because 'CommunityEngagementService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerCommunityViewModel
+    => element (CONSTRUCTOR): FarmerCommunityViewModel(CommunityEngagementService,CommunityRepository,MessagingRepository,UserRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.core.common.session.SessionManager)
+    => type (EXECUTABLE constructor): (CommunityEngagementService,CommunityRepository,MessagingRepository,UserRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.core.common.session.SessionManager)void
+    => type (ERROR parameter type): CommunityEngagementService
+
+If type 'CommunityEngagementService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'CommunityEngagementService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmerCreateViewModel(java.util.stream.SliceOps$1@6092a935, ...)' because 'ProductMarketplaceRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerCreateViewModel
+    => element (CONSTRUCTOR): FarmerCreateViewModel(java.util.stream.SliceOps$1@679c28b1, ...)
+    => type (EXECUTABLE constructor): (ProductMarketplaceRepository,UserRepository,com.rio.rostry.data.repository.monitoring.ListingDraftRepository,com.google.firebase.auth.FirebaseAuth,android.content.Context,com.rio.rostry.data.repository.ProductRepository,com.rio.rostry.data.repository.monitoring.GrowthRepository,com.rio.rostry.data.repository.monitoring.VaccinationRepository,com.rio.rostry.data.repository.monitoring.QuarantineRepository,com.rio.rostry.data.repository.monitoring.BreedingRepository,com.rio.rostry.data.repository.analytics.AnalyticsRepository,com.rio.rostry.marketplace.validation.ProductValidator,com.rio.rostry.data.repository.monitoring.DailyLogRepository,com.rio.rostry.data.database.dao.AuditLogDao,com.rio.rostry.data.database.dao.OutboxDao,Gson,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.utils.network.ConnectivityManager,com.rio.rostry.data.sync.SyncManager,RbacGuard,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.farm.repository.FarmAssetRepository,InventoryRepository)void
+    => type (ERROR parameter type): ProductMarketplaceRepository
+
+If type 'ProductMarketplaceRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'ProductMarketplaceRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmerHomeViewModel(java.util.stream.SliceOps$1@ca9a14a, ...)' because 'BreedingRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerHomeViewModel
+    => element (CONSTRUCTOR): FarmerHomeViewModel(java.util.stream.SliceOps$1@2b383bf, ...)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.VaccinationRecordDao,com.rio.rostry.data.database.dao.GrowthRecordDao,com.rio.rostry.data.database.dao.QuarantineRecordDao,com.rio.rostry.data.database.dao.MortalityRecordDao,com.rio.rostry.data.database.dao.HatchingBatchDao,BreedingRepository,FarmAlertRepository,FarmerDashboardRepository,com.rio.rostry.data.database.dao.TaskDao,com.rio.rostry.data.database.dao.DailyLogDao,com.rio.rostry.domain.commerce.repository.ProductRepository,com.google.firebase.auth.FirebaseAuth,com.rio.rostry.data.sync.SyncManager,com.rio.rostry.domain.farm.repository.TransferRepository,com.rio.rostry.domain.farm.repository.TraceabilityRepository,AnalyticsRepository,UserRepository,com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository,com.rio.rostry.data.repository.FarmAssetRepository,EvidenceOrderRepository,com.rio.rostry.data.repository.StorageUsageRepository,com.rio.rostry.data.database.dao.DashboardCacheDao,com.rio.rostry.data.repository.FarmActivityLogRepository,com.rio.rostry.data.repository.WeatherRepository,com.rio.rostry.domain.usecase.FeedRecommendationEngine,com.rio.rostry.data.database.dao.InventoryItemDao,com.rio.rostry.data.repository.WatchedLineagesRepository)void
+    => type (ERROR parameter type): BreedingRepository
+
+If type 'BreedingRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'BreedingRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmerMarketViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,ProductMarketplaceRepository,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.farm.repository.FarmAssetRepository,UserRepository,GeneralAnalyticsTracker,AnalyticsRepository,MessagingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,androidx.lifecycle.SavedStateHandle)' because 'ProductMarketplaceRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerMarketViewModel
+    => element (CONSTRUCTOR): FarmerMarketViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,ProductMarketplaceRepository,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.farm.repository.FarmAssetRepository,UserRepository,GeneralAnalyticsTracker,AnalyticsRepository,MessagingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,ProductMarketplaceRepository,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.farm.repository.FarmAssetRepository,UserRepository,GeneralAnalyticsTracker,AnalyticsRepository,MessagingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): ProductMarketplaceRepository
+
+If type 'ProductMarketplaceRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'ProductMarketplaceRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmerProfileViewModel(UserRepository,SocialRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,OrderRepository)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerProfileViewModel
+    => element (CONSTRUCTOR): FarmerProfileViewModel(UserRepository,SocialRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,OrderRepository)
+    => type (EXECUTABLE constructor): (UserRepository,SocialRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,OrderRepository)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmerTransfersViewModel(com.rio.rostry.domain.farm.repository.TransferRepository,TransferWorkflowRepository,com.rio.rostry.core.common.session.CurrentUserProvider,FlowAnalyticsTracker)' because 'TransferWorkflowRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.FarmerTransfersViewModel
+    => element (CONSTRUCTOR): FarmerTransfersViewModel(com.rio.rostry.domain.farm.repository.TransferRepository,TransferWorkflowRepository,com.rio.rostry.core.common.session.CurrentUserProvider,FlowAnalyticsTracker)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.farm.repository.TransferRepository,TransferWorkflowRepository,com.rio.rostry.core.common.session.CurrentUserProvider,FlowAnalyticsTracker)void
+    => type (ERROR parameter type): TransferWorkflowRepository
+
+If type 'TransferWorkflowRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'TransferWorkflowRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'CreateListingViewModel(com.rio.rostry.domain.farm.repository.FarmAssetRepository,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.rbac.RbacGuard)' because 'com.rio.rostry.domain.rbac.RbacGuard' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.listing.CreateListingViewModel
+    => element (CONSTRUCTOR): CreateListingViewModel(com.rio.rostry.domain.farm.repository.FarmAssetRepository,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.rbac.RbacGuard)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.farm.repository.FarmAssetRepository,com.rio.rostry.domain.commerce.repository.MarketListingRepository,com.rio.rostry.domain.rbac.RbacGuard)void
+    => type (ERROR parameter type): com.rio.rostry.domain.rbac.RbacGuard
+
+If type 'com.rio.rostry.domain.rbac.RbacGuard' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'com.rio.rostry.domain.rbac.RbacGuard' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'PublicFarmProfileViewModel(androidx.lifecycle.SavedStateHandle,FarmProfileRepository)' because 'FarmProfileRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.profile.PublicFarmProfileViewModel
+    => element (CONSTRUCTOR): PublicFarmProfileViewModel(androidx.lifecycle.SavedStateHandle,FarmProfileRepository)
+    => type (EXECUTABLE constructor): (androidx.lifecycle.SavedStateHandle,FarmProfileRepository)void
+    => type (ERROR parameter type): FarmProfileRepository
+
+If type 'FarmProfileRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FarmProfileRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'FarmVerificationViewModel(com.rio.rostry.domain.monitoring.repository.FarmVerificationRepository,UserRepository)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.ui.farmer.verification.FarmVerificationViewModel
+    => element (CONSTRUCTOR): FarmVerificationViewModel(com.rio.rostry.domain.monitoring.repository.FarmVerificationRepository,UserRepository)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.monitoring.repository.FarmVerificationRepository,UserRepository)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+
+> Task :feature:farmer-tools:kspDebugKotlin FAILED
+
+> Task :feature:farm-dashboard:compileDebugKotlin
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/EnhancedQuickLogComponents.kt:175:13 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:57:41 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:67:27 'fun rememberSwipeRefreshState(isRefreshing: Boolean): SwipeRefreshState' is deprecated. accompanist/swiperefresh is deprecated.
+     The androidx.compose equivalent of rememberSwipeRefreshState() is rememberPullRefreshState().
+     For more migration information, please visit https://google.github.io/accompanist/swiperefresh/#migration.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:119:9 'fun SwipeRefresh(state: SwipeRefreshState, onRefresh: () -> Unit, modifier: Modifier = ..., swipeEnabled: Boolean = ..., refreshTriggerDistance: Dp = ..., indicatorAlignment: Alignment = ..., indicatorPadding: PaddingValues = ..., indicator: @Composable() ComposableFunction2<@ParameterName(...) SwipeRefreshState, @ParameterName(...) Dp, Unit> = ..., clipIndicatorToPadding: Boolean = ..., content: @Composable() ComposableFunction0<Unit>): Unit' is deprecated. accompanist/swiperefresh is deprecated.
+ The androidx.compose equivalent of SwipeRefresh is Modifier.pullRefresh().
+ This is often migrated as:
+ Box(modifier = Modifier.pullRefresh(refreshState)) { 
+    ... 
+    PullRefreshIndicator(...) 
+ }
+ 
+ For more migration information, please visit https://google.github.io/accompanist/swiperefresh/#migration.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:233:57 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:689:64 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:771:55 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:792:58 'val Icons.Filled.Send: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Send.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:1111:48 'val Icons.Filled.ArrowForward: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowForward.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:1132:79 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmDashboardScreen.kt:1168:44 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/FarmerHomeWidgets.kt:222:17 'fun CircularProgressIndicator(progress: Float, modifier: Modifier = ..., color: Color = ..., strokeWidth: Dp = ..., trackColor: Color = ..., strokeCap: StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/feed/FeedDetailSheet.kt:99:13 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/feed/FeedHistoryScreen.kt:21:41 'fun <reified VM : ViewModel> hiltViewModel(viewModelStoreOwner: ViewModelStoreOwner = ..., key: String? = ...): VM' is deprecated. Moved to package: androidx.hilt.lifecycle.viewmodel.compose.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/farm-dashboard/src/main/java/com/rio/rostry/feature/farm/dashboard/feed/FeedHistoryScreen.kt:37:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+
+> Task :feature:enthusiast-tools:kspDebugKotlin
+e: [ksp] InjectProcessingStep was unable to process 'FlockAnalyticsViewModel(FlockProductivityService,BreedingROIService,com.rio.rostry.core.common.session.CurrentUserProvider)' because 'FlockProductivityService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.analytics.FlockAnalyticsViewModel
+    => element (CONSTRUCTOR): FlockAnalyticsViewModel(FlockProductivityService,BreedingROIService,com.rio.rostry.core.common.session.CurrentUserProvider)
+    => type (EXECUTABLE constructor): (FlockProductivityService,BreedingROIService,com.rio.rostry.core.common.session.CurrentUserProvider)void
+    => type (ERROR parameter type): FlockProductivityService
+
+If type 'FlockProductivityService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'FlockProductivityService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'JudgingViewModel(JudgingService)' because 'JudgingService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.arena.JudgingViewModel
+    => element (CONSTRUCTOR): JudgingViewModel(JudgingService)
+    => type (EXECUTABLE constructor): (JudgingService)void
+    => type (ERROR parameter type): JudgingService
+
+If type 'JudgingService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'JudgingService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'VirtualArenaViewModel(VirtualArenaRepository,FirebaseAuth)' because 'VirtualArenaRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.arena.VirtualArenaViewModel
+    => element (CONSTRUCTOR): VirtualArenaViewModel(VirtualArenaRepository,FirebaseAuth)
+    => type (EXECUTABLE constructor): (VirtualArenaRepository,FirebaseAuth)void
+    => type (ERROR parameter type): VirtualArenaRepository
+
+If type 'VirtualArenaRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'VirtualArenaRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BreedingCalculatorViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,CalculateOffspringStatsUseCase,BreedingCompatibilityCalculator)' because 'CalculateOffspringStatsUseCase' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.BreedingCalculatorViewModel
+    => element (CONSTRUCTOR): BreedingCalculatorViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,CalculateOffspringStatsUseCase,BreedingCompatibilityCalculator)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,CalculateOffspringStatsUseCase,BreedingCompatibilityCalculator)void
+    => type (ERROR parameter type): CalculateOffspringStatsUseCase
+
+If type 'CalculateOffspringStatsUseCase' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'CalculateOffspringStatsUseCase' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BreedingCalendarViewModel(EnthusiastBreedingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.VaccinationRecordDao)' because 'EnthusiastBreedingRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.BreedingCalendarViewModel
+    => element (CONSTRUCTOR): BreedingCalendarViewModel(EnthusiastBreedingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.VaccinationRecordDao)
+    => type (EXECUTABLE constructor): (EnthusiastBreedingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.VaccinationRecordDao)void
+    => type (ERROR parameter type): EnthusiastBreedingRepository
+
+If type 'EnthusiastBreedingRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'EnthusiastBreedingRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BreedingCompatibilityViewModel(BreedingService,PedigreeRepository,com.rio.rostry.core.common.session.CurrentUserProvider,GeneticPotentialService)' because 'BreedingService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.BreedingCompatibilityViewModel
+    => element (CONSTRUCTOR): BreedingCompatibilityViewModel(BreedingService,PedigreeRepository,com.rio.rostry.core.common.session.CurrentUserProvider,GeneticPotentialService)
+    => type (EXECUTABLE constructor): (BreedingService,PedigreeRepository,com.rio.rostry.core.common.session.CurrentUserProvider,GeneticPotentialService)void
+    => type (ERROR parameter type): BreedingService
+
+If type 'BreedingService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'BreedingService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BreedingFlowViewModel(EnthusiastBreedingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.BreedingPairDao,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.data.database.dao.HatchingBatchDao,com.rio.rostry.data.database.dao.HatchingLogDao)' because 'EnthusiastBreedingRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.BreedingFlowViewModel
+    => element (CONSTRUCTOR): BreedingFlowViewModel(EnthusiastBreedingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.BreedingPairDao,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.data.database.dao.HatchingBatchDao,com.rio.rostry.data.database.dao.HatchingLogDao)
+    => type (EXECUTABLE constructor): (EnthusiastBreedingRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.BreedingPairDao,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.data.database.dao.HatchingBatchDao,com.rio.rostry.data.database.dao.HatchingLogDao)void
+    => type (ERROR parameter type): EnthusiastBreedingRepository
+
+If type 'EnthusiastBreedingRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'EnthusiastBreedingRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EggCollectionViewModel(com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.session.CurrentUserProvider)' because 'com.rio.rostry.session.CurrentUserProvider' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.EggCollectionViewModel
+    => element (CONSTRUCTOR): EggCollectionViewModel(com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.session.CurrentUserProvider)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.session.CurrentUserProvider)void
+    => type (ERROR parameter type): com.rio.rostry.session.CurrentUserProvider
+
+If type 'com.rio.rostry.session.CurrentUserProvider' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'com.rio.rostry.session.CurrentUserProvider' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'MateFinderViewModel(MateRecommendationService,BreedingService,androidx.lifecycle.SavedStateHandle)' because 'MateRecommendationService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.MateFinderViewModel
+    => element (CONSTRUCTOR): MateFinderViewModel(MateRecommendationService,BreedingService,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (MateRecommendationService,BreedingService,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): MateRecommendationService
+
+If type 'MateRecommendationService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'MateRecommendationService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BreedingSimulatorViewModel(BreedingService,com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.repository.BreedingPlanRepository,com.rio.rostry.data.session.UserSessionManager,com.google.gson.Gson)' because 'BreedingService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.breeding.simulator.BreedingSimulatorViewModel
+    => element (CONSTRUCTOR): BreedingSimulatorViewModel(BreedingService,com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.repository.BreedingPlanRepository,com.rio.rostry.data.session.UserSessionManager,com.google.gson.Gson)
+    => type (EXECUTABLE constructor): (BreedingService,com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.repository.BreedingPlanRepository,com.rio.rostry.data.session.UserSessionManager,com.google.gson.Gson)void
+    => type (ERROR parameter type): BreedingService
+
+If type 'BreedingService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'BreedingService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'ShowcaseCardGeneratorViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,ShowcaseCardGenerator,com.rio.rostry.data.database.dao.ShowRecordDao,androidx.lifecycle.SavedStateHandle)' because 'ShowcaseCardGenerator' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.creation.ShowcaseCardGeneratorViewModel
+    => element (CONSTRUCTOR): ShowcaseCardGeneratorViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,ShowcaseCardGenerator,com.rio.rostry.data.database.dao.ShowRecordDao,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,ShowcaseCardGenerator,com.rio.rostry.data.database.dao.ShowRecordDao,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): ShowcaseCardGenerator
+
+If type 'ShowcaseCardGenerator' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'ShowcaseCardGenerator' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'DigitalFarmViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.CoinLedgerDao,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.repository.EnthusiastBreedingRepository,com.rio.rostry.data.sync.SyncManager)' because 'com.rio.rostry.data.repository.EnthusiastBreedingRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.digitalfarm.DigitalFarmViewModel
+    => element (CONSTRUCTOR): DigitalFarmViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.CoinLedgerDao,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.repository.EnthusiastBreedingRepository,com.rio.rostry.data.sync.SyncManager)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.database.dao.CoinLedgerDao,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.repository.EnthusiastBreedingRepository,com.rio.rostry.data.sync.SyncManager)void
+    => type (ERROR parameter type): com.rio.rostry.data.repository.EnthusiastBreedingRepository
+
+If type 'com.rio.rostry.data.repository.EnthusiastBreedingRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'com.rio.rostry.data.repository.EnthusiastBreedingRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'MorphologyGradingViewModel(androidx.lifecycle.SavedStateHandle,DigitalTwinService)' because 'DigitalTwinService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.digitalfarm.grading.MorphologyGradingViewModel
+    => element (CONSTRUCTOR): MorphologyGradingViewModel(androidx.lifecycle.SavedStateHandle,DigitalTwinService)
+    => type (EXECUTABLE constructor): (androidx.lifecycle.SavedStateHandle,DigitalTwinService)void
+    => type (ERROR parameter type): DigitalTwinService
+
+If type 'DigitalTwinService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'DigitalTwinService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'DigitalTwinDashboardViewModel(com.rio.rostry.data.database.dao.DigitalTwinDao,com.rio.rostry.data.database.dao.BirdEventDao,DigitalTwinService,AseelLifecycleEngine,androidx.lifecycle.SavedStateHandle)' because 'DigitalTwinService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.digitaltwin.DigitalTwinDashboardViewModel
+    => element (CONSTRUCTOR): DigitalTwinDashboardViewModel(com.rio.rostry.data.database.dao.DigitalTwinDao,com.rio.rostry.data.database.dao.BirdEventDao,DigitalTwinService,AseelLifecycleEngine,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.DigitalTwinDao,com.rio.rostry.data.database.dao.BirdEventDao,DigitalTwinService,AseelLifecycleEngine,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): DigitalTwinService
+
+If type 'DigitalTwinService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'DigitalTwinService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'GrowthTrackerViewModel(com.rio.rostry.data.database.dao.DigitalTwinDao,com.rio.rostry.data.database.dao.BirdEventDao,DigitalTwinService,androidx.lifecycle.SavedStateHandle)' because 'DigitalTwinService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.digitaltwin.GrowthTrackerViewModel
+    => element (CONSTRUCTOR): GrowthTrackerViewModel(com.rio.rostry.data.database.dao.DigitalTwinDao,com.rio.rostry.data.database.dao.BirdEventDao,DigitalTwinService,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.DigitalTwinDao,com.rio.rostry.data.database.dao.BirdEventDao,DigitalTwinService,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): DigitalTwinService
+
+If type 'DigitalTwinService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'DigitalTwinService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastExploreTabsViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.database.dao.EventsDao,com.rio.rostry.data.database.dao.EventRsvpsDao,com.rio.rostry.data.database.dao.PostsDao,com.rio.rostry.data.database.dao.LikesDao,com.rio.rostry.data.database.dao.CommentsDao,com.rio.rostry.data.database.dao.UserDao,MediaUploadManager,FirebaseAuth,android.content.Context)' because 'MediaUploadManager' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.EnthusiastExploreTabsViewModel
+    => element (CONSTRUCTOR): EnthusiastExploreTabsViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.database.dao.EventsDao,com.rio.rostry.data.database.dao.EventRsvpsDao,com.rio.rostry.data.database.dao.PostsDao,com.rio.rostry.data.database.dao.LikesDao,com.rio.rostry.data.database.dao.CommentsDao,com.rio.rostry.data.database.dao.UserDao,MediaUploadManager,FirebaseAuth,android.content.Context)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.database.dao.EventsDao,com.rio.rostry.data.database.dao.EventRsvpsDao,com.rio.rostry.data.database.dao.PostsDao,com.rio.rostry.data.database.dao.LikesDao,com.rio.rostry.data.database.dao.CommentsDao,com.rio.rostry.data.database.dao.UserDao,MediaUploadManager,FirebaseAuth,android.content.Context)void
+    => type (ERROR parameter type): MediaUploadManager
+
+If type 'MediaUploadManager' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'MediaUploadManager' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastExploreViewModel(ProductMarketplaceRepository,androidx.lifecycle.SavedStateHandle)' because 'ProductMarketplaceRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.EnthusiastExploreViewModel
+    => element (CONSTRUCTOR): EnthusiastExploreViewModel(ProductMarketplaceRepository,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (ProductMarketplaceRepository,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): ProductMarketplaceRepository
+
+If type 'ProductMarketplaceRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'ProductMarketplaceRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastHomeViewModel(java.util.stream.SliceOps$1@7e342e3, ...)' because 'AnalyticsRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.EnthusiastHomeViewModel
+    => element (CONSTRUCTOR): EnthusiastHomeViewModel(java.util.stream.SliceOps$1@26f054e, ...)
+    => type (EXECUTABLE constructor): (AnalyticsRepository,EnthusiastBreedingRepository,com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,com.rio.rostry.data.database.dao.FarmAlertDao,com.rio.rostry.data.database.dao.EventsDao,com.rio.rostry.data.database.dao.TransferDao,com.rio.rostry.data.database.dao.GrowthRecordDao,com.rio.rostry.data.database.dao.BreedingPairDao,com.rio.rostry.data.database.dao.HatchingBatchDao,com.rio.rostry.data.database.dao.FarmAssetDao,com.rio.rostry.data.database.dao.ShowRecordDao,com.rio.rostry.core.common.session.CurrentUserProvider,com.rio.rostry.data.sync.SyncManager,EnthusiastAnalyticsTracker)void
+    => type (ERROR parameter type): AnalyticsRepository
+
+If type 'AnalyticsRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'AnalyticsRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastTransferViewModel(com.rio.rostry.data.database.dao.TransferDao,com.rio.rostry.core.common.session.CurrentUserProvider,TransferWorkflowRepository)' because 'TransferWorkflowRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.EnthusiastTransferViewModel
+    => element (CONSTRUCTOR): EnthusiastTransferViewModel(com.rio.rostry.data.database.dao.TransferDao,com.rio.rostry.core.common.session.CurrentUserProvider,TransferWorkflowRepository)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.TransferDao,com.rio.rostry.core.common.session.CurrentUserProvider,TransferWorkflowRepository)void
+    => type (ERROR parameter type): TransferWorkflowRepository
+
+If type 'TransferWorkflowRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'TransferWorkflowRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'PerformanceJournalViewModel(BirdHealthRepository,com.rio.rostry.domain.commerce.repository.ProductRepository)' because 'BirdHealthRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.journal.PerformanceJournalViewModel
+    => element (CONSTRUCTOR): PerformanceJournalViewModel(BirdHealthRepository,com.rio.rostry.domain.commerce.repository.ProductRepository)
+    => type (EXECUTABLE constructor): (BirdHealthRepository,com.rio.rostry.domain.commerce.repository.ProductRepository)void
+    => type (ERROR parameter type): BirdHealthRepository
+
+If type 'BirdHealthRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'BirdHealthRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'BirdProfileViewModel(com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.BirdTraitRecordDao,com.rio.rostry.data.database.dao.MedicalEventDao,BreedingValueService,androidx.lifecycle.SavedStateHandle)' because 'BreedingValueService' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.lineage.BirdProfileViewModel
+    => element (CONSTRUCTOR): BirdProfileViewModel(com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.BirdTraitRecordDao,com.rio.rostry.data.database.dao.MedicalEventDao,BreedingValueService,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.BirdTraitRecordDao,com.rio.rostry.data.database.dao.MedicalEventDao,BreedingValueService,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): BreedingValueService
+
+If type 'BreedingValueService' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'BreedingValueService' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'LineageExplorerViewModel(PedigreeRepository,com.rio.rostry.data.database.dao.ProductDao,BreedingValueService,androidx.lifecycle.SavedStateHandle)' because 'PedigreeRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.lineage.LineageExplorerViewModel
+    => element (CONSTRUCTOR): LineageExplorerViewModel(PedigreeRepository,com.rio.rostry.data.database.dao.ProductDao,BreedingValueService,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (PedigreeRepository,com.rio.rostry.data.database.dao.ProductDao,BreedingValueService,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): PedigreeRepository
+
+If type 'PedigreeRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'PedigreeRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'PedigreeExportViewModel(PedigreeRepository,PedigreePdfGenerator,PedigreeImageGenerator,androidx.lifecycle.SavedStateHandle)' because 'PedigreeRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.pedigree.export.PedigreeExportViewModel
+    => element (CONSTRUCTOR): PedigreeExportViewModel(PedigreeRepository,PedigreePdfGenerator,PedigreeImageGenerator,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (PedigreeRepository,PedigreePdfGenerator,PedigreeImageGenerator,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): PedigreeRepository
+
+If type 'PedigreeRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'PedigreeRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'PedigreeViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,PedigreeRepository,androidx.lifecycle.SavedStateHandle)' because 'PedigreeRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.pedigree.PedigreeViewModel
+    => element (CONSTRUCTOR): PedigreeViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,PedigreeRepository,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,PedigreeRepository,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): PedigreeRepository
+
+If type 'PedigreeRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'PedigreeRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastProfileViewModel(UserRepository,SocialRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.database.dao.ShowRecordDao,com.rio.rostry.data.database.dao.BreedingPairDao)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.profile.EnthusiastProfileViewModel
+    => element (CONSTRUCTOR): EnthusiastProfileViewModel(UserRepository,SocialRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.database.dao.ShowRecordDao,com.rio.rostry.data.database.dao.BreedingPairDao)
+    => type (EXECUTABLE constructor): (UserRepository,SocialRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,com.rio.rostry.data.database.dao.ShowRecordDao,com.rio.rostry.data.database.dao.BreedingPairDao)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'ShowcaseCardViewModel(ShowcaseCardGenerator,com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.VaccinationRecordDao,com.rio.rostry.data.repository.ShowRecordRepository,ErrorHandler,androidx.lifecycle.SavedStateHandle)' because 'ShowcaseCardGenerator' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.showcase.ShowcaseCardViewModel
+    => element (CONSTRUCTOR): ShowcaseCardViewModel(ShowcaseCardGenerator,com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.VaccinationRecordDao,com.rio.rostry.data.repository.ShowRecordRepository,ErrorHandler,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (ShowcaseCardGenerator,com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.VaccinationRecordDao,com.rio.rostry.data.repository.ShowRecordRepository,ErrorHandler,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): ShowcaseCardGenerator
+
+If type 'ShowcaseCardGenerator' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'ShowcaseCardGenerator' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'ShowRecordsViewModel(com.rio.rostry.domain.monitoring.repository.ShowRecordRepository,com.rio.rostry.session.CurrentUserProvider)' because 'com.rio.rostry.session.CurrentUserProvider' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.showrecords.ShowRecordsViewModel
+    => element (CONSTRUCTOR): ShowRecordsViewModel(com.rio.rostry.domain.monitoring.repository.ShowRecordRepository,com.rio.rostry.session.CurrentUserProvider)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.monitoring.repository.ShowRecordRepository,com.rio.rostry.session.CurrentUserProvider)void
+    => type (ERROR parameter type): com.rio.rostry.session.CurrentUserProvider
+
+If type 'com.rio.rostry.session.CurrentUserProvider' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'com.rio.rostry.session.CurrentUserProvider' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'ClaimTransferViewModel(OwnershipTransferUseCase,FirebaseAuth)' because 'OwnershipTransferUseCase' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.transfer.ClaimTransferViewModel
+    => element (CONSTRUCTOR): ClaimTransferViewModel(OwnershipTransferUseCase,FirebaseAuth)
+    => type (EXECUTABLE constructor): (OwnershipTransferUseCase,FirebaseAuth)void
+    => type (ERROR parameter type): OwnershipTransferUseCase
+
+If type 'OwnershipTransferUseCase' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'OwnershipTransferUseCase' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastTransferViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,UserRepository,com.rio.rostry.domain.farm.repository.TransferRepository,IntelligentNotificationService)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.transfer.EnthusiastTransferViewModel
+    => element (CONSTRUCTOR): EnthusiastTransferViewModel(com.rio.rostry.domain.commerce.repository.ProductRepository,UserRepository,com.rio.rostry.domain.farm.repository.TransferRepository,IntelligentNotificationService)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.commerce.repository.ProductRepository,UserRepository,com.rio.rostry.domain.farm.repository.TransferRepository,IntelligentNotificationService)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'TransferCodeViewModel(OwnershipTransferUseCase,com.rio.rostry.data.database.dao.ProductDao,ErrorHandler,androidx.lifecycle.SavedStateHandle)' because 'OwnershipTransferUseCase' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.transfer.TransferCodeViewModel
+    => element (CONSTRUCTOR): TransferCodeViewModel(OwnershipTransferUseCase,com.rio.rostry.data.database.dao.ProductDao,ErrorHandler,androidx.lifecycle.SavedStateHandle)
+    => type (EXECUTABLE constructor): (OwnershipTransferUseCase,com.rio.rostry.data.database.dao.ProductDao,ErrorHandler,androidx.lifecycle.SavedStateHandle)void
+    => type (ERROR parameter type): OwnershipTransferUseCase
+
+If type 'OwnershipTransferUseCase' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'OwnershipTransferUseCase' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'TransferResponseViewModel(com.rio.rostry.domain.farm.repository.TransferRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,UserRepository,IntelligentNotificationService,com.rio.rostry.data.database.dao.AuditLogDao)' because 'UserRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.transfer.TransferResponseViewModel
+    => element (CONSTRUCTOR): TransferResponseViewModel(com.rio.rostry.domain.farm.repository.TransferRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,UserRepository,IntelligentNotificationService,com.rio.rostry.data.database.dao.AuditLogDao)
+    => type (EXECUTABLE constructor): (com.rio.rostry.domain.farm.repository.TransferRepository,com.rio.rostry.domain.commerce.repository.ProductRepository,UserRepository,IntelligentNotificationService,com.rio.rostry.data.database.dao.AuditLogDao)void
+    => type (ERROR parameter type): UserRepository
+
+If type 'UserRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'UserRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'EnthusiastVerificationViewModel(EnthusiastVerificationRepository,UserRepository)' because 'EnthusiastVerificationRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.verification.EnthusiastVerificationViewModel
+    => element (CONSTRUCTOR): EnthusiastVerificationViewModel(EnthusiastVerificationRepository,UserRepository)
+    => type (EXECUTABLE constructor): (EnthusiastVerificationRepository,UserRepository)void
+    => type (ERROR parameter type): EnthusiastVerificationRepository
+
+If type 'EnthusiastVerificationRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'EnthusiastVerificationRepository' is on your classpath.
+e: [ksp] InjectProcessingStep was unable to process 'WatchedLineagesFeedViewModel(WatchedLineagesRepository)' because 'WatchedLineagesRepository' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.feature.enthusiast.ui.WatchedLineagesFeedViewModel
+    => element (CONSTRUCTOR): WatchedLineagesFeedViewModel(WatchedLineagesRepository)
+    => type (EXECUTABLE constructor): (WatchedLineagesRepository)void
+    => type (ERROR parameter type): WatchedLineagesRepository
+
+If type 'WatchedLineagesRepository' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'WatchedLineagesRepository' is on your classpath.
+
+> Task :feature:enthusiast-tools:kspDebugKotlin FAILED
+
+FAILURE: Build completed with 4 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:asset-management:kspDebugKotlin'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:onboarding:kspDebugKotlin'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+3: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:farmer-tools:kspDebugKotlin'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+4: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:enthusiast-tools:kspDebugKotlin'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 1m 13s
+351 actionable tasks: 20 executed, 331 up-to-date
+Configuration cache entry reused.

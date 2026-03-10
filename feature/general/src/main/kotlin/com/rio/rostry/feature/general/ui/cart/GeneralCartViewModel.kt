@@ -50,10 +50,8 @@ class GeneralCartViewModel @Inject constructor(
     private val connectivityManager: ConnectivityManager,
     private val gson: Gson,
     // For marketplace-to-farm bridge
-    private val farmOnboardingRepository: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository,
-    private val sessionManager: com.rio.rostry.session.SessionManager,
-    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository,
+    private val farmOnboardingRepository: com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository,
+    private val analyticsRepository: com.rio.rostry.domain.monitoring.repository.AnalyticsRepository,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 

@@ -1,0 +1,578 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.2.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as configuration cache cannot be reused because file 'core\database\build.gradle.kts' has changed.
+
+> Configure project :app
+WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.newDsl=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Configure project :feature:general
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/build.gradle.kts:9:1: 'fun Project.android(configure: Action<LibraryExtension>): Unit' is deprecated. Replaced by com.android.build.api.dsl.LibraryExtension.
+This class is not used for the public extensions in AGP when android.newDsl=true, which is the default in AGP 9.0, and will be removed in AGP 10.0.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/build.gradle.kts:27:5: 'fun LibraryExtension.kotlinOptions(configure: Action<DeprecatedKotlinJvmOptions>): Unit' is deprecated. Please migrate to the compilerOptions DSL. More details are here: https://kotl.in/u1r8ln.
+w: file:///C:/Users/rowdy/AndroidStudioProjects/ROSTRY/feature/general/build.gradle.kts:28:9: 'var jvmTarget: String' is deprecated. Please migrate to the compilerOptions DSL. More details are here: https://kotl.in/u1r8ln.
+
+> Task :core:testing:clean UP-TO-DATE
+> Task :app:clean
+> Task :core:navigation:clean
+> Task :core:designsystem:clean
+> Task :core:domain:clean
+> Task :core:network:clean
+> Task :core:common:clean
+> Task :data:admin:clean
+> Task :data:farm:clean
+> Task :domain:account:clean
+> Task :data:account:clean
+> Task :feature:admin-dashboard:clean UP-TO-DATE
+> Task :domain:commerce:clean
+> Task :data:commerce:clean
+> Task :feature:analytics:clean
+> Task :domain:admin:clean
+> Task :feature:community:clean UP-TO-DATE
+> Task :feature:breeding:clean UP-TO-DATE
+> Task :domain:farm:clean
+> Task :domain:monitoring:clean
+> Task :feature:farm-profile:clean UP-TO-DATE
+> Task :feature:asset-management:clean
+> Task :domain:social:clean
+> Task :core:model:clean
+> Task :data:social:clean
+> Task :feature:achievements:clean
+> Task :data:monitoring:clean
+> Task :feature:events:clean
+> Task :feature:expert:clean
+> Task :feature:moderation:clean UP-TO-DATE
+> Task :feature:feedback:clean
+> Task :feature:marketplace:clean
+> Task :feature:login:clean
+> Task :feature:orders:clean UP-TO-DATE
+> Task :feature:farm-dashboard:clean
+> Task :feature:farmer-tools:clean
+> Task :feature:monitoring:clean
+> Task :feature:social-feed:clean
+> Task :feature:leaderboard:clean
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:clean
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :feature:support:clean
+> Task :feature:insights:clean
+> Task :feature:general:clean
+> Task :feature:onboarding:clean
+> Task :core:common:preBuild UP-TO-DATE
+> Task :core:common:preDebugBuild UP-TO-DATE
+> Task :feature:listing-management:clean
+> Task :core:database:preBuild UP-TO-DATE
+> Task :core:database:preDebugBuild UP-TO-DATE
+> Task :core:designsystem:preBuild UP-TO-DATE
+> Task :core:designsystem:preDebugBuild UP-TO-DATE
+> Task :feature:notifications:clean
+> Task :core:domain:preBuild UP-TO-DATE
+> Task :feature:profile:clean
+> Task :core:model:preBuild UP-TO-DATE
+> Task :core:domain:preDebugBuild UP-TO-DATE
+> Task :core:model:preDebugBuild UP-TO-DATE
+> Task :feature:traceability:clean
+> Task :feature:transfers:clean
+> Task :core:network:preBuild UP-TO-DATE
+> Task :core:network:preDebugBuild UP-TO-DATE
+> Task :core:navigation:preBuild UP-TO-DATE
+> Task :core:navigation:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugBuildConfig FROM-CACHE
+> Task :core:model:processDebugNavigationResources FROM-CACHE
+> Task :data:account:preBuild UP-TO-DATE
+> Task :core:network:processDebugNavigationResources FROM-CACHE
+> Task :data:commerce:preBuild UP-TO-DATE
+> Task :core:common:processDebugNavigationResources FROM-CACHE
+> Task :core:domain:processDebugNavigationResources FROM-CACHE
+> Task :core:designsystem:processDebugNavigationResources FROM-CACHE
+> Task :app:injectCrashlyticsVersionControlInfoDebug FROM-CACHE
+> Task :app:generateDebugResources FROM-CACHE
+> Task :app:processDebugGoogleServices FROM-CACHE
+> Task :core:navigation:processDebugNavigationResources FROM-CACHE
+> Task :data:account:preDebugBuild UP-TO-DATE
+> Task :data:monitoring:preBuild UP-TO-DATE
+> Task :data:commerce:preDebugBuild UP-TO-DATE
+> Task :data:monitoring:preDebugBuild UP-TO-DATE
+> Task :data:admin:preBuild UP-TO-DATE
+> Task :data:admin:preDebugBuild UP-TO-DATE
+> Task :domain:admin:preBuild UP-TO-DATE
+> Task :domain:farm:preBuild UP-TO-DATE
+> Task :domain:account:preBuild UP-TO-DATE
+> Task :domain:farm:preDebugBuild UP-TO-DATE
+> Task :domain:commerce:preBuild UP-TO-DATE
+> Task :data:social:preBuild UP-TO-DATE
+> Task :data:farm:preBuild UP-TO-DATE
+> Task :domain:commerce:preDebugBuild UP-TO-DATE
+> Task :data:farm:preDebugBuild UP-TO-DATE
+> Task :domain:admin:preDebugBuild UP-TO-DATE
+> Task :app:injectCrashlyticsMappingFileIdDebug
+> Task :domain:account:preDebugBuild UP-TO-DATE
+> Task :data:social:preDebugBuild UP-TO-DATE
+> Task :data:admin:processDebugNavigationResources FROM-CACHE
+> Task :domain:monitoring:preBuild UP-TO-DATE
+> Task :data:monitoring:processDebugNavigationResources FROM-CACHE
+> Task :domain:farm:processDebugNavigationResources FROM-CACHE
+> Task :domain:social:preBuild UP-TO-DATE
+> Task :domain:admin:processDebugNavigationResources FROM-CACHE
+> Task :data:commerce:processDebugNavigationResources FROM-CACHE
+> Task :data:farm:processDebugNavigationResources FROM-CACHE
+> Task :domain:social:preDebugBuild UP-TO-DATE
+> Task :domain:account:processDebugNavigationResources FROM-CACHE
+> Task :feature:achievements:preBuild UP-TO-DATE
+> Task :feature:analytics:preBuild UP-TO-DATE
+> Task :feature:analytics:preDebugBuild UP-TO-DATE
+> Task :domain:monitoring:preDebugBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:preBuild UP-TO-DATE
+> Task :feature:asset-management:preBuild UP-TO-DATE
+> Task :feature:events:preBuild UP-TO-DATE
+> Task :feature:events:preDebugBuild UP-TO-DATE
+> Task :feature:asset-management:preDebugBuild UP-TO-DATE
+> Task :feature:enthusiast-tools:preDebugBuild UP-TO-DATE
+> Task :feature:achievements:preDebugBuild UP-TO-DATE
+> Task :data:account:processDebugNavigationResources FROM-CACHE
+> Task :feature:expert:preBuild UP-TO-DATE
+> Task :feature:expert:preDebugBuild UP-TO-DATE
+> Task :data:social:processDebugNavigationResources FROM-CACHE
+> Task :domain:commerce:processDebugNavigationResources FROM-CACHE
+> Task :feature:farm-dashboard:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:preBuild UP-TO-DATE
+> Task :feature:farmer-tools:preDebugBuild UP-TO-DATE
+> Task :feature:farm-dashboard:preDebugBuild UP-TO-DATE
+> Task :domain:social:processDebugNavigationResources FROM-CACHE
+> Task :feature:feedback:preBuild UP-TO-DATE
+> Task :feature:feedback:preDebugBuild UP-TO-DATE
+> Task :feature:achievements:processDebugNavigationResources FROM-CACHE
+> Task :feature:general:preBuild UP-TO-DATE
+> Task :feature:general:preDebugBuild UP-TO-DATE
+> Task :feature:events:processDebugNavigationResources FROM-CACHE
+> Task :feature:insights:preBuild UP-TO-DATE
+> Task :feature:insights:preDebugBuild UP-TO-DATE
+> Task :feature:farmer-tools:processDebugNavigationResources FROM-CACHE
+> Task :feature:leaderboard:preBuild UP-TO-DATE
+> Task :feature:leaderboard:preDebugBuild UP-TO-DATE
+> Task :feature:expert:processDebugNavigationResources FROM-CACHE
+> Task :domain:monitoring:processDebugNavigationResources FROM-CACHE
+> Task :feature:listing-management:preBuild UP-TO-DATE
+> Task :feature:listing-management:preDebugBuild UP-TO-DATE
+> Task :feature:analytics:processDebugNavigationResources FROM-CACHE
+> Task :feature:enthusiast-tools:processDebugNavigationResources FROM-CACHE
+> Task :feature:login:preBuild UP-TO-DATE
+> Task :feature:marketplace:preBuild UP-TO-DATE
+> Task :feature:login:preDebugBuild UP-TO-DATE
+> Task :feature:marketplace:preDebugBuild UP-TO-DATE
+> Task :feature:asset-management:processDebugNavigationResources FROM-CACHE
+> Task :feature:farm-dashboard:processDebugNavigationResources FROM-CACHE
+> Task :feature:onboarding:preBuild UP-TO-DATE
+> Task :feature:onboarding:preDebugBuild UP-TO-DATE
+> Task :feature:notifications:preBuild UP-TO-DATE
+> Task :feature:monitoring:preBuild UP-TO-DATE
+> Task :feature:notifications:preDebugBuild UP-TO-DATE
+> Task :feature:feedback:processDebugNavigationResources FROM-CACHE
+> Task :feature:profile:preBuild UP-TO-DATE
+> Task :feature:profile:preDebugBuild UP-TO-DATE
+> Task :feature:monitoring:preDebugBuild UP-TO-DATE
+> Task :feature:general:processDebugNavigationResources FROM-CACHE
+> Task :feature:social-feed:preBuild UP-TO-DATE
+> Task :feature:social-feed:preDebugBuild UP-TO-DATE
+> Task :feature:insights:processDebugNavigationResources FROM-CACHE
+> Task :feature:support:preBuild UP-TO-DATE
+> Task :feature:support:preDebugBuild UP-TO-DATE
+> Task :feature:monitoring:processDebugNavigationResources FROM-CACHE
+> Task :feature:leaderboard:processDebugNavigationResources FROM-CACHE
+> Task :feature:transfers:preBuild UP-TO-DATE
+> Task :feature:transfers:preDebugBuild UP-TO-DATE
+> Task :feature:profile:processDebugNavigationResources FROM-CACHE
+> Task :feature:marketplace:processDebugNavigationResources FROM-CACHE
+> Task :feature:traceability:preBuild UP-TO-DATE
+> Task :feature:traceability:preDebugBuild UP-TO-DATE
+> Task :core:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:model:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:listing-management:processDebugNavigationResources FROM-CACHE
+> Task :feature:login:processDebugNavigationResources FROM-CACHE
+> Task :feature:support:processDebugNavigationResources FROM-CACHE
+> Task :feature:onboarding:processDebugNavigationResources FROM-CACHE
+> Task :core:designsystem:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:social-feed:processDebugNavigationResources FROM-CACHE
+> Task :core:database:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:notifications:processDebugNavigationResources FROM-CACHE
+> Task :feature:transfers:processDebugNavigationResources FROM-CACHE
+> Task :core:navigation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:generateDebugResources FROM-CACHE
+> Task :core:designsystem:javaPreCompileDebug FROM-CACHE
+> Task :feature:traceability:processDebugNavigationResources FROM-CACHE
+> Task :core:network:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:designsystem:generateDebugResources FROM-CACHE
+> Task :core:model:javaPreCompileDebug FROM-CACHE
+> Task :core:domain:generateDebugResources FROM-CACHE
+> Task :core:model:generateDebugResources FROM-CACHE
+> Task :core:common:javaPreCompileDebug FROM-CACHE
+> Task :core:domain:javaPreCompileDebug FROM-CACHE
+> Task :data:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:account:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:network:generateDebugResources FROM-CACHE
+> Task :core:navigation:javaPreCompileDebug FROM-CACHE
+> Task :core:navigation:generateDebugResources FROM-CACHE
+> Task :core:network:javaPreCompileDebug FROM-CACHE
+> Task :domain:account:generateDebugResources FROM-CACHE
+> Task :data:account:generateDebugResources FROM-CACHE
+> Task :domain:account:javaPreCompileDebug FROM-CACHE
+> Task :data:admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:admin:generateDebugResources FROM-CACHE
+> Task :app:packageDebugResources FROM-CACHE
+> Task :core:common:packageDebugResources FROM-CACHE
+> Task :domain:admin:generateDebugResources FROM-CACHE
+> Task :data:account:javaPreCompileDebug FROM-CACHE
+> Task :domain:admin:javaPreCompileDebug FROM-CACHE
+> Task :data:admin:javaPreCompileDebug FROM-CACHE
+> Task :core:designsystem:packageDebugResources FROM-CACHE
+> Task :data:commerce:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:common:parseDebugLocalResources FROM-CACHE
+> Task :data:commerce:generateDebugResources FROM-CACHE
+> Task :core:designsystem:parseDebugLocalResources FROM-CACHE
+> Task :core:navigation:packageDebugResources FROM-CACHE
+> Task :core:network:packageDebugResources FROM-CACHE
+> Task :core:domain:packageDebugResources FROM-CACHE
+> Task :core:model:packageDebugResources FROM-CACHE
+> Task :data:account:packageDebugResources FROM-CACHE
+> Task :core:domain:parseDebugLocalResources FROM-CACHE
+> Task :core:model:parseDebugLocalResources FROM-CACHE
+> Task :core:network:parseDebugLocalResources FROM-CACHE
+> Task :core:navigation:parseDebugLocalResources FROM-CACHE
+> Task :data:account:parseDebugLocalResources FROM-CACHE
+> Task :domain:account:packageDebugResources FROM-CACHE
+> Task :core:common:generateDebugRFile FROM-CACHE
+> Task :core:designsystem:generateDebugRFile FROM-CACHE
+> Task :domain:commerce:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:database:clean
+> Task :core:navigation:generateDebugRFile FROM-CACHE
+> Task :domain:commerce:generateDebugResources FROM-CACHE
+> Task :domain:commerce:javaPreCompileDebug FROM-CACHE
+> Task :domain:admin:packageDebugResources FROM-CACHE
+> Task :core:database:processDebugNavigationResources FROM-CACHE
+> Task :core:domain:generateDebugRFile FROM-CACHE
+> Task :data:admin:packageDebugResources FROM-CACHE
+> Task :core:network:generateDebugRFile FROM-CACHE
+> Task :domain:account:parseDebugLocalResources FROM-CACHE
+> Task :core:database:generateDebugResources FROM-CACHE
+> Task :core:model:generateDebugRFile FROM-CACHE
+> Task :domain:admin:parseDebugLocalResources FROM-CACHE
+> Task :data:farm:generateDebugResources FROM-CACHE
+> Task :data:admin:parseDebugLocalResources FROM-CACHE
+> Task :data:commerce:javaPreCompileDebug FROM-CACHE
+> Task :data:farm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:database:javaPreCompileDebug FROM-CACHE
+> Task :data:account:generateDebugRFile FROM-CACHE
+> Task :domain:farm:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:commerce:packageDebugResources FROM-CACHE
+> Task :domain:farm:javaPreCompileDebug FROM-CACHE
+> Task :domain:farm:generateDebugResources FROM-CACHE
+> Task :data:commerce:parseDebugLocalResources FROM-CACHE
+> Task :domain:account:generateDebugRFile FROM-CACHE
+> Task :domain:social:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:admin:generateDebugRFile FROM-CACHE
+> Task :domain:monitoring:generateDebugResources FROM-CACHE
+> Task :domain:monitoring:javaPreCompileDebug FROM-CACHE
+> Task :domain:commerce:packageDebugResources FROM-CACHE
+> Task :data:admin:generateDebugRFile FROM-CACHE
+> Task :domain:social:generateDebugResources FROM-CACHE
+> Task :domain:social:javaPreCompileDebug FROM-CACHE
+> Task :data:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:farm:javaPreCompileDebug FROM-CACHE
+> Task :core:database:packageDebugResources FROM-CACHE
+> Task :data:commerce:generateDebugRFile FROM-CACHE
+> Task :data:social:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:farm:packageDebugResources FROM-CACHE
+> Task :domain:commerce:parseDebugLocalResources FROM-CACHE
+> Task :data:monitoring:javaPreCompileDebug FROM-CACHE
+> Task :feature:achievements:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:monitoring:generateDebugResources FROM-CACHE
+> Task :core:database:parseDebugLocalResources FROM-CACHE
+> Task :data:social:generateDebugResources FROM-CACHE
+> Task :data:farm:parseDebugLocalResources FROM-CACHE
+> Task :data:social:javaPreCompileDebug FROM-CACHE
+> Task :feature:achievements:generateDebugResources FROM-CACHE
+> Task :domain:monitoring:packageDebugResources FROM-CACHE
+> Task :feature:achievements:javaPreCompileDebug FROM-CACHE
+> Task :domain:farm:packageDebugResources FROM-CACHE
+> Task :domain:commerce:generateDebugRFile FROM-CACHE
+> Task :feature:analytics:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:monitoring:parseDebugLocalResources FROM-CACHE
+> Task :domain:farm:parseDebugLocalResources FROM-CACHE
+> Task :feature:analytics:generateDebugResources FROM-CACHE
+> Task :data:farm:generateDebugRFile FROM-CACHE
+> Task :feature:enthusiast-tools:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:database:generateDebugRFile FROM-CACHE
+> Task :domain:social:packageDebugResources FROM-CACHE
+> Task :feature:enthusiast-tools:generateDebugResources FROM-CACHE
+> Task :data:monitoring:packageDebugResources FROM-CACHE
+> Task :feature:enthusiast-tools:javaPreCompileDebug FROM-CACHE
+> Task :feature:analytics:javaPreCompileDebug FROM-CACHE
+> Task :feature:asset-management:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :domain:social:parseDebugLocalResources FROM-CACHE
+> Task :domain:monitoring:generateDebugRFile FROM-CACHE
+> Task :feature:events:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:social:packageDebugResources FROM-CACHE
+> Task :data:monitoring:parseDebugLocalResources FROM-CACHE
+> Task :feature:achievements:packageDebugResources FROM-CACHE
+> Task :feature:events:generateDebugResources FROM-CACHE
+> Task :feature:asset-management:generateDebugResources FROM-CACHE
+> Task :feature:asset-management:javaPreCompileDebug FROM-CACHE
+> Task :domain:farm:generateDebugRFile FROM-CACHE
+> Task :feature:expert:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:social:parseDebugLocalResources FROM-CACHE
+> Task :feature:achievements:parseDebugLocalResources FROM-CACHE
+> Task :feature:events:javaPreCompileDebug FROM-CACHE
+> Task :feature:expert:generateDebugResources FROM-CACHE
+> Task :feature:enthusiast-tools:packageDebugResources FROM-CACHE
+> Task :feature:analytics:packageDebugResources FROM-CACHE
+> Task :domain:social:generateDebugRFile FROM-CACHE
+> Task :data:monitoring:generateDebugRFile FROM-CACHE
+> Task :feature:farm-dashboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:expert:javaPreCompileDebug FROM-CACHE
+> Task :feature:farm-dashboard:generateDebugResources FROM-CACHE
+> Task :feature:analytics:parseDebugLocalResources FROM-CACHE
+> Task :feature:enthusiast-tools:parseDebugLocalResources FROM-CACHE
+> Task :feature:farm-dashboard:javaPreCompileDebug FROM-CACHE
+> Task :feature:farmer-tools:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:social:generateDebugRFile FROM-CACHE
+> Task :feature:feedback:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:asset-management:packageDebugResources FROM-CACHE
+> Task :feature:achievements:generateDebugRFile FROM-CACHE
+> Task :feature:events:packageDebugResources FROM-CACHE
+> Task :feature:farmer-tools:generateDebugResources FROM-CACHE
+> Task :feature:feedback:generateDebugResources FROM-CACHE
+> Task :feature:farmer-tools:javaPreCompileDebug FROM-CACHE
+> Task :feature:asset-management:parseDebugLocalResources FROM-CACHE
+> Task :feature:enthusiast-tools:generateDebugRFile FROM-CACHE
+> Task :feature:general:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feedback:javaPreCompileDebug FROM-CACHE
+> Task :feature:onboarding:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:analytics:generateDebugRFile FROM-CACHE
+> Task :feature:expert:packageDebugResources FROM-CACHE
+> Task :feature:general:generateDebugResources FROM-CACHE
+> Task :feature:events:parseDebugLocalResources FROM-CACHE
+> Task :feature:expert:parseDebugLocalResources FROM-CACHE
+> Task :feature:onboarding:generateDebugResources FROM-CACHE
+> Task :feature:asset-management:generateDebugRFile FROM-CACHE
+> Task :feature:insights:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:onboarding:javaPreCompileDebug FROM-CACHE
+> Task :feature:general:javaPreCompileDebug FROM-CACHE
+> Task :feature:leaderboard:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:insights:generateDebugResources FROM-CACHE
+> Task :feature:events:generateDebugRFile FROM-CACHE
+> Task :feature:leaderboard:generateDebugResources FROM-CACHE
+> Task :feature:insights:javaPreCompileDebug FROM-CACHE
+> Task :feature:farm-dashboard:packageDebugResources FROM-CACHE
+> Task :feature:leaderboard:javaPreCompileDebug FROM-CACHE
+> Task :feature:listing-management:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:feedback:packageDebugResources FROM-CACHE
+> Task :feature:farmer-tools:packageDebugResources FROM-CACHE
+> Task :feature:farm-dashboard:parseDebugLocalResources FROM-CACHE
+> Task :feature:listing-management:generateDebugResources FROM-CACHE
+> Task :feature:expert:generateDebugRFile FROM-CACHE
+> Task :feature:listing-management:javaPreCompileDebug FROM-CACHE
+> Task :feature:login:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:general:packageDebugResources FROM-CACHE
+> Task :feature:farmer-tools:parseDebugLocalResources FROM-CACHE
+> Task :feature:onboarding:packageDebugResources FROM-CACHE
+> Task :feature:feedback:parseDebugLocalResources FROM-CACHE
+> Task :feature:login:generateDebugResources FROM-CACHE
+> Task :feature:login:javaPreCompileDebug FROM-CACHE
+> Task :feature:general:parseDebugLocalResources FROM-CACHE
+> Task :feature:insights:packageDebugResources FROM-CACHE
+> Task :feature:onboarding:parseDebugLocalResources FROM-CACHE
+> Task :feature:farm-dashboard:generateDebugRFile FROM-CACHE
+> Task :feature:marketplace:generateDebugResources FROM-CACHE
+> Task :feature:marketplace:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:insights:parseDebugLocalResources FROM-CACHE
+> Task :feature:farmer-tools:generateDebugRFile FROM-CACHE
+> Task :feature:leaderboard:packageDebugResources FROM-CACHE
+> Task :feature:marketplace:javaPreCompileDebug FROM-CACHE
+> Task :feature:monitoring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:onboarding:generateDebugRFile FROM-CACHE
+> Task :feature:general:generateDebugRFile FROM-CACHE
+> Task :feature:feedback:generateDebugRFile FROM-CACHE
+> Task :feature:listing-management:packageDebugResources FROM-CACHE
+> Task :feature:monitoring:generateDebugResources FROM-CACHE
+> Task :feature:notifications:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:monitoring:javaPreCompileDebug FROM-CACHE
+> Task :feature:profile:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:notifications:javaPreCompileDebug FROM-CACHE
+> Task :feature:notifications:generateDebugResources FROM-CACHE
+> Task :feature:leaderboard:parseDebugLocalResources FROM-CACHE
+> Task :feature:insights:generateDebugRFile FROM-CACHE
+> Task :feature:social-feed:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:profile:generateDebugResources FROM-CACHE
+> Task :feature:listing-management:parseDebugLocalResources FROM-CACHE
+> Task :feature:login:packageDebugResources FROM-CACHE
+> Task :feature:marketplace:packageDebugResources FROM-CACHE
+> Task :feature:profile:javaPreCompileDebug FROM-CACHE
+> Task :feature:support:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:social-feed:generateDebugResources FROM-CACHE
+> Task :feature:social-feed:javaPreCompileDebug FROM-CACHE
+> Task :feature:marketplace:parseDebugLocalResources FROM-CACHE
+> Task :feature:login:parseDebugLocalResources FROM-CACHE
+> Task :feature:leaderboard:generateDebugRFile FROM-CACHE
+> Task :feature:support:javaPreCompileDebug FROM-CACHE
+> Task :feature:traceability:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:support:generateDebugResources FROM-CACHE
+> Task :feature:traceability:javaPreCompileDebug FROM-CACHE
+> Task :feature:listing-management:generateDebugRFile FROM-CACHE
+> Task :feature:monitoring:packageDebugResources FROM-CACHE
+> Task :feature:traceability:generateDebugResources FROM-CACHE
+> Task :feature:marketplace:generateDebugRFile FROM-CACHE
+> Task :feature:transfers:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :feature:profile:packageDebugResources FROM-CACHE
+> Task :feature:monitoring:parseDebugLocalResources FROM-CACHE
+> Task :feature:profile:parseDebugLocalResources FROM-CACHE
+> Task :feature:notifications:packageDebugResources FROM-CACHE
+> Task :feature:transfers:javaPreCompileDebug FROM-CACHE
+> Task :feature:transfers:generateDebugResources FROM-CACHE
+> Task :feature:login:generateDebugRFile FROM-CACHE
+> Task :feature:notifications:parseDebugLocalResources FROM-CACHE
+> Task :feature:social-feed:packageDebugResources FROM-CACHE
+> Task :feature:monitoring:generateDebugRFile FROM-CACHE
+> Task :feature:social-feed:parseDebugLocalResources FROM-CACHE
+> Task :feature:profile:generateDebugRFile FROM-CACHE
+> Task :feature:support:packageDebugResources FROM-CACHE
+> Task :feature:traceability:packageDebugResources FROM-CACHE
+> Task :feature:support:parseDebugLocalResources FROM-CACHE
+> Task :feature:notifications:generateDebugRFile FROM-CACHE
+> Task :feature:traceability:parseDebugLocalResources FROM-CACHE
+> Task :feature:transfers:packageDebugResources FROM-CACHE
+> Task :feature:social-feed:generateDebugRFile FROM-CACHE
+> Task :feature:transfers:parseDebugLocalResources FROM-CACHE
+> Task :feature:support:generateDebugRFile FROM-CACHE
+> Task :feature:traceability:generateDebugRFile FROM-CACHE
+> Task :feature:transfers:generateDebugRFile FROM-CACHE
+> Task :app:processDebugNavigationResources FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :app:generateDebugRFile FROM-CACHE
+> Task :core:model:compileDebugKotlin FROM-CACHE
+> Task :core:model:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:model:bundleLibRuntimeToJarDebug
+> Task :core:model:bundleLibCompileToJarDebug
+> Task :domain:admin:compileDebugKotlin FROM-CACHE
+> Task :domain:admin:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:admin:bundleLibRuntimeToJarDebug
+> Task :domain:admin:bundleLibCompileToJarDebug
+> Task :domain:account:compileDebugKotlin FROM-CACHE
+> Task :domain:account:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:account:bundleLibRuntimeToJarDebug
+> Task :domain:account:bundleLibCompileToJarDebug
+> Task :core:common:compileDebugKotlin FROM-CACHE
+> Task :core:common:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:common:bundleLibCompileToJarDebug
+> Task :core:common:bundleLibRuntimeToJarDebug
+> Task :domain:commerce:compileDebugKotlin FROM-CACHE
+> Task :domain:commerce:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:farm:compileDebugKotlin FROM-CACHE
+> Task :domain:farm:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:commerce:bundleLibCompileToJarDebug
+> Task :domain:commerce:bundleLibRuntimeToJarDebug
+> Task :domain:farm:bundleLibRuntimeToJarDebug
+> Task :domain:social:compileDebugKotlin FROM-CACHE
+> Task :domain:social:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:farm:bundleLibCompileToJarDebug
+> Task :domain:monitoring:compileDebugKotlin FROM-CACHE
+> Task :domain:monitoring:compileDebugJavaWithJavac NO-SOURCE
+> Task :domain:social:bundleLibRuntimeToJarDebug
+> Task :domain:social:bundleLibCompileToJarDebug
+> Task :domain:monitoring:bundleLibCompileToJarDebug
+> Task :domain:monitoring:bundleLibRuntimeToJarDebug
+> Task :core:database:kspDebugKotlin FROM-CACHE
+> Task :core:network:compileDebugKotlin FROM-CACHE
+> Task :core:network:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:network:bundleLibRuntimeToJarDebug
+> Task :core:network:bundleLibCompileToJarDebug
+> Task :core:database:compileDebugKotlin FROM-CACHE
+> Task :core:navigation:compileDebugKotlin
+> Task :core:navigation:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:database:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:navigation:bundleLibRuntimeToJarDebug
+> Task :core:navigation:bundleLibCompileToJarDebug
+> Task :core:database:bundleLibCompileToJarDebug
+> Task :core:database:bundleLibRuntimeToJarDebug
+> Task :data:admin:kspDebugKotlin FROM-CACHE
+> Task :data:account:kspDebugKotlin FROM-CACHE
+> Task :data:commerce:kspDebugKotlin FROM-CACHE
+> Task :data:social:kspDebugKotlin FROM-CACHE
+> Task :data:monitoring:kspDebugKotlin FROM-CACHE
+> Task :data:admin:compileDebugKotlin FROM-CACHE
+> Task :core:domain:compileDebugKotlin FROM-CACHE
+> Task :core:domain:compileDebugJavaWithJavac NO-SOURCE
+> Task :data:social:compileDebugKotlin FROM-CACHE
+> Task :data:admin:compileDebugJavaWithJavac FROM-CACHE
+> Task :data:account:compileDebugKotlin FROM-CACHE
+> Task :core:designsystem:compileDebugKotlin FROM-CACHE
+> Task :core:designsystem:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:domain:bundleLibRuntimeToJarDebug
+> Task :data:social:compileDebugJavaWithJavac FROM-CACHE
+> Task :data:account:compileDebugJavaWithJavac FROM-CACHE
+> Task :data:commerce:compileDebugKotlin FROM-CACHE
+> Task :core:designsystem:bundleLibRuntimeToJarDebug
+> Task :data:commerce:compileDebugJavaWithJavac FROM-CACHE
+> Task :data:monitoring:compileDebugKotlin FROM-CACHE
+> Task :core:designsystem:bundleLibCompileToJarDebug
+> Task :core:domain:bundleLibCompileToJarDebug
+> Task :data:monitoring:compileDebugJavaWithJavac FROM-CACHE
+> Task :data:admin:transformDebugClassesWithAsm FROM-CACHE
+> Task :data:admin:bundleLibRuntimeToJarDebug
+> Task :data:admin:bundleLibCompileToJarDebug
+> Task :data:social:transformDebugClassesWithAsm FROM-CACHE
+> Task :data:account:transformDebugClassesWithAsm FROM-CACHE
+> Task :data:social:bundleLibRuntimeToJarDebug
+> Task :data:commerce:transformDebugClassesWithAsm FROM-CACHE
+> Task :data:social:bundleLibCompileToJarDebug
+> Task :data:account:bundleLibRuntimeToJarDebug
+> Task :data:account:bundleLibCompileToJarDebug
+> Task :data:commerce:bundleLibRuntimeToJarDebug
+> Task :data:commerce:bundleLibCompileToJarDebug
+> Task :data:monitoring:transformDebugClassesWithAsm FROM-CACHE
+> Task :data:monitoring:bundleLibRuntimeToJarDebug
+> Task :data:monitoring:bundleLibCompileToJarDebug
+> Task :data:farm:kspDebugKotlin
+e: [ksp] InjectProcessingStep was unable to process 'SyncManager(java.util.stream.SliceOps$1@14ed6098, ...)' because 'com.google.firebase.auth.FirebaseAuth' could not be resolved.
+
+Dependency trace:
+    => element (CLASS): com.rio.rostry.data.sync.SyncManager
+    => element (CONSTRUCTOR): SyncManager(java.util.stream.SliceOps$1@51f80b74, ...)
+    => type (EXECUTABLE constructor): (com.rio.rostry.data.database.dao.UserDao,com.rio.rostry.data.database.dao.ProductDao,com.rio.rostry.data.database.dao.OrderDao,com.rio.rostry.data.database.dao.ProductTrackingDao,com.rio.rostry.data.database.dao.ChatMessageDao,com.rio.rostry.data.database.dao.TransferDao,com.rio.rostry.data.database.dao.SyncStateDao,com.rio.rostry.data.database.dao.OutboxDao,com.rio.rostry.core.database.sync.SyncRemote,com.rio.rostry.core.common.network.ConnectivityManager,com.google.gson.Gson,com.rio.rostry.data.database.dao.BreedingPairDao,com.rio.rostry.data.database.dao.FarmAlertDao,com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao,com.rio.rostry.data.database.dao.VaccinationRecordDao,com.rio.rostry.data.database.dao.GrowthRecordDao,com.rio.rostry.data.database.dao.QuarantineRecordDao,com.rio.rostry.data.database.dao.MortalityRecordDao,com.rio.rostry.data.database.dao.HatchingBatchDao,com.rio.rostry.data.database.dao.HatchingLogDao,com.rio.rostry.data.database.dao.DailyLogDao,com.rio.rostry.data.database.dao.TaskDao,com.rio.rostry.data.database.dao.MatingLogDao,com.rio.rostry.data.database.dao.EggCollectionDao,com.rio.rostry.data.database.dao.EnthusiastDashboardSnapshotDao,com.rio.rostry.data.database.dao.RoleMigrationDao,com.google.firebase.auth.FirebaseAuth,TraceabilityRepository,com.rio.rostry.core.common.session.SessionManager,com.rio.rostry.data.database.dao.BatchSummaryDao,com.rio.rostry.data.resilience.CircuitBreakerRegistry,com.rio.rostry.data.database.dao.MediaItemDao)void
+    => type (ERROR parameter type): com.google.firebase.auth.FirebaseAuth
+
+If type 'com.google.firebase.auth.FirebaseAuth' is a generated type, check above for compilation errors that may have prevented the type from being generated. Otherwise, ensure that type 'com.google.firebase.auth.FirebaseAuth' is on your classpath.
+
+> Task :data:farm:kspDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':data:farm:kspDebugKotlin'.
+> A failure occurred while executing com.google.devtools.ksp.gradle.KspAAWorkerAction
+   > KSP failed with exit code: PROCESSING_ERROR
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2m 33s
+386 actionable tasks: 82 executed, 293 from cache, 11 up-to-date
+Configuration cache entry stored.
