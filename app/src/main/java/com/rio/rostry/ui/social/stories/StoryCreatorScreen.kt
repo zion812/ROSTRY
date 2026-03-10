@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.rio.rostry.data.repository.social.SocialRepository
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

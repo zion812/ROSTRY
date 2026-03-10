@@ -8,7 +8,7 @@ import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.data.repository.TraceabilityRepository
-import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.navigation.RouteConstants
 import com.rio.rostry.utils.notif.EnthusiastNotifier
 import com.rio.rostry.utils.Resource
 import dagger.assisted.Assisted
@@ -49,7 +49,7 @@ class HealthAnomalyWorker @AssistedInject constructor(
                         alertType = "LINEAGE_INCONSISTENCY",
                         severity = "MEDIUM",
                         message = "Lineage inconsistency for ${p.name}: ${ancestors.message}",
-                        actionRoute = Routes.Builders.familyTree(p.productId),
+                        actionRoute = "family_tree/${p.productId}",
                         createdAt = now
                     )
                 )

@@ -22,66 +22,16 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Engagement metrics data class
-data class EngagementMetrics(
-    val postId: String,
-    val likeCount: Int,
-    val commentCount: Int,
-    val shareCount: Int,
-    val viewCount: Int,
-    val engagementScore: Double
-)
+import com.rio.rostry.domain.social.repository.SocialRepository
+import com.rio.rostry.domain.social.repository.EngagementMetrics
+import com.rio.rostry.core.model.Comment
+import com.rio.rostry.core.model.Post
+import com.rio.rostry.core.model.Reputation
+import com.rio.rostry.core.model.Story
+import com.rio.rostry.data.database.mapper.toDomain
+import androidx.paging.map
 
-// Social feed
-interface SocialRepository {
-    fun feed(pageSize: Int = 20): Flow<PagingData<PostEntity>>
-    fun feedRanked(pageSize: Int = 20): Flow<PagingData<PostEntity>>
-    fun feedFollowing(userId: String, pageSize: Int = 20): Flow<PagingData<PostEntity>>
-    fun getUserPosts(userId: String, pageSize: Int = 20): Flow<PagingData<PostEntity>>
-    suspend fun createPost(
-        authorId: String,
-        type: String,
-        text: String?,
-        mediaUrl: String?,
-        thumbnailUrl: String?,
-        productId: String?,
-        hashtags: List<String>? = null,
-        mentions: List<String>? = null,
-        parentPostId: String? = null
-    ): String
-    suspend fun createPostWithMedia(authorId: String, type: String, text: String?, mediaUri: Uri, isVideo: Boolean): String
-    fun streamComments(postId: String): Flow<List<CommentEntity>>
-    fun getReplies(postId: String): Flow<List<PostEntity>>
-    suspend fun addComment(postId: String, authorId: String, text: String)
-    fun countLikes(postId: String): Flow<Int>
-    suspend fun like(postId: String, userId: String)
-    suspend fun unlike(postId: String, userId: String)
-    suspend fun deletePost(postId: String)
-    
-    // Engagement metrics
-    suspend fun getEngagementMetrics(postId: String): EngagementMetrics
-    suspend fun getEngagementMetricsBatch(postIds: List<String>): Map<String, EngagementMetrics>
-    suspend fun getTrendingPosts(limit: Int, daysBack: Int): List<PostEntity>
-    suspend fun getTrendingHashtags(limit: Int, daysBack: Int): List<String>
-    suspend fun trackPostView(postId: String, userId: String, durationSeconds: Int)
-    
-    // Stories
-    suspend fun createStory(authorId: String, mediaUri: Uri, isVideo: Boolean): String
-    fun streamActiveStories(): Flow<List<StoryEntity>>
-    
-    // Reputation
-    fun getReputation(userId: String): Flow<ReputationEntity?>
-    
-    // Profile stats - data-driven counts
-    fun getUserPostsCount(userId: String): Flow<Int>
-    fun getFollowersCount(userId: String): Flow<Int>
-    fun getFollowingCount(userId: String): Flow<Int>
-    
-    // Follow system
-    suspend fun follow(followerId: String, followedId: String)
-    suspend fun unfollow(followerId: String, followedId: String)
-    fun isFollowing(followerId: String, followedId: String): Flow<Boolean>
-}
+
 
 @Singleton
 class SocialRepositoryImpl @Inject constructor(
@@ -112,17 +62,22 @@ class SocialRepositoryImpl @Inject constructor(
         rateLimitDao.upsert(record)
     }
 
-    override fun feed(pageSize: Int): Flow<PagingData<PostEntity>> =
+    override fun feed(pageSize: Int): Flow<PagingData<Post>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.paging() }.flow
+            .map { it.map { entity -> entity.toDomain() } }
 
-    override fun feedRanked(pageSize: Int): Flow<PagingData<PostEntity>> =
+    override fun feedRanked(pageSize: Int): Flow<PagingData<Post>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingRanked() }.flow
+            .map { it.map { entity -> entity.toDomain() } }
 
-    override fun feedFollowing(userId: String, pageSize: Int): Flow<PagingData<PostEntity>> =
+    override fun feedFollowing(userId: String, pageSize: Int): Flow<PagingData<Post>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingByFollowedUsers(userId) }.flow
+            .map { it.map { entity -> entity.toDomain() } }
 
-    override fun getUserPosts(userId: String, pageSize: Int): Flow<PagingData<PostEntity>> =
+    override fun getUserPosts(userId: String, pageSize: Int): Flow<PagingData<Post>> =
         Pager(PagingConfig(pageSize = pageSize)) { postsDao.pagingByAuthor(userId) }.flow
+            .map { it.map { entity -> entity.toDomain() } }
+
 
     override suspend fun createPost(
         authorId: String,
@@ -172,9 +127,12 @@ class SocialRepositoryImpl @Inject constructor(
         return createPost(authorId, type, text, mediaUrl = url, thumbnailUrl = null, productId = null, hashtags = null, mentions = null, parentPostId = null)
     }
 
-    override fun streamComments(postId: String): Flow<List<CommentEntity>> = commentsDao.streamByPost(postId)
+    override fun streamComments(postId: String): Flow<List<Comment>> = 
+        commentsDao.streamByPost(postId).map { list -> list.map { it.toDomain() } }
 
-    override fun getReplies(postId: String): Flow<List<PostEntity>> = postsDao.getReplies(postId)
+    override fun getReplies(postId: String): Flow<List<Post>> = 
+        postsDao.getReplies(postId).map { list -> list.map { it.toDomain() } }
+
 
     override suspend fun addComment(postId: String, authorId: String, text: String) {
         checkRateLimit("comment", authorId, 2_000)
@@ -239,10 +197,11 @@ class SocialRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getTrendingPosts(limit: Int, daysBack: Int): List<PostEntity> {
+    override suspend fun getTrendingPosts(limit: Int, daysBack: Int): List<Post> {
         // Use existing getTrending query from PostsDao
-        return postsDao.getTrending(limit)
+        return postsDao.getTrending(limit).map { it.toDomain() }
     }
+
 
     override suspend fun getTrendingHashtags(limit: Int, daysBack: Int): List<String> {
         val recentPosts = postsDao.getTrending(100) // Get top 100 recent posts
@@ -289,17 +248,19 @@ class SocialRepositoryImpl @Inject constructor(
         return id
     }
 
-    override fun streamActiveStories(): Flow<List<StoryEntity>> {
-        return storiesDao.streamActive(System.currentTimeMillis())
+    override fun streamActiveStories(): Flow<List<Story>> {
+        return storiesDao.streamActive(System.currentTimeMillis()).map { list -> list.map { it.toDomain() } }
     }
 
-    override fun getReputation(userId: String): Flow<ReputationEntity?> = callbackFlow {
+
+    override fun getReputation(userId: String): Flow<Reputation?> = callbackFlow {
         // Simple polling or one-shot for now since DAO doesn't return Flow for getByUserId
         // Actually, let's change DAO to return Flow or just emit once here
-        val rep = reputationDao.getByUserId(userId)
+        val rep = reputationDao.getByUserId(userId)?.toDomain()
         trySend(rep)
         close()
     }
+
 
     // Profile stats - data-driven counts
     override fun getUserPostsCount(userId: String): Flow<Int> {
@@ -358,48 +319,16 @@ class SocialRepositoryImpl @Inject constructor(
     }
 }
 
-// Messaging (Firebase Realtime Database)
-interface MessagingRepository {
-    suspend fun sendDirectMessage(threadId: String, fromUserId: String, toUserId: String, text: String)
-    fun streamThread(threadId: String): Flow<List<MessageDTO>>
-    suspend fun sendGroupMessage(groupId: String, fromUserId: String, text: String)
-    fun streamGroup(groupId: String): Flow<List<MessageDTO>>
-    suspend fun sendDirectFile(threadId: String, fromUserId: String, toUserId: String, fileUri: Uri, fileName: String)
-    suspend fun sendGroupFile(groupId: String, fromUserId: String, fileUri: Uri, fileName: String)
-    suspend fun markThreadSeen(threadId: String, userId: String)
-    fun streamUserThreads(userId: String): Flow<List<String>>
-    fun streamUnreadCount(userId: String): Flow<Int>
-    
-    suspend fun sendOffer(threadId: String, fromUserId: String, toUserId: String, price: Double, quantity: Double, unit: String)
-    
-    // Context-aware messaging enhancements
-    suspend fun createThreadWithContext(fromUserId: String, toUserId: String, context: ThreadContext): String
-    suspend fun updateThreadMetadata(threadId: String, title: String?, lastMessageAt: Long)
-    fun streamThreadMetadata(threadId: String): Flow<ThreadMetadata?>
-    fun streamUserThreadsWithMetadata(userId: String): Flow<List<ThreadWithMetadata>>
-    
-    data class MessageDTO(
-        val messageId: String, 
-        val fromUserId: String, 
-        val toUserId: String?, 
-        val text: String, 
-        val timestamp: Long,
-        val type: String = "TEXT",
-        val metadata: String? = null
-    )
-    data class ThreadContext(val type: String, val relatedEntityId: String?, val topic: String?)
-    data class ThreadMetadata(val threadId: String, val title: String?, val context: ThreadContext?, val participantIds: List<String>, val lastMessageAt: Long)
-    data class ThreadWithMetadata(val threadId: String, val metadata: ThreadMetadata?, val lastMessage: MessageDTO?, val unreadCount: Int)
-}
+import com.rio.rostry.domain.social.repository.LegacyMessagingRepository
 
 @Singleton
 class MessagingRepositoryImpl @Inject constructor(
-    private val firebaseDb: FirebaseDatabase,
-    private val storage: FirebaseStorage,
+    private val firebaseDb: com.google.firebase.database.FirebaseDatabase,
+    private val storage: com.google.firebase.storage.FirebaseStorage,
     private val threadMetadataDao: com.rio.rostry.data.database.dao.ThreadMetadataDao,
-) : MessagingRepository {
+) : LegacyMessagingRepository {
     override suspend fun sendDirectMessage(threadId: String, fromUserId: String, toUserId: String, text: String) {
-        val msgId = UUID.randomUUID().toString()
+        val msgId = java.util.UUID.randomUUID().toString()
         val data = mapOf(
             "messageId" to msgId,
             "fromUserId" to fromUserId,
@@ -410,10 +339,10 @@ class MessagingRepositoryImpl @Inject constructor(
         firebaseDb.getReference("dm/$threadId/$msgId").setValue(data)
     }
 
-    override fun streamThread(threadId: String): Flow<List<MessagingRepository.MessageDTO>> = callbackFlow {
+    override fun streamThread(threadId: String): kotlinx.coroutines.flow.Flow<List<LegacyMessagingRepository.MessageDTO>> = kotlinx.coroutines.flow.callbackFlow {
         val ref = firebaseDb.getReference("dm/$threadId")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
+        val listener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 val messages = snapshot.children.mapNotNull { c ->
                     val id = c.child("messageId").getValue(String::class.java) ?: return@mapNotNull null
                     val from = c.child("fromUserId").getValue(String::class.java) ?: return@mapNotNull null
@@ -422,18 +351,18 @@ class MessagingRepositoryImpl @Inject constructor(
                     val ts = c.child("timestamp").getValue(Long::class.java) ?: 0L
                     val type = c.child("type").getValue(String::class.java) ?: "TEXT"
                     val metadata = c.child("metadata").getValue(String::class.java)
-                    MessagingRepository.MessageDTO(id, from, to, text, ts, type, metadata)
+                    LegacyMessagingRepository.MessageDTO(id, from, to, text, ts, type, metadata)
                 }.sortedBy { it.timestamp }
                 trySend(messages)
             }
-            override fun onCancelled(error: DatabaseError) {
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                 timber.log.Timber.e(error.toException(), "streamThread cancelled")
                 trySend(emptyList())
                 close() 
             }
         }
         ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        kotlinx.coroutines.channels.awaitClose { ref.removeEventListener(listener) }
     }
 
     override suspend fun markThreadSeen(threadId: String, userId: String) {
@@ -441,7 +370,7 @@ class MessagingRepositoryImpl @Inject constructor(
     }
 
     override suspend fun sendOffer(threadId: String, fromUserId: String, toUserId: String, price: Double, quantity: Double, unit: String) {
-        val msgId = UUID.randomUUID().toString()
+        val msgId = java.util.UUID.randomUUID().toString()
         val metadata = "{\"price\": $price, \"quantity\": $quantity, \"unit\": \"$unit\"}"
         val data = mapOf(
             "messageId" to msgId,
@@ -456,7 +385,7 @@ class MessagingRepositoryImpl @Inject constructor(
     }
 
     override suspend fun sendGroupMessage(groupId: String, fromUserId: String, text: String) {
-        val msgId = UUID.randomUUID().toString()
+        val msgId = java.util.UUID.randomUUID().toString()
         val data = mapOf(
             "messageId" to msgId,
             "fromUserId" to fromUserId,
@@ -466,35 +395,35 @@ class MessagingRepositoryImpl @Inject constructor(
         firebaseDb.getReference("gc/$groupId/$msgId").setValue(data)
     }
 
-    override fun streamGroup(groupId: String): Flow<List<MessagingRepository.MessageDTO>> = callbackFlow {
+    override fun streamGroup(groupId: String): kotlinx.coroutines.flow.Flow<List<LegacyMessagingRepository.MessageDTO>> = kotlinx.coroutines.flow.callbackFlow {
         val ref = firebaseDb.getReference("gc/$groupId")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
+        val listener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 val messages = snapshot.children.mapNotNull { c ->
                     val id = c.child("messageId").getValue(String::class.java) ?: return@mapNotNull null
                     val from = c.child("fromUserId").getValue(String::class.java) ?: return@mapNotNull null
                     val text = c.child("text").getValue(String::class.java) ?: ""
                     val ts = c.child("timestamp").getValue(Long::class.java) ?: 0L
-                    MessagingRepository.MessageDTO(id, from, null, text, ts)
+                    LegacyMessagingRepository.MessageDTO(id, from, null, text, ts)
                 }.sortedBy { it.timestamp }
                 trySend(messages)
             }
-            override fun onCancelled(error: DatabaseError) { 
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) { 
                 timber.log.Timber.e(error.toException(), "streamGroup cancelled")
                 trySend(emptyList())
                 close() 
             }
         }
         ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        kotlinx.coroutines.channels.awaitClose { ref.removeEventListener(listener) }
     }
 
-    override suspend fun sendDirectFile(threadId: String, fromUserId: String, toUserId: String, fileUri: Uri, fileName: String) {
-        val path = "chat_files/$threadId/${UUID.randomUUID()}_$fileName"
+    override suspend fun sendDirectFile(threadId: String, fromUserId: String, toUserId: String, fileUri: android.net.Uri, fileName: String) {
+        val path = "chat_files/$threadId/${java.util.UUID.randomUUID()}_$fileName"
         val ref = storage.reference.child(path)
-        ref.putFile(fileUri).await()
-        val url = ref.downloadUrl.await().toString()
-        val msgId = UUID.randomUUID().toString()
+        com.google.firebase.tasks.Tasks.await(ref.putFile(fileUri))
+        val url = com.google.firebase.tasks.Tasks.await(ref.downloadUrl).toString()
+        val msgId = java.util.UUID.randomUUID().toString()
         val data = mapOf(
             "messageId" to msgId,
             "fromUserId" to fromUserId,
@@ -506,12 +435,12 @@ class MessagingRepositoryImpl @Inject constructor(
         firebaseDb.getReference("dm/$threadId/$msgId").setValue(data)
     }
 
-    override suspend fun sendGroupFile(groupId: String, fromUserId: String, fileUri: Uri, fileName: String) {
-        val path = "group_files/$groupId/${UUID.randomUUID()}_$fileName"
+    override suspend fun sendGroupFile(groupId: String, fromUserId: String, fileUri: android.net.Uri, fileName: String) {
+        val path = "group_files/$groupId/${java.util.UUID.randomUUID()}_$fileName"
         val ref = storage.reference.child(path)
-        ref.putFile(fileUri).await()
-        val url = ref.downloadUrl.await().toString()
-        val msgId = UUID.randomUUID().toString()
+        com.google.firebase.tasks.Tasks.await(ref.putFile(fileUri))
+        val url = com.google.firebase.tasks.Tasks.await(ref.downloadUrl).toString()
+        val msgId = java.util.UUID.randomUUID().toString()
         val data = mapOf(
             "messageId" to msgId,
             "fromUserId" to fromUserId,
@@ -523,34 +452,34 @@ class MessagingRepositoryImpl @Inject constructor(
     }
 
     // A simple user->threads index at user_dm_index/<userId>/<threadId>=true
-    override fun streamUserThreads(userId: String): Flow<List<String>> = callbackFlow {
+    override fun streamUserThreads(userId: String): kotlinx.coroutines.flow.Flow<List<String>> = kotlinx.coroutines.flow.callbackFlow {
         val ref = firebaseDb.getReference("user_dm_index/$userId")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
+        val listener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 val ids = snapshot.children.mapNotNull { it.key }
                 trySend(ids)
             }
-            override fun onCancelled(error: DatabaseError) { 
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) { 
                 timber.log.Timber.e(error.toException(), "streamUserThreads cancelled")
                 trySend(emptyList())
                 close() 
             }
         }
         ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        kotlinx.coroutines.channels.awaitClose { ref.removeEventListener(listener) }
     }
 
     // Unread heuristic with timestamps if available:
     // dm_meta/<threadId>/lastMsgTs and dm_meta/<threadId>/lastSeenTs/<userId>
     // If lastMsgTs > lastSeenTs => unread. Fallback: seen flag not true.
-    override fun streamUnreadCount(userId: String): Flow<Int> = flow {
+    override fun streamUnreadCount(userId: String): kotlinx.coroutines.flow.Flow<Int> = kotlinx.coroutines.flow.flow {
         val indexRef = firebaseDb.getReference("user_dm_index/$userId")
         val metaRef = firebaseDb.getReference("dm_meta")
         
         // OPTION 2: Defer Messaging Listener Attachment
         // Check if index exists once before streaming
         try {
-            val checkSnapshot = indexRef.get().await()
+            val checkSnapshot = com.google.firebase.tasks.Tasks.await(indexRef.get())
             if (!checkSnapshot.exists()) {
                 emit(0) // No threads yet, return 0 and don't attach expensive listener
                 return@flow
@@ -563,16 +492,16 @@ class MessagingRepositoryImpl @Inject constructor(
             }
         }
 
-        emitAll(callbackFlow {
-            val indexListener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
+        emitAll(kotlinx.coroutines.flow.callbackFlow {
+            val indexListener = object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                     val threads = snapshot.children.mapNotNull { it.key }.toSet()
                     if (threads.isEmpty()) {
                         trySend(0)
                         return
                     }
-                    metaRef.addListenerForSingleValueEvent(object: ValueEventListener {
-                        override fun onDataChange(metaSnap: DataSnapshot) {
+                    metaRef.addListenerForSingleValueEvent(object: com.google.firebase.database.ValueEventListener {
+                        override fun onDataChange(metaSnap: com.google.firebase.database.DataSnapshot) {
                             val c = threads.count { t ->
                                 val meta = metaSnap.child(t)
                                 val lastMsgTs = meta.child("lastMsgTs").getValue(Long::class.java)
@@ -585,11 +514,11 @@ class MessagingRepositoryImpl @Inject constructor(
                             }
                             trySend(c)
                         }
-                        override fun onCancelled(error: DatabaseError) { /* ignore */ }
+                        override fun onCancelled(error: com.google.firebase.database.DatabaseError) { /* ignore */ }
                     })
                 }
-                override fun onCancelled(error: DatabaseError) { 
-                    val isPermissionError = error.code == DatabaseError.PERMISSION_DENIED
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) { 
+                    val isPermissionError = error.code == com.google.firebase.database.DatabaseError.PERMISSION_DENIED
                     if (isPermissionError) {
                         timber.log.Timber.w("streamUnreadCount: Permission denied - user may not have access to dm_meta")
                     } else {
@@ -600,13 +529,13 @@ class MessagingRepositoryImpl @Inject constructor(
                 }
             }
             indexRef.addValueEventListener(indexListener)
-            awaitClose { indexRef.removeEventListener(indexListener) }
+            kotlinx.coroutines.channels.awaitClose { indexRef.removeEventListener(indexListener) }
         })
     }
 
     // Context-aware messaging implementations
-    override suspend fun createThreadWithContext(fromUserId: String, toUserId: String, context: MessagingRepository.ThreadContext): String {
-        val threadId = UUID.randomUUID().toString()
+    override suspend fun createThreadWithContext(fromUserId: String, toUserId: String, context: LegacyMessagingRepository.ThreadContext): String {
+        val threadId = java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         
         // Store context in Firebase
@@ -658,10 +587,10 @@ class MessagingRepositoryImpl @Inject constructor(
         threadMetadataDao.updateLastMessageTime(threadId, lastMessageAt)
     }
 
-    override fun streamThreadMetadata(threadId: String): Flow<MessagingRepository.ThreadMetadata?> = callbackFlow {
+    override fun streamThreadMetadata(threadId: String): kotlinx.coroutines.flow.Flow<LegacyMessagingRepository.ThreadMetadata?> = kotlinx.coroutines.flow.callbackFlow {
         val ref = firebaseDb.getReference("dm_meta/$threadId")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
+        val listener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 val title = snapshot.child("title").getValue(String::class.java)
                 val contextType = snapshot.child("context/type").getValue(String::class.java)
                 val relatedEntityId = snapshot.child("context/relatedEntityId").getValue(String::class.java)
@@ -669,12 +598,12 @@ class MessagingRepositoryImpl @Inject constructor(
                 val lastMessageAt = snapshot.child("lastMsgTs").getValue(Long::class.java) ?: 0L
                 
                 val context = if (contextType != null) {
-                    MessagingRepository.ThreadContext(contextType, relatedEntityId, topic)
+                    LegacyMessagingRepository.ThreadContext(contextType, relatedEntityId, topic)
                 } else null
                 
                 val participants = snapshot.child("participants").children.mapNotNull { it.key }
                 
-                val metadata = MessagingRepository.ThreadMetadata(
+                val metadata = LegacyMessagingRepository.ThreadMetadata(
                     threadId = threadId,
                     title = title,
                     context = context,
@@ -683,28 +612,28 @@ class MessagingRepositoryImpl @Inject constructor(
                 )
                 trySend(metadata)
             }
-            override fun onCancelled(error: DatabaseError) {
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                 timber.log.Timber.e(error.toException(), "streamThreadMetadata cancelled")
                 trySend(null)
                 close()
             }
         }
         ref.addValueEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        kotlinx.coroutines.channels.awaitClose { ref.removeEventListener(listener) }
     }
 
-    override fun streamUserThreadsWithMetadata(userId: String): Flow<List<MessagingRepository.ThreadWithMetadata>> = callbackFlow {
+    override fun streamUserThreadsWithMetadata(userId: String): kotlinx.coroutines.flow.Flow<List<LegacyMessagingRepository.ThreadWithMetadata>> = kotlinx.coroutines.flow.callbackFlow {
         val indexRef = firebaseDb.getReference("user_dm_index/$userId")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
+        val listener = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
                 val threadIds = snapshot.children.mapNotNull { it.key }
-                val threadsWithMetadata = mutableListOf<MessagingRepository.ThreadWithMetadata>()
+                val threadsWithMetadata = mutableListOf<LegacyMessagingRepository.ThreadWithMetadata>()
                 
                 // For each thread, fetch metadata and last message
                 threadIds.forEach { threadId ->
                     // Simplified - in real implementation, would fetch metadata and last message
                     threadsWithMetadata.add(
-                        MessagingRepository.ThreadWithMetadata(
+                        LegacyMessagingRepository.ThreadWithMetadata(
                             threadId = threadId,
                             metadata = null,
                             lastMessage = null,
@@ -714,13 +643,14 @@ class MessagingRepositoryImpl @Inject constructor(
                 }
                 trySend(threadsWithMetadata)
             }
-            override fun onCancelled(error: DatabaseError) {
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
                 timber.log.Timber.e(error.toException(), "streamUserThreadsWithMetadata cancelled")
                 trySend(emptyList())
                 close()
             }
         }
         indexRef.addValueEventListener(listener)
-        awaitClose { indexRef.removeEventListener(listener) }
+        kotlinx.coroutines.channels.awaitClose { indexRef.removeEventListener(listener) }
     }
+
 }

@@ -8,7 +8,7 @@ import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao
 import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
 import com.rio.rostry.data.repository.TransactionRepository
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import timber.log.Timber

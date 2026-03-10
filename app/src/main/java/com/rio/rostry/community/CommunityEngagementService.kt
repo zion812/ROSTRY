@@ -6,7 +6,7 @@ import com.rio.rostry.data.repository.social.MessagingRepository
 import com.rio.rostry.data.repository.social.SocialRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.UserType
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first

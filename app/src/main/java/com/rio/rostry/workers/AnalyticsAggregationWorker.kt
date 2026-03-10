@@ -14,7 +14,7 @@ import com.rio.rostry.data.database.entity.AnalyticsDailyEntity
 import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
 import com.rio.rostry.data.database.entity.EnthusiastDashboardSnapshotEntity
 import com.rio.rostry.domain.model.UserType
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.notif.AnalyticsNotifier
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

@@ -2,7 +2,7 @@ package com.rio.rostry.data.repository
 
 import com.rio.rostry.data.database.dao.*
 import com.rio.rostry.data.database.entity.*
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.*

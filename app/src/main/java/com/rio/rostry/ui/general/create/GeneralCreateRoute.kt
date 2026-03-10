@@ -65,7 +65,7 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.rio.rostry.ui.general.create.GeneralCreateViewModel.MediaAttachment
 import com.rio.rostry.ui.general.create.GeneralCreateViewModel.Privacy
-import com.rio.rostry.ui.marketplace.LocationPickerScreen
+import com.rio.rostry.feature.marketplace.ui.LocationPickerScreen
 import com.rio.rostry.marketplace.location.LocationSearchService
 import com.rio.rostry.marketplace.location.LocationService
 import com.google.android.libraries.places.api.Places

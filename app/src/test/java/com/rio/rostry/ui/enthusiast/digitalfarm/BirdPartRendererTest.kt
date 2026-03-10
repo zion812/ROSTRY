@@ -1,4 +1,4 @@
-package com.rio.rostry.ui.enthusiast.digitalfarm
+package com.rio.rostry.feature.enthusiast.ui.digitalfarm
 
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.rio.rostry.domain.model.BirdAppearance
 import com.rio.rostry.domain.model.BreastShape
 import com.rio.rostry.domain.model.Stance
-import com.rio.rostry.ui.enthusiast.digitalfarm.BirdPartRenderer.drawBirdFromAppearance
+import com.rio.rostry.feature.enthusiast.ui.digitalfarm.BirdPartRenderer.drawBirdFromAppearance
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith

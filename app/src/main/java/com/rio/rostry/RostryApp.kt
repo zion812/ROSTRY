@@ -60,7 +60,25 @@ import com.rio.rostry.feature.feedback.navigation.FeedbackNavigationProvider
 import com.rio.rostry.feature.insights.navigation.InsightsNavigationProvider
 import com.rio.rostry.feature.leaderboard.navigation.LeaderboardNavigationProvider
 import com.rio.rostry.feature.notifications.navigation.NotificationsNavigationProvider
+import com.rio.rostry.feature.onboarding.navigation.OnboardingNavigationProvider
 import com.rio.rostry.feature.support.navigation.SupportNavigationProvider
+import com.rio.rostry.feature.login.navigation.LoginNavigationProvider
+import com.rio.rostry.feature.farm.dashboard.navigation.FarmDashboardNavigationProvider
+import com.rio.rostry.feature.asset.management.navigation.AssetManagementNavigationProvider
+import com.rio.rostry.feature.listing.management.navigation.ListingManagementNavigationProvider
+
+// New navigation providers (Phase 1 Migration)
+import com.rio.rostry.ui.marketplace.navigation.MarketplaceNavigationProvider
+import com.rio.rostry.ui.social.navigation.SocialNavigationProvider
+import com.rio.rostry.ui.monitoring.navigation.MonitoringNavigationProvider
+import com.rio.rostry.feature.farmer.navigation.FarmerToolsNavigationProvider
+import com.rio.rostry.feature.enthusiast.navigation.EnthusiastToolsNavigationProvider
+import com.rio.rostry.feature.analytics.navigation.AnalyticsNavigationProvider
+import com.rio.rostry.feature.transfers.navigation.TransfersNavigationProvider
+import com.rio.rostry.ui.profile.navigation.ProfileNavigationProvider
+import com.rio.rostry.feature.general.navigation.GeneralNavigationProvider
+import com.rio.rostry.feature.traceability.navigation.TraceabilityNavigationProvider
+import com.rio.rostry.feature.admin.navigation.AdminNavigationProvider
 
 @HiltAndroidApp
 class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory {
@@ -455,9 +473,37 @@ class RostryApp : Application(), Configuration.Provider, coil.ImageLoaderFactory
         
         // Notifications feature
         navigationRegistry.register(NotificationsNavigationProvider())
+
+        // Onboarding feature
+        navigationRegistry.register(OnboardingNavigationProvider())
         
         // Support feature
         navigationRegistry.register(SupportNavigationProvider())
+        
+        // Login feature
+        navigationRegistry.register(LoginNavigationProvider())
+        
+        // Farm Dashboard feature
+        navigationRegistry.register(FarmDashboardNavigationProvider())
+        
+        // Asset Management feature
+        navigationRegistry.register(AssetManagementNavigationProvider())
+        
+        // Listing Management feature
+        navigationRegistry.register(ListingManagementNavigationProvider())
+        
+        // New feature modules (Phase 1 Migration)
+        navigationRegistry.register(MarketplaceNavigationProvider())
+        navigationRegistry.register(SocialNavigationProvider())
+        navigationRegistry.register(MonitoringNavigationProvider())
+        navigationRegistry.register(FarmerToolsNavigationProvider())
+        navigationRegistry.register(EnthusiastToolsNavigationProvider())
+        navigationRegistry.register(AnalyticsNavigationProvider())
+        navigationRegistry.register(TransfersNavigationProvider())
+        navigationRegistry.register(ProfileNavigationProvider())
+        navigationRegistry.register(AdminNavigationProvider())
+        navigationRegistry.register(GeneralNavigationProvider())
+        navigationRegistry.register(TraceabilityNavigationProvider())
         
         Timber.d("Registered ${navigationRegistry.getProviders().size} navigation providers")
     }

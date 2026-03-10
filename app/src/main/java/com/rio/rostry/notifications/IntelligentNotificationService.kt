@@ -12,8 +12,8 @@ import com.rio.rostry.utils.notif.AnalyticsNotifier
 import com.rio.rostry.utils.notif.FarmNotifier
 import com.rio.rostry.utils.notif.SocialNotifier
 import com.rio.rostry.utils.notif.TransferNotifier
-import com.rio.rostry.ui.navigation.Routes
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.ui.navigation.RouteConstants
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.network.ConnectivityManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -292,7 +292,7 @@ class IntelligentNotificationService @Inject constructor(
         if (!shouldNotify(userId, "VERIFICATION")) return
 
         val notificationId = generateId("notif_verification_")
-        val deepLink = "rostry://${Routes.VERIFY_FARMER_LOCATION}"
+        val deepLink = "rostry://${RouteConstants.VERIFY_FARMER_LOCATION}"
 
         val notification = NotificationEntity(
             notificationId = notificationId,
@@ -533,26 +533,26 @@ class IntelligentNotificationService @Inject constructor(
     private fun generateDeepLink(domain: String, refId: String, subRoute: String? = null): String {
         return when (domain) {
             "FARM" -> when (subRoute) {
-                "VACCINATION_DUE" -> "rostry://${Routes.Builders.monitoringVaccinationWithProductId(refId)}"
-                "QUARANTINE_OVERDUE" -> "rostry://${Routes.MONITORING_QUARANTINE}"
-                "GROWTH_CHECK" -> "rostry://${Routes.Builders.monitoringGrowthWithProductId(refId)}"
-                "BATCH_SPLIT" -> "rostry://${Routes.Builders.monitoringGrowthWithProductId(refId)}"
-                "HATCHING_DUE" -> "rostry://${Routes.MONITORING_HATCHING}"
-                "MORTALITY_SPIKE" -> "rostry://${Routes.MONITORING_MORTALITY}"
-                "BIRD_ADDED" -> "rostry://${Routes.MONITORING_DAILY_LOG}"
-                "BATCH_ADDED" -> "rostry://${Routes.MONITORING_TASKS}"
-                "COMPLIANCE_ALERT" -> "rostry://${Routes.Builders.complianceDetails(refId)}"
-                "DAILY_GOAL_MILESTONE" -> "rostry://${Routes.HOME_FARMER}"
-                "KYC_REQUIRED" -> "rostry://${Routes.VERIFY_FARMER_LOCATION}"
-                else -> "rostry://${Routes.MONITORING_DASHBOARD}"
+                "VACCINATION_DUE" -> "rostry://${RouteConstants.Builders.monitoringVaccinationWithProductId(refId)}"
+                "QUARANTINE_OVERDUE" -> "rostry://${RouteConstants.MONITORING_QUARANTINE}"
+                "GROWTH_CHECK" -> "rostry://${RouteConstants.Builders.monitoringGrowthWithProductId(refId)}"
+                "BATCH_SPLIT" -> "rostry://${RouteConstants.Builders.monitoringGrowthWithProductId(refId)}"
+                "HATCHING_DUE" -> "rostry://${RouteConstants.Builders.monitoringHatching()}"
+                "MORTALITY_SPIKE" -> "rostry://${RouteConstants.Builders.monitoringMortality()}"
+                "BIRD_ADDED" -> "rostry://${RouteConstants.MONITORING_DAILY_LOG}"
+                "BATCH_ADDED" -> "rostry://${RouteConstants.MONITORING_TASKS}"
+                "COMPLIANCE_ALERT" -> "rostry://${RouteConstants.COMPLIANCE}"
+                "DAILY_GOAL_MILESTONE" -> "rostry://home/farmer"
+                "KYC_REQUIRED" -> "rostry://${RouteConstants.VERIFY_FARMER_LOCATION}"
+                else -> "rostry://monitoring/dashboard"
             }
-            "TRANSFER" -> "rostry://${Routes.Builders.transferDetails(refId)}"
-            "ORDER" -> "rostry://${Routes.Builders.orderDetails(refId)}"
+            "TRANSFER" -> "rostry://transfer/details/$refId"
+            "ORDER" -> "rostry://order/details/$refId"
             "SOCIAL" -> when (subRoute) {
-                "NEW_MESSAGE" -> "rostry://${Routes.Builders.messagesThread(refId)}"
-                "NEW_COMMENT", "NEW_LIKE" -> "rostry://${Routes.Builders.socialPost(refId)}"
-                "NEW_FOLLOW" -> "rostry://${Routes.Builders.userProfile(refId)}"
-                else -> "rostry://${Routes.SOCIAL_FEED}"
+                "NEW_MESSAGE" -> "rostry://messages/thread/$refId"
+                "NEW_COMMENT", "NEW_LIKE" -> "rostry://social/post/$refId"
+                "NEW_FOLLOW" -> "rostry://profile/$refId"
+                else -> "rostry://social/feed"
             }
             else -> ""
         }
@@ -619,7 +619,7 @@ class IntelligentNotificationService @Inject constructor(
     }
   
     private fun displayOrderNotification(orderId: String, title: String, message: String) {
-        val deepLink = "rostry://${Routes.Builders.orderDetails(orderId)}"
+        val deepLink = "rostry://order/details/$orderId"
         analyticsNotifier.showInsight(title, message, deepLink)
     }
   

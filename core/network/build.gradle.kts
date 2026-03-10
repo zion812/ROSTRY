@@ -28,5 +28,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
 
     // DI
-    implementation("javax.inject:javax.inject:1")
+    implementation(libs.javax.inject)
 }

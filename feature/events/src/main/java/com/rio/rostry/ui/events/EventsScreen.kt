@@ -19,11 +19,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.rio.rostry.data.database.entity.EventEntity
+
+data class EventItem(
+    val eventId: String,
+    val title: String,
+    val location: String? = null
+)
 
 @Composable
 fun EventsScreen(
-    events: List<EventEntity>,
+    events: List<EventItem>,
     onRsvpGoing: (String) -> Unit,
     onRsvpInterested: (String) -> Unit,
     onCreateEvent: (title: String, description: String?, location: String?) -> Unit,

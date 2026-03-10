@@ -18,7 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.viewModels
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.domain.model.UserType
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.ui.theme.AppRole
 import com.rio.rostry.ui.theme.ROSTRYTheme
 import com.rio.rostry.ui.navigation.AppNavHost

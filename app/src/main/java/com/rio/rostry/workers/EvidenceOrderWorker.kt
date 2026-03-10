@@ -12,7 +12,7 @@ import androidx.work.WorkerParameters
 import com.rio.rostry.data.repository.EvidenceOrderRepository
 import com.rio.rostry.domain.model.EvidenceOrderStatus
 import com.rio.rostry.notifications.IntelligentNotificationService
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first

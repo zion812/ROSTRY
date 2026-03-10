@@ -1,7 +1,7 @@
 package com.rio.rostry.data.integrity
 
 import com.rio.rostry.data.database.dao.*
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton

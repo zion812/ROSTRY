@@ -18,7 +18,7 @@ import com.rio.rostry.data.database.dao.ReportsDao
 import com.rio.rostry.data.database.entity.ReportEntity
 import com.rio.rostry.utils.export.CsvExporter
 import com.rio.rostry.utils.export.PdfExporter
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.notif.AnalyticsNotifier
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

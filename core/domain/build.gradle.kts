@@ -21,5 +21,5 @@ dependencies {
     implementation(libs.gson)
 
     // DI (javax.inject for @Inject/@Singleton)
-    implementation("javax.inject:javax.inject:1")
+    implementation(libs.javax.inject)
 }

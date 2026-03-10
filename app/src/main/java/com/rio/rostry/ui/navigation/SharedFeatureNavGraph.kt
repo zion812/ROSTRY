@@ -15,25 +15,25 @@ internal fun NavGraphBuilder.sharedFeatureNavGraph(
     navController: NavHostController
 ) {
     composable(Routes.ANALYTICS_GENERAL) {
-        com.rio.rostry.ui.analytics.GeneralDashboardScreen(
+        com.rio.rostry.feature.analytics.GeneralDashboardScreen(
             onOpenReports = { navController.navigate(Routes.REPORTS) },
             onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
         )
     }
     composable(Routes.ANALYTICS_FARMER) {
-        com.rio.rostry.ui.analytics.FarmerDashboardScreen(
+        com.rio.rostry.feature.analytics.FarmerDashboardScreen(
             onOpenReports = { navController.navigate(Routes.REPORTS) },
             onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
         )
     }
     composable(Routes.ANALYTICS_ENTHUSIAST) {
-        com.rio.rostry.ui.analytics.EnthusiastDashboardScreen(
+        com.rio.rostry.feature.analytics.EnthusiastDashboardScreen(
             onOpenReports = { navController.navigate(Routes.REPORTS) },
             onOpenFeed = { navController.navigate(Routes.SOCIAL_FEED) }
         )
     }
     composable(Routes.REPORTS) {
-        com.rio.rostry.ui.analytics.ReportsScreen()
+        com.rio.rostry.feature.analytics.ReportsScreen()
     }
 
     composable(

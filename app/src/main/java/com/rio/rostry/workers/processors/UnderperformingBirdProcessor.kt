@@ -4,7 +4,7 @@ import android.content.Context
 import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.entity.FarmAlertEntity
-import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.navigation.RouteConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -64,7 +64,7 @@ class UnderperformingBirdProcessor @Inject constructor(
                                     alertType = "UNDERPERFORMING_BIRD",
                                     severity = "INFO",
                                     message = "${bird.name ?: "Bird"} is ${percentBelowAvg}% below avg weight for ${ageWeeks}-week birds. Consider culling or separation.",
-                                    actionRoute = Routes.Builders.productDetails(bird.productId),
+                                    actionRoute = "product/details/${bird.productId}",
                                     createdAt = now
                                 )
                             )

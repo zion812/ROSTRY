@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
  * Repository contract for authentication operations.
  * 
  * Phase 2: Domain and Data Decoupling
- * Requirement 4.1 - Domain modules define interfaces without implementation details
+ * Defines authentication interfaces without implementation details.
  */
 interface AuthRepository {
     /**
@@ -16,7 +16,7 @@ interface AuthRepository {
      * @return Flow emitting the current user or null if not authenticated
      */
     fun observeCurrentUser(): Flow<User?>
-
+    
     /**
      * Sign in with phone number and OTP.
      * @param phoneNumber The phone number to authenticate
@@ -24,20 +24,20 @@ interface AuthRepository {
      * @return Result containing the authenticated user or error
      */
     suspend fun signInWithPhone(phoneNumber: String, otp: String): Result<User>
-
+    
     /**
      * Sign in with Google credentials.
      * @param idToken The Google ID token
      * @return Result containing the authenticated user or error
      */
     suspend fun signInWithGoogle(idToken: String): Result<User>
-
+    
     /**
      * Sign out the current user.
      * @return Result indicating success or error
      */
     suspend fun signOut(): Result<Unit>
-
+    
     /**
      * Request OTP for phone number.
      * @param phoneNumber The phone number to send OTP to

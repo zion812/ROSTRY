@@ -1,0 +1,1081 @@
+package com.rio.rostry.ui.farmer
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rio.rostry.ui.navigation.RouteConstants
+import com.rio.rostry.ui.components.SyncStatusBadge
+import com.rio.rostry.ui.components.ConflictNotification
+import timber.log.Timber
+
+
+@Composable
+fun FarmerCreateScreen(
+    viewModel: FarmerCreateViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit,
+    prefillProductId: String? = null,
+    pairId: String? = null
+) {
+    val uiState by viewModel.ui.collectAsStateWithLifecycle()
+    val wizardState = uiState.wizardState
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Media pickers
+    val context = LocalContext.current
+
+    // Media pickers - Use OpenMultipleDocuments to avoid Photo Picker crashes and allow persistent access
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to take persistable URI permission for photo")
+            }
+        }
+        viewModel.addMedia("photo", uris.map { it.toString() }) 
+    }
+    
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for video") }
+        }
+        viewModel.addMedia("video", uris.map { it.toString() }) 
+    }
+    
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for audio") }
+        }
+        viewModel.addMedia("audio", uris.map { it.toString() }) 
+    }
+    
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> 
+        uris.forEach { uri ->
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) { Timber.w(e, "Failed to take persistable URI permission for document") }
+        }
+        viewModel.addMedia("document", uris.map { it.toString() }) 
+    }
+    
+    // Load farm monitoring data if prefillProductId is provided
+    LaunchedEffect(prefillProductId) {
+        viewModel.loadPrefillData(prefillProductId)
+    }
+    
+    // Load breeding pair context if pairId is provided (enhances listing with breeding stats)
+    LaunchedEffect(pairId) {
+        viewModel.loadBreedingContext(pairId)
+    }
+    
+    LaunchedEffect(uiState.successProductId) {
+        if (uiState.successProductId != null) {
+            snackbarHostState.showSnackbar("Listing published successfully")
+        }
+    }
+    
+    // Show loading indicator when prefill is in progress
+    if (prefillProductId != null && uiState.wizardState.basicInfo.title.isBlank()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                CircularProgressIndicator()
+                Text("Loading farm data...", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        return
+    }
+    
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Column(Modifier.fillMaxSize().padding(padding)) {
+        // Conflict notification for listings
+        uiState.conflictDetails?.let { c ->
+            ConflictNotification(
+                conflict = c,
+                onDismiss = { viewModel.dismissConflict() },
+                onViewDetails = { viewModel.viewConflictDetails(c.entityId) }
+            )
+        }
+        // Enhanced error banner with icon variations
+        if (uiState.error != null) {
+            val errorMessage = uiState.error!!
+            val icon = when {
+                errorMessage.contains("quarantine", ignoreCase = true) ||
+                errorMessage.contains("deceased", ignoreCase = true) ||
+                errorMessage.contains("transferred", ignoreCase = true) -> Icons.Filled.Block
+                errorMessage.contains("vaccination", ignoreCase = true) ||
+                errorMessage.contains("health log", ignoreCase = true) ||
+                errorMessage.contains("daily log", ignoreCase = true) ||
+                errorMessage.contains("growth", ignoreCase = true) -> Icons.Filled.Warning
+                else -> Icons.Filled.Error
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(icon, contentDescription = "Error", tint = MaterialTheme.colorScheme.error)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            errorMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        TextButton(onClick = { viewModel.clearError() }) {
+                            Text("Dismiss")
+                        }
+                    }
+                }
+            }
+            
+            // Actionable error cards
+            if (errorMessage.contains("quarantine", ignoreCase = true)) {
+                ActionCard("Go to Quarantine Management", RouteConstants.MONITORING_QUARANTINE)
+            }
+            if (errorMessage.contains("vaccination", ignoreCase = true)) {
+                ActionCard("Add Vaccination Record", RouteConstants.MONITORING_VACCINATION)
+            }
+            if (errorMessage.contains("health log", ignoreCase = true) || errorMessage.contains("daily log", ignoreCase = true)) {
+                ActionCard("Add Daily Log", RouteConstants.MONITORING_DAILY_LOG)
+            }
+            if (errorMessage.contains("growth", ignoreCase = true)) {
+                ActionCard("Add Growth Record", RouteConstants.MONITORING_GROWTH)
+            }
+        }
+        
+        // Show prefill info banner if data was loaded
+        if (prefillProductId != null && uiState.error == null) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Filled.Info, contentDescription = "Info")
+                    Text(
+                        "Pre-filled from your farm monitoring data. Review and edit as needed.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+        
+        // Add pending listings banner
+        if (uiState.pendingListingsCount > 0) {
+            Card { Text("${uiState.pendingListingsCount} listings pending sync") }
+        }
+        
+        WizardProgressIndicator(wizardState.currentStep)
+        
+        Box(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
+            when (wizardState.currentStep) {
+                FarmerCreateViewModel.WizardStep.BASICS -> BasicInfoStep(
+                    state = wizardState.basicInfo,
+                    errors = wizardState.validationErrors,
+                    onUpdate = viewModel::updateBasicInfo
+                )
+                FarmerCreateViewModel.WizardStep.DETAILS -> DetailsStep(
+                    category = wizardState.basicInfo.category,
+                    traceability = wizardState.basicInfo.traceability,
+                    ageGroup = wizardState.basicInfo.ageGroup,
+                    state = wizardState.detailsInfo,
+                    onUpdate = viewModel::updateDetails,
+                    onAutoDetectLocation = viewModel::autoDetectLocation,
+                    isDetectingLocation = uiState.isSubmitting,
+                    listForSale = wizardState.basicInfo.listForSale
+                )
+                FarmerCreateViewModel.WizardStep.MEDIA -> MediaStep(
+                    state = wizardState.mediaInfo,
+                    onAddMedia = viewModel::addMedia,
+                    onRemoveMedia = viewModel::removeMedia,
+                    photoPickerLauncher = photoPickerLauncher,
+                    videoPickerLauncher = videoPickerLauncher,
+                    audioPickerLauncher = audioPickerLauncher,
+                    documentPickerLauncher = documentPickerLauncher
+                )
+                FarmerCreateViewModel.WizardStep.REVIEW -> ReviewStep(
+                    basicInfo = wizardState.basicInfo,
+                    detailsInfo = wizardState.detailsInfo,
+                    mediaInfo = wizardState.mediaInfo,
+                    validationStatus = uiState.validationStatus, // Assuming added to uiState
+                    uiState = uiState
+                )
+            }
+        }
+        
+        var showConfirm by rememberSaveable { mutableStateOf(false) }
+        if (showConfirm) {
+            AlertDialog(
+                onDismissRequest = { showConfirm = false },
+                title = { Text("Publish Listing?") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Title: ${wizardState.basicInfo.title}")
+                        Text("Category: ${wizardState.basicInfo.category}")
+                        if (wizardState.basicInfo.priceType == PriceType.Fixed) {
+                            Text("Price: ₹${wizardState.basicInfo.price}")
+                        } else {
+                            Text("Auction start: ₹${wizardState.basicInfo.auctionStartPrice}")
+                        }
+                        Text("Traceability: ${wizardState.basicInfo.traceability}")
+                        Text("Photos: ${wizardState.mediaInfo.photoUris.size} • Videos: ${wizardState.mediaInfo.videoUris.size}")
+                        Text("Will sync when online", style = MaterialTheme.typography.bodySmall)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showConfirm = false
+                        viewModel.submitWizardListing()
+                    }) { Text("Confirm") }
+                },
+                dismissButton = { TextButton(onClick = { showConfirm = false }) { Text("Cancel") } }
+            )
+        }
+
+        WizardNavigationButtons(
+            currentStep = wizardState.currentStep,
+            isSubmitting = uiState.isSubmitting,
+            onBack = viewModel::previousStep,
+            onNext = viewModel::nextStep,
+            onSubmit = viewModel::submitWizardListing,
+            onPublishRequest = { showConfirm = true },
+            uiState = uiState
+        )
+    }
+    }
+}
+
+@Composable
+private fun ActionCard(label: String, route: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            IconButton(onClick = { /* Navigate to route */ }) {
+                Icon(Icons.Filled.ArrowForward, contentDescription = "Navigate")
+            }
+        }
+    }
+}
+
+@Composable
+private fun WizardProgressIndicator(currentStep: FarmerCreateViewModel.WizardStep) {
+    LinearProgressIndicator(
+        progress = (currentStep.ordinal + 1) / 4f,
+        modifier = Modifier.fillMaxWidth()
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "Step ${currentStep.ordinal + 1} of 4: ${currentStep.name}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BasicInfoStep(
+    state: FarmerCreateViewModel.BasicInfoState,
+    errors: Map<String, String>,
+    onUpdate: ((FarmerCreateViewModel.BasicInfoState) -> FarmerCreateViewModel.BasicInfoState) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Basic Information", style = MaterialTheme.typography.titleLarge)
+        
+        // Category
+        Text("Category", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = state.category == Category.Meat,
+                onClick = { onUpdate { it.copy(category = Category.Meat) } },
+                label = { Text("Meat") }
+            )
+            FilterChip(
+                selected = state.category == Category.Adoption,
+                onClick = { onUpdate { it.copy(category = Category.Adoption) } },
+                label = { Text("Adoption") }
+            )
+        }
+        
+        // Traceability
+        Text("Traceability", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = state.traceability == Traceability.Traceable,
+                onClick = { onUpdate { it.copy(traceability = Traceability.Traceable) } },
+                label = { Text("Traceable") }
+            )
+            FilterChip(
+                selected = state.traceability == Traceability.NonTraceable,
+                onClick = { onUpdate { it.copy(traceability = Traceability.NonTraceable) } },
+                label = { Text("Non-traceable") }
+            )
+        }
+        
+        // Age Group
+        Text("Age Group", style = MaterialTheme.typography.titleSmall)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AgeGroup.values().forEach { group ->
+                FilterChip(
+                    selected = state.ageGroup == group,
+                    onClick = { onUpdate { it.copy(ageGroup = group) } },
+                    label = { Text(group.name) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        
+        // Title
+        OutlinedTextField(
+            value = state.title,
+            onValueChange = { newTitle -> onUpdate { it.copy(title = newTitle) } },
+            label = { Text("Product Title *") },
+            isError = errors.containsKey("title"),
+            supportingText = errors["title"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Batch / Quantity
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Sell as Batch/Flock?", style = MaterialTheme.typography.titleMedium)
+            Switch(
+                checked = state.isBatch,
+                onCheckedChange = { isBatch -> onUpdate { it.copy(isBatch = isBatch, quantity = if (isBatch) it.quantity else 1) } }
+            )
+        }
+
+        if (state.isBatch) {
+            OutlinedTextField(
+                value = state.quantity.toString(),
+                onValueChange = { 
+                    val qty = it.toIntOrNull() ?: 1
+                    onUpdate { s -> s.copy(quantity = qty) } 
+                },
+                label = { Text("Quantity (Birds in Flock)") },
+                isError = errors.containsKey("quantity"),
+                supportingText = errors["quantity"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        
+        // List for Sale Toggle (NEW)
+        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("List for Sale?", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Enable to set price and availability dates",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = state.listForSale,
+                onCheckedChange = { listForSale -> onUpdate { it.copy(listForSale = listForSale) } }
+            )
+        }
+        
+        // Pricing Section - Only shown when listing for sale
+        if (state.listForSale) {
+            // Price Type
+            Text("Price Type", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.priceType == PriceType.Fixed,
+                    onClick = { onUpdate { it.copy(priceType = PriceType.Fixed) } },
+                    label = { Text("Fixed Price") }
+                )
+                FilterChip(
+                    selected = state.priceType == PriceType.Auction,
+                    onClick = { onUpdate { it.copy(priceType = PriceType.Auction) } },
+                    label = { Text("Auction") }
+                )
+            }
+        
+            // Price
+            if (state.priceType == PriceType.Fixed) {
+                OutlinedTextField(
+                    value = state.price?.toString() ?: "",
+                    onValueChange = { newPrice -> onUpdate { it.copy(price = newPrice.toDoubleOrNull()) } },
+                    label = { Text("Price (₹) *") },
+                    isError = errors.containsKey("price"),
+                    supportingText = errors["price"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = state.auctionStartPrice?.toString() ?: "",
+                    onValueChange = { newPrice -> onUpdate { it.copy(auctionStartPrice = newPrice.toDoubleOrNull()) } },
+                    label = { Text("Starting Price (₹) *") },
+                    isError = errors.containsKey("auctionStartPrice"),
+                    supportingText = errors["auctionStartPrice"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        
+            // Dates with date pickers
+            var showFromDatePicker by remember { mutableStateOf(false) }
+            var showToDatePicker by remember { mutableStateOf(false) }
+            
+            OutlinedTextField(
+                value = state.availableFrom,
+                onValueChange = { },
+                label = { Text("Available From (yyyy-mm-dd) *") },
+                readOnly = true,
+                isError = errors.containsKey("availableFrom"),
+                supportingText = errors["availableFrom"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                trailingIcon = {
+                    IconButton(onClick = { showFromDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarToday, "Pick date")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().clickable { showFromDatePicker = true }
+            )
+            
+            OutlinedTextField(
+                value = state.availableTo,
+                onValueChange = { },
+                label = { Text("Available To (yyyy-mm-dd) *") },
+                readOnly = true,
+                isError = errors.containsKey("availableTo"),
+                supportingText = errors["availableTo"]?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                trailingIcon = {
+                    IconButton(onClick = { showToDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarToday, "Pick date")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().clickable { showToDatePicker = true }
+            )
+            
+            // Date picker dialogs
+            if (showFromDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = System.currentTimeMillis()
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showFromDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                val date = formatter.format(java.util.Date(millis))
+                                onUpdate { it.copy(availableFrom = date) }
+                            }
+                            showFromDatePicker = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showFromDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            if (showToDatePicker) {
+                val datePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = System.currentTimeMillis()
+                )
+                DatePickerDialog(
+                    onDismissRequest = { showToDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                val date = formatter.format(java.util.Date(millis))
+                                onUpdate { it.copy(availableTo = date) }
+                            }
+                            showToDatePicker = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showToDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
+
+            // Delivery Options
+            Divider(modifier = Modifier.padding(top = 16.dp))
+            Text("Delivery Options", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 16.dp))
+
+            // Delivery options chips
+            val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                allDeliveryOptions.forEach { option ->
+                    FilterChip(
+                        selected = state.deliveryOptions.contains(option),
+                        onClick = {
+                            val updatedOptions = if (state.deliveryOptions.contains(option)) {
+                                state.deliveryOptions - option
+                            } else {
+                                state.deliveryOptions + option
+                            }
+                            onUpdate { it.copy(deliveryOptions = updatedOptions) }
+                        },
+                        label = { Text(option.replace("_", " ")) }
+                    )
+                }
+            }
+
+            // Delivery cost
+            OutlinedTextField(
+                value = state.deliveryCost?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
+                },
+                label = { Text("Delivery Cost (₹)") },
+                placeholder = { Text("0.00") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Lead time days
+            OutlinedTextField(
+                value = state.leadTimeDays?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
+                },
+                label = { Text("Lead Time (days)") },
+                placeholder = { Text("Number of days notice required") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } // End of listForSale conditional
+    }
+}
+
+@Composable
+private fun DetailsStep(
+    category: Category,
+    traceability: Traceability,
+    ageGroup: AgeGroup,
+    state: FarmerCreateViewModel.DetailsInfoState,
+    onUpdate: ((FarmerCreateViewModel.DetailsInfoState) -> FarmerCreateViewModel.DetailsInfoState) -> Unit,
+    onAutoDetectLocation: () -> Unit,
+    isDetectingLocation: Boolean,
+    listForSale: Boolean
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Details for ${ageGroup.name}", style = MaterialTheme.typography.titleLarge)
+        
+        when (ageGroup) {
+            AgeGroup.Chick -> {
+                OutlinedTextField(
+                    value = state.birthPlace,
+                    onValueChange = { value -> onUpdate { it.copy(birthPlace = value) } },
+                    label = { Text("Birth Place") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.vaccination,
+                    onValueChange = { value -> onUpdate { it.copy(vaccination = value) } },
+                    label = { Text("Vaccination Records") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.parentInfo,
+                    onValueChange = { value -> onUpdate { it.copy(parentInfo = value) } },
+                    label = { Text("Parent Info") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            AgeGroup.Grower -> {
+                // Enhanced Weight Input with Validation (Phase 8)
+                WeightInputWithValidation(
+                    weightText = state.weightText,
+                    onWeightChange = { value -> onUpdate { it.copy(weightText = value) } },
+                    expectedRange = state.expectedWeightRange,
+                    ageDescription = state.ageDescription,
+                    validationMessage = state.weightValidationMessage,
+                    isBelow = state.isWeightBelowExpected,
+                    isAbove = state.isWeightAboveExpected,
+                    suggestedWeight = state.suggestedWeight,
+                    onUseSuggested = { suggested -> 
+                        onUpdate { it.copy(weightText = suggested.toString()) }
+                    }
+                )
+                OutlinedTextField(
+                    value = state.healthUri,
+                    onValueChange = { value -> onUpdate { it.copy(healthUri = value) } },
+                    label = { Text("Health Records") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            AgeGroup.Adult -> {
+                OutlinedTextField(
+                    value = state.genderText,
+                    onValueChange = { value -> onUpdate { it.copy(genderText = value) } },
+                    label = { Text("Gender") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.sizeText,
+                    onValueChange = { value -> onUpdate { it.copy(sizeText = value) } },
+                    label = { Text("Size (cm)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.colorPattern,
+                    onValueChange = { value -> onUpdate { it.copy(colorPattern = value) } },
+                    label = { Text("Color Pattern") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            AgeGroup.Senior -> {
+                OutlinedTextField(
+                    value = state.breedingHistory,
+                    onValueChange = { value -> onUpdate { it.copy(breedingHistory = value) } },
+                    label = { Text("Breeding History") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+                OutlinedTextField(
+                    value = state.geneticTraits,
+                    onValueChange = { value -> onUpdate { it.copy(geneticTraits = value) } },
+                    label = { Text("Genetic Traits") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.awards,
+                    onValueChange = { value -> onUpdate { it.copy(awards = value) } },
+                    label = { Text("Awards") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        
+        // Inline validation hints for traceable adoptions
+        if (category == Category.Adoption && traceability == Traceability.Traceable) {
+            Text(
+                "Vaccination records must be within last 30 days",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            Text(
+                "Health logs must be within last 7 days",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            Text(
+                "Growth monitoring must be within last 2 weeks",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        
+        Divider()
+        Text("Location", style = MaterialTheme.typography.titleSmall)
+        
+        Button(
+            onClick = onAutoDetectLocation,
+            enabled = !isDetectingLocation,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isDetectingLocation) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Detecting...")
+            } else {
+                Icon(Icons.Filled.LocationOn, "Location")
+                Spacer(Modifier.width(8.dp))
+                Text("Auto-detect Location")
+            }
+        }
+        
+        if (state.latitude != null && state.longitude != null) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("✓ Location captured", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("Lat: ${state.latitude}, Lng: ${state.longitude}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        if (listForSale) {
+            // Delivery Options
+            Divider(modifier = Modifier.padding(top = 16.dp))
+            Text(
+                "Delivery Options",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+
+            // Delivery options chips
+            val allDeliveryOptions = listOf("SELF_PICKUP", "FARMER_DELIVERY")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                allDeliveryOptions.forEach { option ->
+                    FilterChip(
+                        selected = state.deliveryOptions.contains(option),
+                        onClick = {
+                            val updatedOptions = if (state.deliveryOptions.contains(option)) {
+                                state.deliveryOptions - option
+                            } else {
+                                state.deliveryOptions + option
+                            }
+                            onUpdate { it.copy(deliveryOptions = updatedOptions) }
+                        },
+                        label = { Text(option.replace("_", " ")) }
+                    )
+                }
+            }
+
+            // Delivery cost
+            OutlinedTextField(
+                value = state.deliveryCost?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(deliveryCost = value.takeIf { it.isNotEmpty() }?.toDoubleOrNull()) }
+                },
+                label = { Text("Delivery Cost (₹)") },
+                placeholder = { Text("0.00") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Lead time days
+            OutlinedTextField(
+                value = state.leadTimeDays?.toString() ?: "",
+                onValueChange = { value ->
+                    onUpdate { it.copy(leadTimeDays = value.takeIf { it.isNotEmpty() }?.toIntOrNull()) }
+                },
+                label = { Text("Lead Time (days)") },
+                placeholder = { Text("Number of days notice required") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun MediaStep(
+    state: FarmerCreateViewModel.MediaInfoState,
+    onAddMedia: (String, List<String>) -> Unit,
+    onRemoveMedia: (String, Int) -> Unit,
+    photoPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    videoPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    audioPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    documentPickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
+) {
+    // FREE TIER: Video uploads are disabled to save storage quota
+    val FREE_TIER_MODE = true
+    
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Media Upload", style = MaterialTheme.typography.titleLarge)
+        
+        if (FREE_TIER_MODE) {
+            Text(
+                "📸 Photos Only Mode - Video uploads are disabled to optimize storage",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        
+        MediaSection("Photos", state.photoUris.size, 12, { photoPickerLauncher.launch(arrayOf("image/*")) }, onRemoveMedia, "photo")
+        
+        // FREE TIER: Hide video upload section
+        if (!FREE_TIER_MODE) {
+            MediaSection("Videos", state.videoUris.size, 2, { videoPickerLauncher.launch(arrayOf("video/*")) }, onRemoveMedia, "video")
+        }
+        
+        MediaSection("Audio", state.audioUris.size, 5, { audioPickerLauncher.launch(arrayOf("audio/*")) }, onRemoveMedia, "audio")
+        MediaSection("Documents", state.documentUris.size, 10, { documentPickerLauncher.launch(arrayOf("*/*")) }, onRemoveMedia, "document")
+    }
+}
+
+@Composable
+private fun MediaSection(
+    label: String,
+    count: Int,
+    maxCount: Int,
+    onLaunchPicker: () -> Unit,
+    onRemove: (String, Int) -> Unit,
+    type: String
+) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("$label ($count/$maxCount)", style = MaterialTheme.typography.titleMedium)
+            Button(
+                onClick = onLaunchPicker,
+                enabled = count < maxCount
+            ) {
+                Icon(Icons.Filled.Add, "Add")
+                Spacer(Modifier.width(8.dp))
+                Text("Add $label")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewStep(
+    basicInfo: FarmerCreateViewModel.BasicInfoState,
+    detailsInfo: FarmerCreateViewModel.DetailsInfoState,
+    mediaInfo: FarmerCreateViewModel.MediaInfoState,
+    validationStatus: Map<String, Boolean>, // Added parameter for validation status
+    uiState: FarmerCreateViewModel.UiState
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Review Your Listing", style = MaterialTheme.typography.titleLarge)
+        
+        SummaryCard("Basic Information") {
+            Text("Category: ${basicInfo.category.name}")
+            Text("Traceability: ${basicInfo.traceability.name}")
+            Text("Age Group: ${basicInfo.ageGroup.name}")
+            Text("Title: ${basicInfo.title}")
+            Text("Price: ₹${basicInfo.price}")
+        }
+        
+        SummaryCard("Media") {
+            Text("Photos: ${mediaInfo.photoUris.size}")
+            Text("Videos: ${mediaInfo.videoUris.size}")
+        }
+        
+        // Validation status card
+        Card {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Validation Status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ValidationItem("Product not in quarantine", validationStatus["notInQuarantine"] ?: false)
+                ValidationItem("Recent vaccination (within 30 days)", validationStatus["recentVaccination"] ?: false)
+                ValidationItem("Recent health log (within 7 days)", validationStatus["recentHealthLog"] ?: false)
+                ValidationItem("Recent growth record (within 2 weeks)", validationStatus["recentGrowthRecord"] ?: false)
+            }
+        }
+        
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Ready to publish?", style = MaterialTheme.typography.titleMedium)
+                Text("Review all information before submitting.")
+            }
+        }
+        
+        // Add sync status card
+        Card {
+            Column {
+                Text("Sync Status")
+                if (uiState.listingSyncState != null) SyncStatusBadge(syncState = uiState.listingSyncState) else Text("Will sync after publish")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ValidationItem(label: String, isValid: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            if (isValid) Icons.Filled.Check else Icons.Filled.Close,
+            contentDescription = if (isValid) "Valid" else "Invalid",
+            tint = if (isValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun SummaryCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun WizardNavigationButtons(
+    currentStep: FarmerCreateViewModel.WizardStep,
+    isSubmitting: Boolean,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
+    onSubmit: () -> Unit,
+    onPublishRequest: () -> Unit = onSubmit,
+    uiState: FarmerCreateViewModel.UiState
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        if (currentStep != FarmerCreateViewModel.WizardStep.BASICS) {
+            OutlinedButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBack, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Back")
+            }
+        } else {
+            Spacer(Modifier)
+        }
+        
+        if (currentStep == FarmerCreateViewModel.WizardStep.REVIEW) {
+            Button(onClick = onPublishRequest, enabled = !isSubmitting) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Validating farm data...")
+                } else {
+                    Text(if (uiState.isOnline) "Publish Listing" else "Queue Listing (Offline)")
+                }
+            }
+        } else {
+            Button(onClick = onNext) {
+                Text("Next")
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Filled.ArrowForward, null)
+            }
+        }
+    }
+    
+    if (!uiState.isOnline) {
+        Text("Listing will publish when online", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
+ * Enhanced weight input field with lifecycle-based validation (Phase 8).
+ * Shows expected weight range, validation warnings, and suggested weight.
+ */
+@Composable
+private fun WeightInputWithValidation(
+    weightText: String,
+    onWeightChange: (String) -> Unit,
+    expectedRange: IntRange?,
+    ageDescription: String?,
+    validationMessage: String?,
+    isBelow: Boolean,
+    isAbove: Boolean,
+    suggestedWeight: Int?,
+    onUseSuggested: (Int) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Weight input field
+        OutlinedTextField(
+            value = weightText,
+            onValueChange = onWeightChange,
+            label = { Text("Weight (grams)") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = false, // Non-blocking - just show warning
+            supportingText = {
+                // Show expected range hint
+                if (expectedRange != null && ageDescription != null) {
+                    Text(
+                        "Expected: ${expectedRange.first}-${expectedRange.last}g for $ageDescription birds",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            trailingIcon = {
+                // Show suggest button if available
+                if (suggestedWeight != null && weightText.isBlank()) {
+                    TextButton(onClick = { onUseSuggested(suggestedWeight) }) {
+                        Text("${suggestedWeight}g", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+        )
+        
+        // Warning chip (non-blocking)
+        if (validationMessage != null) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isBelow) {
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+                    } else {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                    }
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = "Warning",
+                        tint = if (isBelow) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = validationMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isBelow) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        }
+                    )
+                }
+            }
+            
+            // Suggest correct weight button
+            if (suggestedWeight != null) {
+                OutlinedButton(
+                    onClick = { onUseSuggested(suggestedWeight) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Lightbulb, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Use suggested: ${suggestedWeight}g")
+                }
+            }
+        }
+    }
+}

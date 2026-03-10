@@ -8,9 +8,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.google.firebase.crashlytics)
-    // Firebase Performance Monitoring plugin (applies with BOM/dependency)
     alias(libs.plugins.hilt)
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.ksp)
     // Dokka for module-level API documentation
     id("org.jetbrains.dokka")
     // JaCoCo for unit test coverage reports
@@ -60,6 +59,7 @@ tasks.register("bumpVersionCode") {
 tasks.matching { it.name == "assembleRelease" }.all {
     dependsOn("bumpVersionCode")
 }
+
 android {
     namespace = "com.rio.rostry"
     compileSdk = 36
@@ -79,24 +79,10 @@ android {
         // Feature flags
         buildConfigField("boolean", "FEATURE_QR_CAMERA", "true")
     }
-    
-    // Enable ABI splits to generate separate APKs per architecture
-    // This reduces APK size by ~30-40% per architecture
-    // Temporarily disabled - uncomment and verify AGP version compatibility
-    /*
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = false // Set to true if you need a universal APK for testing
-        }
-    }
-    */
 
     buildTypes {
         release {
-            isMinifyEnabled = true // Enabled minification for ProGuard
+            isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -112,37 +98,36 @@ android {
             }
             buildConfigField("String", "MAPS_API_KEY", "\"$releaseKey\"")
             manifestPlaceholders["MAPS_API_KEY"] = releaseKey
-            // Use a dedicated JS key if provided; otherwise fall back to the Android key.
             val releaseJsKey = mapsJsApiKeyProvider.orElse(releaseKey).get()
             buildConfigField("String", "MAPS_JS_API_KEY", "\"$releaseJsKey\"")
             buildConfigField("boolean", "PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING", "false")
         }
         debug {
-            // Disable runtime coverage to avoid JaCoCo bytecode instrumentation interfering with Compose at runtime
-            // You can still generate unit test coverage via the jacocoTestReport task below
             enableUnitTestCoverage = false
             enableAndroidTestCoverage = false
-            // Allow a safe debug fallback to avoid build breaks during local development
             val debugKey = mapsApiKeyProvider.orElse("debug-placeholder").get()
             buildConfigField("String", "MAPS_API_KEY", "\"$debugKey\"")
             manifestPlaceholders["MAPS_API_KEY"] = debugKey
-            // Dedicated JS key for debug WebView; falls back to MAPS_API_KEY if not set.
             val debugJsKey = mapsJsApiKeyProvider.orElse(debugKey).get()
             buildConfigField("String", "MAPS_JS_API_KEY", "\"$debugJsKey\"")
             buildConfigField("boolean", "PHONE_AUTH_APP_VERIFICATION_DISABLED_FOR_TESTING", "true")
         }
     }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = false // Disable if not using Java 8+ APIs on older devices
+        isCoreLibraryDesugaringEnabled = false
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -162,9 +147,11 @@ android {
             assets.srcDirs(files("$projectDir/schemas"))
         }
     }
+
     androidResources {
         localeFilters.addAll(listOf("en"))
     }
+
     lint {
         baseline = file("lint-baseline.xml")
     }
@@ -179,29 +166,21 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     }
     val javaClasses = fileTree("${layout.buildDirectory.get().asFile}/intermediates/javac/debug/classes") {
         exclude(
-            "**/R.class",
-            "**/R$*.class",
-            "**/BuildConfig.*",
-            "**/Manifest*.*",
-            // Exclude Compose internals and Kotlin stdlib from coverage
-            "androidx/compose/**",
-            "kotlin/**"
+            "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
+            "androidx/compose/**", "kotlin/**"
         )
     }
     val kotlinClasses = fileTree("${layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug") {
         exclude(
-            "**/R.class",
-            "**/R$*.class",
-            "**/BuildConfig.*",
-            "**/Manifest*.*",
-            // Exclude Compose internals and Kotlin stdlib from coverage
-            "androidx/compose/**",
-            "kotlin/**"
+            "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
+            "androidx/compose/**", "kotlin/**"
         )
     }
     classDirectories.setFrom(files(javaClasses, kotlinClasses))
     sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
-    executionData.setFrom(fileTree("${layout.buildDirectory.get().asFile}") { include("**/jacoco/testDebugUnitTest.exec", "**/jacoco/testDebugUnitTest.exec*", "**/jacoco.exec") })
+    executionData.setFrom(fileTree("${layout.buildDirectory.get().asFile}") {
+        include("**/jacoco/testDebugUnitTest.exec", "**/jacoco/testDebugUnitTest.exec*", "**/jacoco.exec")
+    })
 }
 
 // ---- APK size check ----
@@ -226,6 +205,10 @@ tasks.register("checkApkSize") {
 }
 
 dependencies {
+    // ──────────────────────────────────────────────
+    // Module Dependencies
+    // ──────────────────────────────────────────────
+    // Core
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
     implementation(project(":core:common"))
@@ -233,6 +216,8 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:network"))
     implementation(project(":core:domain"))
+
+    // Feature modules
     implementation(project(":feature:achievements"))
     implementation(project(":feature:leaderboard"))
     implementation(project(":feature:notifications"))
@@ -241,182 +226,199 @@ dependencies {
     implementation(project(":feature:insights"))
     implementation(project(":feature:feedback"))
     implementation(project(":feature:support"))
+    implementation(project(":feature:login"))
+    implementation(project(":feature:onboarding"))
+    implementation(project(":feature:farm-dashboard"))
+    implementation(project(":feature:asset-management"))
+    implementation(project(":feature:listing-management"))
+    
+    // New feature modules (Phase 1 Migration)
+    implementation(project(":feature:marketplace"))
+    implementation(project(":feature:social-feed"))
+    implementation(project(":feature:monitoring"))
+    implementation(project(":feature:farmer-tools"))
+    implementation(project(":feature:enthusiast-tools"))
+    implementation(project(":feature:analytics"))
+    implementation(project(":feature:transfers"))
+    implementation(project(":feature:profile"))
+    implementation(project(":feature:general"))
+    implementation(project(":feature:traceability"))
+
+    // Data modules
+    implementation(project(":data:account"))
+    implementation(project(":data:commerce"))
+    implementation(project(":data:farm"))
+    implementation(project(":data:monitoring"))
+    implementation(project(":data:social"))
+    implementation(project(":data:admin"))
+
+    // Domain modules
+    implementation(project(":domain:account"))
+    implementation(project(":domain:farm"))
+    implementation(project(":domain:commerce"))
+    implementation(project(":domain:monitoring"))
+    implementation(project(":domain:social"))
+    implementation(project(":domain:admin"))
+
+    // ──────────────────────────────────────────────
+    // AndroidX & Compose
+    // ──────────────────────────────────────────────
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation("androidx.activity:activity-ktx:1.9.0")
+    implementation(libs.androidx.activity.ktx)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.material:material-icons-extended")
-    
-    // Firebase BoM - manages all Firebase library versions
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.crashlytics)
-
-    // Navigation Compose
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
-
-    // Biometric
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
-    // DataStore for session management
+    // ──────────────────────────────────────────────
+    // DataStore
+    // ──────────────────────────────────────────────
     implementation(libs.datastore.preferences)
 
-    // Hilt
+    // ──────────────────────────────────────────────
+    // Hilt (KSP)
+    // ──────────────────────────────────────────────
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
-
-    // Navigation with Hilt
     implementation(libs.hilt.navigation.compose)
-
-    // Hilt AndroidX extensions (for WorkManager)
     implementation(libs.hilt.ext)
     ksp(libs.hilt.ext.compiler)
 
+    // ──────────────────────────────────────────────
     // Room
+    // ──────────────────────────────────────────────
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
-    implementation("androidx.room:room-paging:2.6.1")
-    // Room testing for migration tests
-    androidTestImplementation("androidx.room:room-testing:2.6.1")
+    implementation(libs.room.paging)
+    androidTestImplementation(libs.room.testing)
 
+    // ──────────────────────────────────────────────
     // Encrypted database support
+    // ──────────────────────────────────────────────
     implementation(libs.sqlcipher)
     implementation(libs.sqlite.ktx)
     implementation(libs.security.crypto)
 
-    // Gson for converters and JSON
+    // ──────────────────────────────────────────────
+    // Serialization & Networking
+    // ──────────────────────────────────────────────
     implementation(libs.gson)
-
-    // Retrofit
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
 
+    // ──────────────────────────────────────────────
     // Firebase
+    // ──────────────────────────────────────────────
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
-    // DISABLED: Free Tier - Cloud Functions not available on Spark Plan
-    // implementation(libs.firebase.functions.ktx)
-    implementation("com.firebaseui:firebase-ui-auth:8.0.2")
-    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
-    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
-    implementation("com.google.firebase:firebase-analytics-ktx:22.1.2")
+    implementation(libs.firebase.ui.auth)
+    implementation(libs.firebase.database.ktx)
+    implementation(libs.firebase.messaging.ktx)
+    implementation(libs.firebase.analytics.ktx)
+    implementation(libs.firebase.perf.ktx)
+    implementation(libs.firebase.remote.config.ktx)
+    implementation(libs.firebase.appcheck)
+    implementation(libs.firebase.appcheck.playintegrity)
+    debugImplementation(libs.firebase.appcheck.debug)
 
+    // ──────────────────────────────────────────────
     // Google Maps Platform
+    // ──────────────────────────────────────────────
     implementation(libs.google.maps.android)
     implementation(libs.google.places.new)
     implementation(libs.google.maps.compose)
-
-    // Firebase App Check
-    implementation(libs.firebase.appcheck)
-implementation(libs.firebase.appcheck.playintegrity)
-    debugImplementation(libs.firebase.appcheck.debug)
-
-    // WorkManager
-    implementation(libs.work.runtime.ktx)
-
-    // Timber
-    implementation(libs.timber)
-
-    // Paging
-    implementation("androidx.paging:paging-runtime-ktx:3.3.2")
-    implementation("androidx.paging:paging-compose:3.3.2")
-
-    // Image loading
-    implementation("io.coil-kt:coil-compose:2.6.0")
-
-    // Image compression
-    implementation("id.zelory:compressor:3.0.1")
-
-    // Media playback
-    implementation("com.google.android.exoplayer:exoplayer:2.19.1")
-    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
-
-    // Accompanist SwipeRefresh
-    implementation("com.google.accompanist:accompanist-swiperefresh:0.34.0")
-
-    // Google Play Services - Location
     implementation(libs.play.services.location)
 
-    // Firebase Performance Monitoring
-    implementation("com.google.firebase:firebase-perf-ktx:21.0.1")
+    // ──────────────────────────────────────────────
+    // WorkManager
+    // ──────────────────────────────────────────────
+    implementation(libs.work.runtime.ktx)
 
-    // LeakCanary (debug)
-    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
+    // ──────────────────────────────────────────────
+    // Utilities
+    // ──────────────────────────────────────────────
+    implementation(libs.timber)
+    implementation(libs.paging.runtime)
+    implementation(libs.paging.compose)
+    implementation(libs.coil.compose)
+    implementation(libs.compressor)
+    implementation(libs.exoplayer)
+    implementation(libs.exoplayer.ui)
+    implementation(libs.google.accompanist.swiperefresh)
+    implementation(libs.zxing.core)
+    implementation(libs.exifinterface)
+    implementation(libs.opencsv)
+    implementation(libs.barcode.scanning)
 
-    // ViewModel for Compose
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
+    // Vico Charts
+    implementation(libs.vico.compose)
+    implementation(libs.vico.compose.m3)
+    implementation(libs.vico.core)
 
-    // Testing
+    // ──────────────────────────────────────────────
+    // CameraX
+    // ──────────────────────────────────────────────
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+
+    // ──────────────────────────────────────────────
+    // Debug tooling
+    // ──────────────────────────────────────────────
+    debugImplementation(libs.leakcanary)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // ──────────────────────────────────────────────
+    // Unit Testing
+    // ──────────────────────────────────────────────
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-    testImplementation("org.mockito:mockito-core:5.12.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
-    testImplementation("org.mockito:mockito-inline:5.2.0")
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.mockito.inline)
     testImplementation(libs.mockk)
-    testImplementation("app.cash.turbine:turbine:1.0.0")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.23")
-    testImplementation("com.tngtech.archunit:archunit-junit4:1.3.0")
+    testImplementation(libs.turbine)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.archunit.junit4)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // AndroidTest
+    // ──────────────────────────────────────────────
+    // Android Instrumentation Testing
+    // ──────────────────────────────────────────────
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.mockk.android)
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
-    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
-    androidTestImplementation("androidx.test:rules:1.5.0")
-    androidTestImplementation("androidx.test:runner:1.5.2")
-    // Firebase App Check debug testing (share debug provider library with androidTest)
-    // Use the same version catalog entry as debugImplementation to keep versions aligned
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.android.compiler)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.firebase.appcheck.debug)
-    // Truth and Mockito for instrumentation tests
-    androidTestImplementation("com.google.truth:truth:1.4.2")
-    androidTestImplementation("org.mockito:mockito-core:5.12.0")
-    androidTestImplementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
-    androidTestImplementation("androidx.arch.core:core-testing:2.2.0")
-
-    // Misc
-    implementation("com.google.zxing:core:3.5.2")
-    implementation("androidx.exifinterface:exifinterface:1.3.7")
-
-    // Compose tooling (debug)
-    debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
-
-    // CameraX
-    val cameraxVersion = "1.3.4"
-    implementation("androidx.camera:camera-core:$cameraxVersion")
-    implementation("androidx.camera:camera-camera2:$cameraxVersion")
-    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
-    implementation("androidx.camera:camera-view:$cameraxVersion")
-
-    // ML Kit Barcode Scanning
-    implementation(libs.barcode.scanning)
-
-    // Vico Chart Library for Performance Charts
-    implementation("com.patrykandpatrick.vico:compose:1.13.1")
-    implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
-    implementation("com.patrykandpatrick.vico:core:1.13.1")
-    
-    // OpenCSV for CSV export (Comment 2)
-    implementation("com.opencsv:opencsv:5.9")
-    
-    // Firebase Remote Config (Comment 2)
-    implementation("com.google.firebase:firebase-config-ktx:21.6.0")
+    androidTestImplementation(libs.truth)
+    androidTestImplementation(libs.mockito.core)
+    androidTestImplementation(libs.mockito.kotlin)
+    androidTestImplementation(libs.androidx.arch.core.testing)
 }
+
 // Dokka: enrich module docs with external links for Kotlin and Android APIs
 tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {
     dokkaSourceSets.configureEach {
@@ -435,12 +437,5 @@ tasks.withType<org.jetbrains.dokka.gradle.DokkaTaskPartial>().configureEach {
             url.set(URI.create("https://developer.android.com/reference/").toURL())
             packageListUrl.set(URI.create("https://developer.android.com/reference/androidx/package-list").toURL())
         }
-
-        // Optional: link source to GitHub (uncomment and set correct repo URL)
-        // sourceLink {
-        //     localDirectory.set(file("src"))
-        //     remoteUrl.set(URL("https://github.com/<org>/<repo>/tree/main/app/src"))
-        //     remoteLineSuffix.set("#L")
-        // }
     }
 }

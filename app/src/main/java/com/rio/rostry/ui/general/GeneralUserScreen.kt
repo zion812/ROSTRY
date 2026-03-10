@@ -29,7 +29,7 @@ import com.rio.rostry.ui.general.explore.GeneralExploreRoute
 import com.rio.rostry.ui.general.market.GeneralMarketRoute
 import com.rio.rostry.ui.general.profile.GeneralProfileRoute
 import com.rio.rostry.ui.general.analytics.GeneralAnalyticsViewModel
-import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.navigation.RouteConstants
 
 private data class GeneralNavItem(
     val route: String,
@@ -51,11 +51,11 @@ fun GeneralUserScreen(
     val navController = rememberNavController()
     val analyticsViewModel: GeneralAnalyticsViewModel = hiltViewModel()
     val tabs = listOf(
-        GeneralNavItem(Routes.GeneralNav.MARKET, "Market", Icons.Filled.Home),
-        GeneralNavItem(Routes.GeneralNav.EXPLORE, "Explore", Icons.Filled.Search),
-        GeneralNavItem(Routes.GeneralNav.CREATE, "Create", Icons.Filled.Add),
-        GeneralNavItem(Routes.GeneralNav.CART, "Cart", Icons.Filled.ShoppingCart),
-        GeneralNavItem(Routes.GeneralNav.PROFILE, "Profile", Icons.Filled.Person)
+        GeneralNavItem("general/market", "Market", Icons.Filled.Home),
+        GeneralNavItem("general/explore", "Explore", Icons.Filled.Search),
+        GeneralNavItem("general/create", "Create", Icons.Filled.Add),
+        GeneralNavItem("general/cart", "Cart", Icons.Filled.ShoppingCart),
+        GeneralNavItem("general/profile", "Profile", Icons.Filled.Person)
     )
 
     // If an initial tab route is provided (e.g., Routes.GeneralNav.MARKET), navigate to it once
@@ -82,35 +82,35 @@ fun GeneralUserScreen(
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = Routes.GeneralNav.MARKET,
+            startDestination = "general/market",
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable(Routes.GeneralNav.MARKET) {
+            composable("general/market") {
                 GeneralMarketRoute(
                     onOpenProductDetails = onOpenProductDetails,
                     onOpenTraceability = onOpenTraceability
                 )
             }
-            composable(Routes.GeneralNav.EXPLORE) {
+            composable("general/explore") {
                 GeneralExploreRoute(
                     onOpenSocialFeed = onOpenSocialFeed,
                     onOpenMessages = onOpenMessages,
                     onScanQr = onScanQr
                 )
             }
-            composable(Routes.GeneralNav.CREATE) {
+            composable("general/create") {
                 GeneralCreateRoute(
-                    onPostCreated = { navController.navigate(Routes.GeneralNav.EXPLORE) }
+                    onPostCreated = { navController.navigate("general/explore") }
                 )
             }
-            composable(Routes.GeneralNav.CART) {
+            composable("general/cart") {
                 GeneralCartRoute(
                     onCheckoutComplete = { orderId ->
-                        navController.navigate(Routes.Builders.orderDetails(orderId))
+                        navController.navigate("order/details/$orderId")
                     }
                 )
             }
-            composable(Routes.GeneralNav.PROFILE) {
+            composable("general/profile") {
                 GeneralProfileRoute()
             }
         }

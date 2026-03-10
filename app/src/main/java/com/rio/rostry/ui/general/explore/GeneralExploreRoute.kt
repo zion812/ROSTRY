@@ -42,9 +42,9 @@ import com.rio.rostry.ui.social.VideoPlayer
 import com.rio.rostry.ui.components.SkeletonCard
 import com.rio.rostry.data.database.entity.BreedEntity
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.ui.enthusiast.explore.NearbyFarmersSection
-import com.rio.rostry.ui.enthusiast.explore.LearningContentSection
-import com.rio.rostry.ui.enthusiast.explore.LearningModule
+import com.rio.rostry.feature.enthusiast.ui.explore.NearbyFarmersSection
+import com.rio.rostry.feature.enthusiast.ui.explore.LearningContentSection
+import com.rio.rostry.feature.enthusiast.ui.explore.LearningModule
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics

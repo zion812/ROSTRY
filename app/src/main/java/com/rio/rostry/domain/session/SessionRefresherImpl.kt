@@ -1,7 +1,7 @@
 package com.rio.rostry.domain.session
 
 import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton

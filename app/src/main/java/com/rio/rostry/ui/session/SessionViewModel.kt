@@ -6,9 +6,9 @@ import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.upgrade.RoleUpgradeManager
-import com.rio.rostry.session.CurrentUserProvider
-import com.rio.rostry.session.RolePreferenceDataSource
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.RolePreferenceDataSource
+import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.ui.navigation.RoleNavigationConfig
 import com.rio.rostry.ui.navigation.RoleStartDestinationProvider
 import com.rio.rostry.utils.Resource

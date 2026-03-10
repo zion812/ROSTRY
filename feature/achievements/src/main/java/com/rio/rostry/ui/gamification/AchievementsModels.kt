@@ -1,11 +1,23 @@
 package com.rio.rostry.ui.gamification
 
-import com.rio.rostry.data.database.entity.AchievementEntity
-import com.rio.rostry.data.database.entity.UserProgressEntity
+data class AchievementItem(
+    val achievementId: String,
+    val name: String,
+    val description: String?,
+    val points: Int,
+    val category: String?
+)
+
+data class UserProgressItem(
+    val achievementId: String,
+    val progress: Int,
+    val target: Int,
+    val unlockedAt: Long?
+)
 
 data class AchievementWithProgress(
-    val achievement: AchievementEntity,
-    val progress: UserProgressEntity?
+    val achievement: AchievementItem,
+    val progress: UserProgressItem?
 ) {
     val isUnlocked: Boolean get() = progress?.unlockedAt != null
     val progressPercent: Float get() = progress?.let {

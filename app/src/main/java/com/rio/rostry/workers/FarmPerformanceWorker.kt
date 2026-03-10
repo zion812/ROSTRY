@@ -9,7 +9,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.rio.rostry.data.database.dao.*
 import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.SessionManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers

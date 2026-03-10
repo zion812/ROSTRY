@@ -7,7 +7,7 @@ import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.domain.rbac.RbacGuard
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.session.RolePreferenceStorage
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.analytics.FlowAnalyticsTracker

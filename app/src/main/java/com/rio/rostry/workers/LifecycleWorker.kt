@@ -19,7 +19,7 @@ import com.rio.rostry.data.repository.monitoring.TaskRepository
 import com.rio.rostry.data.database.dao.TaskDao
 import com.google.gson.Gson
 import com.rio.rostry.domain.model.LifecycleStage
-import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.navigation.RouteConstants
 import com.rio.rostry.utils.MilestoneNotifier
 import com.rio.rostry.utils.notif.EnthusiastNotifier
 import com.rio.rostry.utils.notif.FarmNotifier
@@ -149,7 +149,7 @@ class LifecycleWorker @AssistedInject constructor(
                 alertType = "BATCH_SPLIT_DUE",
                 severity = "INFO",
                 message = "Batch ${p.name} is ready for individual tracking. Consider splitting for sex/color separation.",
-                actionRoute = Routes.Builders.monitoringGrowthWithProductId(p.productId),
+                actionRoute = RouteConstants.Builders.monitoringGrowthWithProductId(p.productId),
                 createdAt = now
             )
         )
@@ -336,7 +336,7 @@ class LifecycleWorker @AssistedInject constructor(
                         alertType = "LINEAGE_INCONSISTENCY",
                         severity = "MEDIUM",
                         message = "Lineage inconsistency for ${p.name}: ${ancestors.message}",
-                        actionRoute = Routes.Builders.familyTree(p.productId),
+                        actionRoute = "family_tree/${p.productId}",
                         createdAt = now
                     )
                 )

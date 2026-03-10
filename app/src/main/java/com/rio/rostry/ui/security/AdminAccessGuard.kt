@@ -1,7 +1,7 @@
 package com.rio.rostry.ui.security
 
 import com.rio.rostry.domain.model.UserType
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 

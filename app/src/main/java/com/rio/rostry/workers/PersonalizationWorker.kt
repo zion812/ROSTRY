@@ -14,8 +14,8 @@ import com.rio.rostry.data.database.dao.LikesDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.UserInterestDao
 import com.rio.rostry.data.database.entity.UserInterestEntity
-import com.rio.rostry.session.CurrentUserProvider
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.SessionManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first

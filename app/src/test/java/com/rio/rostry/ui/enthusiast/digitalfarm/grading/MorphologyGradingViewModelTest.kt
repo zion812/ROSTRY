@@ -1,4 +1,4 @@
-package com.rio.rostry.ui.enthusiast.digitalfarm.grading
+package com.rio.rostry.feature.enthusiast.ui.digitalfarm.grading
 
 import androidx.lifecycle.SavedStateHandle
 import com.rio.rostry.data.database.entity.DigitalTwinEntity

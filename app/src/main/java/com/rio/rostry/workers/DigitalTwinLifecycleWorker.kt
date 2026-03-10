@@ -16,7 +16,7 @@ import com.rio.rostry.domain.digitaltwin.ValuationEngine
 import com.rio.rostry.domain.digitaltwin.lifecycle.*
 import com.rio.rostry.domain.model.BirdAppearance
 import com.rio.rostry.domain.model.toAppearanceJson
-import com.rio.rostry.ui.enthusiast.digitalfarm.parseAppearanceFromJson
+import com.rio.rostry.feature.enthusiast.ui.digitalfarm.parseAppearanceFromJson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers

@@ -3,7 +3,7 @@ package com.rio.rostry.data.repository
 import com.rio.rostry.data.database.dao.ExpenseDao
 import com.rio.rostry.data.database.entity.ExpenseCategory
 import com.rio.rostry.data.database.entity.ExpenseEntity
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map

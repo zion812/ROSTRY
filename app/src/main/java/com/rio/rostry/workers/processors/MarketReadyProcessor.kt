@@ -4,7 +4,7 @@ import android.content.Context
 import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.entity.FarmAlertEntity
-import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.navigation.RouteConstants
 import com.rio.rostry.utils.notif.FarmNotifier
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -54,7 +54,7 @@ class MarketReadyProcessor @Inject constructor(
                         alertType = "HARVEST_READY",
                         severity = "INFO",
                         message = "${batch.name ?: "Batch"} is market-ready! ${batch.quantity?.toInt() ?: 0} birds, ${avgWeight.toInt()}g avg, ${ageWeeks} weeks old",
-                        actionRoute = Routes.Builders.createListingFromAsset(batch.productId),
+                        actionRoute = RouteConstants.Builders.createListingFromAsset(batch.productId),
                         createdAt = now
                     )
                     alertDao.upsert(alert)

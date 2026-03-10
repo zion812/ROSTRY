@@ -10,7 +10,7 @@ import com.rio.rostry.data.database.entity.InventoryItemEntity
 import com.rio.rostry.data.database.entity.MarketListingEntity
 import com.rio.rostry.data.repository.FarmAssetRepository
 import com.rio.rostry.data.repository.InventoryRepository
-import com.rio.rostry.data.repository.MarketListingRepository
+import com.rio.rostry.domain.commerce.repository.MarketListingRepository
 import com.rio.rostry.domain.model.LifecycleStage
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

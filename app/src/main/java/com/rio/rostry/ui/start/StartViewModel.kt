@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.domain.auth.AuthRepository
 import com.rio.rostry.domain.model.UserType
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow

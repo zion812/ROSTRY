@@ -14,13 +14,14 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:model"))
     implementation(project(":core:common"))
 
     // Navigation Compose
     api(libs.androidx.navigation.compose)
 
-    // Coroutines (using version from Kotlin)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
 
     // Testing
     testImplementation(project(":core:testing"))

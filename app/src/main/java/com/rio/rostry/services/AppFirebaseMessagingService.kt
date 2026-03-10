@@ -18,7 +18,7 @@ import com.rio.rostry.notifications.FarmEventType
 import com.rio.rostry.notifications.IntelligentNotificationService
 import com.rio.rostry.notifications.SocialEventType
 import com.rio.rostry.notifications.TransferEventType
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.notif.AnalyticsNotifierImpl
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope

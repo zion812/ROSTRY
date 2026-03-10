@@ -6,7 +6,7 @@ import androidx.work.*
 import androidx.work.BackoffPolicy
 import androidx.work.NetworkType
 import com.rio.rostry.notifications.IntelligentNotificationService
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.network.ConnectivityManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

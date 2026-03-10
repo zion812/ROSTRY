@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import com.rio.rostry.domain.rbac.RbacGuard
 import com.rio.rostry.domain.model.Permission
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.notifications.IntelligentNotificationService
 import com.rio.rostry.notifications.TransferEventType
 

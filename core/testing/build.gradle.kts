@@ -24,4 +24,10 @@ dependencies {
     
     // Robolectric for Android unit tests
     api(libs.robolectric)
+    
+    // Architecture and Property Testing
+    api(libs.archunit)
+    api(libs.kotest.runner)
+    api(libs.kotest.assertions)
+    api(libs.turbine)
 }

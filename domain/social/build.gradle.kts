@@ -1,16 +1,18 @@
 plugins {
-    id("rostry.kotlin.library")
+    id("rostry.android.library")
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+android {
+    namespace = "com.rio.rostry.domain.social"
 }
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:common"))
+    implementation(libs.paging.runtime)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.javax.inject)
+
 
     testImplementation(project(":core:testing"))
 }
