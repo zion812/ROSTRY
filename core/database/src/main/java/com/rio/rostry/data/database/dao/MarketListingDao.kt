@@ -16,11 +16,20 @@ interface MarketListingDao {
     @Update
     suspend fun updateListing(listing: MarketListingEntity)
 
+    @Query("DELETE FROM market_listings WHERE listingId = :id")
+    suspend fun deleteListing(id: String)
+
     @Query("SELECT * FROM market_listings WHERE listingId = :id")
     fun getListingById(id: String): Flow<MarketListingEntity?>
 
     @Query("SELECT * FROM market_listings WHERE sellerId = :sellerId ORDER BY updatedAt DESC")
     fun getListingsBySeller(sellerId: String): Flow<List<MarketListingEntity>>
+
+    @Query("SELECT * FROM market_listings WHERE status = :status ORDER BY updatedAt DESC")
+    fun getListingsByStatus(status: String): Flow<List<MarketListingEntity>>
+
+    @Query("SELECT * FROM market_listings WHERE inventoryId = :inventoryId")
+    fun getListingsByInventoryItem(inventoryId: String): Flow<List<MarketListingEntity>>
 
     @Query("SELECT * FROM market_listings WHERE status = 'PUBLISHED' AND isActive = 1 ORDER BY updatedAt DESC")
     fun getAllPublicListings(): Flow<List<MarketListingEntity>>

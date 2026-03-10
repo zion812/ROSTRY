@@ -47,6 +47,11 @@ interface InventoryRepository {
     suspend fun deleteItem(itemId: String): Result<Unit>
 
     /**
+     * Get all inventory items.
+     */
+    fun getAllInventory(): Flow<List<InventoryItem>>
+
+    /**
      * Get inventory by farm asset ID.
      * @param farmAssetId The farm asset ID
      * @return Flow of inventory items from the asset
@@ -59,5 +64,5 @@ interface InventoryRepository {
      * @param quantity The new quantity
      * @return Result indicating success or error
      */
-    suspend fun updateQuantity(itemId: String, quantity: Int): Result<Unit>
+    suspend fun updateQuantity(itemId: String, quantity: Double): Result<Unit>
 }

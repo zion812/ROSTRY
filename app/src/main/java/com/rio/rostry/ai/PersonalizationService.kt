@@ -3,7 +3,7 @@ package com.rio.rostry.ai
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.PostEntity
 import kotlinx.coroutines.sync.Mutex

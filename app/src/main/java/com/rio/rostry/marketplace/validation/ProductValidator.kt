@@ -1,6 +1,6 @@
 package com.rio.rostry.marketplace.validation
 
-import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.core.model.Product
 import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -16,7 +16,7 @@ class ProductValidator @Inject constructor(
         val reasons: List<String> = emptyList()
     )
 
-    suspend fun validateWithTraceability(product: ProductEntity, sourceProductId: String? = null): ValidationResult {
+    suspend fun validateWithTraceability(product: Product, sourceProductId: String? = null): ValidationResult {
         val reasons = mutableListOf<String>()
 
         if (product.name.isBlank()) {

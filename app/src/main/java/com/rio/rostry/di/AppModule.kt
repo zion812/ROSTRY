@@ -2,7 +2,7 @@ package com.rio.rostry.di
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.rio.rostry.session.SessionManager
+import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.session.RolePreferenceStorage
 import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.utils.notif.TransferNotifier

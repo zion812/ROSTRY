@@ -1,4 +1,4 @@
-package com.rio.rostry.utils.network
+package com.rio.rostry.core.common.network
 
 import android.content.Context
 import android.net.ConnectivityManager as AndroidConnectivityManager

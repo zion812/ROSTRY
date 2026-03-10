@@ -6,9 +6,9 @@ import com.rio.rostry.data.repository.FeedbackRepository
 import com.rio.rostry.data.repository.FeedbackRepositoryImpl
 import com.rio.rostry.data.repository.LikesRepository
 import com.rio.rostry.data.repository.LikesRepositoryImpl
-import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.domain.social.repository.LegacyMessagingRepository as MessagingRepository
 import com.rio.rostry.data.repository.social.MessagingRepositoryImpl
-import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.data.repository.social.SocialRepositoryImpl
 import dagger.Binds
 import dagger.Module

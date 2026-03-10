@@ -281,7 +281,8 @@ object DatabaseModule {
             AppDatabase.MIGRATION_89_90,
             AppDatabase.MIGRATION_91_92,
             AppDatabase.MIGRATION_92_93,
-            AppDatabase.MIGRATION_93_94
+            AppDatabase.MIGRATION_93_94,
+            AppDatabase.MIGRATION_94_95
         )
 
         // Optional: allow destructive migrations only for debug builds

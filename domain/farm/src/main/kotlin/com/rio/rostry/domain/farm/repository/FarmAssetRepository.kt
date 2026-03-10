@@ -1,63 +1,116 @@
 package com.rio.rostry.domain.farm.repository
 
-import com.rio.rostry.core.model.FarmAsset
 import com.rio.rostry.core.model.Result
+import com.rio.rostry.core.model.FarmAsset
+import com.rio.rostry.core.model.Product
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Repository contract for farm asset operations.
- * 
- * Phase 2: Domain and Data Decoupling
- * Requirement 4.1 - Domain modules define interfaces without implementation details
+ * Repository contract for farm asset management.
  */
 interface FarmAssetRepository {
+    
     /**
-     * Get all farm assets for a farmer.
-     * @param farmerId The farmer ID
-     * @return Flow of farm assets
+     * Gets all assets for a farmer.
      */
-    fun getAssetsByFarmer(farmerId: String): Flow<List<FarmAsset>>
-
+    fun getAssetsByFarmer(farmerId: String): Flow<Result<List<FarmAsset>>>
+    
     /**
-     * Get asset by ID.
-     * @param assetId The asset ID
-     * @return Result containing the asset or error
+     * Gets a specific asset by ID.
      */
-    suspend fun getAssetById(assetId: String): Result<FarmAsset>
-
+    fun getAssetById(assetId: String): Flow<Result<FarmAsset?>>
+    
     /**
-     * Create a new farm asset.
-     * @param asset The asset to create
-     * @return Result containing the created asset or error
+     * Gets assets filtered by type.
      */
-    suspend fun createAsset(asset: FarmAsset): Result<FarmAsset>
-
+    fun getAssetsByType(farmerId: String, type: String): Flow<Result<List<FarmAsset>>>
+    
     /**
-     * Update a farm asset.
-     * @param asset The updated asset
-     * @return Result indicating success or error
+     * Gets showcase assets for a farmer.
+     */
+    fun getShowcaseAssets(farmerId: String): Flow<Result<List<FarmAsset>>>
+    
+    /**
+     * Adds a new asset.
+     */
+    suspend fun addAsset(asset: FarmAsset): Result<String>
+    
+    /**
+     * Updates an existing asset.
      */
     suspend fun updateAsset(asset: FarmAsset): Result<Unit>
-
+    
     /**
-     * Delete a farm asset.
-     * @param assetId The asset ID to delete
-     * @return Result indicating success or error
+     * Deletes an asset.
      */
     suspend fun deleteAsset(assetId: String): Result<Unit>
-
+    
     /**
-     * Get assets by lifecycle stage.
-     * @param farmerId The farmer ID
-     * @param stage The lifecycle stage
-     * @return Flow of matching assets
+     * Updates asset quantity.
      */
-    fun getAssetsByLifecycleStage(farmerId: String, stage: String): Flow<List<FarmAsset>>
-
+    suspend fun updateQuantity(assetId: String, quantity: Double): Result<Unit>
+    
     /**
-     * Transition asset to harvested state.
-     * @param assetId The asset ID
-     * @return Result indicating success or error
+     * Updates asset health status.
      */
-    suspend fun harvestAsset(assetId: String): Result<Unit>
+    suspend fun updateHealthStatus(assetId: String, status: String): Result<Unit>
+    
+    /**
+     * Syncs assets with remote storage.
+     */
+    suspend fun syncAssets(): Result<Unit>
+    
+    // Marketplace Lifecycle
+    
+    /**
+     * Marks an asset as listed on marketplace.
+     */
+    suspend fun markAsListed(assetId: String, listingId: String, listedAt: Long): Result<Unit>
+    
+    /**
+     * Marks an asset as delisted from marketplace.
+     */
+    suspend fun markAsDeListed(assetId: String): Result<Unit>
+    
+    /**
+     * Marks an asset as sold.
+     */
+    suspend fun markAsSold(assetId: String, buyerId: String, price: Double): Result<Unit>
+
+    // Batch Lifecycle (Phase 3)
+    
+    /**
+     * Graduates a batch into individual assets.
+     */
+    suspend fun graduateBatch(batchId: String, newAssets: List<FarmAsset>): Result<Unit>
+
+    // Bird Studio - Appearance Customization
+    
+    /**
+     * Updates asset metadata JSON.
+     */
+    suspend fun updateMetadataJson(assetId: String, metadataJson: String): Result<Unit>
+
+    // Immutable Snapshot Pattern
+    
+    /**
+     * Creates a snapshot listing for an asset.
+     */
+    suspend fun createSnapshotListing(
+        assetId: String,
+        price: Double = 0.0,
+        listingTitle: String? = null,
+        listingDescription: String? = null
+    ): Result<Product>
+    
+    /**
+     * Delists an asset from marketplace.
+     */
+    suspend fun delistAsset(assetId: String): Result<Unit>
+    
+    /**
+     * Applies a quantity delta to an asset.
+     */
+    suspend fun applyQuantityDelta(assetId: String, delta: Double): Result<Unit>
 }
+

@@ -31,6 +31,6 @@ dependencies {
     implementation(libs.timber)
 
     // Paging (DAOs that return PagingSource)
-    implementation("androidx.paging:paging-runtime-ktx:3.3.2")
-    implementation("androidx.room:room-paging:2.7.0")
+    implementation(libs.paging.runtime)
+    implementation(libs.room.paging)
 }

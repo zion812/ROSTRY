@@ -18,29 +18,28 @@ import com.rio.rostry.data.repository.ShowRecordRepository
 import com.rio.rostry.data.repository.ShowRecordRepositoryImpl
 import com.rio.rostry.data.repository.analytics.ProfitabilityRepository
 import com.rio.rostry.data.repository.analytics.ProfitabilityRepositoryImpl
-import com.rio.rostry.data.repository.monitoring.BreedingRepository
+import com.rio.rostry.domain.monitoring.repository.BreedingRepository
 import com.rio.rostry.data.repository.monitoring.BreedingRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.DailyLogRepository
 import com.rio.rostry.data.repository.monitoring.DailyLogRepositoryImpl
-import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
-import com.rio.rostry.data.repository.monitoring.FarmAlertRepositoryImpl
+import com.rio.rostry.domain.monitoring.repository.FarmAlertRepository
 import com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository
 import com.rio.rostry.data.repository.monitoring.FarmOnboardingRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepository
 import com.rio.rostry.data.repository.monitoring.FarmPerformanceRepositoryImpl
-import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
+import com.rio.rostry.domain.monitoring.repository.FarmerDashboardRepository
 import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.GrowthRepository
 import com.rio.rostry.data.repository.monitoring.GrowthRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.HatchingRepository
 import com.rio.rostry.data.repository.monitoring.HatchingRepositoryImpl
-import com.rio.rostry.data.repository.monitoring.ListingDraftRepository
+import com.rio.rostry.domain.commerce.repository.ListingDraftRepository
 import com.rio.rostry.data.repository.monitoring.ListingDraftRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.MortalityRepository
 import com.rio.rostry.data.repository.monitoring.MortalityRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.QuarantineRepository
 import com.rio.rostry.data.repository.monitoring.QuarantineRepositoryImpl
-import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.domain.monitoring.repository.TaskRepository
 import com.rio.rostry.data.repository.monitoring.TaskRepositoryImpl
 import com.rio.rostry.data.repository.monitoring.VaccinationRepository
 import com.rio.rostry.data.repository.monitoring.VaccinationRepositoryImpl
@@ -82,9 +81,6 @@ abstract class MonitoringRepositoryModule {
     @Singleton
     abstract fun bindBreedingRepository(impl: BreedingRepositoryImpl): BreedingRepository
 
-    @Binds
-    @Singleton
-    abstract fun bindFarmAlertRepository(impl: FarmAlertRepositoryImpl): FarmAlertRepository
 
     @Binds
     @Singleton

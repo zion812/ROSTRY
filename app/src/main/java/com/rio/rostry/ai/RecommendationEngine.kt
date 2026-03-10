@@ -2,39 +2,23 @@ package com.rio.rostry.ai
 
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.rio.rostry.data.repository.ProductRepository
-import com.rio.rostry.data.repository.social.SocialRepository
-import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.domain.social.repository.SocialRepository
+import com.rio.rostry.domain.commerce.repository.OrderRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
-import com.rio.rostry.data.database.entity.ProductEntity
+import com.rio.rostry.core.model.Recommendation
+import com.rio.rostry.domain.commerce.engine.RecommendationEngine
 import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.first
 import kotlin.math.absoluteValue
 
 @Singleton
-class RecommendationEngine @Inject constructor(
+class RecommendationEngineImpl @Inject constructor(
     private val productRepository: ProductRepository,
     private val socialRepository: SocialRepository,
     private val orderRepository: OrderRepository,
     private val analyticsRepository: AnalyticsRepository
-) {
-    enum class RecommendationType {
-        COLLABORATIVE, CONTENT_BASED, TRENDING, PERSONALIZED
-    }
-
-    data class Recommendation(
-        val id: String,
-        val title: String,
-        val score: Double,
-        val kind: Kind,
-        val reason: String? = null,
-        val imageUrl: String? = null,
-        val price: Double? = null,
-        val sellerRating: Double? = null,
-        val type: RecommendationType = RecommendationType.PERSONALIZED
-    ) {
-        enum class Kind { PRODUCT, POST, TIP }
-    }
+) : RecommendationEngine {
 
     suspend fun recommendationsFor(userId: String): List<Recommendation> {
         return personalizedForUser(userId, limit = 10)
@@ -60,7 +44,8 @@ class RecommendationEngine @Inject constructor(
                 imageUrl = product.imageUrls.firstOrNull(),
                 price = product.price,
                 sellerRating = calculateSellerRating(product.sellerId),
-                type = RecommendationType.TRENDING
+                type = Recommendation.RecommendationType.TRENDING
+
             )
         }
         
@@ -114,7 +99,8 @@ class RecommendationEngine @Inject constructor(
                     imageUrl = product.imageUrls.firstOrNull(),
                     price = product.price,
                     sellerRating = calculateSellerRating(product.sellerId),
-                    type = RecommendationType.CONTENT_BASED
+                    type = Recommendation.RecommendationType.CONTENT_BASED
+
                 )
             }
         
@@ -145,7 +131,8 @@ class RecommendationEngine @Inject constructor(
                     imageUrl = product.imageUrls.firstOrNull(),
                     price = product.price,
                     sellerRating = calculateSellerRating(product.sellerId),
-                    type = RecommendationType.COLLABORATIVE
+                    type = Recommendation.RecommendationType.COLLABORATIVE
+
                 )
             }
         
@@ -188,7 +175,8 @@ class RecommendationEngine @Inject constructor(
                 imageUrl = product.imageUrls.firstOrNull(),
                 price = product.price,
                 sellerRating = calculateSellerRating(product.sellerId),
-                type = RecommendationType.PERSONALIZED
+                type = Recommendation.RecommendationType.PERSONALIZED
+
             )
         }
         

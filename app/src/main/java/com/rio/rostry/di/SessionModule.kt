@@ -1,6 +1,6 @@
 package com.rio.rostry.di
 
-import com.rio.rostry.session.CurrentUserProvider
+import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.session.FirebaseCurrentUserProvider
 import com.rio.rostry.session.RolePreferenceDataSource
 import com.rio.rostry.session.RolePreferenceStorage

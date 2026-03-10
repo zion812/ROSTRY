@@ -176,7 +176,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ModerationBlocklistEntity::class,
         WatchedLineageEntity::class
     ],
-    version = 94, // 93 -> 94 (Enthusiast Social: Watched Lineages)
+    version = 95, // 94 -> 95 (3-Tier Asset Model: Farm Assets, Inventory, Listings)
     exportSchema = true 
 )
 @TypeConverters(AppDatabase.Converters::class)
@@ -3239,6 +3239,52 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_77_78 = object : Migration(77, 78) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `products` ADD COLUMN `metadataJson` TEXT NOT NULL DEFAULT '{}'")
+            }
+        }
+
+        // MIGRATION 94 -> 95: 3-Tier Asset Model Migration
+        val MIGRATION_94_95 = object : Migration(94, 95) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Populate farm_assets from products (for those without sourceAssetId)
+                db.execSQL("""
+                    INSERT OR IGNORE INTO farm_assets (
+                        assetId, farmerId, name, assetType, category, status, 
+                        birthDate, ageWeeks, breed, gender, color, healthStatus, raisingPurpose, 
+                        birdCode, createdAt, updatedAt, dirty, metadataJson
+                    )
+                    SELECT 
+                        COALESCE(sourceAssetId, 'asset_' || productId), sellerId, name, 
+                        CASE WHEN isBatch = 1 THEN 'BATCH' ELSE 'FLOCK' END, 
+                        category, 'ACTIVE', birthDate, ageWeeks, breed, gender, colorTag, 
+                        COALESCE(healthStatus, 'HEALTHY'), raisingPurpose, birdCode, 
+                        createdAt, updatedAt, 0, COALESCE(metadataJson, '{}')
+                    FROM products 
+                    WHERE sourceAssetId IS NULL OR NOT EXISTS (SELECT 1 FROM farm_assets WHERE assetId = products.sourceAssetId)
+                """.trimIndent())
+
+                // 2. Populate farm_inventory from products
+                db.execSQL("""
+                    INSERT OR IGNORE INTO farm_inventory (
+                        inventoryId, farmerId, sourceAssetId, name, category, 
+                        quantityAvailable, unit, producedAt, createdAt, updatedAt, dirty
+                    )
+                    SELECT 
+                        'inv_' || productId, sellerId, COALESCE(sourceAssetId, 'asset_' || productId), 
+                        name, category, quantity, unit, harvestDate, createdAt, updatedAt, 0
+                    FROM products
+                """.trimIndent())
+
+                // 3. Populate market_listings from products
+                db.execSQL("""
+                    INSERT OR IGNORE INTO market_listings (
+                        listingId, sellerId, inventoryId, title, description, 
+                        price, category, status, imageUrls, createdAt, updatedAt, dirty
+                    )
+                    SELECT 
+                        productId, sellerId, 'inv_' || productId, name, description, 
+                        price, category, status, imageUrls, createdAt, updatedAt, 0
+                    FROM products
+                """.trimIndent())
             }
         }
     }

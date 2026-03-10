@@ -11,7 +11,7 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.rio.rostry.BuildConfig
 import com.rio.rostry.R
-import com.rio.rostry.ui.navigation.Routes
+import com.rio.rostry.ui.navigation.RouteConstants
 
 object FarmNotifier {
     private const val CHANNEL_ID = "FARM_ALERTS"
@@ -59,7 +59,7 @@ object FarmNotifier {
 
     fun notifyBirdOnboarded(context: Context, birdName: String, productId: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + com.rio.rostry.ui.navigation.Routes.MONITORING_DAILY_LOG).toUri()
+        val deepLink = ("rostry://" + RouteConstants.MONITORING_DAILY_LOG).toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (productId + "_onboard").hashCode(),
@@ -85,7 +85,7 @@ object FarmNotifier {
 
     fun notifyVaccinationDue(context: Context, productId: String, vaccineType: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://${Routes.Builders.monitoringVaccinationWithProductId(productId)}").toUri()
+        val deepLink = ("rostry://${RouteConstants.Builders.monitoringVaccinationWithProductId(productId)}").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             productId.hashCode(),
@@ -111,7 +111,7 @@ object FarmNotifier {
 
     fun notifyQuarantineOverdue(context: Context, productId: String) {
         ensureChannel(context)
-        val deepLink = "rostry://${Routes.MONITORING_QUARANTINE}".toUri()
+        val deepLink = "rostry://${RouteConstants.MONITORING_QUARANTINE}".toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             productId.hashCode(),
@@ -137,7 +137,7 @@ object FarmNotifier {
 
     fun notifyHatchingDue(context: Context, batchId: String, batchName: String) {
         ensureChannel(context)
-        val deepLink = "rostry://${Routes.MONITORING_HATCHING}".toUri()
+        val deepLink = "rostry://${RouteConstants.Builders.monitoringHatching()}".toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             batchId.hashCode(),
@@ -163,7 +163,7 @@ object FarmNotifier {
 
     fun notifyMortalitySpike(context: Context, count: Int) {
         ensureChannel(context)
-        val deepLink = "rostry://${Routes.MONITORING_MORTALITY}".toUri()
+        val deepLink = "rostry://${RouteConstants.Builders.monitoringMortality()}".toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             count,
@@ -228,7 +228,7 @@ object FarmNotifier {
 
     fun notifyBirdAdded(context: Context, birdName: String, productId: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.MONITORING_DAILY_LOG).toUri()
+        val deepLink = ("rostry://" + RouteConstants.MONITORING_DAILY_LOG).toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (productId + "_birdAdded").hashCode(),
@@ -254,7 +254,7 @@ object FarmNotifier {
 
     fun notifyBatchAdded(context: Context, batchName: String, productId: String, taskCount: Int) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.MONITORING_TASKS).toUri()
+        val deepLink = ("rostry://" + RouteConstants.MONITORING_TASKS).toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (productId + "_batchAdded").hashCode(),
@@ -280,7 +280,7 @@ object FarmNotifier {
 
     fun notifyTransferPending(context: Context, transferId: String, productName: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://${Routes.Builders.transferDetails(transferId)}").toUri()
+        val deepLink = ("rostry://transfer/details/$transferId").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (transferId + "_transferPending").hashCode(),
@@ -306,7 +306,7 @@ object FarmNotifier {
 
     fun notifyTransferVerificationNeeded(context: Context, transferId: String, productName: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://${Routes.Builders.transferVerify(transferId)}").toUri()
+        val deepLink = ("rostry://transfer/verify/$transferId").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (transferId + "_transferVerify").hashCode(),
@@ -332,7 +332,7 @@ object FarmNotifier {
 
     fun notifyComplianceAlert(context: Context, productId: String, productName: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://${Routes.Builders.complianceDetails(productId)}").toUri()
+        val deepLink = ("rostry://${RouteConstants.COMPLIANCE}").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (productId + "_complianceAlert").hashCode(),
@@ -358,7 +358,7 @@ object FarmNotifier {
 
     fun notifyDailyGoalProgress(context: Context, goalType: String, progress: Int) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.HOME_FARMER).toUri()
+        val deepLink = ("rostry://home/farmer").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (goalType + "_goalProgress").hashCode(),
@@ -384,7 +384,7 @@ object FarmNotifier {
 
     fun notifyKycRequired(context: Context) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.VERIFY_FARMER_LOCATION).toUri()
+        val deepLink = ("rostry://" + RouteConstants.VERIFY_FARMER_LOCATION).toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             "kycRequired".hashCode(),
@@ -447,7 +447,7 @@ object FarmNotifier {
      */
     fun harvestReady(context: Context, batchId: String, batchName: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://${Routes.Builders.createListingFromAsset(batchId)}").toUri()
+        val deepLink = ("rostry://${RouteConstants.Builders.createListingFromAsset(batchId)}").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             (batchId + "_harvestReady").hashCode(),
@@ -480,7 +480,7 @@ object FarmNotifier {
 
     fun dailyBriefing(context: Context, count: Int, firstTitle: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.FARMER_CALENDAR).toUri()
+        val deepLink = ("rostry://farmer/calendar").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             "dailyBriefing".hashCode(),
@@ -505,7 +505,7 @@ object FarmNotifier {
 
     fun eventReminder(context: Context, eventId: String, title: String, timeString: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.FARMER_CALENDAR).toUri()
+        val deepLink = ("rostry://farmer/calendar").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             eventId.hashCode(),
@@ -528,7 +528,7 @@ object FarmNotifier {
     }
     fun recommendationAlert(context: Context, eventId: String, title: String, description: String) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.FARMER_CALENDAR).toUri()
+        val deepLink = ("rostry://farmer/calendar").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             eventId.hashCode(),
@@ -557,7 +557,7 @@ object FarmNotifier {
      */
     fun showStorageWarning(context: Context, title: String, message: String, isCritical: Boolean) {
         ensureChannel(context)
-        val deepLink = ("rostry://" + Routes.SETTINGS).toUri()
+        val deepLink = ("rostry://settings").toUri()
         val pendingIntent = PendingIntent.getActivity(
             context,
             "storageWarning".hashCode(),

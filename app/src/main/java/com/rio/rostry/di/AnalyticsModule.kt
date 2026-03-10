@@ -3,13 +3,15 @@ package com.rio.rostry.di
 import android.content.Context
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.rio.rostry.data.database.dao.AnalyticsDao
-import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepositoryImpl
 import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
-import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTracker
-import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTrackerImpl
+import com.rio.rostry.core.model.*
+import com.rio.rostry.core.common.analytics.GeneralAnalyticsTracker
+import com.rio.rostry.data.farm.analytics.GeneralAnalyticsTrackerImpl
+
 import com.rio.rostry.utils.analytics.AuthAnalyticsTracker
 import com.rio.rostry.utils.analytics.AuthAnalyticsTrackerImpl
 import dagger.Binds
@@ -44,7 +46,6 @@ object AnalyticsModule {
     
     @Provides
     @Singleton
-
     fun provideAnalyticsRepository(
         analyticsDao: AnalyticsDao,
         firebaseAnalytics: FirebaseAnalytics,

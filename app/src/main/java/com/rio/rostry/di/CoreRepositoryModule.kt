@@ -5,15 +5,10 @@ import com.rio.rostry.data.repository.ChatRepository
 import com.rio.rostry.data.repository.ChatRepositoryImpl
 import com.rio.rostry.data.repository.FamilyTreeRepository
 import com.rio.rostry.data.repository.FamilyTreeRepositoryImpl
-import com.rio.rostry.data.repository.ProductRepository
-import com.rio.rostry.data.repository.ProductRepositoryImpl
-import com.rio.rostry.data.repository.PublicBirdRepositoryImpl
-import com.rio.rostry.data.repository.TrackingRepository
-import com.rio.rostry.data.repository.TrackingRepositoryImpl
-import com.rio.rostry.data.repository.TraceabilityRepository
-import com.rio.rostry.data.repository.TraceabilityRepositoryImpl
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.data.repository.UserRepositoryImpl
+import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.data.repository.ProductRepositoryImpl
 import com.rio.rostry.data.repository.WatchedLineagesRepository
 import com.rio.rostry.data.repository.WatchedLineagesRepositoryImpl
 import com.rio.rostry.domain.auth.AuthRepository
@@ -61,9 +56,6 @@ abstract class CoreRepositoryModule {
     @Singleton
     abstract fun bindWatchedLineagesRepository(impl: WatchedLineagesRepositoryImpl): WatchedLineagesRepository
 
-    @Binds
-    @Singleton
-    abstract fun bindPublicBirdRepository(impl: PublicBirdRepositoryImpl): com.rio.rostry.domain.repository.PublicBirdRepository
 
     @Binds
     @Singleton
