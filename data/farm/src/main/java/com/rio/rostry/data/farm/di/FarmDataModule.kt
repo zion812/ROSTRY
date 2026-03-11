@@ -1,5 +1,6 @@
 package com.rio.rostry.data.farm.di
 
+import com.rio.rostry.data.farm.repository.AuditLogRepositoryImpl
 import com.rio.rostry.data.farm.repository.AssetBatchOperationRepositoryImpl
 import com.rio.rostry.data.farm.repository.AssetLifecycleRepositoryImpl
 import com.rio.rostry.data.farm.repository.ExpenseRepositoryImpl
@@ -12,6 +13,7 @@ import com.rio.rostry.data.farm.repository.TransferRepositoryImpl
 import com.rio.rostry.data.farm.repository.TransferWorkflowRepositoryImpl
 import com.rio.rostry.data.farm.repository.FarmFinancialsRepositoryImpl
 import com.rio.rostry.data.farm.repository.ProductSearchRepositoryImpl
+import com.rio.rostry.domain.farm.repository.AuditLogRepository
 import com.rio.rostry.domain.farm.repository.AssetBatchOperationRepository
 import com.rio.rostry.domain.farm.repository.AssetLifecycleRepository
 import com.rio.rostry.domain.farm.repository.ExpenseRepository
@@ -88,6 +90,12 @@ abstract class FarmDataModule {
     abstract fun bindTraceabilityRepository(
         impl: TraceabilityRepositoryImpl
     ): TraceabilityRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuditLogRepository(
+        impl: AuditLogRepositoryImpl
+    ): AuditLogRepository
 
     @Binds
     @Singleton

@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.rio.rostry.feature.profile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
