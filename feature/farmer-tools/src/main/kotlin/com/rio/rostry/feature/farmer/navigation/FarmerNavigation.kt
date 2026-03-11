@@ -101,72 +101,121 @@ class FarmerNavigationProvider : NavigationProvider {
             }
 
             composable(FarmerRoute.DigitalFarm.route) {
-                // TODO: Connect to DigitalFarmScreen
+                com.rio.rostry.feature.farmer.ui.DigitalFarmScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenBirdDetail = { assetId ->
+                        navController.navigate(FarmerRoute.AssetDetails.createRoute(assetId))
+                    }
+                )
             }
 
             composable(FarmerRoute.FarmAssets.route) {
-                // TODO: Connect to FarmAssetListScreen
+                com.rio.rostry.feature.farmer.ui.asset.FarmAssetListScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenAsset = { assetId ->
+                        navController.navigate(FarmerRoute.AssetDetails.createRoute(assetId))
+                    },
+                    onAddAsset = { navController.navigate(FarmerRoute.CreateAsset.route) }
+                )
             }
 
             composable(FarmerRoute.AssetDetails.route) { backStackEntry ->
                 val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
-                // TODO: Connect to FarmAssetDetailScreen
+                com.rio.rostry.feature.farmer.ui.asset.FarmAssetDetailScreen(
+                    assetId = assetId,
+                    onBack = { navController.popBackStack() },
+                    onEditAsset = { /* navigate to edit */ },
+                    onListAsset = { navController.navigate(FarmerRoute.CreateListing.createRoute(assetId)) }
+                )
             }
 
             composable(FarmerRoute.CreateAsset.route) {
-                // TODO: Connect to CreateAssetScreen
+                com.rio.rostry.feature.farmer.ui.FarmerCreateScreen(
+                    onBack = { navController.popBackStack() },
+                    onComplete = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.CreateListing.route) { backStackEntry ->
                 val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
-                // TODO: Connect to CreateListingFromAssetScreen
+                com.rio.rostry.feature.farmer.ui.listing.CreateListingFromAssetScreen(
+                    assetId = assetId,
+                    onBack = { navController.popBackStack() },
+                    onSuccess = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.CreateAuction.route) { backStackEntry ->
                 val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
-                // TODO: Connect to CreateAuctionScreen
+                com.rio.rostry.feature.marketplace.ui.auction.CreateAuctionScreen(
+                    assetId = assetId,
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.Calendar.route) {
-                // TODO: Connect to CalendarScreen
+                com.rio.rostry.feature.farmer.ui.calendar.FarmCalendarScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.FeedHistory.route) {
-                // TODO: Connect to FeedHistoryScreen
+                com.rio.rostry.feature.farm.dashboard.feed.FeedHistoryScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.Gallery.route) {
-                // TODO: Connect to GalleryScreen
+                com.rio.rostry.ui.shared.gallery.GalleryScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.AssetMedia.route) { backStackEntry ->
                 val assetId = backStackEntry.arguments?.getString("assetId") ?: ""
-                // TODO: Connect to AssetMediaScreen
+                com.rio.rostry.ui.shared.gallery.AssetMediaScreen(
+                    assetId = assetId,
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.MediaViewer.route) { backStackEntry ->
                 val mediaId = backStackEntry.arguments?.getString("mediaId") ?: ""
-                // TODO: Connect to MediaViewerScreen
+                com.rio.rostry.ui.shared.gallery.MediaViewerScreen(
+                    mediaId = mediaId,
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.PublicProfilePreview.route) {
-                // TODO: Connect to PublicProfilePreviewScreen
+                com.rio.rostry.feature.farmer.ui.profile.PublicFarmProfileScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.EditProfile.route) {
-                // TODO: Connect to EditProfileScreen
+                com.rio.rostry.ui.profile.EditProfileScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.PrivacySettings.route) {
-                // TODO: Connect to PrivacySettingsScreen
+                // Fallback to EditProfile for now as specific privacy screen not found
+                com.rio.rostry.ui.profile.EditProfileScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.FarmLog.route) {
-                // TODO: Connect to FarmLogScreen
+                com.rio.rostry.feature.farmer.ui.FarmLogScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.BreedingUnit.route) {
-                // TODO: Connect to BreedingUnitScreen
+                com.rio.rostry.feature.farmer.ui.breeding.BreedingUnitScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }
