@@ -6,7 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.data.database.dao.PostsDao
 import com.rio.rostry.data.database.dao.EventsDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
-import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.database.dao.LikesDao
 import com.rio.rostry.data.database.dao.CommentsDao
 import com.rio.rostry.utils.Resource

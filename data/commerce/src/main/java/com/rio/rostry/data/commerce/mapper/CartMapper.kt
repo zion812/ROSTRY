@@ -4,10 +4,22 @@ import com.rio.rostry.core.model.CartItem
 import com.rio.rostry.data.database.entity.CartItemEntity
 
 fun CartItemEntity.toCartItem(): CartItem =
-    TODO("Temporary mapper stub during modularization")
+    CartItem(
+        id = id,
+        userId = userId,
+        productId = productId,
+        quantity = quantity,
+        addedAt = addedAt
+    )
 
 fun CartItem.toEntity(): CartItemEntity =
-    TODO("Temporary mapper stub during modularization")
+    CartItemEntity(
+        id = id,
+        userId = userId,
+        productId = productId,
+        quantity = quantity,
+        addedAt = addedAt
+    )
 
 fun List<CartItemEntity>.toCartItems(): List<CartItem> = map { it.toCartItem() }
 

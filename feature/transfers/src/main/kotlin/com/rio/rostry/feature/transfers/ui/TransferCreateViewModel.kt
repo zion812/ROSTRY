@@ -1,4 +1,4 @@
-package com.rio.rostry.ui.transfer
+package com.rio.rostry.feature.transfers.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,12 +7,11 @@ import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.entity.TransferEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.TransferWorkflowRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.marketplace.validation.ProductValidator
 import com.rio.rostry.core.common.session.CurrentUserProvider
-import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -26,8 +25,9 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import com.rio.rostry.utils.network.ConnectivityManager
 import com.rio.rostry.data.sync.SyncManager
-import com.rio.rostry.ui.components.ConflictDetails
 import com.rio.rostry.data.database.entity.OutboxEntity
+import com.rio.rostry.ui.components.SyncState
+import com.rio.rostry.ui.components.ConflictDetails
 
 @HiltViewModel
 class TransferCreateViewModel @Inject constructor(
@@ -133,21 +133,34 @@ class TransferCreateViewModel @Inject constructor(
     fun loadUserProducts() {
         val userId = currentUserProvider.userIdOrNull() ?: return
         viewModelScope.launch {
-            // Placeholder - load user's products
-            // In a real implementation, filter products by userId
-            _state.value = _state.value.copy(availableProducts = emptyList())
+            productRepository.getProductsBySeller(userId).collect { resource ->
+                if (resource is Resource.Success) {
+                    _state.value = _state.value.copy(
+                        availableProducts = resource.data ?: emptyList(),
+                        loading = false
+                    )
+                } else if (resource is Resource.Loading) {
+                    _state.value = _state.value.copy(loading = true)
+                } else if (resource is Resource.Error) {
+                    _state.value = _state.value.copy(
+                        error = resource.message,
+                        loading = false
+                    )
+                }
+            }
         }
     }
 
     fun searchRecipients(query: String) {
+        val userId = currentUserProvider.userIdOrNull() ?: return
         if (query.length < 2) {
             _state.value = _state.value.copy(searchResults = emptyList())
             return
         }
         viewModelScope.launch {
-            // Placeholder - search for users
-            // In a real implementation, this would query user repository
-            _state.value = _state.value.copy(searchResults = emptyList())
+            userRepository.searchUsersForTransfer(query, userId).collect { users ->
+                _state.value = _state.value.copy(searchResults = users)
+            }
         }
     }
 

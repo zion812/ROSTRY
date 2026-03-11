@@ -4,7 +4,23 @@ import com.rio.rostry.core.model.GrowthRecord
 import com.rio.rostry.data.database.entity.GrowthRecordEntity
 
 fun GrowthRecordEntity.toGrowthRecord(): GrowthRecord =
-    TODO("Temporary mapper stub during modularization")
+    GrowthRecord(
+        recordId = recordId,
+        productId = productId,
+        weight = weightGrams,
+        height = heightCm,
+        notes = milestone,
+        recordedAt = createdAt,
+        createdAt = createdAt
+    )
 
 fun GrowthRecord.toEntity(): GrowthRecordEntity =
-    TODO("Temporary mapper stub during modularization")
+    GrowthRecordEntity(
+        recordId = recordId,
+        productId = productId,
+        weightGrams = weight,
+        heightCm = height,
+        milestone = notes,
+        createdAt = createdAt,
+        updatedAt = System.currentTimeMillis()
+    )

@@ -107,27 +107,60 @@ class EnthusiastNavigationProvider : NavigationProvider {
         navGraphBuilder.apply {
             // Core enthusiast screens
             composable(EnthusiastRoute.Home.route) {
-                // TODO: Connect to EnthusiastHomeScreen
+                com.rio.rostry.feature.enthusiast.ui.EnthusiastHomeScreen(
+                    onOpenExplore = { navController.navigate(EnthusiastRoute.Explore.route) },
+                    onOpenCreate = { navController.navigate(EnthusiastRoute.Create.route) },
+                    onOpenDashboard = { navController.navigate(EnthusiastRoute.Dashboard.route) },
+                    onOpenTransfers = { navController.navigate(EnthusiastRoute.Transfers.route) },
+                    onOpenProfile = { navController.navigate(EnthusiastRoute.Profile.route) }
+                )
             }
 
             composable(EnthusiastRoute.Explore.route) {
-                // TODO: Connect to EnthusiastExploreScreen
+                com.rio.rostry.feature.enthusiast.ui.EnthusiastExploreScreen(
+                    onBack = { navController.popBackStack() },
+                    onShare = { /* handle share */ },
+                    onOpenDiscussion = { /* navigate to community */ }
+                )
             }
 
             composable(EnthusiastRoute.Create.route) {
-                // TODO: Connect to EnthusiastCreateScreen
+                com.rio.rostry.feature.enthusiast.ui.EnthusiastCreateScreen(
+                    onScheduleContent = { /* schedule */ },
+                    onStartLive = { /* start live */ },
+                    onCreateShowcase = { /* create showcase */ },
+                    onOpenRoosterCard = { productId ->
+                        navController.navigate(EnthusiastRoute.RoosterCard.createRoute(productId))
+                    }
+                )
             }
 
             composable(EnthusiastRoute.Dashboard.route) {
-                // TODO: Connect to EnthusiastDashboardScreen
+                com.rio.rostry.feature.enthusiast.ui.EnthusiastDashboardHost(
+                    onOpenReports = { /* navigate to reports */ },
+                    onOpenFeed = { navController.navigate(EnthusiastRoute.LineageFeed.route) },
+                    onOpenTraceability = { productId ->
+                        navController.navigate(EnthusiastRoute.LineageExplorer.createRoute(productId))
+                    }
+                )
             }
 
             composable(EnthusiastRoute.Transfers.route) {
-                // TODO: Connect to EnthusiastTransfersScreen
+                com.rio.rostry.feature.enthusiast.ui.EnthusiastTransfersScreen(
+                    onBack = { navController.popBackStack() },
+                    onInitiateTransfer = { productId ->
+                        navController.navigate(EnthusiastRoute.TransferCode.createRoute(productId))
+                    },
+                    onClaimTransfer = { navController.navigate(EnthusiastRoute.ClaimTransfer.route) }
+                )
             }
 
             composable(EnthusiastRoute.Profile.route) {
-                // TODO: Connect to EnthusiastProfileScreen
+                com.rio.rostry.feature.enthusiast.ui.EnthusiastProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditProfile = { /* navigate to edit profile */ },
+                    onOpenSettings = { /* navigate to settings */ }
+                )
             }
 
             // Breeding and genetics

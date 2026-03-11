@@ -55,28 +55,49 @@ class FarmerNavigationProvider : NavigationProvider {
     override fun buildGraph(navGraphBuilder: NavGraphBuilder, navController: NavHostController) {
         navGraphBuilder.apply {
             composable(FarmerRoute.Home.route) {
-                // TODO: Connect to FarmerHomeScreen with ViewModel
+                com.rio.rostry.feature.farmer.ui.FarmerHomeScreen(
+                    onOpenMarket = { navController.navigate(FarmerRoute.Market.route) },
+                    onOpenCreate = { navController.navigate(FarmerRoute.Create.route) },
+                    onOpenCommunity = { navController.navigate(FarmerRoute.Community.route) },
+                    onOpenProfile = { navController.navigate(FarmerRoute.Profile.route) }
+                )
             }
 
             composable(FarmerRoute.Market.route) {
-                // TODO: Connect to FarmerMarketScreen
+                com.rio.rostry.feature.farmer.ui.FarmerMarketScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenListing = { /* navigate to listing */ }
+                )
             }
 
             composable(FarmerRoute.Create.route) {
-                // TODO: Connect to FarmerCreateScreen
+                com.rio.rostry.feature.farmer.ui.FarmerCreateScreen(
+                    onBack = { navController.popBackStack() },
+                    onComplete = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.CreateWithPrefill.route) { backStackEntry ->
                 val prefillProductId = backStackEntry.arguments?.getString("prefillProductId")
-                // TODO: Connect to FarmerCreateScreen with prefill
+                com.rio.rostry.feature.farmer.ui.FarmerCreateScreen(
+                    prefillProductId = prefillProductId,
+                    onBack = { navController.popBackStack() },
+                    onComplete = { navController.popBackStack() }
+                )
             }
 
             composable(FarmerRoute.Community.route) {
-                // TODO: Connect to FarmerCommunityScreen
+                com.rio.rostry.feature.farmer.ui.FarmerCommunityScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenThread = { /* navigate to thread */ }
+                )
             }
 
             composable(FarmerRoute.Profile.route) {
-                // TODO: Connect to FarmerProfileScreen
+                com.rio.rostry.feature.farmer.ui.FarmerProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditProfile = { navController.navigate(FarmerRoute.EditProfile.route) }
+                )
             }
 
             composable(FarmerRoute.DigitalFarm.route) {

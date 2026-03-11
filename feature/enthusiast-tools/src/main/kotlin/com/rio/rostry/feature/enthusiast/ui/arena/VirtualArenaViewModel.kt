@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.data.database.entity.CompetitionEntryEntity
-import com.rio.rostry.data.mock.VirtualArenaMockData
 import com.rio.rostry.data.repository.VirtualArenaRepository
 import com.rio.rostry.domain.model.CompetitionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,19 +46,17 @@ class VirtualArenaViewModel @Inject constructor(
     private fun loadCompetitions() {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             try {
-                // Try to load from repository first, fallback to mocks
+                // Load from repository only
                 val localCompetitions = repository.getCompetitionsByStatus(CompetitionStatus.UPCOMING)
-                if (localCompetitions.isEmpty()) {
-                    _competitions.value = VirtualArenaMockData.getMockCompetitions()
-                } else {
-                    // Merge local with mocks for demo
-                    val mocks = VirtualArenaMockData.getMockCompetitions()
-                    _competitions.value = (localCompetitions + mocks).distinctBy { it.competitionId }
-                }
+                val liveCompetitions = repository.getCompetitionsByStatus(CompetitionStatus.LIVE)
+                val pastCompetitions = repository.getCompetitionsByStatus(CompetitionStatus.PAST)
+
+                _competitions.value = (localCompetitions + liveCompetitions + pastCompetitions).distinctBy { it.competitionId }
             } catch (e: Exception) {
-                // On error, use mocks
-                _competitions.value = VirtualArenaMockData.getMockCompetitions()
+                _error.value = "Failed to load competitions: ${e.message}"
+                _competitions.value = emptyList()
             } finally {
                 _isLoading.value = false
             }
