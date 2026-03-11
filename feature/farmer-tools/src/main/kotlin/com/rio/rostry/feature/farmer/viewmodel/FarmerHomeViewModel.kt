@@ -1,4 +1,4 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.feature.farmer.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,10 +12,10 @@ import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.DashboardCacheDao
 import com.rio.rostry.data.database.entity.DashboardCacheEntity
-import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.sync.SyncManager
-import com.rio.rostry.domain.farm.repository.TransferRepository
-import com.rio.rostry.domain.farm.repository.TraceabilityRepository
+import com.rio.rostry.data.repository.TransferRepository
+import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.data.repository.analytics.AnalyticsRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.EvidenceOrderRepository

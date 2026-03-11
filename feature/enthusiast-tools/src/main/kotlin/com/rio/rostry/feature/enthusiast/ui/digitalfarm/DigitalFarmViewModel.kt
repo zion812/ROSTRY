@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.CoinLedgerDao
 import com.rio.rostry.data.database.dao.FarmAssetDao
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.domain.model.*
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.data.sync.SyncManager

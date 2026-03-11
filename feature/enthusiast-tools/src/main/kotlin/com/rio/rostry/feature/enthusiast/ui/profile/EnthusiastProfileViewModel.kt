@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.ReputationEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.data.database.dao.BreedingPairDao
 import com.rio.rostry.utils.Resource
