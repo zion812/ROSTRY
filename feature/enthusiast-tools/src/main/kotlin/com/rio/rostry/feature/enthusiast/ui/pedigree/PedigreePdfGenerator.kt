@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.pedigree
+package com.rio.rostry.feature.enthusiast.ui.pedigree
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Context
 import android.graphics.Canvas
@@ -8,7 +10,7 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
-import com.rio.rostry.domain.pedigree.PedigreeTree
+import com.rio.rostry.domain.farm.model.PedigreeTree
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date

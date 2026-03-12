@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.certificate
+package com.rio.rostry.feature.enthusiast.ui.certificate
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.ContentValues
 import android.content.Context

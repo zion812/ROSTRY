@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.farmer.asset
+package com.rio.rostry.ui.farmer.asset
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.digitaltwin
+package com.rio.rostry.feature.enthusiast.ui.digitaltwin
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.*

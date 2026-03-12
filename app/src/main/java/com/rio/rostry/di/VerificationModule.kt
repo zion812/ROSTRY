@@ -12,7 +12,7 @@ import com.rio.rostry.data.repository.StorageRepository
 import com.rio.rostry.data.repository.StorageUsageRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.utils.network.ConnectivityManager
-import com.rio.rostry.utils.validation.VerificationValidationService
+import com.rio.rostry.domain.account.validation.VerificationValidationService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,7 +50,7 @@ object VerificationModule {
     fun provideVerificationValidationService(
         @ApplicationContext context: Context,
         userRepository: UserRepository,
-    ): VerificationValidationService = VerificationValidationService(context, userRepository)
+    ): VerificationValidationService = com.rio.rostry.utils.validation.VerificationValidationServiceImpl(context, userRepository)
 
     @Provides
     @Singleton

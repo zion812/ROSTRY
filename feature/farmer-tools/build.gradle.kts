@@ -30,42 +30,34 @@ android {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation(libs.gson)
+    // Domain modules (feature modules depend ONLY on domain interfaces)
     implementation(project(":core:common"))
+    implementation(project(":core:network"))
     implementation(project(":domain:account"))
     implementation(project(":domain:commerce"))
     implementation(project(":domain:farm"))
     implementation(project(":domain:monitoring"))
     implementation(project(":domain:social"))
     implementation(project(":domain:admin"))
+
+    // TODO(Phase 4): Remove data:* and core:database once ViewModels are migrated to domain-only interfaces
     implementation(project(":data:account"))
     implementation(project(":data:commerce"))
     implementation(project(":data:farm"))
     implementation(project(":data:monitoring"))
     implementation(project(":data:social"))
     implementation(project(":data:admin"))
+    implementation(project(":core:database"))
+    implementation(project(":core:domain"))
 
+    // Core UI/infra modules
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(project(":core:navigation"))
-    implementation(project(":core:database"))
-
-    // Domain
-    implementation(project(":domain:farm"))
-    implementation(project(":domain:monitoring"))
-    implementation(project(":domain:commerce"))
-    implementation(project(":domain:account"))
-    implementation(project(":domain:social"))
-
-    // Data (temporary - should be removed after proper domain layer migration)
-    implementation(project(":data:farm"))
-    implementation(project(":data:monitoring"))
-    implementation(project(":data:commerce"))
-    implementation(project(":data:account"))
-    implementation(project(":data:social"))
-
-    // Temporary app module dependency removed to break circular dependency
-    // TODO: Move shared screens (gallery, auction, error) to core modules
-    // implementation(project(":app"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -85,6 +77,10 @@ dependencies {
 
     // Coil for image loading
     implementation(libs.coil.compose)
+
+    // Firebase (needed for FirebaseAuth in ViewModels)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

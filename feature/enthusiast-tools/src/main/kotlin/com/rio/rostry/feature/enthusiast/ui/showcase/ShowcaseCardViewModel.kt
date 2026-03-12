@@ -1,4 +1,7 @@
-package com.rio.rostry.feature.enthusiast.ui.showcase
+package com.rio.rostry.feature.enthusiast.ui.showcase
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 
 import android.content.ContentValues
 import android.content.Context
@@ -17,7 +20,7 @@ import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.dao.VaccinationRecordDao
 import com.rio.rostry.domain.error.ErrorHandler
 import com.rio.rostry.domain.showcase.ShowcaseCard
-import com.rio.rostry.domain.showcase.ShowcaseCardGenerator
+import com.rio.rostry.domain.social.service.ShowcaseCardGenerator
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +42,7 @@ class ShowcaseCardViewModel @Inject constructor(
     private val showcaseCardGenerator: ShowcaseCardGenerator,
     private val productDao: ProductDao,
     private val vaccinationRecordDao: VaccinationRecordDao,
-    private val showRecordRepository: com.rio.rostry.data.repository.ShowRecordRepository,
+    private val showRecordRepository: com.rio.rostry.domain.monitoring.repository.ShowRecordRepository,
     private val errorHandler: ErrorHandler,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {

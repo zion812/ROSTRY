@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.screens
+package com.rio.rostry.ui.screens
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

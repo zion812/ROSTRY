@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.moderation.navigation
+package com.rio.rostry.feature.moderation.navigation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController

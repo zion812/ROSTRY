@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.verification.state
+package com.rio.rostry.ui.verification.state
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.os.Parcelable
 import com.rio.rostry.domain.model.FarmLocation

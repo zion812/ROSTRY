@@ -1,4 +1,7 @@
-package com.rio.rostry.ui.farmer.documentation
+package com.rio.rostry.ui.farmer.documentation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.farm.service.AssetExportManager
 
 import android.content.Intent
 import androidx.core.content.FileProvider
@@ -6,7 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.AssetDocumentation
-import com.rio.rostry.data.repository.AssetDocumentationService
+import com.rio.rostry.domain.farm.service.AssetDocumentationService
 import com.rio.rostry.data.repository.LifecycleTimelineEntry
 import com.rio.rostry.utils.export.AssetDocumentPdfGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,7 +32,7 @@ data class AssetDocumentUiState(
 class AssetDocumentViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val documentationService: AssetDocumentationService,
-    private val exportManager: com.rio.rostry.utils.export.AssetExportManager
+    private val exportManager: com.rio.rostry.domain.farm.service.AssetExportManager
 ) : ViewModel() {
 
     private val assetId: String = savedStateHandle.get<String>("assetId") ?: ""
@@ -70,13 +73,13 @@ class AssetDocumentViewModel @Inject constructor(
                 val result = exportManager.exportAssetPackage(doc, timeline, mediaItems)
                 
                 when (result) {
-                    is com.rio.rostry.utils.export.AssetExportManager.ExportResult.Success -> {
+                    is com.rio.rostry.domain.farm.service.AssetExportManager.ExportResult.Success -> {
                         _uiState.value = _uiState.value.copy(
                             isExporting = false,
                             exportedFileName = result.fileName
                         )
                     }
-                    is com.rio.rostry.utils.export.AssetExportManager.ExportResult.Error -> {
+                    is com.rio.rostry.domain.farm.service.AssetExportManager.ExportResult.Error -> {
                         _uiState.value = _uiState.value.copy(
                             isExporting = false,
                             exportError = result.message

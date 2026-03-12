@@ -1,11 +1,13 @@
-package com.rio.rostry.ui.monitoring.vm
+package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.DailyLogEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.data.repository.monitoring.DailyLogRepository
+import com.rio.rostry.domain.monitoring.repository.DailyLogRepository
 import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.ui.components.getSyncState
 import com.rio.rostry.ui.components.ConflictDetails
@@ -33,7 +35,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import android.net.Uri
 import timber.log.Timber
-import com.rio.rostry.utils.media.MediaUploadManager
+import com.rio.rostry.domain.farm.service.MediaUploadManager
 import com.rio.rostry.utils.images.ImageCompressor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context

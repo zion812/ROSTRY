@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 enum class Category { Meat, Adoption }
 enum class Traceability { Traceable, NonTraceable }

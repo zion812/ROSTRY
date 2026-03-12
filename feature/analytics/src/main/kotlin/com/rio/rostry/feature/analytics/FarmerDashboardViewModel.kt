@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.analytics
+package com.rio.rostry.feature.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
 import com.rio.rostry.data.repository.analytics.FarmerDashboard
-import com.rio.rostry.data.repository.FarmFinancialsRepository
+import com.rio.rostry.domain.farm.repository.FarmFinancialsRepository
 import com.rio.rostry.data.repository.CostPerBirdAnalysis
 import com.rio.rostry.data.database.dao.FarmerDashboardSnapshotDao
 import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity

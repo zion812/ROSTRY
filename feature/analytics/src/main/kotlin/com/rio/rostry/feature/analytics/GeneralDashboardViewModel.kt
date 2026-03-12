@@ -1,8 +1,10 @@
-package com.rio.rostry.feature.analytics
+package com.rio.rostry.feature.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
 import com.rio.rostry.data.repository.analytics.GeneralDashboard
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.moderation
+package com.rio.rostry.ui.moderation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background

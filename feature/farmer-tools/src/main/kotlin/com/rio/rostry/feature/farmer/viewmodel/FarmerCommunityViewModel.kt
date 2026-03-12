@@ -1,4 +1,7 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.social.service.CommunityEngagementService
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,10 +9,10 @@ import com.rio.rostry.community.CommunityEngagementService
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.GroupEntity
 import com.rio.rostry.data.database.entity.PostEntity
-import com.rio.rostry.data.repository.CommunityRepository
-import com.rio.rostry.data.repository.social.MessagingRepository
+import com.rio.rostry.domain.social.repository.CommunityRepository
+import com.rio.rostry.domain.social.repository.MessagingRepository
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.core.common.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel

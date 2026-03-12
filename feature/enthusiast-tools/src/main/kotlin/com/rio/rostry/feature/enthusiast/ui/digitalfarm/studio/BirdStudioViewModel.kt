@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.digitalfarm.studio
+package com.rio.rostry.feature.enthusiast.ui.digitalfarm.studio
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

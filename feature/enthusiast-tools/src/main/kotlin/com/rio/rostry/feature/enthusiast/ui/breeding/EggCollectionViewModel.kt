@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EggCollectionViewModel @Inject constructor(
     private val eggCollectionDao: EggCollectionDao,
-    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
+    private val currentUserProvider: com.rio.rostry.core.common.session.CurrentUserProvider
 ) : ViewModel() {
 
     data class UiState(

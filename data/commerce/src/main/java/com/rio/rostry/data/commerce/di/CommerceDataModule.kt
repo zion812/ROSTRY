@@ -8,6 +8,12 @@ import com.rio.rostry.data.commerce.repository.MarketplaceRepositoryImpl
 import com.rio.rostry.data.commerce.repository.ListingDraftRepositoryImpl
 import com.rio.rostry.data.commerce.repository.TransactionRepositoryImpl
 import com.rio.rostry.data.commerce.repository.AuctionRepositoryImpl
+import com.rio.rostry.data.commerce.repository.PaymentRepositoryImpl
+import com.rio.rostry.data.commerce.repository.InvoiceRepositoryImpl
+import com.rio.rostry.data.commerce.repository.ReviewRepositoryImpl
+import com.rio.rostry.data.commerce.repository.LogisticsRepositoryImpl
+import com.rio.rostry.data.commerce.repository.MarketListingRepositoryImpl
+import com.rio.rostry.data.commerce.repository.DisputeRepositoryImpl
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.commerce.repository.CartRepository
 import com.rio.rostry.domain.commerce.repository.WishlistRepository
@@ -16,10 +22,12 @@ import com.rio.rostry.domain.commerce.repository.MarketplaceRepository
 import com.rio.rostry.domain.commerce.repository.ListingDraftRepository
 import com.rio.rostry.domain.commerce.repository.TransactionRepository
 import com.rio.rostry.domain.commerce.repository.MarketListingRepository
-import com.rio.rostry.data.commerce.repository.MarketListingRepositoryImpl
 import com.rio.rostry.domain.commerce.repository.DisputeRepository
-import com.rio.rostry.data.commerce.repository.DisputeRepositoryImpl
 import com.rio.rostry.domain.commerce.repository.AuctionRepository
+import com.rio.rostry.domain.commerce.repository.PaymentRepository
+import com.rio.rostry.domain.commerce.repository.InvoiceRepository
+import com.rio.rostry.domain.commerce.repository.ReviewRepository
+import com.rio.rostry.domain.commerce.repository.LogisticsRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -125,4 +133,28 @@ abstract class CommerceDataModule {
     abstract fun bindAuctionRepository(
         impl: AuctionRepositoryImpl
     ): AuctionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPaymentRepository(
+        impl: PaymentRepositoryImpl
+    ): PaymentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInvoiceRepository(
+        impl: InvoiceRepositoryImpl
+    ): InvoiceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReviewRepository(
+        impl: ReviewRepositoryImpl
+    ): ReviewRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLogisticsRepository(
+        impl: LogisticsRepositoryImpl
+    ): LogisticsRepository
 }

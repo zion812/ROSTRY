@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.analytics
+package com.rio.rostry.feature.admin.ui.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,7 +14,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UserAnalyticsViewModel @Inject constructor(
-    private val userRepository: com.rio.rostry.data.repository.UserRepository
+    private val userRepository: com.rio.rostry.domain.account.repository.UserRepository
 ) : ViewModel() {
 
     data class RegionStat(val name: String, val userCount: Int)

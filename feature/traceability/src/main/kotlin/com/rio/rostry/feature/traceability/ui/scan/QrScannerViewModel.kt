@@ -1,10 +1,12 @@
-package com.rio.rostry.ui.scan
+package com.rio.rostry.ui.scan
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
-import com.rio.rostry.data.repository.WatchedLineagesRepository
+import com.rio.rostry.domain.farm.repository.WatchedLineagesRepository
 
 @HiltViewModel
 class QrScannerViewModel @Inject constructor(

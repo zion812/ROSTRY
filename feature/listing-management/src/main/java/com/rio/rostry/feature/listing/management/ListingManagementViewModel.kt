@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.listing.management
+package com.rio.rostry.feature.listing.management
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

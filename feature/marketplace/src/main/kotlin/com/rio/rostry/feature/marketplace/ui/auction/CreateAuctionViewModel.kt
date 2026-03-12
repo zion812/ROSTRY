@@ -1,11 +1,13 @@
-package com.rio.rostry.ui.auction
+package com.rio.rostry.ui.auction
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.AuctionEntity
 import com.rio.rostry.data.database.entity.FarmAssetEntity
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.AuctionRepository
+import com.rio.rostry.domain.commerce.repository.AuctionRepository
 import com.rio.rostry.domain.farm.repository.FarmAssetRepository
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider

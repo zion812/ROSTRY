@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.verification
+package com.rio.rostry.ui.verification
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.transfers.ui
+package com.rio.rostry.feature.transfers.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,10 +9,10 @@ import com.rio.rostry.data.database.dao.QuarantineRecordDao
 import com.rio.rostry.data.database.entity.TransferEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.ProductRepository
-import com.rio.rostry.data.repository.TransferWorkflowRepository
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.marketplace.validation.ProductValidator
+import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.domain.farm.repository.TransferWorkflowRepository
+import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.commerce.validation.ProductValidator
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +30,7 @@ import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.data.database.entity.OutboxEntity
 import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.ui.components.ConflictDetails
+import com.rio.rostry.domain.monitoring.repository.BiosecurityRepository
 
 @HiltViewModel
 class TransferCreateViewModel @Inject constructor(

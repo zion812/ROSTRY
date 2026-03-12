@@ -1,9 +1,11 @@
-package com.rio.rostry.ui.search
+package com.rio.rostry.ui.search
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.ProductSearchRepository
+import com.rio.rostry.domain.farm.repository.ProductSearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow

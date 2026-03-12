@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.verification.components
+package com.rio.rostry.ui.verification.components
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Intent
 import android.net.Uri

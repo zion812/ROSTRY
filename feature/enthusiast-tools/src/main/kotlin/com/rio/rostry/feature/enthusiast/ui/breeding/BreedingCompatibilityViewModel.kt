@@ -1,12 +1,14 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.breeding.BreedingService
+import com.rio.rostry.domain.monitoring.service.BreedingService
 import com.rio.rostry.domain.breeding.CompatibilityResult
 import com.rio.rostry.domain.breeding.TraitPrediction
-import com.rio.rostry.domain.pedigree.PedigreeRepository
+import com.rio.rostry.domain.farm.repository.PedigreeRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.rio.rostry.domain.service.GeneticPotentialResult
-import com.rio.rostry.domain.service.GeneticPotentialService
+import com.rio.rostry.domain.monitoring.service.GeneticPotentialService
 
 @HiltViewModel
 class BreedingCompatibilityViewModel @Inject constructor(

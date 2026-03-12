@@ -1,12 +1,16 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding.simulator
+package com.rio.rostry.feature.enthusiast.ui.breeding.simulator
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.monitoring.repository.BreedingPlanRepository
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.domain.breeding.BreedingService
+import com.rio.rostry.domain.monitoring.service.BreedingService
 import com.rio.rostry.domain.breeding.SimulatedOffspring
 import com.rio.rostry.utils.Resource
+import com.rio.rostry.domain.commerce.engine.RecommendationEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,8 +24,8 @@ import javax.inject.Inject
 class BreedingSimulatorViewModel @Inject constructor(
     private val breedingService: BreedingService,
     private val productRepository: ProductRepository,
-    private val breedingPlanRepository: com.rio.rostry.data.repository.BreedingPlanRepository,
-    private val sessionManager: com.rio.rostry.data.session.UserSessionManager,
+    private val breedingPlanRepository: com.rio.rostry.domain.monitoring.repository.BreedingPlanRepository,
+    private val sessionManager: com.rio.rostry.domain.account.service.UserSessionManager,
     private val gson: com.google.gson.Gson
 ) : ViewModel() {
 

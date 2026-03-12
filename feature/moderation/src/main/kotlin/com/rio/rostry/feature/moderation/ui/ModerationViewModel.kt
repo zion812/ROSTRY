@@ -1,10 +1,12 @@
-package com.rio.rostry.ui.moderation
+package com.rio.rostry.ui.moderation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.ModerationReportsDao
 import com.rio.rostry.data.database.entity.ModerationReportEntity
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.domain.model.UpgradeType
@@ -30,7 +32,7 @@ class ModerationViewModel @Inject constructor(
     private val reportsDao: ModerationReportsDao,
     private val userRepository: UserRepository,
     private val verificationNotificationService: VerificationNotificationService,
-    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
+    private val currentUserProvider: com.rio.rostry.core.common.session.CurrentUserProvider
 ) : ViewModel() {
 
     val openReports: StateFlow<List<ModerationReportEntity>> =

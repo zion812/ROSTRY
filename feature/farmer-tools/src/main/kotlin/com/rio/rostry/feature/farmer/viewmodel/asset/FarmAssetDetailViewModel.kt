@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.farmer.asset
+package com.rio.rostry.ui.farmer.asset
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -6,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAssetEntity
 import com.rio.rostry.data.repository.CostPerBirdAnalysis
 import com.rio.rostry.domain.farm.repository.FarmAssetRepository
-import com.rio.rostry.data.repository.FarmFinancialsRepository
+import com.rio.rostry.domain.farm.repository.FarmFinancialsRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -19,7 +21,7 @@ class FarmAssetDetailViewModel @Inject constructor(
     private val repository: FarmAssetRepository,
     private val activityLogDao: com.rio.rostry.data.database.dao.FarmActivityLogDao,
     private val financialsRepository: FarmFinancialsRepository,
-    private val verifiedLineageBadgeUseCase: com.rio.rostry.domain.usecase.VerifiedLineageBadgeUseCase
+    private val verifiedLineageBadgeUseCase: com.rio.rostry.domain.farm.usecase.VerifiedLineageBadgeUseCase
 ) : ViewModel() {
 
     private val assetId: String = savedStateHandle.get<String>("assetId") ?: ""

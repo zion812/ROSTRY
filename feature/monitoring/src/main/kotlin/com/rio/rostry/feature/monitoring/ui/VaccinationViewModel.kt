@@ -1,11 +1,12 @@
-package com.rio.rostry.ui.monitoring.vm
+package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.data.repository.monitoring.VaccinationRepository
 import com.rio.rostry.data.database.entity.VaccinationRecordEntity
-import com.rio.rostry.data.repository.monitoring.TaskRepository
+import com.rio.rostry.domain.monitoring.repository.TaskRepository
 import com.rio.rostry.data.database.entity.TaskEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

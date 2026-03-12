@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -10,7 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import com.rio.rostry.marketplace.location.LocationSearchService
+import com.rio.rostry.core.common.location.LocationSearchService
 import com.rio.rostry.marketplace.location.LocationService
 import com.rio.rostry.utils.location.PlacesUtils
 import kotlinx.coroutines.Job

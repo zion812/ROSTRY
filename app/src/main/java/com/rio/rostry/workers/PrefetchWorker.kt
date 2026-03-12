@@ -15,7 +15,7 @@ import com.rio.rostry.data.repository.ProductRepository
 import com.rio.rostry.data.repository.TransferRepository
 import com.rio.rostry.data.repository.UserRepository
 import com.rio.rostry.data.repository.monitoring.HatchingRepository
-import com.rio.rostry.data.repository.monitoring.VaccinationRepository
+import com.rio.rostry.domain.monitoring.repository.VaccinationRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.core.common.session.SessionManager
 import com.rio.rostry.utils.Resource

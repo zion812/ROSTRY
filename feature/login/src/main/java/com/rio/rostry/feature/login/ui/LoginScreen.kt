@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.login.ui
+package com.rio.rostry.feature.login.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions

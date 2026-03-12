@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.widget.CalendarView
 import androidx.compose.foundation.background

@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.scan
+package com.rio.rostry.ui.scan
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.Manifest
 import android.content.pm.PackageManager

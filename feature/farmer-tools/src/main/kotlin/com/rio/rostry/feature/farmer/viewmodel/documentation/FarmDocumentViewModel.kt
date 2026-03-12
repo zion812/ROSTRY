@@ -1,11 +1,13 @@
-package com.rio.rostry.ui.farmer.documentation
+package com.rio.rostry.ui.farmer.documentation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.AssetSummary
 import com.rio.rostry.data.repository.FarmDocumentation
-import com.rio.rostry.data.repository.FarmDocumentationService
-import com.rio.rostry.utils.export.FarmDocumentPdfGenerator
+import com.rio.rostry.domain.farm.service.FarmDocumentationService
+import com.rio.rostry.domain.farm.service.FarmDocumentPdfGenerator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

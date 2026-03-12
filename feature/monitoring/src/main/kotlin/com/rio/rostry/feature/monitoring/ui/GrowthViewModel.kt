@@ -1,4 +1,6 @@
 package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,8 +19,8 @@ import javax.inject.Inject
 class GrowthViewModel @Inject constructor(
     private val repo: GrowthRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository,
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
+    private val analyticsRepository: com.rio.rostry.domain.monitoring.repository.AnalyticsRepository,
+    private val productRepository: com.rio.rostry.domain.commerce.repository.ProductRepository,
     private val mediaUploadManager: com.rio.rostry.utils.media.MediaUploadManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ): ViewModel() {

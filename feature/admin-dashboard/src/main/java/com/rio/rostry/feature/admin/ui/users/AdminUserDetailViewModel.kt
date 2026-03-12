@@ -1,8 +1,10 @@
-package com.rio.rostry.feature.admin.ui.users
+package com.rio.rostry.feature.admin.ui.users
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.AdminRepository
+import com.rio.rostry.domain.admin.repository.AdminRepository
 import com.rio.rostry.domain.model.AdminUserProfile
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel

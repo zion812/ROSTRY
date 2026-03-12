@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui
+package com.rio.rostry.feature.enthusiast.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,7 +8,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.data.database.dao.PostsDao
 import com.rio.rostry.data.database.dao.EventsDao
 import com.rio.rostry.data.database.dao.EventRsvpsDao
-import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.data.database.dao.LikesDao
 import com.rio.rostry.data.database.dao.CommentsDao
 import com.rio.rostry.utils.Resource
@@ -16,7 +18,7 @@ import com.rio.rostry.data.database.entity.EventRsvpEntity
 import com.rio.rostry.data.database.entity.PostEntity
 import com.rio.rostry.data.database.entity.LikeEntity
 import com.rio.rostry.data.database.entity.CommentEntity
-import com.rio.rostry.utils.media.MediaUploadManager
+import com.rio.rostry.domain.farm.service.MediaUploadManager
 import com.rio.rostry.utils.images.ImageCompressor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

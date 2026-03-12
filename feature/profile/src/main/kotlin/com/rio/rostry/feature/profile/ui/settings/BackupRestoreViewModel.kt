@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.settings
+package com.rio.rostry.ui.settings
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel

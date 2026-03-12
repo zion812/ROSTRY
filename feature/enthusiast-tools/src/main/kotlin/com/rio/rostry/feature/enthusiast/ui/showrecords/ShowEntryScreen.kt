@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.showrecords
+package com.rio.rostry.feature.enthusiast.ui.showrecords
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.app.DatePickerDialog
 import androidx.compose.animation.AnimatedVisibility

@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.transfer
+package com.rio.rostry.ui.transfer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,12 +25,12 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import android.net.Uri
 import com.google.gson.Gson
-import com.rio.rostry.data.repository.TransferWorkflowRepository
+import com.rio.rostry.domain.farm.repository.TransferWorkflowRepository
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.VerificationUtils
-import com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
+import com.rio.rostry.core.common.analytics.EnthusiastAnalyticsTracker
 import com.rio.rostry.utils.images.ImageCompressor
-import com.rio.rostry.utils.media.MediaUploadManager
+import com.rio.rostry.domain.farm.service.MediaUploadManager
 import com.rio.rostry.utils.network.ConnectivityManager
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.data.database.dao.UploadTaskDao

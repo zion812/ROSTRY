@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.monitoring.vm
+package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -6,8 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmActivityLogEntity
 import com.rio.rostry.data.database.entity.GrowthRecordEntity
 import com.rio.rostry.data.repository.FCRAnalysis
-import com.rio.rostry.data.repository.FarmFinancialsRepository
-import com.rio.rostry.data.repository.monitoring.GrowthRepository
+import com.rio.rostry.domain.farm.repository.FarmFinancialsRepository
+import com.rio.rostry.domain.monitoring.repository.GrowthRepository
 import com.rio.rostry.domain.monitoring.repository.FarmActivityLogRepository
 import com.rio.rostry.data.repository.FCRRating
 import com.rio.rostry.data.repository.reference.BreedStandardRepository

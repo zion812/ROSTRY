@@ -1,10 +1,11 @@
-package com.rio.rostry.feature.enthusiast.ui.showrecords
+package com.rio.rostry.feature.enthusiast.ui.showrecords
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ShowRecordEntity
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +35,7 @@ data class ShowRecordsUiState(
 @HiltViewModel
 class ShowRecordsViewModel @Inject constructor(
     private val repository: ShowRecordRepository,
-    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
+    private val currentUserProvider: com.rio.rostry.core.common.session.CurrentUserProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ShowRecordsUiState())

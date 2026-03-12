@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.farm.dashboard
+package com.rio.rostry.feature.farm.dashboard
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

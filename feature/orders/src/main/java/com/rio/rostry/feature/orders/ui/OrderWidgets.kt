@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.orders.ui
+package com.rio.rostry.feature.orders.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background

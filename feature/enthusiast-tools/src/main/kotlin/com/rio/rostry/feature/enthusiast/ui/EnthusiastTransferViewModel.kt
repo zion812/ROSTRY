@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui
+package com.rio.rostry.feature.enthusiast.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.TransferDao
 import com.rio.rostry.data.database.entity.TransferEntity
-import com.rio.rostry.data.repository.TransferWorkflowRepository
+import com.rio.rostry.domain.farm.repository.TransferWorkflowRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

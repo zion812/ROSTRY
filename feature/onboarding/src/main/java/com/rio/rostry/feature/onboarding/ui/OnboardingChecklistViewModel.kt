@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.onboarding.ui
+package com.rio.rostry.feature.onboarding.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.core.model.OnboardingChecklistItem
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
+import com.rio.rostry.core.common.analytics.FlowAnalyticsTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

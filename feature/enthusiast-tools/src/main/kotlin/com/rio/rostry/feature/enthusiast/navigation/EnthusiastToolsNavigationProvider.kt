@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.navigation
+package com.rio.rostry.feature.enthusiast.navigation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder

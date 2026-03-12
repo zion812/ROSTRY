@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.lineage
+package com.rio.rostry.feature.enthusiast.ui.lineage
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -26,7 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.domain.pedigree.PedigreeTree
+import com.rio.rostry.domain.farm.model.PedigreeTree
 import com.rio.rostry.domain.service.BreedingValueResult
 
 // Premium Enthusiast colors

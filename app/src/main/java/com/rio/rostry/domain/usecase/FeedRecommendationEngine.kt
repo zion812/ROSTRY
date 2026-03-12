@@ -19,13 +19,13 @@ import javax.inject.Singleton
  * - Low inventory alerts
  */
 @Singleton
-class FeedRecommendationEngine @Inject constructor() {
+class FeedRecommendationEngineImpl @Inject constructor() : com.rio.rostry.domain.monitoring.engine.FeedRecommendationEngine {
 
     /**
      * Calculate feed recommendation for a list of birds/batches.
      * Groups by lifecycle stage and returns the primary recommendation.
      */
-    fun calculateRecommendation(
+    override fun calculateRecommendation(
         products: List<ProductEntity>,
         availableInventoryKg: Double? = null
     ): FeedRecommendation? {
@@ -130,7 +130,7 @@ class FeedRecommendationEngine @Inject constructor() {
     /**
      * Calculate feed recommendation for a single stage with known bird count.
      */
-    fun calculateForStage(
+    override fun calculateForStage(
         stage: LifecycleStage,
         birdCount: Int,
         breedName: String? = null,
@@ -188,12 +188,12 @@ class FeedRecommendationEngine @Inject constructor() {
     /**
      * Get feed type emoji for UI display.
      */
-    fun getFeedEmoji(feedType: FeedType): String = feedType.emoji
+    override fun getFeedEmoji(feedType: FeedType): String = feedType.emoji
     
     /**
      * Format feed amount for display (e.g., "5.2 kg" or "500 g").
      */
-    fun formatAmount(kg: Double): String {
+    override fun formatAmount(kg: Double): String {
         return if (kg >= 1.0) {
             String.format("%.1f kg", kg)
         } else {

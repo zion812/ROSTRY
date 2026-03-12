@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui.transfer
+package com.rio.rostry.feature.enthusiast.ui.transfer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.domain.transfer.ClaimResult
-import com.rio.rostry.domain.transfer.OwnershipTransferUseCase
+import com.rio.rostry.domain.farm.usecase.OwnershipTransferUseCase
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

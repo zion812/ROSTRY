@@ -1,11 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui.comparison
+package com.rio.rostry.feature.enthusiast.ui.comparison
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.ShowRecordEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.dashboard
+package com.rio.rostry.feature.enthusiast.ui.dashboard
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

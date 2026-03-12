@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.shell
+package com.rio.rostry.feature.admin.ui.shell
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.digitalfarm
+package com.rio.rostry.feature.enthusiast.ui.digitalfarm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.ViewModel
@@ -6,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.CoinLedgerDao
 import com.rio.rostry.data.database.dao.FarmAssetDao
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.model.*
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.data.sync.SyncManager
@@ -36,7 +38,7 @@ class DigitalFarmViewModel @Inject constructor(
     private val currentUserProvider: CurrentUserProvider,
     private val coinLedgerDao: CoinLedgerDao,
     private val farmAssetDao: FarmAssetDao,
-    private val breedingRepository: com.rio.rostry.data.repository.EnthusiastBreedingRepository,
+    private val breedingRepository: com.rio.rostry.domain.monitoring.repository.EnthusiastBreedingRepository,
     private val syncManager: SyncManager
 ) : ViewModel() {
 

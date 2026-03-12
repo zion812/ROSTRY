@@ -1,9 +1,11 @@
-package com.rio.rostry.feature.enthusiast.ui.verification
+package com.rio.rostry.feature.enthusiast.ui.verification
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.EnthusiastVerificationRepository
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.EnthusiastVerificationRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.domain.model.VerificationStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

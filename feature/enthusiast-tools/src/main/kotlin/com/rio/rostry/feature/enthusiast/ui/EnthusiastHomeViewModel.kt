@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui
+package com.rio.rostry.feature.enthusiast.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,13 +15,13 @@ import com.rio.rostry.data.database.dao.FarmAssetDao
 import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.FarmAlertEntity
-import com.rio.rostry.data.repository.EnthusiastBreedingRepository
-import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.domain.monitoring.repository.EnthusiastBreedingRepository
+import com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
 import com.rio.rostry.data.repository.analytics.EnthusiastDashboard
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
+import com.rio.rostry.core.common.analytics.EnthusiastAnalyticsTracker
 import com.rio.rostry.ui.enthusiast.components.ChampionData
 import com.rio.rostry.ui.enthusiast.components.UrgentActivity
 import javax.inject.Inject

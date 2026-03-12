@@ -1,4 +1,6 @@
 package com.rio.rostry.ui.verification
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
@@ -22,9 +24,9 @@ import com.rio.rostry.security.SecurityManager
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.ui.verification.state.VerificationFormState
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.media.MediaUploadManager
+import com.rio.rostry.domain.farm.service.MediaUploadManager
 import com.rio.rostry.utils.storage.VerificationStoragePathBuilder
-import com.rio.rostry.utils.validation.VerificationValidationService
+import com.rio.rostry.domain.account.validation.VerificationValidationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow

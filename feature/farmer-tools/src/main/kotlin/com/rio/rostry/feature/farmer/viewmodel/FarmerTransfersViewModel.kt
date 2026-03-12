@@ -1,13 +1,15 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.domain.farm.repository.TransferRepository
-import com.rio.rostry.data.repository.TransferWorkflowRepository
+import com.rio.rostry.domain.farm.repository.TransferWorkflowRepository
 import com.rio.rostry.data.database.entity.TransferEntity
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
+import com.rio.rostry.core.common.analytics.FlowAnalyticsTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

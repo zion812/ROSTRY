@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui
+package com.rio.rostry.feature.enthusiast.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.ProductMarketplaceRepository
+import com.rio.rostry.domain.commerce.repository.ProductMarketplaceRepository
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.ui.enthusiast.components.FeaturedBird
 import com.rio.rostry.ui.enthusiast.components.ExploreCategory

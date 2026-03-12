@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.hatchability
+package com.rio.rostry.feature.enthusiast.ui.hatchability
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

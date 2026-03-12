@@ -1,10 +1,12 @@
-package com.rio.rostry.ui.auction
+package com.rio.rostry.ui.auction
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.AuctionEntity
 import com.rio.rostry.data.database.entity.BidEntity
-import com.rio.rostry.data.repository.AuctionRepository
+import com.rio.rostry.domain.commerce.repository.AuctionRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel

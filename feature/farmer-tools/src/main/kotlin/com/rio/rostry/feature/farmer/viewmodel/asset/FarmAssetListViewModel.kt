@@ -1,10 +1,12 @@
-package com.rio.rostry.ui.farmer.asset
+package com.rio.rostry.ui.farmer.asset
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAssetEntity
 import com.rio.rostry.domain.farm.repository.FarmAssetRepository
-import com.rio.rostry.data.repository.FarmFinancialsRepository
+import com.rio.rostry.domain.farm.repository.FarmFinancialsRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -27,7 +29,7 @@ enum class QuickFilter(val displayName: String, val icon: String) {
 class FarmAssetListViewModel @Inject constructor(
     private val repository: FarmAssetRepository,
     private val financialsRepository: FarmFinancialsRepository,
-    private val activityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository,
+    private val activityLogRepository: com.rio.rostry.domain.monitoring.repository.FarmActivityLogRepository,
     private val auth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 

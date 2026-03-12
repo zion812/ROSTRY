@@ -1,4 +1,6 @@
 package com.rio.rostry.feature.onboarding.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

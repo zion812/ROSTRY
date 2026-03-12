@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.navigation
+package com.rio.rostry.feature.admin.ui.navigation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

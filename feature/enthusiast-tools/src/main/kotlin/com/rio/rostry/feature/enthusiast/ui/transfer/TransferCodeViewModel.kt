@@ -1,4 +1,7 @@
-package com.rio.rostry.feature.enthusiast.ui.transfer
+package com.rio.rostry.feature.enthusiast.ui.transfer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Context
 import android.content.Intent
@@ -8,7 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.domain.error.ErrorHandler
-import com.rio.rostry.domain.transfer.OwnershipTransferUseCase
+import com.rio.rostry.domain.farm.usecase.OwnershipTransferUseCase
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

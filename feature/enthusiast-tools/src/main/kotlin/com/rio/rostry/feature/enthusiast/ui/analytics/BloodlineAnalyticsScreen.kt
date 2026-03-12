@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.analytics
+package com.rio.rostry.feature.enthusiast.ui.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*

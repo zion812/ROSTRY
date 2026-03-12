@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,7 +54,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.EnthusiastBreedingRepository
+import com.rio.rostry.domain.monitoring.repository.EnthusiastBreedingRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.launch
 import com.rio.rostry.data.database.dao.BreedingPairDao

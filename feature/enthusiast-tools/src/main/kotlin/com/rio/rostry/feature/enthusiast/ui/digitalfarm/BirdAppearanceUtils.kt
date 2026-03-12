@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.digitalfarm
+package com.rio.rostry.feature.enthusiast.ui.digitalfarm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import com.rio.rostry.domain.model.*
 import org.json.JSONObject

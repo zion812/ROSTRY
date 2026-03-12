@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.community
+package com.rio.rostry.ui.community
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -178,7 +180,7 @@ private fun SearchBar(
 
 @Composable
 private fun MessagesTab(
-    threads: List<com.rio.rostry.data.repository.social.MessagingRepository.ThreadWithMetadata>,
+    threads: List<com.rio.rostry.domain.social.repository.MessagingRepository.ThreadWithMetadata>,
     onThreadClick: (String) -> Unit,
     isLoading: Boolean
 ) {

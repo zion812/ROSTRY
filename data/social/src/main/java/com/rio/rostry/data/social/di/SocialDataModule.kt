@@ -14,6 +14,8 @@ import com.rio.rostry.domain.social.repository.MediaGalleryRepository
 import com.rio.rostry.data.social.repository.MediaGalleryRepositoryImpl
 import com.rio.rostry.domain.social.manager.MediaCacheManager
 import com.rio.rostry.data.social.manager.MediaCacheManagerImpl
+import com.rio.rostry.data.social.repository.VirtualArenaRepositoryImpl
+import com.rio.rostry.domain.social.repository.VirtualArenaRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -68,4 +70,10 @@ abstract class SocialDataModule {
     abstract fun bindMediaCacheManager(
         impl: MediaCacheManagerImpl
     ): MediaCacheManager
+
+    @Binds
+    @Singleton
+    abstract fun bindVirtualArenaRepository(
+        impl: VirtualArenaRepositoryImpl
+    ): VirtualArenaRepository
 }

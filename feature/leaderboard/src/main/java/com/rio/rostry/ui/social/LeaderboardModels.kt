@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.social
+package com.rio.rostry.ui.social
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 data class LeaderboardEntry(
     val userId: String,

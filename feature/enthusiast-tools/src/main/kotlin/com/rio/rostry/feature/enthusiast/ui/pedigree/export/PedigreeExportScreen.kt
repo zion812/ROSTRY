@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.pedigree.export
+package com.rio.rostry.feature.enthusiast.ui.pedigree.export
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
@@ -17,7 +19,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.domain.pedigree.PedigreeTree
+import com.rio.rostry.domain.farm.model.PedigreeTree
 import com.rio.rostry.utils.export.PedigreeRenderer
 
 @OptIn(ExperimentalMaterial3Api::class)

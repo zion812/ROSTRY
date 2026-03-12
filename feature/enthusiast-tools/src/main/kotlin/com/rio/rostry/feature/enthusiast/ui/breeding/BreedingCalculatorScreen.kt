@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator
+import com.rio.rostry.domain.monitoring.service.BreedingCompatibilityCalculator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

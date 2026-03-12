@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui.journal
+package com.rio.rostry.feature.enthusiast.ui.journal
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.DailyBirdLogEntity
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.BirdHealthRepository
+import com.rio.rostry.domain.monitoring.repository.BirdHealthRepository
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

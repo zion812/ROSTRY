@@ -1,4 +1,6 @@
 package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,8 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MortalityViewModel @Inject constructor(
     private val repo: MortalityRepository,
-    private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
-    private val activityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository,
+    private val farmAssetRepository: com.rio.rostry.domain.farm.repository.FarmAssetRepository,
+    private val activityLogRepository: com.rio.rostry.domain.monitoring.repository.FarmActivityLogRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 

@@ -1,8 +1,10 @@
-package com.rio.rostry.ui.farmer.breeding
+package com.rio.rostry.ui.farmer.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.EnthusiastBreedingRepository
+import com.rio.rostry.domain.monitoring.repository.EnthusiastBreedingRepository
 import com.rio.rostry.core.common.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

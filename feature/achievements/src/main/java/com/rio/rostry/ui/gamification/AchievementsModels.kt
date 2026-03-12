@@ -1,4 +1,6 @@
 package com.rio.rostry.ui.gamification
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 data class AchievementItem(
     val achievementId: String,

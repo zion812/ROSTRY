@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.gamification
+package com.rio.rostry.ui.gamification
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing

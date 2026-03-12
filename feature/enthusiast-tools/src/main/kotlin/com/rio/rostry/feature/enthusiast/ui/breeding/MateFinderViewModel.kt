@@ -1,13 +1,15 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.breeding.BreedingService
+import com.rio.rostry.domain.monitoring.service.BreedingService
 import com.rio.rostry.domain.breeding.EnhancedTraitPrediction
 import com.rio.rostry.domain.service.BreedingValueResult
-import com.rio.rostry.domain.service.MateRecommendationService
+import com.rio.rostry.domain.monitoring.service.MateRecommendationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

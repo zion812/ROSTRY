@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.verification
+package com.rio.rostry.ui.verification
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 object VerificationConstants {
     const val KEY_SAVED_STATE = "verification_form_state"

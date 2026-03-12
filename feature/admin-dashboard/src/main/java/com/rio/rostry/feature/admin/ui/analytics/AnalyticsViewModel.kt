@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.analytics
+package com.rio.rostry.feature.admin.ui.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,11 +12,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.rio.rostry.domain.commerce.repository.OrderManagementRepository
 
 @HiltViewModel
 class AnalyticsViewModel @Inject constructor(
-    private val userRepository: com.rio.rostry.data.repository.UserRepository,
-    private val orderRepository: com.rio.rostry.data.repository.OrderManagementRepository,
+    private val userRepository: com.rio.rostry.domain.account.repository.UserRepository,
+    private val orderRepository: com.rio.rostry.domain.commerce.repository.OrderManagementRepository,
     private val analyticsDao: com.rio.rostry.data.database.dao.AnalyticsDao
 ) : ViewModel() {
 

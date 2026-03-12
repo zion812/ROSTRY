@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.login.navigation
+package com.rio.rostry.feature.login.navigation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

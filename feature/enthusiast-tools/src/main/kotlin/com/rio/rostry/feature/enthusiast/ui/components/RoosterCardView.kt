@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.components
+package com.rio.rostry.feature.enthusiast.ui.components
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Context
 import android.graphics.Bitmap

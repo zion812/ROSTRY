@@ -11,7 +11,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.rio.rostry.utils.analytics.EnthusiastAnalyticsTracker
 import com.rio.rostry.data.repository.monitoring.TaskRepository
-import com.rio.rostry.data.repository.monitoring.VaccinationRepository
+import com.rio.rostry.domain.monitoring.repository.VaccinationRepository
 import com.rio.rostry.data.repository.TraceabilityRepository
 import com.rio.rostry.utils.BirdIdGenerator
 import com.rio.rostry.domain.model.LifecycleStage

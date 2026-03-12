@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.insights
+package com.rio.rostry.ui.insights
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 enum class InsightPriority {
     URGENT,

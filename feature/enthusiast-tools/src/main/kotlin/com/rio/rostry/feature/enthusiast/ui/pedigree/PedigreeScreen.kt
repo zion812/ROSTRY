@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.pedigree
+package com.rio.rostry.feature.enthusiast.ui.pedigree
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -28,9 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.pedigree.PedigreeBird
-import com.rio.rostry.domain.pedigree.PedigreeCompleteness
-import com.rio.rostry.domain.pedigree.PedigreeTree
+import com.rio.rostry.domain.farm.model.PedigreeBird
+import com.rio.rostry.domain.farm.model.PedigreeCompleteness
+import com.rio.rostry.domain.farm.model.PedigreeTree
 
 /**
  * Pedigree Screen - Shows genealogical family tree for Enthusiast birds.

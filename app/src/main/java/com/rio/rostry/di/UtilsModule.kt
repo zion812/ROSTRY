@@ -19,12 +19,19 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Named
 import javax.inject.Singleton
 
+import com.rio.rostry.domain.monitoring.service.PdfExportService
+import com.rio.rostry.utils.export.PdfExportServiceImpl
+
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class FlowAnalyticsBindingsModule {
     @Binds
     @Singleton
     abstract fun bindFlowAnalyticsTracker(impl: FlowAnalyticsTrackerImpl): FlowAnalyticsTracker
+
+    @Binds
+    @Singleton
+    abstract fun bindPdfExportService(impl: PdfExportServiceImpl): PdfExportService
 }
 
 @Module

@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui.arena
+package com.rio.rostry.feature.enthusiast.ui.arena
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ArenaParticipantEntity
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.arena.JudgingService
+import com.rio.rostry.domain.social.service.JudgingService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

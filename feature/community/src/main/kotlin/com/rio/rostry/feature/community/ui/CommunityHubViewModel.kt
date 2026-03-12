@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.community
+package com.rio.rostry.ui.community
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,9 +8,9 @@ import com.rio.rostry.community.CommunityEngagementService
 import com.rio.rostry.data.database.entity.EventEntity
 import com.rio.rostry.data.database.entity.GroupEntity
 import com.rio.rostry.data.database.entity.PostEntity
-import com.rio.rostry.data.repository.CommunityRepository
-import com.rio.rostry.data.repository.social.MessagingRepository
-import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.domain.social.repository.CommunityRepository
+import com.rio.rostry.domain.social.repository.MessagingRepository
+import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.core.common.session.SessionManager

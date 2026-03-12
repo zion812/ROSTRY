@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.marketplace.ui.dispute
+package com.rio.rostry.feature.marketplace.ui.dispute
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons

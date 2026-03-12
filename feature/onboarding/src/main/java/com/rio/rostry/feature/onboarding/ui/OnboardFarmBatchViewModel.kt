@@ -1,9 +1,10 @@
-package com.rio.rostry.feature.onboarding.ui
+package com.rio.rostry.feature.onboarding.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.data.database.entity.FamilyTreeEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,8 +27,8 @@ import com.rio.rostry.utils.BirdIdGenerator
 
 @HiltViewModel
 class OnboardFarmBatchViewModel @Inject constructor(
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
-    private val farmOnboardingRepository: FarmOnboardingRepository,
+    private val productRepository: com.rio.rostry.domain.commerce.repository.ProductRepository,
+    private val farmOnboardingRepository: com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository,
     private val familyTreeRepository: com.rio.rostry.data.repository.FamilyTreeRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     @ApplicationContext private val context: Context,
@@ -239,7 +240,7 @@ class OnboardFarmBatchViewModel @Inject constructor(
                 when (val res = productRepository.addProduct(entity)) {
                     is Resource.Success<*> -> {
                         val newId = res.data ?: productId
-                        farmOnboardingRepository.addProductToFarmMonitoring(newId, uid)
+                        com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository.addProductToFarmMonitoring(newId, uid)
                         // Family tree linkages for batch to parents
                         if (!_state.value.lineage.maleParentId.isNullOrBlank()) {
                             val node = FamilyTreeEntity(

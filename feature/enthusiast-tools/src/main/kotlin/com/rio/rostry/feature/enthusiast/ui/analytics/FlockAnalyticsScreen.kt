@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.analytics
+package com.rio.rostry.feature.enthusiast.ui.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -23,8 +25,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.domain.service.BreedingROIService
-import com.rio.rostry.domain.service.FlockProductivityService
+import com.rio.rostry.domain.monitoring.service.BreedingROIService
+import com.rio.rostry.domain.monitoring.service.FlockProductivityService
 
 private val GoldAccent = Color(0xFFFFC107)
 private val PurplePrimary = Color(0xFF673AB7)

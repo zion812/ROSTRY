@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.transfer
+package com.rio.rostry.feature.enthusiast.ui.transfer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,8 +9,8 @@ import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.farm.repository.TransferRepository
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.notifications.IntelligentNotificationService
+import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.monitoring.service.IntelligentNotificationService
 import com.rio.rostry.notifications.TransferEventType
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.utils.TransferUtils

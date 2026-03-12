@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.general.ui.wishlist
+package com.rio.rostry.feature.general.ui.wishlist
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 
 import androidx.lifecycle.ViewModel
@@ -9,7 +11,6 @@ import com.rio.rostry.domain.commerce.repository.WishlistRepository
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.commerce.repository.CartRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
-import com.rio.rostry.core.common.analytics.GeneralAnalyticsTracker
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.core.common.network.ConnectivityManager
 

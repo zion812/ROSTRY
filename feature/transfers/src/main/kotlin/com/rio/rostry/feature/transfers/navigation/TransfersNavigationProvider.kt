@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.transfers.navigation
+package com.rio.rostry.feature.transfers.navigation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.monitoring
+package com.rio.rostry.feature.admin.ui.monitoring
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,7 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AlertManagementViewModel @Inject constructor(
-    private val alertRepository: com.rio.rostry.data.repository.AlertRepository
+    private val alertRepository: com.rio.rostry.domain.monitoring.repository.AlertRepository
 ) : ViewModel() {
 
     data class SystemAlert(

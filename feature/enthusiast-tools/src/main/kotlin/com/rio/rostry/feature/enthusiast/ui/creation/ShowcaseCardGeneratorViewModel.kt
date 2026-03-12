@@ -1,12 +1,14 @@
-package com.rio.rostry.feature.enthusiast.ui.creation
+package com.rio.rostry.feature.enthusiast.ui.creation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.domain.showcase.ShowcaseCard
-import com.rio.rostry.domain.showcase.ShowcaseCardGenerator
+import com.rio.rostry.domain.social.service.ShowcaseCardGenerator
 import com.rio.rostry.domain.showcase.ShowcaseConfig
 import com.rio.rostry.domain.showcase.ShowcaseTheme
 import com.rio.rostry.utils.Resource

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.profile
+package com.rio.rostry.feature.enthusiast.ui.profile
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -6,8 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.ReputationEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.ProductRepository
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.commerce.repository.ProductRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.data.database.dao.ShowRecordDao
 import com.rio.rostry.data.database.dao.BreedingPairDao

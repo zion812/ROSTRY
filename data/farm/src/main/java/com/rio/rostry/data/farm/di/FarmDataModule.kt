@@ -13,6 +13,8 @@ import com.rio.rostry.data.farm.repository.TransferRepositoryImpl
 import com.rio.rostry.data.farm.repository.TransferWorkflowRepositoryImpl
 import com.rio.rostry.data.farm.repository.FarmFinancialsRepositoryImpl
 import com.rio.rostry.data.farm.repository.ProductSearchRepositoryImpl
+import com.rio.rostry.data.farm.repository.WatchedLineagesRepositoryImpl
+import com.rio.rostry.data.farm.repository.PedigreeRepositoryImpl
 import com.rio.rostry.domain.farm.repository.AuditLogRepository
 import com.rio.rostry.domain.farm.repository.AssetBatchOperationRepository
 import com.rio.rostry.domain.farm.repository.AssetLifecycleRepository
@@ -26,6 +28,8 @@ import com.rio.rostry.domain.farm.repository.TransferRepository
 import com.rio.rostry.domain.farm.repository.TransferWorkflowRepository
 import com.rio.rostry.domain.farm.repository.FarmFinancialsRepository
 import com.rio.rostry.domain.farm.repository.ProductSearchRepository
+import com.rio.rostry.domain.farm.repository.WatchedLineagesRepository
+import com.rio.rostry.domain.farm.repository.PedigreeRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -120,4 +124,16 @@ abstract class FarmDataModule {
     abstract fun bindProductSearchRepository(
         impl: ProductSearchRepositoryImpl
     ): ProductSearchRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchedLineagesRepository(
+        impl: WatchedLineagesRepositoryImpl
+    ): WatchedLineagesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPedigreeRepository(
+        impl: PedigreeRepositoryImpl
+    ): PedigreeRepository
 }

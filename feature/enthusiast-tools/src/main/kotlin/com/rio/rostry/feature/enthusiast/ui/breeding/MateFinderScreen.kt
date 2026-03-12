@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -25,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.domain.breeding.EnhancedTraitPrediction
 import com.rio.rostry.domain.breeding.TraitRange
-import com.rio.rostry.domain.service.MateRecommendationService
+import com.rio.rostry.domain.monitoring.service.MateRecommendationService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

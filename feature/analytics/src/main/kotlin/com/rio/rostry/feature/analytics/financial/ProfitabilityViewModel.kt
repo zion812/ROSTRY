@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.analytics.financial
+package com.rio.rostry.feature.analytics.financial
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.repository.analytics.BreedROI
 import com.rio.rostry.data.repository.analytics.MonthlyProfit
-import com.rio.rostry.data.repository.analytics.ProfitabilityRepository
+import com.rio.rostry.domain.monitoring.repository.ProfitabilityRepository
 import com.rio.rostry.data.repository.analytics.ProfitabilitySummary
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel

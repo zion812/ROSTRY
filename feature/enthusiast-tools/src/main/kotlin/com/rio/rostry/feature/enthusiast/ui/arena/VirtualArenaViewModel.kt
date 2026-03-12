@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.enthusiast.ui.arena
+package com.rio.rostry.feature.enthusiast.ui.arena
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.rio.rostry.data.database.entity.CompetitionEntryEntity
-import com.rio.rostry.data.repository.VirtualArenaRepository
+import com.rio.rostry.domain.social.repository.VirtualArenaRepository
 import com.rio.rostry.domain.model.CompetitionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow

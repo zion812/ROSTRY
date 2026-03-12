@@ -1,11 +1,13 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ReputationEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.data.repository.social.SocialRepository
+import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.social.repository.SocialRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
-import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.domain.commerce.repository.OrderRepository
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject

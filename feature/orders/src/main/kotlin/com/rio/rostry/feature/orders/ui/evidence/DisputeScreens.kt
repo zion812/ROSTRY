@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.order.evidence
+package com.rio.rostry.ui.order.evidence
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult

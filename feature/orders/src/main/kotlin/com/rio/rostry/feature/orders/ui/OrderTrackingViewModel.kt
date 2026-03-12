@@ -1,12 +1,14 @@
-package com.rio.rostry.ui.order
+package com.rio.rostry.ui.order
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.OrderEntity
 import com.rio.rostry.data.database.entity.OrderTrackingEventEntity
-import com.rio.rostry.data.repository.InvoiceRepository
-import com.rio.rostry.data.repository.OrderManagementRepository
-import com.rio.rostry.data.repository.OrderRepository
+import com.rio.rostry.domain.commerce.repository.InvoiceRepository
+import com.rio.rostry.domain.commerce.repository.OrderManagementRepository
+import com.rio.rostry.domain.commerce.repository.OrderRepository
 import com.rio.rostry.data.repository.ReviewRepository
 import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.data.database.dao.UserDao
@@ -35,8 +37,8 @@ class OrderTrackingViewModel @Inject constructor(
     private val reviewRepository: ReviewRepository,
     private val productRepository: ProductRepository,
     private val userDao: UserDao,
-    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider,
-    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository
+    private val currentUserProvider: com.rio.rostry.core.common.session.CurrentUserProvider,
+    private val analyticsRepository: com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
 ) : ViewModel() {
 
     enum class UiOrderStatus { PLACED, CONFIRMED, PROCESSING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, REFUNDED }

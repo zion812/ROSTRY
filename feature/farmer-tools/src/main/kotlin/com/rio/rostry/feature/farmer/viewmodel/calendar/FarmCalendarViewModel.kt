@@ -1,4 +1,7 @@
-package com.rio.rostry.ui.farmer.calendar
+package com.rio.rostry.ui.farmer.calendar
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.monitoring.repository.FarmEventRepository
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,7 +10,7 @@ import com.rio.rostry.data.database.entity.FarmEventEntity
 import com.rio.rostry.data.database.entity.FarmEventType
 import com.rio.rostry.data.database.entity.RecurrenceType
 import com.rio.rostry.data.repository.CalendarEvent
-import com.rio.rostry.data.repository.FarmEventRepository
+import com.rio.rostry.domain.monitoring.repository.FarmEventRepository
 import com.rio.rostry.core.common.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +33,7 @@ class FarmCalendarViewModel @Inject constructor(
     private val farmEventRepository: FarmEventRepository,
     private val sessionManager: SessionManager,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
-    private val growthPredictionService: com.rio.rostry.domain.service.GrowthPredictionService,
+    private val growthPredictionService: com.rio.rostry.domain.monitoring.service.GrowthPredictionService,
     private val projectedEventMapper: ProjectedEventMapper,
     private val farmAssetDao: com.rio.rostry.data.database.dao.FarmAssetDao,
     private val growthRecordDao: com.rio.rostry.data.database.dao.GrowthRecordDao

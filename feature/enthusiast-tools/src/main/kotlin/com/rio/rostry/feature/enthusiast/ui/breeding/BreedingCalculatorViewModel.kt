@@ -1,12 +1,14 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding
+package com.rio.rostry.feature.enthusiast.ui.breeding
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.domain.breeding.BreedingCompatibilityCalculator
+import com.rio.rostry.domain.monitoring.service.BreedingCompatibilityCalculator
 import com.rio.rostry.domain.model.BreedingPrediction
-import com.rio.rostry.domain.usecase.CalculateOffspringStatsUseCase
+import com.rio.rostry.domain.monitoring.usecase.CalculateOffspringStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

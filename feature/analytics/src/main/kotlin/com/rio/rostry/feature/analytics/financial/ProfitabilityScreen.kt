@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.analytics.financial
+package com.rio.rostry.feature.analytics.financial
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background

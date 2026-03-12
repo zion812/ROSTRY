@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.transfer
+package com.rio.rostry.ui.transfer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

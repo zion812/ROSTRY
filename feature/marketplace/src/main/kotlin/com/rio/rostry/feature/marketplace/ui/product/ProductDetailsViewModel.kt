@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.product
+package com.rio.rostry.ui.product
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,9 +30,9 @@ class ProductDetailsViewModel @Inject constructor(
     private val currentUserProvider: CurrentUserProvider,
     private val analytics: GeneralAnalyticsTracker,
     @ApplicationContext private val appContext: android.content.Context,
-    private val messagingRepository: com.rio.rostry.data.repository.social.MessagingRepository,
-    private val auctionRepository: com.rio.rostry.data.repository.AuctionRepository,
-    private val userRepository: com.rio.rostry.data.repository.UserRepository,
+    private val messagingRepository: com.rio.rostry.domain.social.repository.MessagingRepository,
+    private val auctionRepository: com.rio.rostry.domain.commerce.repository.AuctionRepository,
+    private val userRepository: com.rio.rostry.domain.account.repository.UserRepository,
     private val traceabilityRepository: TraceabilityRepository
 ) : ViewModel() {
 
@@ -285,7 +287,7 @@ class ProductDetailsViewModel @Inject constructor(
                     _navigateToChat.emit(existingThread.threadId)
                 } else {
                     // Create new thread
-                    val context = com.rio.rostry.data.repository.social.MessagingRepository.ThreadContext(
+                    val context = com.rio.rostry.domain.social.repository.MessagingRepository.ThreadContext(
                         type = "PRODUCT_INQUIRY",
                         relatedEntityId = product.productId,
                         topic = "Inquiry about ${product.name}"
@@ -355,7 +357,7 @@ class ProductDetailsViewModel @Inject constructor(
                     existingThread.threadId
                 } else {
                     // Create new thread
-                    val context = com.rio.rostry.data.repository.social.MessagingRepository.ThreadContext(
+                    val context = com.rio.rostry.domain.social.repository.MessagingRepository.ThreadContext(
                         type = "PRODUCT_INQUIRY",
                         relatedEntityId = product.productId,
                         topic = "Inquiry about ${product.name}"

@@ -1,5 +1,8 @@
 package com.rio.rostry.data.repository
 
+import com.rio.rostry.domain.farm.repository.WeatherRepository
+import com.rio.rostry.domain.farm.repository.WeatherData
+
 import android.content.Context
 import android.location.Location
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -18,25 +21,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 
-/**
- * Weather data from Open-Meteo API
- */
-data class WeatherData(
-    val temperature: Double,    // Celsius
-    val humidity: Int?,         // Percentage
-    val weatherCode: Int?,      // WMO weather code
-    val isHeatStress: Boolean,  // Temperature >= 32°C
-    val timestamp: Long = System.currentTimeMillis()
-) {
-    companion object {
-        val FALLBACK = WeatherData(
-            temperature = 28.0,
-            humidity = null,
-            weatherCode = null,
-            isHeatStress = false
-        )
-    }
-}
+
 
 /**
  * Repository for fetching weather data from Open-Meteo API.
@@ -47,9 +32,9 @@ data class WeatherData(
  * API docs: https://open-meteo.com/en/docs
  */
 @Singleton
-class WeatherRepository @Inject constructor(
+class WeatherRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : WeatherRepository {
     private val fusedLocationClient: FusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(context)
     }
@@ -63,11 +48,11 @@ class WeatherRepository @Inject constructor(
      * Get current weather for the user's location.
      * Falls back to default data if location or API is unavailable.
      */
-    suspend fun getCurrentWeather(): WeatherData = withContext(Dispatchers.IO) {
+    suspend fun getCurrentWeather(): WeatherData = withContext(Dispatchers.IO) : WeatherRepository {
         try {
             // Return cached data if fresh
             cachedWeather?.let { cached ->
-                if (System.currentTimeMillis() - lastFetchTime < CACHE_DURATION_MS) {
+                if (System.currentTimeMillis() - lastFetchTime < CACHE_DURATION_MS) : WeatherRepository {
                     Timber.d("Returning cached weather: ${cached.temperature}°C")
                     return@withContext cached
                 }
@@ -75,7 +60,7 @@ class WeatherRepository @Inject constructor(
             
             // Get user location
             val location = getLastLocation()
-            if (location == null) {
+            if (location == null) : WeatherRepository {
                 Timber.w("Location unavailable, using fallback weather")
                 return@withContext WeatherData.FALLBACK
             }
@@ -87,7 +72,7 @@ class WeatherRepository @Inject constructor(
             
             Timber.d("Fetched weather: ${weather.temperature}°C, heat stress: ${weather.isHeatStress}")
             weather
-        } catch (e: Exception) {
+        } catch (e: Exception) : WeatherRepository {
             Timber.e(e, "Error fetching weather")
             cachedWeather ?: WeatherData.FALLBACK
         }
@@ -97,10 +82,10 @@ class WeatherRepository @Inject constructor(
      * Get weather for a specific location (used for farm locations).
      */
     suspend fun getWeatherForLocation(latitude: Double, longitude: Double): WeatherData = 
-        withContext(Dispatchers.IO) {
+        withContext(Dispatchers.IO) : WeatherRepository {
             try {
                 fetchWeatherFromApi(latitude, longitude)
-            } catch (e: Exception) {
+            } catch (e: Exception) : WeatherRepository {
                 Timber.e(e, "Error fetching weather for location ($latitude, $longitude)")
                 WeatherData.FALLBACK
             }
@@ -123,7 +108,7 @@ class WeatherRepository @Inject constructor(
             cont.invokeOnCancellation {
                 cancellationTokenSource.cancel()
             }
-        } catch (e: SecurityException) {
+        } catch (e: SecurityException) : WeatherRepository {
             Timber.w(e, "Location permission not granted")
             cont.resume(null)
         }
@@ -149,7 +134,7 @@ class WeatherRepository @Inject constructor(
         
         try {
             val responseCode = connection.responseCode
-            if (responseCode != HttpURLConnection.HTTP_OK) {
+            if (responseCode != HttpURLConnection.HTTP_OK) : WeatherRepository {
                 Timber.w("Open-Meteo API returned $responseCode")
                 return WeatherData.FALLBACK
             }
@@ -166,10 +151,10 @@ class WeatherRepository @Inject constructor(
         val current = json.getJSONObject("current")
         
         val temperature = current.optDouble("temperature_2m", 28.0)
-        val humidity = if (current.has("relative_humidity_2m")) {
+        val humidity = if (current.has("relative_humidity_2m")) : WeatherRepository {
             current.getInt("relative_humidity_2m")
         } else null
-        val weatherCode = if (current.has("weather_code")) {
+        val weatherCode = if (current.has("weather_code")) : WeatherRepository {
             current.getInt("weather_code")
         } else null
         

@@ -1,7 +1,8 @@
-package com.rio.rostry.feature.general.ui.analytics
+package com.rio.rostry.feature.general.ui.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
-import com.rio.rostry.core.common.analytics.GeneralAnalyticsTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 

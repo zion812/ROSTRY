@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.moderation
+package com.rio.rostry.feature.admin.ui.moderation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

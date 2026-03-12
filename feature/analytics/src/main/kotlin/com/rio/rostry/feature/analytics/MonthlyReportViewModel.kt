@@ -1,16 +1,19 @@
-package com.rio.rostry.feature.analytics
+package com.rio.rostry.feature.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.ReportGenerationRepository
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.monitoring.repository.ReportGenerationRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.*
 import javax.inject.Inject
+import com.rio.rostry.domain.monitoring.repository.ReportRepository
 
 /**
  * ViewModel for Monthly Report generation.

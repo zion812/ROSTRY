@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.traceability
+package com.rio.rostry.ui.traceability
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.explore
+package com.rio.rostry.feature.enthusiast.ui.explore
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

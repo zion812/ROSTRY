@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.asset.logging
+package com.rio.rostry.ui.asset.logging
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

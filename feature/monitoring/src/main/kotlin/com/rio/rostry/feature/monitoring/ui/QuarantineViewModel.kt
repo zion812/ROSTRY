@@ -1,4 +1,6 @@
 package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,7 +25,7 @@ class QuarantineViewModel @Inject constructor(
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     @ApplicationContext private val appContext: android.content.Context,
     private val productDao: com.rio.rostry.data.database.dao.ProductDao,
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
+    private val productRepository: com.rio.rostry.domain.commerce.repository.ProductRepository,
     private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
     private val mediaUploadManager: com.rio.rostry.utils.media.MediaUploadManager
 ) : ViewModel() {

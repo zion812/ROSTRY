@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.marketplace.ui
+package com.rio.rostry.feature.marketplace.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

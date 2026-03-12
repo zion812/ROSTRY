@@ -1,11 +1,13 @@
-package com.rio.rostry.ui.farmer.profile
+package com.rio.rostry.ui.farmer.profile
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmProfileEntity
 import com.rio.rostry.data.database.entity.FarmTimelineEventEntity
-import com.rio.rostry.data.repository.FarmProfileRepository
+import com.rio.rostry.domain.farm.repository.FarmProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.analytics
+package com.rio.rostry.feature.analytics
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize

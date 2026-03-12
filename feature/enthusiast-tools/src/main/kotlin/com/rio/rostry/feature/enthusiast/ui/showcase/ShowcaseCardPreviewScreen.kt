@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.showcase
+package com.rio.rostry.feature.enthusiast.ui.showcase
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -29,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.pedigree.PedigreeCompleteness
+import com.rio.rostry.domain.farm.model.PedigreeCompleteness
 
 /**
  * ShowcaseCardPreviewScreen - Full screen preview of a generated showcase card.

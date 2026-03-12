@@ -1,4 +1,7 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.monitoring.repository.VaccinationRepository
 
 import android.content.Context
 import android.net.Uri
@@ -9,9 +12,9 @@ import com.rio.rostry.data.database.dao.AuditLogDao
 import com.rio.rostry.data.database.dao.OutboxDao
 import com.rio.rostry.data.database.entity.OutboxEntity
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.ProductMarketplaceRepository
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.data.repository.monitoring.DailyLogRepository
+import com.rio.rostry.domain.commerce.repository.ProductMarketplaceRepository
+import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.monitoring.repository.DailyLogRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.ui.components.SyncState
 import com.rio.rostry.utils.CompressionUtils
@@ -30,14 +33,14 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import com.rio.rostry.data.sync.SyncManager
 import com.rio.rostry.ui.components.ConflictDetails
-import com.rio.rostry.domain.rbac.RbacGuard
+import com.rio.rostry.domain.account.rbac.RbacGuard
 import com.rio.rostry.domain.model.VerificationStatus
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import com.rio.rostry.utils.BirdIdGenerator
 import com.rio.rostry.domain.commerce.repository.MarketListingRepository
 import com.rio.rostry.domain.farm.repository.FarmAssetRepository
-import com.rio.rostry.data.repository.InventoryRepository
+import com.rio.rostry.domain.farm.repository.InventoryRepository
 import com.rio.rostry.data.database.entity.MarketListingEntity
 import com.rio.rostry.data.database.entity.FarmAssetEntity
 import com.rio.rostry.data.database.entity.InventoryItemEntity
@@ -46,18 +49,18 @@ import com.rio.rostry.data.database.entity.InventoryItemEntity
 class FarmerCreateViewModel @Inject constructor(
     private val marketplace: ProductMarketplaceRepository,
     private val userRepository: UserRepository,
-    private val listingDraftRepository: com.rio.rostry.data.repository.monitoring.ListingDraftRepository,
+    private val listingDraftRepository: com.rio.rostry.domain.commerce.repository.ListingDraftRepository,
     private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
     @ApplicationContext private val appContext: Context,
     // Farm monitoring repositories for prefill
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
-    private val growthRepository: com.rio.rostry.data.repository.monitoring.GrowthRepository,
-    private val vaccinationRepository: com.rio.rostry.data.repository.monitoring.VaccinationRepository,
-    private val quarantineRepository: com.rio.rostry.data.repository.monitoring.QuarantineRepository,
-    private val breedingRepository: com.rio.rostry.data.repository.monitoring.BreedingRepository,
-    private val analyticsRepository: com.rio.rostry.data.repository.analytics.AnalyticsRepository,
-    private val productValidator: com.rio.rostry.marketplace.validation.ProductValidator,
-    private val dailyLogRepository: com.rio.rostry.data.repository.monitoring.DailyLogRepository,
+    private val productRepository: com.rio.rostry.domain.commerce.repository.ProductRepository,
+    private val growthRepository: com.rio.rostry.domain.monitoring.repository.GrowthRepository,
+    private val vaccinationRepository: com.rio.rostry.domain.monitoring.repository.VaccinationRepository,
+    private val quarantineRepository: com.rio.rostry.domain.monitoring.repository.QuarantineRepository,
+    private val breedingRepository: com.rio.rostry.domain.monitoring.repository.BreedingRepository,
+    private val analyticsRepository: com.rio.rostry.domain.monitoring.repository.AnalyticsRepository,
+    private val productValidator: com.rio.rostry.domain.commerce.validation.ProductValidator,
+    private val dailyLogRepository: com.rio.rostry.domain.monitoring.repository.DailyLogRepository,
     private val auditLogDao: AuditLogDao,
     private val outboxDao: OutboxDao,
     private val gson: Gson,

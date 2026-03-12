@@ -1,12 +1,15 @@
-package com.rio.rostry.feature.admin.ui.dispute
+package com.rio.rostry.feature.admin.ui.dispute
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.social.repository.ChatRepository
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.DisputeEntity
 import com.rio.rostry.data.database.entity.DisputeStatus
-import com.rio.rostry.data.repository.DisputeRepository
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.commerce.repository.DisputeRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +26,7 @@ class AdminDisputeDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DisputeRepository,
     private val userRepository: UserRepository,
-    private val chatRepository: com.rio.rostry.data.repository.ChatRepository,
+    private val chatRepository: com.rio.rostry.domain.social.repository.ChatRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 

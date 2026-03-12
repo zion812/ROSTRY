@@ -1,4 +1,7 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.core.common.analytics.GeneralAnalyticsTracker
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -6,13 +9,13 @@ import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.data.database.entity.UserEntity
 import com.rio.rostry.domain.commerce.repository.ProductRepository
-import com.rio.rostry.data.repository.ProductMarketplaceRepository
+import com.rio.rostry.domain.commerce.repository.ProductMarketplaceRepository
 import com.rio.rostry.domain.commerce.repository.MarketListingRepository
 import com.rio.rostry.domain.farm.repository.FarmAssetRepository
-import com.rio.rostry.data.repository.UserRepository
+import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.utils.Resource
 import com.rio.rostry.ui.general.analytics.GeneralAnalyticsTracker
-import com.rio.rostry.data.repository.analytics.AnalyticsRepository
+import com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharedFlow // Added
 import kotlinx.coroutines.flow.MutableSharedFlow // Added
 import kotlinx.coroutines.flow.asSharedFlow // Added
-import com.rio.rostry.data.repository.social.MessagingRepository // Added
+import com.rio.rostry.domain.social.repository.MessagingRepository // Added
 import com.rio.rostry.core.common.session.CurrentUserProvider // Added
 import com.rio.rostry.ui.farmer.Listing
 

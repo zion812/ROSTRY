@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.admin.ui.monitoring
+package com.rio.rostry.feature.admin.ui.monitoring
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.DiseaseZoneEntity
 import com.rio.rostry.data.database.entity.ZoneSeverity
-import com.rio.rostry.data.repository.BiosecurityRepository
+import com.rio.rostry.domain.monitoring.repository.BiosecurityRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

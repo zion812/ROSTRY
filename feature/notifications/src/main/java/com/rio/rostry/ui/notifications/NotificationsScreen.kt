@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.notifications
+package com.rio.rostry.ui.notifications
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

@@ -1,8 +1,10 @@
-package com.rio.rostry.ui.monitoring.vm
+package com.rio.rostry.ui.monitoring.vm
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.monitoring.BreedingRepository
+import com.rio.rostry.domain.monitoring.repository.BreedingRepository
 import com.rio.rostry.ui.monitoring.BreedingPairDetail
 import com.rio.rostry.ui.monitoring.WeeklyTrendData
 import dagger.hilt.android.lifecycle.HiltViewModel

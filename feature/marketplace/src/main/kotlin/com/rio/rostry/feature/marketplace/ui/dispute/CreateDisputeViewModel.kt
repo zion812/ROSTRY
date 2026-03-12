@@ -1,9 +1,11 @@
-package com.rio.rostry.feature.marketplace.ui.dispute
+package com.rio.rostry.feature.marketplace.ui.dispute
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.DisputeEntity
-import com.rio.rostry.data.repository.DisputeRepository
+import com.rio.rostry.domain.commerce.repository.DisputeRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel

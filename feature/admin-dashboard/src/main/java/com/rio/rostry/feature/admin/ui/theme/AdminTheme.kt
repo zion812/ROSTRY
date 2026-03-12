@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui.theme
+package com.rio.rostry.feature.admin.ui.theme
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*

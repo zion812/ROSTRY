@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.lineage
+package com.rio.rostry.feature.enthusiast.ui.lineage
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -10,7 +12,7 @@ import com.rio.rostry.data.database.entity.BirdTraitRecordEntity
 import com.rio.rostry.data.database.entity.MedicalEventEntity
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.service.BreedingValueResult
-import com.rio.rostry.domain.service.BreedingValueService
+import com.rio.rostry.domain.monitoring.service.BreedingValueService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

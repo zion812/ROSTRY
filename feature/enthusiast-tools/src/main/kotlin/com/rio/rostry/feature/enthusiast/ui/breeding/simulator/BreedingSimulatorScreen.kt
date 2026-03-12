@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.enthusiast.ui.breeding.simulator
+package com.rio.rostry.feature.enthusiast.ui.breeding.simulator
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*

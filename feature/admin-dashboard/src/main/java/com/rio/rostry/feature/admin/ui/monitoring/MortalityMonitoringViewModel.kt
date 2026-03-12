@@ -1,8 +1,10 @@
-package com.rio.rostry.feature.admin.ui.monitoring
+package com.rio.rostry.feature.admin.ui.monitoring
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.admin.AdminMortalityRepository
+import com.rio.rostry.domain.admin.repository.AdminMortalityRepository
 import com.rio.rostry.data.repository.admin.MortalityRiskLevel
 import com.rio.rostry.data.repository.admin.OutbreakAlert
 import com.rio.rostry.data.repository.admin.RegionalMortality

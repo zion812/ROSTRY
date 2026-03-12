@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.farmer.navigation
+package com.rio.rostry.feature.farmer.navigation
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import android.content.Intent
 import androidx.compose.runtime.LaunchedEffect

@@ -1,5 +1,8 @@
 package com.rio.rostry.utils.validation
 
+import com.rio.rostry.domain.account.validation.ValidationResult
+import com.rio.rostry.domain.account.validation.ExifValidationResult
+
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
@@ -14,29 +17,15 @@ import kotlinx.coroutines.withContext
 import java.io.InputStream
 import kotlin.math.*
 
-class VerificationValidationService(
+class VerificationValidationServiceImpl(
+
     private val appContext: Context,
     private val userRepository: UserRepository,
     private val exifReader: ExifReader = DefaultExifReader(),
-) {
+) : com.rio.rostry.domain.account.validation.VerificationValidationService {
     companion object {
         const val MAX_FILE_SIZE = 20_000_000L // 20MB
     }
-
-    sealed class ValidationResult {
-        object Success : ValidationResult()
-        data class Error(val message: String, val field: String? = null) : ValidationResult()
-        data class Warning(val message: String) : ValidationResult()
-    }
-
-    data class ExifValidationResult(
-        val hasGPS: Boolean,
-        val latitude: Double?,
-        val longitude: Double?,
-        val timestampMillis: Long?,
-        val isValid: Boolean,
-        val errorMessage: String? = null,
-    )
 
     private fun getMimeType(cr: ContentResolver, uri: Uri): String? {
         // 1. Try ContentResolver.getType
@@ -46,15 +35,15 @@ class VerificationValidationService(
         // 2. Try file extension from file name (OpenableColumns)
         val cursor = cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
         val name = cursor?.use {
-            if (it.moveToFirst()) {
+            if (it.moveToFirst()) : com.rio.rostry.domain.account.validation.VerificationValidationService {
                 val idx = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                 if (idx >= 0) it.getString(idx) else null
             } else null
         }
         
-        if (name != null) {
+        if (name != null) : com.rio.rostry.domain.account.validation.VerificationValidationService {
             val ext = MimeTypeMap.getFileExtensionFromUrl("file://$name") // Hack to make getFileExtensionFromUrl work with a name
-            if (!ext.isNullOrEmpty()) {
+            if (!ext.isNullOrEmpty()) : com.rio.rostry.domain.account.validation.VerificationValidationService {
                 return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase())
             }
             // Manual fallback for common extensions if MimeTypeMap fails
@@ -79,7 +68,7 @@ class VerificationValidationService(
         return -1
     }
 
-    suspend fun validateImageFile(uriString: String, context: Context = appContext): ValidationResult = withContext(Dispatchers.IO) {
+    override suspend fun validateImageFile(uriString: String): ValidationResult = withContext(Dispatchers.IO) : com.rio.rostry.domain.account.validation.VerificationValidationService {
         val uri = Uri.parse(uriString)
         val cr = context.contentResolver
         val mime = getMimeType(cr, uri) ?: return@withContext ValidationResult.Error("Unable to determine file type", "file")
@@ -93,7 +82,7 @@ class VerificationValidationService(
         ValidationResult.Success
     }
 
-    suspend fun validateDocumentFile(uriString: String, context: Context = appContext): ValidationResult = withContext(Dispatchers.IO) {
+    override suspend fun validateDocumentFile(uriString: String): ValidationResult = withContext(Dispatchers.IO) : com.rio.rostry.domain.account.validation.VerificationValidationService {
         val uri = Uri.parse(uriString)
         val cr = context.contentResolver
         val mime = getMimeType(cr, uri) ?: return@withContext ValidationResult.Error("Unable to determine document type", "document")
@@ -107,12 +96,11 @@ class VerificationValidationService(
         ValidationResult.Success
     }
 
-    suspend fun validateFarmPhotoLocation(
+    override suspend fun validateFarmPhotoLocation(
         imageUri: String,
         claimedLat: Double?,
-        claimedLng: Double?,
-        context: Context = appContext,
-    ): ExifValidationResult = withContext(Dispatchers.IO) {
+        claimedLng: Double?
+    ): ExifValidationResult = withContext(Dispatchers.IO) : com.rio.rostry.domain.account.validation.VerificationValidationService {
         try {
             val uri = Uri.parse(imageUri)
             val input: InputStream? = context.contentResolver.openInputStream(uri)
@@ -121,7 +109,7 @@ class VerificationValidationService(
                 val parsed = exifReader.read(stream)
                 val now = System.currentTimeMillis()
                 val tooOld = parsed.timestampMillis != null && (now - parsed.timestampMillis) > 30L * 24 * 60 * 60 * 1000
-                if (!parsed.hasLatLong) {
+                if (!parsed.hasLatLong) : com.rio.rostry.domain.account.validation.VerificationValidationService {
                     return@withContext ExifValidationResult(
                         hasGPS = false,
                         latitude = null,
@@ -142,7 +130,7 @@ class VerificationValidationService(
                 }
                 ExifValidationResult(hasGPS = true, latitude = lat, longitude = lng, timestampMillis = parsed.timestampMillis, isValid = valid, errorMessage = msg)
             }
-        } catch (t: Throwable) {
+        } catch (t: Throwable) : com.rio.rostry.domain.account.validation.VerificationValidationService {
             ExifValidationResult(false, null, null, null, isValid = true, errorMessage = null)
         }
     }
@@ -172,7 +160,7 @@ class VerificationValidationService(
         }
     }
 
-    fun validateFarmerSubmission(
+    override fun validateFarmerSubmission(
         lat: Double?,
         lng: Double?,
         uploadedImages: List<String>,
@@ -188,20 +176,20 @@ class VerificationValidationService(
         // Strict check: All required types must be present
         val presentImageTypes = uploadedImages.mapNotNull { uploadedImageTypes[it] }.toSet()
         val missingImages = requiredImages.filter { it !in presentImageTypes }
-        if (missingImages.isNotEmpty()) {
+        if (missingImages.isNotEmpty()) : com.rio.rostry.domain.account.validation.VerificationValidationService {
              return ValidationResult.Error("Missing required photos: ${missingImages.joinToString(", ")}", "images")
         }
 
         val presentDocTypes = uploadedDocuments.mapNotNull { uploadedDocTypes[it] }.toSet()
         val missingDocs = requiredDocuments.filter { it !in presentDocTypes }
-        if (missingDocs.isNotEmpty()) {
+        if (missingDocs.isNotEmpty()) : com.rio.rostry.domain.account.validation.VerificationValidationService {
              return ValidationResult.Error("Missing required documents: ${missingDocs.joinToString(", ")}", "documents")
         }
 
         return ValidationResult.Success
     }
 
-    fun validateEnthusiastSubmission(
+    override fun validateEnthusiastSubmission(
         uploadedImages: List<String>,
         uploadedDocuments: List<String>,
         uploadedImageTypes: Map<String, String>,
@@ -212,20 +200,20 @@ class VerificationValidationService(
         // Strict check for Enthusiast as well
         val presentImageTypes = uploadedImages.mapNotNull { uploadedImageTypes[it] }.toSet()
         val missingImages = requiredImages.filter { it !in presentImageTypes }
-        if (missingImages.isNotEmpty()) {
+        if (missingImages.isNotEmpty()) : com.rio.rostry.domain.account.validation.VerificationValidationService {
             return ValidationResult.Error("Missing required photos: ${missingImages.joinToString(", ")}", "images")
         }
 
         val presentDocTypes = uploadedDocuments.mapNotNull { uploadedDocTypes[it] }.toSet()
         val missingDocs = requiredDocuments.filter { it !in presentDocTypes }
-        if (missingDocs.isNotEmpty()) {
+        if (missingDocs.isNotEmpty()) : com.rio.rostry.domain.account.validation.VerificationValidationService {
             return ValidationResult.Error("Missing required documents: ${missingDocs.joinToString(", ")}", "documents")
         }
         
         return ValidationResult.Success
     }
 
-    suspend fun checkDuplicateSubmission(userId: String?): Boolean {
+    override suspend fun checkDuplicateSubmission(userId: String?): Boolean {
         if (userId.isNullOrEmpty()) return false
         // Fetch once
         val res = userRepository.getUserById(userId).first()
@@ -235,9 +223,9 @@ class VerificationValidationService(
         if (user.verificationStatus?.name in setOf("PENDING", "VERIFIED")) return true
         // Check verification collection for recent submission
         val verDetails = userRepository.getVerificationDetailsOnce(userId)
-        if (verDetails is Resource.Success) {
+        if (verDetails is Resource.Success) : com.rio.rostry.domain.account.validation.VerificationValidationService {
             val detailsData = verDetails.data
-            if (detailsData != null) {
+            if (detailsData != null) : com.rio.rostry.domain.account.validation.VerificationValidationService {
                 val last = (detailsData["submittedAt"] as? Number)?.toLong() ?: 0L
                 val now = System.currentTimeMillis()
                 return (now - last) < 24L * 60 * 60 * 1000

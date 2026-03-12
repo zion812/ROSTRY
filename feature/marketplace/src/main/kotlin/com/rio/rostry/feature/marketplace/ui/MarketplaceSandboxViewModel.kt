@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.marketplace.ui
+package com.rio.rostry.feature.marketplace.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.data.repository.ProductMarketplaceRepository
-import com.rio.rostry.marketplace.validation.ProductValidator
+import com.rio.rostry.domain.commerce.repository.ProductMarketplaceRepository
+import com.rio.rostry.domain.commerce.validation.ProductValidator
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.domain.model.VerificationStatus
 import com.rio.rostry.utils.Resource
@@ -20,7 +22,7 @@ class MarketplaceSandboxViewModel @Inject constructor(
     private val productRepo: ProductMarketplaceRepository,
     private val productValidator: ProductValidator,
     private val currentUserProvider: CurrentUserProvider,
-    private val userRepository: com.rio.rostry.data.repository.UserRepository
+    private val userRepository: com.rio.rostry.domain.account.repository.UserRepository
 ) : ViewModel() {
 
     data class UiState(

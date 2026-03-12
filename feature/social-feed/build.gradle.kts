@@ -30,6 +30,10 @@ android {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:32.7.1"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.code.gson:gson:2.10.1")
+    // Domain modules (feature modules depend ONLY on domain interfaces)
     implementation(project(":core:common"))
     implementation(project(":domain:account"))
     implementation(project(":domain:commerce"))
@@ -37,17 +41,20 @@ dependencies {
     implementation(project(":domain:monitoring"))
     implementation(project(":domain:social"))
     implementation(project(":domain:admin"))
+
+    // TODO(Phase 4): Remove data:* and core:database once ViewModels are migrated to domain-only interfaces
     implementation(project(":data:account"))
     implementation(project(":data:commerce"))
     implementation(project(":data:farm"))
     implementation(project(":data:monitoring"))
     implementation(project(":data:social"))
     implementation(project(":data:admin"))
+    implementation(project(":core:database"))
 
+    // Core UI/infra modules
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(project(":core:navigation"))
-    implementation(project(":core:database"))
     implementation(project(":core:domain"))
 
     // Gson
@@ -56,13 +63,6 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)
-
-    // Domain
-    implementation(project(":domain:social"))
-
-    // Data
-    implementation(project(":data:social"))
-    implementation(project(":data:account"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

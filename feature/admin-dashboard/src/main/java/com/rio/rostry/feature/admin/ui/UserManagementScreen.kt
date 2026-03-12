@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.admin.ui
+package com.rio.rostry.feature.admin.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

@@ -1,4 +1,6 @@
 package com.rio.rostry.ui.upgrade
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,9 +9,9 @@ import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.domain.model.UserType
 import com.rio.rostry.domain.model.UpgradeType
 import com.rio.rostry.domain.model.VerificationStatus
-import com.rio.rostry.domain.rbac.RbacGuard
+import com.rio.rostry.domain.account.rbac.RbacGuard
 import com.rio.rostry.utils.Resource
-import com.rio.rostry.utils.analytics.FlowAnalyticsTracker
+import com.rio.rostry.core.common.analytics.FlowAnalyticsTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,9 +32,9 @@ class RoleUpgradeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val rbacGuard: RbacGuard,
     private val flowAnalyticsTracker: FlowAnalyticsTracker,
-    private val roleUpgradeManager: com.rio.rostry.domain.upgrade.RoleUpgradeManager,
+    private val roleUpgradeManager: com.rio.rostry.domain.account.service.RoleUpgradeManager,
     private val roleMigrationRepository: com.rio.rostry.data.repository.RoleMigrationRepository,
-    private val currentUserProvider: com.rio.rostry.session.CurrentUserProvider
+    private val currentUserProvider: com.rio.rostry.core.common.session.CurrentUserProvider
 ) : ViewModel() {
 
     enum class WizardStep {

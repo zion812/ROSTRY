@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.messaging
+package com.rio.rostry.ui.messaging
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -224,7 +226,7 @@ fun ThreadScreen(threadId: String, onBack: () -> Unit, vm: ThreadViewModel = hil
 
 @Composable
 fun OfferCard(
-    message: com.rio.rostry.data.repository.social.MessagingRepository.MessageDTO,
+    message: com.rio.rostry.domain.social.repository.MessagingRepository.MessageDTO,
     isMe: Boolean,
     onAccept: () -> Unit,
     onReject: () -> Unit,

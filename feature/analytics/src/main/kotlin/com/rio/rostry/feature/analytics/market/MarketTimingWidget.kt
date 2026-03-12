@@ -1,4 +1,6 @@
-package com.rio.rostry.feature.analytics.market
+package com.rio.rostry.feature.analytics.market
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

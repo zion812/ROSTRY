@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.farmer.digital
+package com.rio.rostry.ui.farmer.digital
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color

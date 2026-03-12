@@ -1,10 +1,12 @@
-package com.rio.rostry.feature.onboarding.ui
+package com.rio.rostry.feature.onboarding.ui
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
-import com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository
 import com.rio.rostry.utils.Resource
+import com.google.gson.Gson
 import com.rio.rostry.data.database.entity.FamilyTreeEntity
 import com.rio.rostry.utils.validation.OnboardingValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,9 +31,9 @@ import com.rio.rostry.core.common.session.CurrentUserProvider
 
 @HiltViewModel
 class OnboardFarmBirdViewModel @Inject constructor(
-    private val productRepository: com.rio.rostry.data.repository.ProductRepository,
-    private val farmOnboardingRepository: FarmOnboardingRepository,
-    private val dailyLogRepository: com.rio.rostry.data.repository.monitoring.DailyLogRepository,
+    private val productRepository: com.rio.rostry.domain.commerce.repository.ProductRepository,
+    private val farmOnboardingRepository: com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository,
+    private val dailyLogRepository: com.rio.rostry.domain.monitoring.repository.DailyLogRepository,
     private val taskRepository: com.rio.rostry.data.repository.monitoring.TaskRepository,
     private val familyTreeRepository: com.rio.rostry.data.repository.FamilyTreeRepository,
     @ApplicationContext private val context: Context,
@@ -402,7 +404,7 @@ class OnboardFarmBirdViewModel @Inject constructor(
             imageUrls = s.media.photoUris,
             documentUrls = s.media.documentUris,
             vaccinationRecordsJson = if (s.coreDetails.vaccinationRecords.isNotBlank()) {
-                com.google.gson.Gson().toJson(listOf(mapOf("note" to s.coreDetails.vaccinationRecords, "date" to now)))
+                """[{"note":"${s.coreDetails.vaccinationRecords}","date":"$now"}]"""
             } else null,
             // Sale/delivery fields
             deliveryOptions = if (s.coreDetails.listForSale) s.coreDetails.deliveryOptions else emptyList(),

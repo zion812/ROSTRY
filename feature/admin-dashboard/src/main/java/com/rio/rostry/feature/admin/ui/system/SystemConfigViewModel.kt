@@ -1,8 +1,10 @@
-package com.rio.rostry.feature.admin.ui.system
+package com.rio.rostry.feature.admin.ui.system
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.SystemConfigRepository
+import com.rio.rostry.domain.admin.repository.SystemConfigRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

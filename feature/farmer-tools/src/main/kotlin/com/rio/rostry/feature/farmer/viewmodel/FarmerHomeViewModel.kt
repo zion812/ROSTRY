@@ -1,24 +1,27 @@
-package com.rio.rostry.feature.farmer.viewmodel
+package com.rio.rostry.feature.farmer.viewmodel
+import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
+import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.FarmAlertEntity
 import com.rio.rostry.data.database.entity.FarmerDashboardSnapshotEntity
 import com.rio.rostry.data.database.entity.UserEntity
-import com.rio.rostry.data.repository.monitoring.BreedingRepository
-import com.rio.rostry.data.repository.monitoring.FarmAlertRepository
-import com.rio.rostry.data.repository.monitoring.FarmerDashboardRepository
+import com.rio.rostry.domain.monitoring.repository.BreedingRepository
+import com.rio.rostry.domain.monitoring.repository.FarmAlertRepository
+import com.rio.rostry.domain.monitoring.repository.FarmerDashboardRepository
 import com.rio.rostry.data.database.dao.TaskDao
 import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.database.dao.DashboardCacheDao
 import com.rio.rostry.data.database.entity.DashboardCacheEntity
-import com.rio.rostry.data.repository.ProductRepository
+import com.rio.rostry.domain.commerce.repository.ProductRepository
 import com.rio.rostry.data.sync.SyncManager
-import com.rio.rostry.data.repository.TransferRepository
-import com.rio.rostry.data.repository.TraceabilityRepository
-import com.rio.rostry.data.repository.analytics.AnalyticsRepository
-import com.rio.rostry.data.repository.UserRepository
-import com.rio.rostry.data.repository.EvidenceOrderRepository
+import com.rio.rostry.domain.farm.repository.TransferRepository
+import com.rio.rostry.domain.farm.repository.TraceabilityRepository
+import com.rio.rostry.domain.monitoring.repository.AnalyticsRepository
+import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.commerce.repository.EvidenceOrderRepository
 import com.rio.rostry.data.database.entity.OrderQuoteEntity
 import com.rio.rostry.data.database.entity.OrderPaymentEntity
 import com.rio.rostry.data.repository.analytics.DailyGoal
@@ -212,16 +215,16 @@ class FarmerHomeViewModel @Inject constructor(
     private val traceabilityRepository: TraceabilityRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val userRepository: UserRepository,
-    private val farmOnboardingRepository: com.rio.rostry.data.repository.monitoring.FarmOnboardingRepository,
-    private val farmAssetRepository: com.rio.rostry.data.repository.FarmAssetRepository,
+    private val farmOnboardingRepository: com.rio.rostry.domain.monitoring.repository.FarmOnboardingRepository,
+    private val farmAssetRepository: com.rio.rostry.domain.farm.repository.FarmAssetRepository,
     private val evidenceOrderRepository: EvidenceOrderRepository, // Evidence Order System
-    private val storageUsageRepository: com.rio.rostry.data.repository.StorageUsageRepository,
+    private val storageUsageRepository: com.rio.rostry.domain.account.repository.StorageUsageRepository,
     private val dashboardCacheDao: DashboardCacheDao, // Split-Brain: Instant dashboard loading
-    private val farmActivityLogRepository: com.rio.rostry.data.repository.FarmActivityLogRepository, // Quick Log persistence
-    private val weatherRepository: com.rio.rostry.data.repository.WeatherRepository, // Open-Meteo Weather API
+    private val farmActivityLogRepository: com.rio.rostry.domain.monitoring.repository.FarmActivityLogRepository, // Quick Log persistence
+    private val weatherRepository: com.rio.rostry.domain.farm.repository.WeatherRepository, // Open-Meteo Weather API
     private val feedRecommendationEngine: com.rio.rostry.domain.usecase.FeedRecommendationEngine, // Predictive Feed
     private val inventoryItemDao: com.rio.rostry.data.database.dao.InventoryItemDao,
-    private val watchedLineagesRepository: com.rio.rostry.data.repository.WatchedLineagesRepository // Enthusiast Social
+    private val watchedLineagesRepository: com.rio.rostry.domain.farm.repository.WatchedLineagesRepository // Enthusiast Social
 ) : ViewModel() {
 
     private val _navigationEvent = MutableSharedFlow<String>()
