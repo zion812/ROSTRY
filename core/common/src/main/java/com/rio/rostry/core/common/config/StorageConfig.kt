@@ -1,7 +1,5 @@
 package com.rio.rostry.core.common.config
 
-import com.rio.rostry.BuildConfig
-
 /**
  * Centralized storage configuration for Firebase Storage and media URLs.
  * 
@@ -10,6 +8,9 @@ import com.rio.rostry.BuildConfig
  * - Environment-specific URLs (dev/staging/prod)
  * - Easy URL updates without code changes
  * - Consistent URL patterns across the app
+ * 
+ * Note: BuildConfig is not available in common module.
+ * Debug/demo features are controlled via feature flags in the app module.
  */
 object StorageConfig {
 
@@ -35,22 +36,17 @@ object StorageConfig {
 
     /**
      * Get the appropriate Firebase Storage base URL based on build type.
-     * Debug builds use dev, release builds use production.
+     * Note: In common module, defaults to production. Override in app module if needed.
      */
     val firebaseStorageBaseUrl: String
-        get() = when {
-            BuildConfig.DEBUG -> FIREBASE_STORAGE_DEV_URL
-            else -> FIREBASE_STORAGE_PROD_URL
-        }
+        get() = FIREBASE_STORAGE_PROD_URL
 
     /**
      * Get the appropriate media storage URL based on build type.
+     * Note: In common module, defaults to production. Override in app module if needed.
      */
     val mediaStorageBaseUrl: String
-        get() = when {
-            BuildConfig.DEBUG -> firebaseStorageBaseUrl
-            else -> GOOGLE_STORAGE_PROD_URL
-        }
+        get() = GOOGLE_STORAGE_PROD_URL
 
     // ═══════════════════════════════════════════════════════════════════
     // DEMO CONTENT URLs
@@ -67,23 +63,18 @@ object StorageConfig {
 
     /**
      * Get demo content URL for educational content.
-     * Only available in debug builds.
+     * Note: Demo features should be controlled from app module.
      */
     fun getDemoContentUrl(fileName: String): String? {
-        return if (BuildConfig.DEBUG) {
-            "$firebaseStorageBaseUrl/$DEMO_CONTENT_PATH/$DEMO_EDUCATIONAL_PATH/$fileName"
-        } else null
+        return null // Demo URLs disabled in common module
     }
 
     /**
      * Get demo breed image URL.
-     * Only available in debug builds.
+     * Note: Demo features should be controlled from app module.
      */
     fun getDemoBreedImageUrl(breedName: String): String? {
-        return if (BuildConfig.DEBUG) {
-            val sanitizedName = breedName.lowercase().replace(" ", "_")
-            "$firebaseStorageBaseUrl/$DEMO_CONTENT_PATH/$DEMO_BREEDS_PATH/${sanitizedName}.jpg"
-        } else null
+        return null // Demo URLs disabled in common module
     }
 
     // ═══════════════════════════════════════════════════════════════════
