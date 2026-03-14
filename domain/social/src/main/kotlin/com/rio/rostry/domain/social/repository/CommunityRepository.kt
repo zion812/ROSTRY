@@ -17,7 +17,12 @@ interface CommunityRepository {
     fun getAllGroups(): Flow<List<Group>>
     fun getGroupsByCategory(category: String): Flow<List<Group>>
     fun getUserGroups(userId: String): Flow<List<Group>>
+    fun getUserGroupIds(userId: String): Flow<List<String>>
     fun searchGroups(query: String): Flow<List<Group>>
+
+    // Community suggestions
+    fun getFriendsCommunities(friendIds: List<String>): Flow<List<Group>>
+    fun getUserCommunities(userId: String): Flow<List<Group>>
 
     // Group membership
     suspend fun joinGroup(groupId: String, userId: String, role: String = "MEMBER"): Result<Unit>

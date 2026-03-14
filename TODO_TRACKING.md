@@ -19,8 +19,8 @@ Each TODO entry follows this format:
 **AUTH-001: Remove remaining phone auth references**
 - Description: Remove PHONE_INPUT and OTP_VERIFICATION steps from LoginStep enum and LoginViewModel
 - Priority: Medium
-- Status: Open
-- Notes: Phone auth is deprecated, only Google Sign-In is supported
+- Status: Completed
+- Notes: Phone auth is deprecated, only Google Sign-In is supported. LoginStep simplified to WELCOME and SUCCESS.
 
 ### Community Engagement
 
@@ -41,13 +41,16 @@ Each TODO entry follows this format:
 **UI-001: Extract remaining hardcoded strings**
 - Description: Find and extract all remaining hardcoded strings in UI components to strings.xml
 - Priority: Low
-- Status: Open
-- Notes: Check AuthWelcomeScreen.kt and other UI files
+- Status: Completed
+- Notes: Added 40+ new strings for welcome screen, transfers, address management, settings, messaging, and traceability
 
 ### Performance
 
 **PERF-001: Optimize CommunityRepository.getUserGroups**
 - Description: Fix the combine query in getUserGroups that passes empty string to streamMembers
+- Priority: Medium
+- Status: Completed
+- Notes: Fixed by using proper combine() with getUserGroupIds() helper method
 - Priority: Medium
 - Status: Open
 - Notes: Current implementation has a bug - should use getUserGroupIds instead

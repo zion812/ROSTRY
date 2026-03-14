@@ -1,4 +1,5 @@
-package com.rio.rostry.feature.login.ui
+package com.rio.rostry.feature.login.ui
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -12,9 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
 /**
  * ViewModel for login feature.
+ * Supports Google Sign-In only (phone auth deprecated).
  * 
  * Phase 4 Wave A: Authentication & Onboarding
  */
@@ -26,58 +27,7 @@ class LoginViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    fun initiatePhoneAuth(phoneNumber: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            
-            when (val result = authRepository.requestOtp(phoneNumber)) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        verificationId = result.data,
-                        currentStep = LoginStep.OTP_VERIFICATION
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.exception.message ?: "Failed to send OTP"
-                    )
-                }
-            }
-        }
-    }
-
-    fun verifyOtp(otp: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            
-            val verificationId = _uiState.value.verificationId ?: run {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "No verification ID found"
-                )
-                return@launch
-            }
-            
-            when (val result = authRepository.signInWithPhone(verificationId, otp)) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        currentUser = result.data,
-                        currentStep = LoginStep.SUCCESS
-                    )
-                }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.exception.message ?: "Verification failed"
-                    )
-                }
-            }
-        }
-    }
-
+    fun signInWithGoogle(idToken: String) {
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -111,14 +61,12 @@ class LoginViewModel @Inject constructor(
 
 data class LoginUiState(
     val isLoading: Boolean = false,
-    val currentStep: LoginStep = LoginStep.PHONE_INPUT,
-    val verificationId: String? = null,
+    val currentStep: LoginStep = LoginStep.WELCOME,
     val currentUser: com.rio.rostry.core.model.User? = null,
     val error: String? = null
 )
 
 enum class LoginStep {
-    PHONE_INPUT,
-    OTP_VERIFICATION,
+    WELCOME,
     SUCCESS
 }

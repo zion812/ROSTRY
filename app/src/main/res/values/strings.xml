@@ -149,3 +149,58 @@
     <string name="back">Back</string>
     <string name="asset_not_found">Asset not found</string>
 </resources>
+    <!-- Welcome screen strings -->
+    <string name="welcome_to_rostry">Welcome to ROSTRY</string>
+    <string name="sign_in_to_continue">Sign in to continue</string>
+    
+    <!-- Onboarding strings -->
+    <string name="save_bird">Save Bird</string>
+    <string name="select_father">Select Father</string>
+    <string name="select_mother">Select Mother</string>
+    <string name="no_available_parents">No available parents</string>
+    
+    <!-- Transfer verification strings -->
+    <string name="trust_score">Trust Score</string>
+    <string name="pick_before_photo">Pick Before Photo</string>
+    <string name="pick_after_photo">Pick After Photo</string>
+    <string name="capture_before">Capture Before</string>
+    <string name="capture_after">Capture After</string>
+    <string name="submit_photos">Submit Photos</string>
+    <string name="submit_gps">Submit GPS</string>
+    <string name="identity_type">Identity Type</string>
+    <string name="submit_signature">Submit Signature</string>
+    <string name="open_dispute">Open Dispute</string>
+    <string name="refresh">Refresh</string>
+    <string name="save_signature">Save Signature</string>
+    
+    <!-- Transfer creation strings -->
+    <string name="create_transfer">Create Transfer</string>
+    <string name="transfer_type">Transfer Type</string>
+    <string name="confirm_transfer">Confirm Transfer</string>
+    <string name="validation_checklist">Validation Checklist</string>
+    <string name="transfer_details">Transfer Details</string>
+    <string name="select_product">Select Product</string>
+    <string name="select_recipient">Select Recipient</string>
+    
+    <!-- Address management strings -->
+    <string name="address_management">Address Management</string>
+    <string name="add_address">Add Address</string>
+    <string name="search_address">Search Address</string>
+    <string name="street_address">Street Address</string>
+    
+    <!-- Settings strings -->
+    <string name="verification_dashboard">Verification Dashboard</string>
+    <string name="confirm_restore">Confirm Restore</string>
+    <string name="address_selection">Address Selection</string>
+    
+    <!-- Messaging strings -->
+    <string name="counter_offer">Counter Offer</string>
+    
+    <!-- Traceability strings -->
+    <string name="lineage_preview">Lineage Preview</string>
+    <string name="shareable_link">Shareable Link</string>
+    <string name="copy_link">Copy Link</string>
+    <string name="vaccination_history">Vaccination History</string>
+    <string name="growth_records">Growth Records</string>
+    <string name="transfer_history">Transfer History</string>
+</resources>

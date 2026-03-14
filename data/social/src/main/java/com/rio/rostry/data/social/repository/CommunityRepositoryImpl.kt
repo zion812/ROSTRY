@@ -86,12 +86,34 @@ class CommunityRepositoryImpl @Inject constructor(
 
     override fun getUserGroups(userId: String): Flow<List<Group>> {
         return combine(
-            groupMembersDao.streamMembers(""), // We'll need to query by userId
+            getUserGroupIds(userId),
+            groupsDao.streamAll()
+        ) { groupIds, groups ->
+            groups.filter { it.groupId in groupIds }.map { it.toGroup() }
+        }
+    }
+
+    override fun getUserGroupIds(userId: String): Flow<List<String>> {
+        return groupMembersDao.streamMembers(userId).map { members ->
+            members.filter { it.userId == userId }.map { it.groupId }
+        }
+    }
+
+    override fun getFriendsCommunities(friendIds: List<String>): Flow<List<Group>> {
+        return combine(
+            groupMembersDao.streamAll(),
             groupsDao.streamAll()
         ) { members, groups ->
-            val userGroupIds = members.filter { it.userId == userId }.map { it.groupId }.toSet()
-            groups.filter { it.groupId in userGroupIds }.map { it.toGroup() }
+            val friendGroupIds = members
+                .filter { it.userId in friendIds }
+                .map { it.groupId }
+                .toSet()
+            groups.filter { it.groupId in friendGroupIds }.map { it.toGroup() }
         }
+    }
+
+    override fun getUserCommunities(userId: String): Flow<List<Group>> {
+        return getUserGroups(userId)
     }
 
     override fun searchGroups(query: String): Flow<List<Group>> {
