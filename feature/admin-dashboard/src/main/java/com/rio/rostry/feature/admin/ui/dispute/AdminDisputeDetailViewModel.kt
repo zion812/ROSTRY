@@ -1,15 +1,13 @@
-package com.rio.rostry.feature.admin.ui.dispute
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
-import com.rio.rostry.domain.social.repository.ChatRepository
+package com.rio.rostry.feature.admin.ui.dispute
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.entity.DisputeEntity
-import com.rio.rostry.data.database.entity.DisputeStatus
+import com.rio.rostry.core.model.Dispute
+import com.rio.rostry.core.model.DisputeStatus
 import com.rio.rostry.domain.commerce.repository.DisputeRepository
 import com.rio.rostry.domain.account.repository.UserRepository
+import com.rio.rostry.domain.social.repository.ChatRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +24,7 @@ class AdminDisputeDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DisputeRepository,
     private val userRepository: UserRepository,
-    private val chatRepository: com.rio.rostry.domain.social.repository.ChatRepository,
+    private val chatRepository: ChatRepository,
     private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
@@ -34,13 +32,13 @@ class AdminDisputeDetailViewModel @Inject constructor(
 
     data class UiState(
         val isLoading: Boolean = true,
-        val dispute: DisputeEntity? = null,
+        val dispute: Dispute? = null,
         val reporterName: String? = null,
         val reportedUserName: String? = null,
         val isProcessing: Boolean = false,
         val error: String? = null,
         val isResolved: Boolean = false,
-        val chatMessages: List<com.rio.rostry.data.database.entity.ChatMessageEntity> = emptyList()
+        val chatMessages: List<com.rio.rostry.core.model.ChatMessage> = emptyList<com.rio.rostry.core.model.ChatMessage>()
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -58,8 +56,8 @@ class AdminDisputeDetailViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             
             when (val result = repository.getDisputeById(disputeId)) {
-                is Resource.Success -> {
-                    val dispute = result.data
+                is com.rio.rostry.core.common.Result.Success<*> -> {
+                    val dispute = result.data as? Dispute
                     _state.update { it.copy(
                         isLoading = false,
                         dispute = dispute,
@@ -74,24 +72,26 @@ class AdminDisputeDetailViewModel @Inject constructor(
                         loadChatHistory(d.reporterId, d.reportedUserId)
                     }
                 }
-                is Resource.Error -> {
-                    _state.update { it.copy(isLoading = false, error = result.message) }
+                is com.rio.rostry.core.common.Result.Error -> {
+                    _state.update { it.copy(isLoading = false, error = result.exception.message) }
                 }
-                is Resource.Loading -> {}
+                is com.rio.rostry.core.common.Result.Loading -> {}
             }
         }
     }
 
     private fun loadUserName(userId: String, isReporter: Boolean) {
         viewModelScope.launch {
-            userRepository.getUserById(userId).collect { result ->
-                if (result is Resource.Success) {
-                    val name = result.data?.fullName ?: "User ${userId.take(8)}"
-                    _state.update { 
-                        if (isReporter) it.copy(reporterName = name)
-                        else it.copy(reportedUserName = name)
-                    }
+            val result = userRepository.getUserById(userId)
+            if (result is com.rio.rostry.core.model.Result.Success) {
+                val user = result.data as? com.rio.rostry.core.model.User
+                val name = user?.displayName ?: "User ${userId.take(8)}"
+                _state.update { 
+                    if (isReporter) it.copy(reporterName = name)
+                    else it.copy(reportedUserName = name)
                 }
+            } else if (result is com.rio.rostry.core.model.Result.Error) {
+                // Ignore or handle
             }
         }
     }
@@ -110,7 +110,7 @@ class AdminDisputeDetailViewModel @Inject constructor(
             _state.update { it.copy(isProcessing = true) }
             
             when (val result = repository.resolveDispute(disputeId, decision, notes, adminId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.common.Result.Success<*> -> {
                     _toastEvent.emit("Dispute resolved: ${decision.name}")
                     _state.update { it.copy(
                         isProcessing = false,
@@ -123,11 +123,11 @@ class AdminDisputeDetailViewModel @Inject constructor(
                         )
                     ) }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed: ${result.message}")
+                is com.rio.rostry.core.common.Result.Error -> {
+                    _toastEvent.emit("Failed: ${result.exception.message}")
                     _state.update { it.copy(isProcessing = false) }
                 }
-                else -> {}
+                is com.rio.rostry.core.common.Result.Loading -> {}
             }
         }
     }

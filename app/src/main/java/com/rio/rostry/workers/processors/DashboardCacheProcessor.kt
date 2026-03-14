@@ -1,6 +1,7 @@
 package com.rio.rostry.workers.processors
 
 import android.content.Context
+import com.rio.rostry.core.common.constants.BusinessConstants
 import com.rio.rostry.data.database.dao.DashboardCacheDao
 import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.dao.ProductDao
@@ -36,18 +37,18 @@ class DashboardCacheProcessor @Inject constructor(
     private val fcrWarningUseCase: FcrWarningUseCase,
     private val marketReadyPredictionUseCase: MarketReadyPredictionUseCase
 ) : LifecycleProcessor {
-    
+
     override val processorName = "DashboardCacheProcessor"
-    
+
     override suspend fun process(now: Long): Int {
         val startTime = System.currentTimeMillis()
         val farmerIds = productDao.getDistinctSellerIds()
         var processedCount = 0
-        
+
         for (farmerId in farmerIds) {
             try {
                 val startOfMonth = getStartOfMonth(now)
-                
+
                 // Aggregate calculations
                 val totalBirds = productDao.countActiveByFarmer(farmerId)
                 val totalBatches = productDao.countBatchesByFarmer(farmerId)
@@ -55,7 +56,7 @@ class DashboardCacheProcessor @Inject constructor(
                 val overdueVaccines = vaccinationDao.countOverdueForFarmer(farmerId, now)
                 val quarantinedCount = quarantineDao.countActiveForFarmer(farmerId)
                 val totalMortalityThisMonth = mortalityDao.countForFarmerBetween(farmerId, startOfMonth, now)
-                
+
                 // Track predictions for aggregation
                 var totalFcr = 0.0
                 var fcrCount = 0
@@ -83,8 +84,8 @@ class DashboardCacheProcessor @Inject constructor(
                         )
                     }
 
-                    // 2. Market Readiness Predictions (Target: 2kg for broilers)
-                    val targetWeight = 2000.0 // benchmark
+                    // 2. Market Readiness Predictions (Use centralized constant)
+                    val targetWeight = BusinessConstants.TARGET_BIRD_WEIGHT_GRAMS.toDouble()
                     val marketResult = marketReadyPredictionUseCase.execute(p.productId, targetWeight)
                     if (!marketResult.isReady && marketResult.projectedDaysToTarget != null) {
                         if (earliestHarvestDays == null || marketResult.projectedDaysToTarget < earliestHarvestDays) {

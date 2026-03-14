@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +17,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
-import com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity
+import com.rio.rostry.domain.account.repository.RoleUpgradeRequestData
 import com.rio.rostry.core.common.session.CurrentUserProvider
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -221,7 +219,7 @@ fun AdminUpgradeRequestsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpgradeRequestCard(
-    request: RoleUpgradeRequestEntity,
+    request: RoleUpgradeRequestData,
     isExpanded: Boolean,
     isHistory: Boolean,
     isProcessing: Boolean,
@@ -254,8 +252,8 @@ fun UpgradeRequestCard(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
                         tint = when (request.status) {
-                            RoleUpgradeRequestEntity.STATUS_APPROVED -> Color(0xFF4CAF50)
-                            RoleUpgradeRequestEntity.STATUS_REJECTED -> MaterialTheme.colorScheme.error
+                            "approved" -> Color(0xFF4CAF50)
+                            "rejected" -> MaterialTheme.colorScheme.error
                             else -> MaterialTheme.colorScheme.primary
                         }
                     )
@@ -333,8 +331,7 @@ fun UpgradeRequestCard(
                 }
             }
             
-            // History: Show rejection reason if rejected
-            if (isHistory && isExpanded && request.status == RoleUpgradeRequestEntity.STATUS_REJECTED) {
+            if (isHistory && isExpanded && request.status == "rejected") {
                 Spacer(modifier = Modifier.height(12.dp))
                 Divider()
                 Spacer(modifier = Modifier.height(12.dp))
@@ -356,8 +353,8 @@ fun UpgradeRequestCard(
 @Composable
 fun StatusBadge(status: String) {
     val (color, text) = when (status) {
-        RoleUpgradeRequestEntity.STATUS_APPROVED -> Color(0xFF4CAF50) to "Approved"
-        RoleUpgradeRequestEntity.STATUS_REJECTED -> MaterialTheme.colorScheme.error to "Rejected"
+        "approved" -> Color(0xFF4CAF50) to "Approved"
+        "rejected" -> MaterialTheme.colorScheme.error to "Rejected"
         else -> MaterialTheme.colorScheme.primary to status
     }
     

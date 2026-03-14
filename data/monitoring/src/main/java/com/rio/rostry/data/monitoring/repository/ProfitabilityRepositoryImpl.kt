@@ -9,6 +9,7 @@ import com.rio.rostry.core.common.Result
 import com.rio.rostry.data.database.dao.ExpenseDao
 import com.rio.rostry.data.database.dao.FarmAssetDao
 import com.rio.rostry.data.database.dao.OrderDao
+import com.rio.rostry.data.database.dao.ProductDao
 import com.google.firebase.auth.FirebaseAuth
 import timber.log.Timber
 import java.text.SimpleDateFormat
@@ -29,6 +30,7 @@ class ProfitabilityRepositoryImpl @Inject constructor(
     private val expenseDao: ExpenseDao,
     private val orderDao: OrderDao,
     private val farmAssetDao: FarmAssetDao,
+    private val productDao: ProductDao,
     private val auth: FirebaseAuth
 ) : ProfitabilityRepository {
 
@@ -150,10 +152,54 @@ class ProfitabilityRepositoryImpl @Inject constructor(
             ?: return Result.Error(Exception("Not Authenticated"))
         
         return try {
-            // Advanced join query required - returning empty list for now
-            Timber.w("getProfitableBreeds: Advanced join query required. Returning empty for now.")
-            Result.Success(emptyList())
+            // Get all products/breeds for this farmer
+            val products = productDao.getActiveBySellerList(farmerId)
+            
+            // Group products by breed
+            val breedGroups = products.groupBy { it.breed ?: "Unknown" }
+            
+            val breedROIs = breedGroups.map { (breed, breedProducts) ->
+                var totalRevenue = 0.0
+                var totalExpenses = 0.0
+                var totalQuantity = 0.0
+                var soldCount = 0
+                
+                breedProducts.forEach { product ->
+                    totalQuantity += product.quantity
+                    
+                    // Get expenses for this product
+                    val productExpenses = expenseDao.getTotalForAsset(product.productId)
+                    totalExpenses += productExpenses
+                    
+                    // Get orders for this product
+                    val orders = orderDao.getOrdersForProduct(product.productId)
+                    val productRevenue = orders
+                        .filter { it.status == "DELIVERED" }
+                        .sumOf { it.totalAmount }
+                    totalRevenue += productRevenue
+                    soldCount += orders.count { it.status == "DELIVERED" }
+                }
+                
+                val netProfit = totalRevenue - totalExpenses
+                val roi = if (totalExpenses > 0) (netProfit / totalExpenses) * 100 else 0.0
+                val avgSellingPrice = if (soldCount > 0) totalRevenue / soldCount else 0.0
+                
+                BreedROI(
+                    breed = breed,
+                    totalRevenue = totalRevenue,
+                    totalExpenses = totalExpenses,
+                    netProfit = netProfit,
+                    roiPercent = roi,
+                    unitsSold = soldCount,
+                    averageSellingPrice = avgSellingPrice
+                )
+            }
+            
+            // Sort by ROI descending
+            val sortedROIs = breedROIs.sortedByDescending { it.roiPercent }
+            Result.Success(sortedROIs)
         } catch (e: Exception) {
+            Timber.e(e, "Error calculating breed profitability")
             Result.Error(e)
         }
     }

@@ -1,6 +1,8 @@
-package com.rio.rostry.ui.verification
+package com.rio.rostry.ui.verification
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.core.common.config.StorageConfig
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -288,11 +290,10 @@ fun DocumentPreviewDialog(
             }
         }
     )
-
-    if (selectedDoc != null) {
+    selectedDoc?.let { doc ->
         DocumentViewerDialog(
-            url = selectedDoc!!,
-            isImage = selectedDoc!!.contains("images") || ((types[selectedDoc!!] ?: "") in listOf("PHOTO", "FARM_PHOTO")),
+            url = doc,
+            isImage = doc.contains("images") || ((types[doc] ?: "") in listOf("PHOTO", "FARM_PHOTO")),
             onDismiss = { selectedDoc = null }
         )
     }
@@ -303,9 +304,10 @@ fun DocumentViewerDialog(
     isImage: Boolean,
     onDismiss: () -> Unit
 ) {
-    // TODO: Track document view analytics (implement in VerificationViewModel)
     androidx.compose.runtime.LaunchedEffect(url) {
-        android.util.Log.d("Analytics", "Document viewed: $url")
+        Timber.d("Document viewed: $url")
+        // TODO: Track document view analytics via AnalyticsRepository
+        // analyticsRepository.trackDocumentViewed(url)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -340,7 +342,7 @@ fun DocumentViewerDialog(
             } else {
                 // Use WebView with Google Docs viewer for PDF preview (alternative to AndroidPdfViewer for URL-based loading)
                 AndroidView(
-                    factory = { WebView(it).apply { loadUrl("https://docs.google.com/viewer?url=$url") } },
+                    factory = { WebView(it).apply { loadUrl(StorageConfig.buildGoogleDocsViewerUrl(url)) } },
                     modifier = Modifier.fillMaxWidth().height(400.dp)
                 )
             }

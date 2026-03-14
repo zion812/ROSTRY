@@ -1,11 +1,8 @@
-package com.rio.rostry.feature.admin.ui.analytics
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
+package com.rio.rostry.feature.admin.ui.analytics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -15,7 +12,7 @@ import com.rio.rostry.domain.commerce.repository.OrderManagementRepository
 
 @HiltViewModel
 class CommerceAnalyticsViewModel @Inject constructor(
-    private val repository: com.rio.rostry.domain.commerce.repository.OrderManagementRepository
+    private val repository: OrderManagementRepository
 ) : ViewModel() {
 
     data class TopProduct(val name: String, val sales: Int, val revenue: Double)
@@ -50,30 +47,30 @@ class CommerceAnalyticsViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             
             try {
-                // Launch concurrent fetching
-                val stats = repository.getCommerceStats()
-                val topProducts = repository.getTopProducts(5)
-                val topSellers = repository.getTopSellers(5)
+                // Fetch stats from new domain layer
+                val statsResult = repository.getOrderStats()
                 
-                _state.update { it.copy(
-                    isLoading = false,
-                    totalOrders = stats.totalOrders,
-                    ordersThisWeek = stats.ordersThisWeek,
-                    ordersThisMonth = stats.ordersThisMonth,
-                    totalRevenue = stats.totalRevenue,
-                    revenueThisWeek = stats.revenueThisWeek,
-                    revenueThisMonth = stats.revenueThisMonth,
-                    avgOrderValue = stats.avgOrderValue,
-                    completedOrders = stats.completedOrders,
-                    pendingOrders = stats.pendingOrders,
-                    disputedOrders = 0, // Not yet implemented in repository
-                    topProducts = topProducts.map { 
-                        TopProduct(it.name, it.sales, it.revenue) 
-                    },
-                    topSellers = topSellers.map { 
-                        TopSeller(it.name, it.orders, it.revenue) 
-                    }
-                ) }
+                if (statsResult is com.rio.rostry.core.model.Result.Success<*>) {
+                    val stats = statsResult.data as? Map<String, Any> ?: emptyMap()
+
+                    _state.update { it.copy(
+                        isLoading = false,
+                        totalOrders = (stats["totalOrders"] as? Number)?.toInt() ?: 0,
+                        ordersThisWeek = (stats["ordersThisWeek"] as? Number)?.toInt() ?: 0,
+                        ordersThisMonth = (stats["ordersThisMonth"] as? Number)?.toInt() ?: 0,
+                        totalRevenue = (stats["totalRevenue"] as? Number)?.toDouble() ?: 0.0,
+                        revenueThisWeek = (stats["revenueThisWeek"] as? Number)?.toDouble() ?: 0.0,
+                        revenueThisMonth = (stats["revenueThisMonth"] as? Number)?.toDouble() ?: 0.0,
+                        avgOrderValue = (stats["avgOrderValue"] as? Number)?.toDouble() ?: 0.0,
+                        completedOrders = (stats["completedOrders"] as? Number)?.toInt() ?: 0,
+                        pendingOrders = (stats["pendingOrders"] as? Number)?.toInt() ?: 0,
+                        disputedOrders = 0, // Not yet implemented in repository
+                        topProducts = emptyList(), // Not supported by current repo
+                        topSellers = emptyList() // Not supported by current repo
+                    ) }
+                } else if (statsResult is com.rio.rostry.core.model.Result.Error) {
+                    _state.update { it.copy(isLoading = false, error = statsResult.exception.message) }
+                }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
             }

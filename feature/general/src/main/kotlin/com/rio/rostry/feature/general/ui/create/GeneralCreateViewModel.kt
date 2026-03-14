@@ -1,7 +1,7 @@
 package com.rio.rostry.feature.general.ui.create
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
-
+import com.rio.rostry.core.common.config.StorageConfig
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -245,7 +245,7 @@ class GeneralCreateViewModel @Inject constructor(
         kotlinx.coroutines.delay(2000) // Simulate upload time
         
         // Return remote URL (in production, this would be Firebase Storage URL)
-        return "https://storage.googleapis.com/rostry-media/$remotePath"
+        return StorageConfig.buildMediaUrl(remotePath)
     }
 
     private fun extractHashtags(text: String): List<String> = HASH_REGEX.findAll(text)

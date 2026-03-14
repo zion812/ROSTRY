@@ -2,6 +2,7 @@ package com.rio.rostry.data.account.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
 import com.rio.rostry.core.model.Result
 import com.rio.rostry.core.model.User
@@ -9,9 +10,13 @@ import com.rio.rostry.domain.account.repository.AuthRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Implementation of AuthRepository using Firebase Authentication.
@@ -23,6 +28,9 @@ import javax.inject.Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth
 ) : AuthRepository {
+
+    // Store verification IDs for phone auth (in production, use secure storage)
+    private val verificationIds = mutableMapOf<String, String>()
 
     override fun observeCurrentUser(): Flow<User?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -44,8 +52,25 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signInWithPhone(phoneNumber: String, otp: String): Result<User> {
         return try {
-            // TODO: Implement phone auth with verification ID
-            Result.Error(Exception("Phone auth not fully implemented"))
+            val verificationId = verificationIds[phoneNumber]
+                ?: return Result.Error(Exception("No verification pending for this number. Please request OTP first."))
+
+            val credential = PhoneAuthProvider.getCredential(verificationId, otp)
+            val authResult = firebaseAuth.signInWithCredential(credential).await()
+            val firebaseUser = authResult.user
+                ?: return Result.Error(Exception("Failed to sign in with phone"))
+
+            // Clean up verification ID after successful sign in
+            verificationIds.remove(phoneNumber)
+
+            val user = User(
+                id = firebaseUser.uid,
+                email = firebaseUser.email,
+                displayName = firebaseUser.displayName,
+                photoUrl = firebaseUser.photoUrl?.toString(),
+                phoneNumber = firebaseUser.phoneNumber
+            )
+            Result.Success(user)
         } catch (e: Exception) {
             Result.Error(e)
         }
@@ -84,8 +109,40 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun requestOtp(phoneNumber: String): Result<String> {
         return try {
-            // TODO: Implement OTP request
-            Result.Error(Exception("OTP request not fully implemented"))
+            val verificationId = suspendCancellableCoroutine { continuation ->
+                val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                    override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                        val storedVerificationId = credential.smsCode ?: ""
+                        verificationIds[phoneNumber] = storedVerificationId
+                        if (continuation.isActive) {
+                            continuation.resume(storedVerificationId)
+                        }
+                    }
+
+                    override fun onVerificationFailed(exception: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+                        if (continuation.isActive) {
+                            continuation.resumeWithException(exception)
+                        }
+                    }
+
+                    override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                        verificationIds[phoneNumber] = verificationId
+                        if (continuation.isActive) {
+                            continuation.resume(verificationId)
+                        }
+                    }
+                }
+
+                PhoneAuthProvider.getInstance().verifyPhoneNumber(
+                    phoneNumber,
+                    60L,
+                    TimeUnit.SECONDS,
+                    null,
+                    callbacks
+                )
+            }
+
+            Result.Success(verificationId)
         } catch (e: Exception) {
             Result.Error(e)
         }

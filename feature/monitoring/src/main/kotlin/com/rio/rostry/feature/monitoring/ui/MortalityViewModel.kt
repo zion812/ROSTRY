@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.monitoring.vm
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import timber.log.Timber
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -124,7 +125,7 @@ class MortalityViewModel @Inject constructor(
                     notes = "Cause: $causeCategory. ${circumstances ?: ""}"
                 )
             } catch (e: Exception) {
-                e.printStackTrace()
+                Timber.e(e, "Failed to log mortality activity")
             }
         }
     }

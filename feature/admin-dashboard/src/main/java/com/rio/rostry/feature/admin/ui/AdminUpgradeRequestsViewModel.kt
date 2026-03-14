@@ -1,10 +1,8 @@
 package com.rio.rostry.feature.admin.ui
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.entity.RoleUpgradeRequestEntity
+import com.rio.rostry.domain.account.repository.RoleUpgradeRequestData
 import com.rio.rostry.domain.account.repository.RoleUpgradeRequestRepository
 import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.domain.account.service.RoleUpgradeManager
@@ -43,15 +41,15 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
     data class UiState(
         val isLoading: Boolean = false,
         val empty: Boolean = false,
-        val pendingRequests: List<RoleUpgradeRequestEntity> = emptyList(),
-        val historyRequests: List<RoleUpgradeRequestEntity> = emptyList(),
+        val pendingRequests: List<RoleUpgradeRequestData> = emptyList(),
+        val historyRequests: List<RoleUpgradeRequestData> = emptyList(),
         val error: String? = null,
         val processingId: String? = null,
-        val selectedRequest: RoleUpgradeRequestEntity? = null
+        val selectedRequest: RoleUpgradeRequestData? = null
     )
     
     // Keep backward compatibility
-    val UiState.requests: List<RoleUpgradeRequestEntity> get() = pendingRequests
+    val UiState.requests: List<RoleUpgradeRequestData> get() = pendingRequests
     
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
@@ -94,7 +92,7 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
         }
     }
 
-    fun selectRequest(request: RoleUpgradeRequestEntity) {
+    fun selectRequest(request: RoleUpgradeRequestData) {
         _uiState.update { it.copy(selectedRequest = request) }
     }
 
@@ -108,10 +106,10 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
             
             val result = roleUpgradeManager.approveRequest(requestId, adminId, notes)
             
-            if (result is Resource.Success<*>) {
+            if (result is com.rio.rostry.core.model.Result.Success<*>) {
                 _uiEvent.emit(UiEvent.ShowSnackbar("Request Approved"))
             } else {
-                _uiEvent.emit(UiEvent.ShowSnackbar(result.message ?: "Failed to approve"))
+                _uiEvent.emit(UiEvent.ShowSnackbar((result as? com.rio.rostry.core.model.Result.Error)?.exception?.message ?: "Failed to approve"))
             }
             
             _uiState.update { it.copy(processingId = null, selectedRequest = null) }
@@ -124,10 +122,10 @@ class AdminUpgradeRequestsViewModel @Inject constructor(
             
             val result = roleUpgradeManager.rejectRequest(requestId, adminId, reason)
             
-            if (result is Resource.Success<*>) {
+            if (result is com.rio.rostry.core.model.Result.Success<*>) {
                  _uiEvent.emit(UiEvent.ShowSnackbar("Request Rejected"))
             } else {
-                _uiEvent.emit(UiEvent.ShowSnackbar(result.message ?: "Failed to reject"))
+                _uiEvent.emit(UiEvent.ShowSnackbar((result as? com.rio.rostry.core.model.Result.Error)?.exception?.message ?: "Failed to reject"))
             }
             
             _uiState.update { it.copy(processingId = null, selectedRequest = null) }

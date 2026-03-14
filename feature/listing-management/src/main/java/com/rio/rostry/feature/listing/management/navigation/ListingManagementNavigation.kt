@@ -1,12 +1,15 @@
-package com.rio.rostry.feature.listing.management.navigation
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
+package com.rio.rostry.feature.listing.management.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.rio.rostry.core.navigation.NavigationProvider
 import com.rio.rostry.core.navigation.NavigationRoute
+import com.rio.rostry.feature.listing.management.ListingManagementScreen
+import com.rio.rostry.feature.listing.management.ListingManagementViewModel
+import com.rio.rostry.feature.farmer.ui.listing.CreateListingScreen
 
 /**
  * Navigation routes for listing management feature.
@@ -21,23 +24,50 @@ sealed class ListingManagementRoute(override val route: String) : NavigationRout
 
 /**
  * Navigation provider for listing management feature.
+ * Connects CreateListingScreen, EditListingScreen, and MyListingsScreen.
  */
 class ListingManagementNavigationProvider : NavigationProvider {
     override val featureId: String = "listing-management"
 
     override fun buildGraph(navGraphBuilder: NavGraphBuilder, navController: NavHostController) {
         navGraphBuilder.apply {
-            composable(ListingManagementRoute.Create.route) {
-                // TODO: Connect to CreateListingScreen
-            }
-
-            composable(ListingManagementRoute.Edit.route) { backStackEntry ->
-                val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
-                // TODO: Connect to EditListingScreen
-            }
-
+            // My Listings Screen - main listing management screen
             composable(ListingManagementRoute.MyListings.route) {
-                // TODO: Connect to MyListingsScreen
+                ListingManagementScreen(
+                    onNavigateToCreate = {
+                        navController.navigate(ListingManagementRoute.Create.route)
+                    }
+                )
+            }
+
+            // Create Listing Screen
+            composable(ListingManagementRoute.Create.route) {
+                CreateListingScreen(
+                    assetId = "", // Empty assetId for standalone listing creation
+                    onNavigateBack = { navController.popBackStack() },
+                    onListingCreated = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            // Edit Listing Screen
+            composable(
+                route = ListingManagementRoute.Edit.route,
+                arguments = listOf(
+                    navArgument("listingId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
+                if (listingId.isNotBlank()) {
+                    CreateListingScreen(
+                        assetId = listingId,
+                        onNavigateBack = { navController.popBackStack() },
+                        onListingCreated = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
             }
         }
     }

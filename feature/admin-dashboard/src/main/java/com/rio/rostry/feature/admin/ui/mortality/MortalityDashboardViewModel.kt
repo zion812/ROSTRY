@@ -1,13 +1,11 @@
 package com.rio.rostry.feature.admin.ui.mortality
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.domain.admin.repository.AdminMortalityRepository
-import com.rio.rostry.data.repository.admin.MortalityRiskLevel
-import com.rio.rostry.data.repository.admin.OutbreakAlert
-import com.rio.rostry.data.repository.admin.RegionalMortality
+import com.rio.rostry.domain.admin.model.MortalityRiskLevel
+import com.rio.rostry.domain.admin.model.OutbreakAlert
+import com.rio.rostry.domain.admin.model.RegionalMortality
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.users
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,8 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.domain.model.AdminUserProfile
-import com.rio.rostry.domain.model.AdminOrderSummary
+import com.rio.rostry.domain.admin.model.AdminUserProfile
+import com.rio.rostry.domain.admin.model.AdminOrderSummary
 import com.rio.rostry.domain.model.UserType
 import java.text.SimpleDateFormat
 import java.util.Locale

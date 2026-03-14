@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.product
+package com.rio.rostry.ui.product
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -110,12 +111,11 @@ fun ProductDetailsScreen(
         }
     }
 
-    Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (uiState.product != null) {
+            uiState.product?.let { product ->
                 ProductActionBar(
-                    product = uiState.product!!,
+                    product = product,
                     isInWishlist = uiState.isInWishlist,
                     onToggleWishlist = { viewModel.toggleWishlist() },
                     onAddToCart = { viewModel.addToCart(1.0) },
@@ -148,14 +148,16 @@ fun ProductDetailsScreen(
             ) {
                 com.rio.rostry.ui.components.LoadingOverlay()
             }
-        } else if (uiState.product != null) {
-            ProductDetailsContent(
-                product = uiState.product!!,
-                similarProducts = uiState.similarProducts,
-                frequentlyBoughtTogether = uiState.frequentlyBoughtTogether,
-                isInWishlist = uiState.isInWishlist,
-                onOpenTraceability = onOpenTraceability,
-                onNavigateToProduct = onNavigateToProduct,
+        } else {
+            uiState.product?.let { product ->
+                ProductDetailsContent(
+                    product = product,
+                    similarProducts = uiState.similarProducts,
+                    frequentlyBoughtTogether = uiState.frequentlyBoughtTogether,
+                    isInWishlist = uiState.isInWishlist,
+                    onOpenTraceability = onOpenTraceability,
+                    onNavigateToProduct = onNavigateToProduct,
+                    onOpenSellerProfile = onOpenSellerProfile,
                 onOpenSellerProfile = onOpenSellerProfile,
                 onToggleWishlist = { viewModel.toggleWishlist() },
                 onGenerateProductQr = { viewModel.generateAndStoreProductQr() },

@@ -1,6 +1,8 @@
-package com.rio.rostry.feature.general.ui.market
+package com.rio.rostry.feature.general.ui.market
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import timber.log.Timber
 
 
 import androidx.lifecycle.ViewModel
@@ -274,9 +276,9 @@ class GeneralMarketViewModel @Inject constructor(
 
     private suspend fun fetchByFilters(filters: MarketFilters, q: String): List<ProductEntity> {
         val repo = productRepository
-        val results = try {
             val base: List<ProductEntity> = if (filters.nearbyEnabled && filters.currentLocation != null) {
-                val loc = filters.currentLocation!!
+                val loc = filters.currentLocation
+                val res = repo.filterNearby(ation!!
                 val res = repo.filterNearby(
                     centerLat = loc.latitude,
                     centerLng = loc.longitude,
@@ -403,7 +405,7 @@ class GeneralMarketViewModel @Inject constructor(
                             leadTimeDays = listing.leadTimeDays
                         )
                     } catch (e: Exception) {
-                        android.util.Log.e("GeneralMarketVM", "Failed to convert listing ${listing.listingId}", e)
+                        Timber.e(e, "Failed to convert listing ${listing.listingId}")
                         null // Skip malformed listings
                     }
                 }

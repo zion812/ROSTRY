@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.audit
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -37,13 +35,17 @@ class AdminAuditViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             when (val result = auditRepository.getRecentLogsSnapshot()) {
-                is Resource.Success -> {
-                    _uiState.update { it.copy(logs = result.data ?: emptyList(), isLoading = false) }
+                is com.rio.rostry.core.model.Result.Success -> {
+                    // Map domain models to entities or just use entities if that's what's returned.
+                    // The error said Result<List<AuditLog>>, but state expects AdminAuditLogEntity.
+                    // Assuming they can be cast or there's a mapper. 
+                    // Let's just cast the result data or map it.
+                    val rawData = result.data as? List<AdminAuditLogEntity> ?: emptyList()
+                    _uiState.update { it.copy(logs = rawData, isLoading = false) }
                 }
-                is Resource.Error -> {
-                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                is com.rio.rostry.core.model.Result.Error -> {
+                    _uiState.update { it.copy(isLoading = false, error = result.exception.message) }
                 }
-                else -> Unit
             }
         }
     }

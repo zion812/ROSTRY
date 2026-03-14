@@ -1,5 +1,6 @@
 package com.rio.rostry.data.repository
 
+import com.rio.rostry.core.common.constants.BusinessConstants
 import com.rio.rostry.data.database.dao.PaymentDao
 import com.rio.rostry.data.database.dao.OrderDao
 import com.rio.rostry.data.database.dao.InvoiceDao
@@ -122,7 +123,7 @@ class PaymentRepositoryImpl @Inject constructor(
             val idx = statuses.indexOf(order.status)
             val outIdx = statuses.indexOf("OUT_FOR_DELIVERY")
 
-            val logisticsFee = 50.0 // default logistics fee for partial refunds
+            val logisticsFee = BusinessConstants.PARTIAL_REFUND_LOGISTICS_FEE // Default logistics fee for partial refunds
             val refundAmount = if (idx >= 0 && outIdx >= 0 && idx >= outIdx) {
                 // On/after OUT_FOR_DELIVERY => partial refund
                 (refundableRemaining - logisticsFee).coerceAtLeast(0.0)

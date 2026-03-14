@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.mortality
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,9 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.data.repository.admin.MortalityRiskLevel
-import com.rio.rostry.data.repository.admin.OutbreakAlert
-import com.rio.rostry.data.repository.admin.RegionalMortality
+import com.rio.rostry.domain.admin.model.MortalityRiskLevel
+import com.rio.rostry.domain.admin.model.OutbreakAlert
+import com.rio.rostry.domain.admin.model.RegionalMortality
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

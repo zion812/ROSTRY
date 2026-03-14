@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.product
+package com.rio.rostry.ui.product
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -126,10 +127,10 @@ class ProductDetailsViewModel @Inject constructor(
 
                         // Load Seller Profile (for Verification Badge)
                         loadSellerProfile(product.sellerId)
-
                         // Load Lineage (for Traceability)
-                        if (product.familyTreeId != null) {
-                            loadLineage(product.familyTreeId!!)
+                        product.familyTreeId?.let { familyTreeId ->
+                            loadLineage(familyTreeId)
+                        }   loadLineage(product.familyTreeId!!)
                         }
                     } else {
                         _error.value = "Product not found"

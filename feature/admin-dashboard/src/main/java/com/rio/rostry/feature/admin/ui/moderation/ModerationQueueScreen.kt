@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.moderation
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,8 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.data.repository.ContentType
-import com.rio.rostry.data.repository.ModerationItem
+import com.rio.rostry.domain.admin.model.ContentType
+import com.rio.rostry.domain.admin.model.ModerationItem
 import java.text.SimpleDateFormat
 import java.util.*
 

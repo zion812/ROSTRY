@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.monitoring
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -60,33 +58,38 @@ class AlertManagementViewModel @Inject constructor(
 
     private fun loadAlerts() {
         viewModelScope.launch {
-            alertRepository.streamAlerts().collect { entities ->
-                val systemAlerts = entities.map { entity ->
-                    SystemAlert(
-                        id = entity.id,
-                        type = mapType(entity.type),
-                        severity = mapSeverity(entity.severity),
-                        title = entity.title,
-                        message = entity.message,
-                        createdAt = Date(entity.createdAt),
-                        isRead = entity.isRead,
-                        isActionable = entity.relatedId != null,
-                        actionLabel = if (entity.relatedId != null) "View" else null
-                    )
-                }
-                
-                _state.update { currentState ->
-                    val filtered = if (currentState.filterType != null) {
-                        systemAlerts.filter { it.type == currentState.filterType }
-                    } else {
-                        systemAlerts
+            alertRepository.streamAlerts().collect { result ->
+                if (result is com.rio.rostry.core.model.Result.Success<*>) {
+                    val alerts = (result.data as? List<com.rio.rostry.core.model.Alert>) ?: emptyList()
+                    val systemAlerts = alerts.map { entity ->
+                        SystemAlert(
+                            id = entity.id,
+                            type = mapType(entity.type),
+                            severity = mapSeverity(entity.severity),
+                            title = entity.title,
+                            message = entity.message,
+                            createdAt = Date(entity.createdAt),
+                            isRead = entity.isRead,
+                            isActionable = entity.relatedId != null,
+                            actionLabel = if (entity.relatedId != null) "View" else null
+                        )
                     }
                     
-                    currentState.copy(
-                        isLoading = false,
-                        alerts = filtered,
-                        unreadCount = systemAlerts.count { !it.isRead }
-                    )
+                    _state.update { currentState ->
+                        val filtered = if (currentState.filterType != null) {
+                            systemAlerts.filter { it.type == currentState.filterType }
+                        } else {
+                            systemAlerts
+                        }
+                        
+                        currentState.copy(
+                            isLoading = false,
+                            alerts = filtered,
+                            unreadCount = systemAlerts.count { !it.isRead }
+                        )
+                    }
+                } else if (result is com.rio.rostry.core.model.Result.Error) {
+                    _state.update { it.copy(isLoading = false, error = result.exception.message) }
                 }
             }
         }

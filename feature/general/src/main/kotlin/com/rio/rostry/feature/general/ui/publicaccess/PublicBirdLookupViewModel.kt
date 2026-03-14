@@ -1,4 +1,5 @@
-package com.rio.rostry.feature.general.ui.publicaccess
+package com.rio.rostry.feature.general.ui.publicaccess
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -39,9 +40,13 @@ class PublicBirdLookupViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = LookupUiState.Loading
-            when (val result = publicBirdRepository.lookupBird(code)) {
                 is Resource.Success -> {
-                    _uiState.value = LookupUiState.Success(result.data!!)
+                    result.data?.let { data ->
+                        _uiState.value = LookupUiState.Success(data)
+                    } ?: run {
+                        _uiState.value = LookupUiState.Error("Bird not found")
+                    }
+                }   _uiState.value = LookupUiState.Success(result.data!!)
                 }
                 is Resource.Error -> {
                     _uiState.value = LookupUiState.Error(result.message ?: "Bird not found")

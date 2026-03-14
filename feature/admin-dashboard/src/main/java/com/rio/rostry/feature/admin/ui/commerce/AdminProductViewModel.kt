@@ -1,13 +1,10 @@
 package com.rio.rostry.feature.admin.ui.commerce
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.data.database.entity.ProductEntity
 import com.rio.rostry.domain.admin.repository.AdminProductRepository
 import com.rio.rostry.domain.account.repository.UserRepository
-import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,8 +48,8 @@ class AdminProductViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             adminProductRepository.getAllProductsAdmin().collect { result ->
                 when (result) {
-                    is Resource.Success -> {
-                        val products = result.data ?: emptyList()
+                    is com.rio.rostry.core.model.Result.Success<*> -> {
+                        val products = (result.data as? List<ProductEntity>) ?: emptyList()
                         _uiState.update { 
                             it.copy(
                                 products = products, 
@@ -61,12 +58,9 @@ class AdminProductViewModel @Inject constructor(
                         }
                         applyFilters()
                     }
-                    is Resource.Error -> {
-                        _uiState.update { it.copy(isLoading = false, error = result.message) }
-                        _toastEvent.emit("Failed to load products: ${result.message}")
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update { it.copy(isLoading = true) }
+                    is com.rio.rostry.core.model.Result.Error -> {
+                        _uiState.update { it.copy(isLoading = false, error = result.exception.message) }
+                        _toastEvent.emit("Failed to load products: ${result.exception.message}")
                     }
                 }
             }
@@ -112,14 +106,13 @@ class AdminProductViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(processingId = productId) }
             when (val result = adminProductRepository.flagProduct(productId, reason)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.model.Result.Success -> {
                     _toastEvent.emit("Product flagged")
                     updateProductLocally(productId) { it.copy(adminFlagged = true, moderationNote = reason) }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed to flag: ${result.message}")
+                is com.rio.rostry.core.model.Result.Error -> {
+                    _toastEvent.emit("Failed to flag: ${result.exception.message}")
                 }
-                else -> Unit
             }
             _uiState.update { it.copy(processingId = null) }
         }
@@ -129,14 +122,13 @@ class AdminProductViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(processingId = productId) }
             when (val result = adminProductRepository.unflagProduct(productId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.model.Result.Success -> {
                     _toastEvent.emit("Product unflagged")
                     updateProductLocally(productId) { it.copy(adminFlagged = false, moderationNote = null) }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed to unflag: ${result.message}")
+                is com.rio.rostry.core.model.Result.Error -> {
+                    _toastEvent.emit("Failed to unflag: ${result.exception.message}")
                 }
-                else -> Unit
             }
             _uiState.update { it.copy(processingId = null) }
         }
@@ -146,14 +138,13 @@ class AdminProductViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(processingId = productId) }
             when (val result = adminProductRepository.hideProduct(productId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.model.Result.Success -> {
                     _toastEvent.emit("Product hidden (Private)")
                     updateProductLocally(productId) { it.copy(status = "private") }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed to hide: ${result.message}")
+                is com.rio.rostry.core.model.Result.Error -> {
+                    _toastEvent.emit("Failed to hide: ${result.exception.message}")
                 }
-                else -> Unit
             }
             _uiState.update { it.copy(processingId = null) }
         }
@@ -163,7 +154,7 @@ class AdminProductViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(processingId = productId) }
             when (val result = adminProductRepository.deleteProduct(productId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.model.Result.Success -> {
                     _toastEvent.emit("Product deleted")
                     _uiState.update { state ->
                         state.copy(
@@ -172,10 +163,9 @@ class AdminProductViewModel @Inject constructor(
                         )
                     }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed to delete: ${result.message}")
+                is com.rio.rostry.core.model.Result.Error -> {
+                    _toastEvent.emit("Failed to delete: ${result.exception.message}")
                 }
-                else -> Unit
             }
             _uiState.update { it.copy(processingId = null) }
         }
@@ -184,14 +174,14 @@ class AdminProductViewModel @Inject constructor(
     fun suspendSeller(sellerId: String, reason: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(processingId = sellerId) }
-            when (val result = userRepository.suspendUser(sellerId, reason)) {
-                is Resource.Success -> {
+            when (val result = userRepository.suspendUser(sellerId, reason, null)) {
+                is com.rio.rostry.utils.Resource.Success -> {
                     _toastEvent.emit("Seller suspended")
                 }
-                is Resource.Error -> {
+                is com.rio.rostry.utils.Resource.Error -> {
                     _toastEvent.emit("Failed to suspend seller: ${result.message}")
                 }
-                else -> Unit
+                else -> {}
             }
             _uiState.update { it.copy(processingId = null) }
         }
@@ -201,14 +191,13 @@ class AdminProductViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(processingId = productId) }
             when (val result = adminProductRepository.restoreProduct(productId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.model.Result.Success -> {
                     _toastEvent.emit("Product restored to active")
                     updateProductLocally(productId) { it.copy(status = "active") }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed to restore: ${result.message}")
+                is com.rio.rostry.core.model.Result.Error -> {
+                    _toastEvent.emit("Failed to restore: ${result.exception.message}")
                 }
-                else -> Unit
             }
             _uiState.update { it.copy(processingId = null) }
         }
@@ -222,3 +211,4 @@ class AdminProductViewModel @Inject constructor(
         applyFilters()
     }
 }
+

@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.auction
+package com.rio.rostry.ui.auction
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -80,29 +81,39 @@ fun AuctionScreen(
                         Text("Buy Now for ₹${uiState.auction?.buyNowPrice}")
                     }
                 }
-            }
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (uiState.error != null) {
-                Text(
-                    text = uiState.error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (uiState.auction != null) {
-                AuctionContent(
-                    auction = uiState.auction!!,
-                    bids = uiState.bids,
-                    isWinning = uiState.isWinning,
-                    isSeller = uiState.isSeller,
-                    onPlaceBid = { amount -> viewModel.placeBid(amount) }
-                )
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                uiState.error != null -> {
+                    Text(
+                        text = uiState.error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                uiState.auction != null -> {
+                    AuctionContent(
+                        auction = uiState.auction!!,
+                        bids = uiState.bids,
+                        isWinning = uiState.isWinning,
+                        isSeller = uiState.isSeller,
+                        onPlaceBid = { amount -> viewModel.placeBid(amount) }
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "Auction not found",
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
         }
     }
+}   }
 }
 
 @Composable

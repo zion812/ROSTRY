@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.commerce
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -37,17 +35,17 @@ class AdminInvoiceViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             when (val result = invoiceRepository.getAllInvoicesAdmin()) {
-                is Resource.Success -> {
-                    _invoices.value = result.data ?: emptyList()
+                is Resource.Success<*> -> {
+                    val rawData = result.data as? List<InvoiceEntity> ?: emptyList()
+                    _invoices.value = rawData
                 }
-                is Resource.Error -> {
+                is Resource.Error<*> -> {
                     _error.value = result.message
                 }
-                is Resource.Loading -> {
-                    // Handled by local state
-                }
+                else -> {}
             }
             _isLoading.value = false
         }
     }
 }
+

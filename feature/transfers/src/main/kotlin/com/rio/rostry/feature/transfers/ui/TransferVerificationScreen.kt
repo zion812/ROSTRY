@@ -1,6 +1,8 @@
-package com.rio.rostry.ui.transfer
+package com.rio.rostry.ui.transfer
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.core.common.constants.BusinessConstants
 
 import android.net.Uri
 import android.Manifest
@@ -134,8 +136,7 @@ fun TransferVerificationScreen(
         }
 
         // Admin review gate for high-value transfers
-        val threshold = 10000.0
-        val requiresAdmin = (state.transfer?.amount ?: 0.0) > threshold
+        val requiresAdmin = BusinessConstants.requiresAdminReview(state.transfer?.amount ?: 0.0)
         if (requiresAdmin) {
             ElevatedCard {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -215,27 +216,27 @@ fun TransferVerificationScreen(
                 OutlinedTextField(
                     value = state.tempLng,
                     onValueChange = { vm.updateTemp("lng", it) },
-                    label = { Text("Longitude") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                // Proximity badge
+                // Proximity badge with safe null handling
                 val sellerLat = state.transfer?.gpsLat
                 val sellerLng = state.transfer?.gpsLng
                 val buyerLat = state.tempLat.toDoubleOrNull()
                 val buyerLng = state.tempLng.toDoubleOrNull()
-                val within = remember(sellerLat, sellerLng, buyerLat, buyerLng) {
-                    if (sellerLat != null && sellerLng != null && buyerLat != null && buyerLng != null)
+                
+                // Calculate proximity only if all coordinates are available
+                if (sellerLat != null && sellerLng != null && buyerLat != null && buyerLng != null) {
+                    val within = remember(sellerLat, sellerLng, buyerLat, buyerLng) {
                         com.rio.rostry.utils.VerificationUtils.withinRadius(sellerLat, sellerLng, buyerLat, buyerLng, 100.0)
-                    else null
-                }
-                if (within != null) {
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val dist = com.rio.rostry.utils.VerificationUtils.distanceMeters(
-                            sellerLat!!, sellerLng!!, buyerLat!!, buyerLng!!
+                            sellerLat, sellerLng, buyerLat, buyerLng
                         ).toInt()
                         val badge = if (within) "Within 100m ($dist m)" else "Outside 100m ($dist m)"
                         Text(badge, color = if (within) Color(0xFF2E7D32) else Color(0xFFC62828))
                     }
+                    if (!within) {
                     if (!within) {
                         OutlinedTextField(
                             value = state.tempGpsExplanation,

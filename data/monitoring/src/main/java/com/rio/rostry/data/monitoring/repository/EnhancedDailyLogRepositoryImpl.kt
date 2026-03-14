@@ -6,6 +6,7 @@ import com.rio.rostry.data.database.dao.DailyLogDao
 import com.rio.rostry.data.monitoring.mapper.toDailyLog
 import com.rio.rostry.data.monitoring.mapper.toEntity
 import com.rio.rostry.domain.monitoring.repository.EnhancedDailyLogRepository
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,9 +47,10 @@ class EnhancedDailyLogRepositoryImpl @Inject constructor(
 
     override suspend fun getDailyLogsForAsset(assetId: String): Result<List<DailyLog>> {
         return try {
-            // Note: The DAO might need a method to get logs by assetId/productId
-            // For now, returning empty list as the original implementation did
-            Result.Success(emptyList())
+            // Use the existing observeForProduct method and collect the first emission
+            val logsFlow = dao.observeForProduct(assetId)
+            val logs = kotlinx.coroutines.flow.first()
+            Result.Success(logs.map { it.toDailyLog() })
         } catch (e: Exception) {
             Result.Error(e)
         }

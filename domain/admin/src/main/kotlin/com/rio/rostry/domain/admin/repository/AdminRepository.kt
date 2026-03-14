@@ -24,6 +24,12 @@ interface AdminRepository {
     fun getAllUsers(): Flow<List<com.rio.rostry.core.model.User>>
 
     /**
+     * Get detailed aggregated profile of a user.
+     * @param userId The user ID
+     */
+    fun getUserFullProfile(userId: String): Flow<Result<com.rio.rostry.domain.admin.model.AdminUserProfile>>
+
+    /**
      * Ban a user.
      * @param userId The user ID to ban
      * @param reason The ban reason

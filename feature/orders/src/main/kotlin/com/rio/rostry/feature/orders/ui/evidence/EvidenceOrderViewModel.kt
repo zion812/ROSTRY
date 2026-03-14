@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.order.evidence
+package com.rio.rostry.ui.order.evidence
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -311,14 +312,19 @@ class EvidenceOrderViewModel @Inject constructor(
                 geoLatitude = null,
                 geoLongitude = null
             )
-
             when (evidenceResult) {
                 is Resource.Success -> {
-                    val evidence = evidenceResult.data!!
+                    val evidence = evidenceResult.data
+                    if (evidence == null) {
+                        _error.value = "Failed to upload payment evidence"
+                        _isLoading.value = false
+                        return@launch
+                    }
                     val proofResult = evidenceOrderRepository.submitPaymentProof(
                         paymentId = paymentId,
                         evidenceId = evidence.evidenceId,
                         transactionRef = transactionRef
+                    )   transactionRef = transactionRef
                     )
 
                     when (proofResult) {
@@ -460,9 +466,15 @@ class EvidenceOrderViewModel @Inject constructor(
                         }
                     }
 
+                    val deliveryPhoto = deliveryPhotoResult.data
+                    if (deliveryPhoto == null) {
+                        _error.value = "Failed to upload delivery photo"
+                        _isLoading.value = false
+                        return@launch
+                    }
                     val confirmResult = evidenceOrderRepository.confirmDeliveryWithPhoto(
                         orderId = orderId,
-                        deliveryPhotoId = deliveryPhotoResult.data!!.evidenceId,
+                        deliveryPhotoId = deliveryPhoto.evidenceId,
                         buyerPhotoId = buyerPhotoId,
                         confirmedBy = userId
                     )

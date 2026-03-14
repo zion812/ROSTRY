@@ -1,5 +1,6 @@
 package com.rio.rostry.marketplace.location
 
+import com.rio.rostry.core.common.constants.BusinessConstants
 import com.rio.rostry.utils.ValidationUtils
 import timber.log.Timber
 
@@ -9,7 +10,7 @@ import timber.log.Timber
 object LocationService {
     data class RadiusResult(val withinServiceArea: Boolean, val distanceKm: Double?)
 
-    fun withinRadius(productLat: Double?, productLng: Double?, buyerLat: Double?, buyerLng: Double?, maxKm: Double = 50.0): RadiusResult {
+    fun withinRadius(productLat: Double?, productLng: Double?, buyerLat: Double?, buyerLng: Double?, maxKm: Double = BusinessConstants.DEFAULT_DELIVERY_RADIUS_KM): RadiusResult {
         if (productLat == null || productLng == null || buyerLat == null || buyerLng == null) return RadiusResult(false, null)
         val dist = ValidationUtils.distanceKm(productLat, productLng, buyerLat, buyerLng)
         return RadiusResult(dist <= maxKm, dist)

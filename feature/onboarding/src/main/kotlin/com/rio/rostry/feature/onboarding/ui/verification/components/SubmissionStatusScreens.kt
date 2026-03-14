@@ -1,6 +1,8 @@
-package com.rio.rostry.ui.verification.components
+package com.rio.rostry.ui.verification.components
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.core.common.config.StorageConfig
 
 import android.content.Intent
 import android.net.Uri
@@ -125,14 +127,14 @@ fun PendingStateScreen(
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(top = 8.dp)
-                        ) {
                             FilledTonalButton(
                                 onClick = {
                                     val whatsappIntent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse("https://wa.me/91$SUPPORT_PHONE?text=Hi, I need help with my farmer verification.")
+                                        data = Uri.parse(StorageConfig.buildWhatsAppSupportUrl(SUPPORT_PHONE, "Hi, I need help with my farmer verification."))
                                     }
                                     context.startActivity(whatsappIntent)
                                 }
+                            ) { }
                             ) {
                                 Icon(Icons.Default.Message, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))

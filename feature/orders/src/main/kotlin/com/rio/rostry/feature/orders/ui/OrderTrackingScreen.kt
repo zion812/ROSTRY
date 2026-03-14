@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.order
+package com.rio.rostry.ui.order
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -85,24 +86,31 @@ fun OrderTrackingScreen(
                     }
                 }
             )
-        }
     ) { padding ->
         if (uiState.isLoading) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        } else if (uiState.order != null) {
-            val order = uiState.order!!
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Order Timeline
-                item {
-                    Text("Order Timeline", style = MaterialTheme.typography.titleMedium)
+        } else {
+            val order = uiState.order
+            if (order == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Order not found")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Order Timeline
+                    item {
+                        Text("Order Timeline", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     OrderTimeline(order.status, order.timelineEvents)
                 }

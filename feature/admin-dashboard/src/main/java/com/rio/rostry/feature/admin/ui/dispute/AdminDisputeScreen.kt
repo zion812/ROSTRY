@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.dispute
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,8 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.rio.rostry.data.database.entity.DisputeEntity
-import com.rio.rostry.data.database.entity.DisputeStatus
+import com.rio.rostry.core.model.Dispute
+import com.rio.rostry.core.model.DisputeStatus
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.*
@@ -116,19 +114,19 @@ fun AdminDisputeScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(currentList, key = { it.disputeId }) { dispute ->
+                        items(currentList, key = { it.id }) { dispute ->
                             DisputeCard(
                                 dispute = dispute,
                                 isHistory = state.currentFilter == AdminDisputeViewModel.DisputeFilter.RESOLVED,
-                                isProcessing = state.processingId == dispute.disputeId,
+                                isProcessing = state.processingId == dispute.id,
                                 onResolve = { status, notes -> 
-                                    viewModel.resolveDispute(dispute.disputeId, status, notes) 
+                                    viewModel.resolveDispute(dispute.id, status, notes) 
                                 },
                                 onBanUser = { userId, reason ->
                                     viewModel.banUser(userId, reason)
                                 },
                                 onEscalate = {
-                                    viewModel.escalateDispute(dispute.disputeId)
+                                    viewModel.escalateDispute(dispute.id)
                                 }
                             )
                         }
@@ -141,7 +139,7 @@ fun AdminDisputeScreen(
 
 @Composable
 fun DisputeCard(
-    dispute: DisputeEntity,
+    dispute: Dispute,
     isHistory: Boolean,
     isProcessing: Boolean,
     onResolve: (DisputeStatus, String) -> Unit,

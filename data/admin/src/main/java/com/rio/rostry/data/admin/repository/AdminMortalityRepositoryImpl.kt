@@ -1,77 +1,66 @@
 package com.rio.rostry.data.admin.repository
 
-import com.rio.rostry.core.model.Result
-import com.rio.rostry.core.model.MortalityRiskLevel
-import com.rio.rostry.core.model.OutbreakAlert
-import com.rio.rostry.core.model.RegionalMortality
+import com.rio.rostry.domain.admin.model.MortalityRiskLevel
+import com.rio.rostry.domain.admin.model.OutbreakAlert
+import com.rio.rostry.domain.admin.model.RegionalMortality
 import com.rio.rostry.data.database.dao.MortalityRecordDao
 import com.rio.rostry.domain.admin.repository.AdminMortalityRepository
+import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Implementation of admin mortality operations.
- * Provides aggregated mortality statistics and outbreak detection.
- */
 @Singleton
 class AdminMortalityRepositoryImpl @Inject constructor(
     private val mortalityDao: MortalityRecordDao
 ) : AdminMortalityRepository {
 
-    override fun getRegionalMortalityStats(): Flow<Result<List<RegionalMortality>>> = flow {        try {
-            // Fetch records for the last 7 days
+    override fun getRegionalMortalityStats(): Flow<Resource<List<RegionalMortality>>> = flow {
+        try {
             val sevenDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
             val recentRecords = mortalityDao.getRecentRecords(sevenDaysAgo)
-            
-            // Collect unique farmer IDs to fetch location data
-            val farmerIds = recentRecords.map { it.farmerId }.distinct()
+
             val userLocationMap = mutableMapOf<String, String>()
-            
-            // Group by Region
             val grouped = recentRecords.groupBy { userLocationMap[it.farmerId] ?: "Unknown" }
-            
+
             val stats = grouped.map { (region, records) ->
                 val farmsInRegion = records.map { it.farmerId }.distinct().size
-                val deaths24h = records.count { 
-                    it.occurredAt > System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1) 
+                val deaths24h = records.count {
+                    it.occurredAt > System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
                 }
-                
-                // Simplified "Mortality Rate" calculation
-                val avgDeathsPerFarm = records.size.toDouble() / farmsInRegion
-                
+
                 val risk = when {
                     deaths24h > 50 -> MortalityRiskLevel.CRITICAL
                     deaths24h > 20 -> MortalityRiskLevel.HIGH
                     deaths24h > 5 -> MortalityRiskLevel.MODERATE
                     else -> MortalityRiskLevel.LOW
                 }
-                
+
                 RegionalMortality(
                     regionName = region,
                     totalFarms = farmsInRegion,
                     reportedDeaths24h = deaths24h,
-                    averageMortalityRate = 0.0, // Placeholder
+                    averageMortalityRate = 0.0,
                     riskLevel = risk
                 )
             }.sortedByDescending { it.reportedDeaths24h }
-            
-            emit(Result.Success(stats))
+
+            emit(Resource.Success(stats))
         } catch (e: Exception) {
-            emit(Result.Error(e))
+            emit(Resource.Error(e.message ?: "Failed to load regional mortality stats"))
         }
     }
 
-    override fun getPotentialOutbreaks(): Flow<Result<List<OutbreakAlert>>> = flow {        try {
-            // Re-use logic from regional stats
+    override fun getPotentialOutbreaks(): Flow<Resource<List<OutbreakAlert>>> = flow {
+        try {
             getRegionalMortalityStats().collect { result ->
                 when (result) {
-                    is Result.Success -> {
-                        val outbreaks = result.data.filter { 
-                            it.riskLevel == MortalityRiskLevel.HIGH || 
-                            it.riskLevel == MortalityRiskLevel.CRITICAL 
+                    is Resource.Success -> {
+                        val outbreaks = (result.data ?: emptyList()).filter {
+                            it.riskLevel == MortalityRiskLevel.HIGH ||
+                            it.riskLevel == MortalityRiskLevel.CRITICAL
                         }.map { region ->
                             OutbreakAlert(
                                 regionName = region.regionName,
@@ -81,19 +70,16 @@ class AdminMortalityRepositoryImpl @Inject constructor(
                                 description = "High mortality detected: ${region.reportedDeaths24h} deaths in 24h"
                             )
                         }
-                        emit(Result.Success(outbreaks))
+                        emit(Resource.Success(outbreaks))
                     }
-                    is Result.Error -> {
-                        emit(Result.Error(result.exception))
+                    is Resource.Error -> {
+                        emit(Resource.Error(result.message ?: "Failed to detect outbreaks"))
                     }
+                    is Resource.Loading -> {}
                 }
             }
         } catch (e: Exception) {
-            emit(Result.Error(e))
+            emit(Resource.Error(e.message ?: "Failed to detect outbreaks"))
         }
     }
 }
-
-
-
-

@@ -1,6 +1,7 @@
 package com.rio.rostry.workers.processors
 
 import android.content.Context
+import com.rio.rostry.core.common.constants.BusinessConstants
 import com.rio.rostry.data.database.dao.FarmAlertDao
 import com.rio.rostry.data.database.dao.ProductDao
 import com.rio.rostry.data.database.entity.FarmAlertEntity
@@ -15,7 +16,7 @@ import javax.inject.Singleton
 
 /**
  * Processor for detecting market-ready batches.
- * Criteria: Age >= 6 weeks AND average weight >= 1500g (broilers).
+ * Criteria: Age >= 6 weeks AND average weight >= MIN_BIRD_WEIGHT_GRAMS (broilers).
  * Creates HARVEST_READY alerts for farmers to convert batches to listings.
  */
 @Singleton
@@ -24,12 +25,13 @@ class MarketReadyProcessor @Inject constructor(
     private val productDao: ProductDao,
     private val alertDao: FarmAlertDao
 ) : LifecycleProcessor {
-    
+
     override val processorName = "MarketReadyProcessor"
-    
+
     companion object {
         private const val MIN_AGE_WEEKS = 6
-        private const val MIN_WEIGHT_GRAMS = 1500.0
+        // Use centralized constant instead of hard-coded value
+        private val MIN_WEIGHT_GRAMS = BusinessConstants.MIN_BIRD_WEIGHT_GRAMS.toDouble()
     }
     
     override suspend fun process(now: Long): Int {

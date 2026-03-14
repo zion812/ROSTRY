@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -32,7 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rio.rostry.feature.admin.ui.theme.AdminColors
-import com.rio.rostry.ui.navigation.RouteConstants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

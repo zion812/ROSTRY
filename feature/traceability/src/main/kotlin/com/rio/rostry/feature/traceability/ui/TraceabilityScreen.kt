@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.traceability
+package com.rio.rostry.ui.traceability
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -90,12 +91,13 @@ fun TraceabilityScreen(
                     onLoadMoreDown = { vm.loadMoreDescendants() },
                     nodeMetadata = state.nodeMetadata
                 )
-            }
 
-            // Node Details Sheet
-            if (state.selectedNodeId != null && state.selectedNodeEvents != null) {
-                val meta = state.nodeMetadata[state.selectedNodeId] ?: TraceabilityViewModel.NodeMetadata(
-                    productId = state.selectedNodeId!!,
+            // Node Details Sheet with safe null handling
+            val selectedId = state.selectedNodeId
+            val selectedEvents = state.selectedNodeEvents
+            if (selectedId != null && selectedEvents != null) {
+                val meta = state.nodeMetadata[selectedId] ?: TraceabilityViewModel.NodeMetadata(
+                    productId = selectedId,
                     name = "Unknown",
                     breed = null,
                     stage = null,
@@ -106,10 +108,11 @@ fun TraceabilityScreen(
                 
                 NodeEventTimelineSheet(
                     nodeMetadata = meta,
-                    events = state.selectedNodeEvents!!,
+                    events = selectedEvents,
                     onDismiss = { vm.clearSelection() }
                 )
             }
         }
+    }
     }
 }

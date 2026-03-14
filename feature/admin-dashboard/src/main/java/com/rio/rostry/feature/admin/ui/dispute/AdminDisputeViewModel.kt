@@ -1,11 +1,9 @@
-package com.rio.rostry.feature.admin.ui.dispute
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
+package com.rio.rostry.feature.admin.ui.dispute
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.entity.DisputeEntity
-import com.rio.rostry.data.database.entity.DisputeStatus
+import com.rio.rostry.core.model.Dispute
+import com.rio.rostry.core.model.DisputeStatus
 import com.rio.rostry.domain.commerce.repository.DisputeRepository
 import com.rio.rostry.domain.account.repository.UserRepository
 import com.rio.rostry.core.common.session.CurrentUserProvider
@@ -30,8 +28,8 @@ class AdminDisputeViewModel @Inject constructor(
 
     data class UiState(
         val isLoading: Boolean = false,
-        val openDisputes: List<DisputeEntity> = emptyList(),
-        val resolvedDisputes: List<DisputeEntity> = emptyList(),
+        val openDisputes: List<Dispute> = emptyList(),
+        val resolvedDisputes: List<Dispute> = emptyList(),
         val currentFilter: DisputeFilter = DisputeFilter.OPEN,
         val processingId: String? = null,
         val error: String? = null
@@ -52,13 +50,13 @@ class AdminDisputeViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             repository.getAllOpenDisputes().collect { result ->
                 when (result) {
-                    is Resource.Success -> _state.update { 
-                        it.copy(isLoading = false, openDisputes = result.data ?: emptyList()) 
+                    is com.rio.rostry.core.common.Result.Success<*> -> _state.update { 
+                        it.copy(isLoading = false, openDisputes = (result.data as? List<Dispute>) ?: emptyList()) 
                     }
-                    is Resource.Error -> _state.update { 
-                        it.copy(isLoading = false, error = result.message) 
+                    is com.rio.rostry.core.common.Result.Error -> _state.update { 
+                        it.copy(isLoading = false, error = result.exception.message) 
                     }
-                    is Resource.Loading -> {}
+                    is com.rio.rostry.core.common.Result.Loading -> {}
                 }
             }
         }
@@ -69,10 +67,11 @@ class AdminDisputeViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getResolvedDisputes().collect { result ->
                 when (result) {
-                    is Resource.Success -> _state.update { 
-                        it.copy(resolvedDisputes = result.data ?: emptyList()) 
+                    is com.rio.rostry.core.common.Result.Success<*> -> _state.update { 
+                        it.copy(resolvedDisputes = (result.data as? List<Dispute>) ?: emptyList()) 
                     }
-                    else -> {}
+                    is com.rio.rostry.core.common.Result.Error -> {}
+                    is com.rio.rostry.core.common.Result.Loading -> {}
                 }
             }
         }
@@ -87,22 +86,22 @@ class AdminDisputeViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(processingId = disputeId) }
             when (val result = repository.resolveDispute(disputeId, decision, notes, adminId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.common.Result.Success<*> -> {
                     _toastEvent.emit("Dispute resolved: ${decision.name}")
                     // Move from open to resolved list
                     _state.update { state ->
-                        val resolved = state.openDisputes.find { it.disputeId == disputeId }
+                        val resolved = state.openDisputes.find { it.id == disputeId }
                             ?.copy(status = decision, resolution = notes, resolvedAt = System.currentTimeMillis())
                         state.copy(
-                            openDisputes = state.openDisputes.filter { it.disputeId != disputeId },
+                            openDisputes = state.openDisputes.filter { it.id != disputeId },
                             resolvedDisputes = if (resolved != null) listOf(resolved) + state.resolvedDisputes else state.resolvedDisputes
                         )
                     }
                 }
-                is Resource.Error -> {
-                    _toastEvent.emit("Failed: ${result.message}")
+                is com.rio.rostry.core.common.Result.Error -> {
+                    _toastEvent.emit("Failed: ${result.exception.message}")
                 }
-                else -> {}
+                is com.rio.rostry.core.common.Result.Loading -> {}
             }
             _state.update { it.copy(processingId = null) }
         }

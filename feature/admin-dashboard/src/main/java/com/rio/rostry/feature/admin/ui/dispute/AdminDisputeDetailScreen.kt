@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.dispute
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.rio.rostry.data.database.entity.DisputeStatus
+import com.rio.rostry.core.model.DisputeStatus
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.*
@@ -99,7 +97,7 @@ fun AdminDisputeDetailScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Dispute #${dispute.disputeId.take(8)}", style = MaterialTheme.typography.titleLarge)
+                            Text("Dispute #${dispute.id.take(8)}", style = MaterialTheme.typography.titleLarge)
                             DisputeStatusBadge(status = dispute.status)
                         }
                     }
@@ -376,7 +374,7 @@ private fun formatDate(timestamp: Long): String {
 
 @Composable
 fun DisputeChatMessage(
-    message: com.rio.rostry.data.database.entity.ChatMessageEntity,
+    message: com.rio.rostry.core.model.ChatMessage,
     isReporter: Boolean,
     reporterName: String,
     reportedName: String
@@ -398,10 +396,6 @@ fun DisputeChatMessage(
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(message.body, style = MaterialTheme.typography.bodyMedium)
-                if (message.mediaUrl != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("[Image Attachment]", style = MaterialTheme.typography.bodySmall, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
-                }
             }
         }
         Spacer(modifier = Modifier.height(2.dp))

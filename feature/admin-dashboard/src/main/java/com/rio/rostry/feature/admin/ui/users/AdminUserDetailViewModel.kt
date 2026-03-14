@@ -1,11 +1,9 @@
 package com.rio.rostry.feature.admin.ui.users
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rio.rostry.domain.admin.repository.AdminRepository
-import com.rio.rostry.domain.model.AdminUserProfile
+import com.rio.rostry.domain.admin.model.AdminUserProfile
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,14 +33,12 @@ class AdminUserDetailViewModel @Inject constructor(
             
             adminRepository.getUserFullProfile(userId).collect { result ->
                 when (result) {
-                    is Resource.Success -> {
-                        _uiState.update { it.copy(isLoading = false, profile = result.data) }
+                    is com.rio.rostry.core.model.Result.Success<*> -> {
+                        val profileData = result.data as? com.rio.rostry.domain.admin.model.AdminUserProfile
+                        _uiState.update { it.copy(isLoading = false, profile = profileData) }
                     }
-                    is Resource.Error -> {
-                        _uiState.update { it.copy(isLoading = false, error = result.message) }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update { it.copy(isLoading = true) }
+                    is com.rio.rostry.core.model.Result.Error -> {
+                        _uiState.update { it.copy(isLoading = false, error = result.exception.message) }
                     }
                 }
             }

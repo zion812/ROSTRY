@@ -1,6 +1,8 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import com.rio.rostry.core.common.constants.BusinessConstants
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -35,18 +37,21 @@ fun HarvestTriggerCard(
     // Parse data from message and actionRoute
     // Message format: "Batch is market-ready! 100 birds, 1500g avg, 6 weeks old"
     // ActionRoute format: "farmer/create_listing/{assetId}"
-    val metadata = remember(alert.message, alert.actionRoute) {
         try {
             val message = alert.message
             // Extract batchId from actionRoute
             val batchId = alert.actionRoute?.substringAfterLast("/") ?: ""
-            // Parse numbers from message using regex
-            val quantity = Regex("""(\d+)\s*birds""").find(message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val avgWeight = Regex("""(\d+)g\s*avg""").find(message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            val ageWeeks = Regex("""(\d+)\s*weeks""").find(message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            // Parse numbers from message using regex - using getOrNull for safety
+            val quantity = Regex(BusinessConstants.QUANTITY_REGEX_PATTERN)
+                .find(message)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+            val avgWeight = Regex(BusinessConstants.AVG_WEIGHT_REGEX_PATTERN)
+                .find(message)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+            val ageWeeks = Regex(BusinessConstants.AGE_REGEX_PATTERN)
+                .find(message)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
             HarvestMetadata(batchId, quantity, avgWeight, ageWeeks)
         } catch (e: Exception) {
             HarvestMetadata("", 0, 0, 0)
+        }   HarvestMetadata("", 0, 0, 0)
         }
     }
 

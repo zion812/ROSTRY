@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.order
+package com.rio.rostry.ui.order
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -154,33 +155,54 @@ class OrderTrackingViewModel @Inject constructor(
             }
         }
     }
-
     fun downloadInvoice() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            // First try to get existing invoice
-            val orderId = _uiState.value.order?.orderId ?: return@launch
-            var result = invoiceRepository.getInvoiceByOrder(orderId)
-            if (result is Resource.Error) {
-                // If not found, generate new invoice (assuming order has items, but since OrderEntity may not, this is placeholder)
-                // In real impl, get order items from repository or entity
-                // For now, assume generation requires items, so emit error if not possible
-                _events.send(OrderTrackingEvent.Error("Invoice generation requires order items"))
+            val orderId = _uiState.value.order?.orderId ?: run {
                 _uiState.update { it.copy(isLoading = false) }
+                _events.send(OrderTrackingEvent.Error("Order not found"))
                 return@launch
             }
-            _uiState.update { it.copy(isLoading = false) }
-            if (result is Resource.Success) {
-                val data = result.data
-                if (data != null) {
-                    _events.send(OrderTrackingEvent.InvoiceDownloaded(data))
+
+            // First try to get existing invoice
+            val existingResult = invoiceRepository.getInvoiceByOrder(orderId)
+            if (existingResult is Resource.Success && existingResult.data != null) {
+                _uiState.update { it.copy(isLoading = false) }
+                _events.send(OrderTrackingEvent.InvoiceDownloaded(existingResult.data))
+                return@launch
+            }
+
+            // Generate new invoice if not found
+            val orderResult = orderRepository.getOrderById(orderId)
+            if (orderResult is Resource.Success && orderResult.data != null) {
+                val order = orderResult.data
+                val orderItems = orderRepository.getOrderItems(orderId)
+                if (orderItems is Resource.Success && orderItems.data != null) {
+                    val invoiceResult = invoiceRepository.generateInvoice(order, orderItems.data)
+                    _uiState.update { it.copy(isLoading = false) }
+                    when (invoiceResult) {
+                        is Resource.Success -> {
+                            if (invoiceResult.data != null) {
+                                _events.send(OrderTrackingEvent.InvoiceDownloaded(invoiceResult.data))
+                            } else {
+                                _events.send(OrderTrackingEvent.Error("Invoice generation returned empty data"))
+                            }
+                        }
+                        is Resource.Error -> {
+                            _events.send(OrderTrackingEvent.Error(invoiceResult.message ?: "Failed to generate invoice"))
+                        }
+                        else -> {}
+                    }
                 } else {
-                    _events.send(OrderTrackingEvent.Error("Invoice not available"))
+                    _uiState.update { it.copy(isLoading = false) }
+                    _events.send(OrderTrackingEvent.Error("Failed to load order items for invoice"))
                 }
             } else {
-                _events.send(OrderTrackingEvent.Error(result.message ?: "Failed to download invoice"))
+                _uiState.update { it.copy(isLoading = false) }
+                _events.send(OrderTrackingEvent.Error("Order not found"))
             }
         }
+    }   }
     }
 
     fun submitRating(orderId: String, rating: Int, review: String) {

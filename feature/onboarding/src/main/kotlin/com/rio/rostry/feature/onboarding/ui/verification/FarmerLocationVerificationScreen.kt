@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.verification
+package com.rio.rostry.ui.verification
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -100,13 +101,14 @@ private fun ConfirmationView(
             try {
                 context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission") }
-            
             if (upgradeType != null && currentUploadType != null) {
+                val uploadType = currentUploadType
                 if (currentUploadIsImage) {
-                    viewModel.uploadImage(it.toString(), currentUploadType!!, upgradeType)
+                    viewModel.uploadImage(it.toString(), uploadType, upgradeType)
                 } else {
-                    viewModel.uploadDocument(it.toString(), currentUploadType!!, upgradeType)
+                    viewModel.uploadDocument(it.toString(), uploadType, upgradeType)
                 }
+            }   }
             }
         }
     }

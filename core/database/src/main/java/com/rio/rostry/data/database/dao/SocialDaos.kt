@@ -34,6 +34,11 @@ interface PostsDao {
         "SELECT * FROM posts ORDER BY (SELECT COUNT(*) FROM likes WHERE likes.postId = posts.postId) DESC, createdAt DESC LIMIT :limit"
     )
     suspend fun getTrending(limit: Int): List<PostEntity>
+
+    // Get recent posts for trending topic analysis
+    @Query("SELECT * FROM posts WHERE createdAt > :since ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecentPosts(limit: Int, since: Long = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000)): List<PostEntity>
+
     // Get replies for a post (1 level deep threading)
     @Query("SELECT * FROM posts WHERE parentPostId = :parentId ORDER BY createdAt ASC")
     fun getReplies(parentId: String): Flow<List<PostEntity>>
@@ -44,8 +49,8 @@ interface PostsDao {
 
     // Feed of followed users
     @Query("""
-        SELECT * FROM posts 
-        WHERE authorId IN (SELECT followedId FROM follows WHERE followerId = :userId) 
+        SELECT * FROM posts
+        WHERE authorId IN (SELECT followedId FROM follows WHERE followerId = :userId)
         ORDER BY createdAt DESC
     """)
     fun pagingByFollowedUsers(userId: String): PagingSource<Int, PostEntity>
@@ -112,6 +117,22 @@ interface FollowsDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM follows WHERE followerId = :followerId AND followedId = :followedId)")
     suspend fun isFollowingSuspend(followerId: String, followedId: String): Boolean
+
+    // Additional methods for social graph queries
+    @Query("SELECT * FROM follows WHERE followerId = :userId")
+    fun getFollowing(userId: String): Flow<List<FollowEntity>>
+
+    @Query("SELECT * FROM follows WHERE followedId = :userId")
+    fun getFollowers(userId: String): Flow<List<FollowEntity>>
+
+    @Query("SELECT COUNT(*) FROM follows WHERE followedId = :userId")
+    suspend fun getFollowerCount(userId: String): Int
+
+    @Query("SELECT COUNT(*) FROM follows WHERE followerId = :userId")
+    suspend fun getFollowingCount(userId: String): Int
+
+    @Query("SELECT reputation.* FROM reputation INNER JOIN follows ON reputation.userId = follows.followedId WHERE follows.followerId = :userId ORDER BY reputation.score DESC LIMIT 1")
+    suspend fun getReputation(userId: String): ReputationEntity?
 }
 
 @Dao
@@ -124,6 +145,13 @@ interface GroupsDao {
 
     @Query("SELECT * FROM groups WHERE groupId = :groupId LIMIT 1")
     suspend fun getById(groupId: String): GroupEntity?
+
+    // Additional methods for community suggestions
+    @Query("SELECT * FROM groups WHERE groupId = :groupId LIMIT 1")
+    fun getByIdFlow(groupId: String): Flow<GroupEntity?>
+
+    @Query("SELECT * FROM groups WHERE category LIKE '%' || :category || '%'")
+    fun getByCategory(category: String): Flow<List<GroupEntity>>
 }
 
 @Dao
@@ -139,6 +167,16 @@ interface GroupMembersDao {
 
     @Query("SELECT * FROM group_members WHERE groupId = :groupId AND userId = :userId LIMIT 1")
     suspend fun getMember(groupId: String, userId: String): GroupMemberEntity?
+
+    // Additional methods for community suggestions
+    @Query("SELECT * FROM group_members WHERE userId = :userId")
+    fun getUserGroups(userId: String): Flow<List<GroupMemberEntity>>
+
+    @Query("SELECT groupId FROM group_members WHERE userId = :userId")
+    suspend fun getUserGroupIds(userId: String): List<String>
+
+    @Query("SELECT * FROM group_members WHERE groupId = :groupId")
+    suspend fun getMembers(groupId: String): List<GroupMemberEntity>
 }
 
 @Dao
@@ -193,6 +231,15 @@ interface ReputationDao {
 
     @Query("SELECT * FROM reputation WHERE userId = :userId LIMIT 1")
     suspend fun getByUserId(userId: String): ReputationEntity?
+
+    @Query("SELECT COUNT(*) FROM reputation WHERE updatedAt > :since")
+    suspend fun countActiveUsers(since: Long = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000)): Int
+
+    @Query("SELECT * FROM reputation WHERE userId = :userId LIMIT 1")
+    fun getByUserIdFlow(userId: String): Flow<ReputationEntity?>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM reputation WHERE userId = :userId)")
+    suspend fun exists(userId: String): Boolean
 }
 
 @Dao

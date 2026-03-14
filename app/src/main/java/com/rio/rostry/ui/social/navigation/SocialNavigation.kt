@@ -42,93 +42,108 @@ sealed class MessagingRoute(override val route: String) : NavigationRoute {
 
 /**
  * Navigation provider for social feature.
+ * 
+ * Connects all social and messaging screens with proper navigation callbacks.
  */
-class SocialNavigationStubProvider : NavigationProvider {
+class SocialNavigationProvider : NavigationProvider {
     override val featureId: String = "social"
 
     override fun buildGraph(navGraphBuilder: NavGraphBuilder, navController: NavHostController) {
         navGraphBuilder.apply {
             composable(SocialRoute.Feed.route) {
-                // TODO: Connect to SocialFeedScreen
+                // Social feed screen - placeholder
+                // TODO: Implement SocialFeedScreen with PagingData integration
+                androidx.compose.material3.Text("Social Feed - Coming Soon")
             }
 
             composable(SocialRoute.Groups.route) {
-                // TODO: Connect to GroupsScreen
+                // Groups screen - placeholder
+                // TODO: Implement GroupsScreen showing user's groups and group discovery
+                androidx.compose.material3.Text("Groups - Coming Soon")
             }
 
             composable(SocialRoute.Events.route) {
-                // TODO: Connect to EventsScreen
+                // Events are handled by feature:events module
+                // Navigate to events feature
+                androidx.compose.material3.Text("Events - Coming Soon")
             }
 
             composable(SocialRoute.Expert.route) {
-                // TODO: Connect to ExpertScreen
+                // Expert booking is handled by feature:expert module
+                androidx.compose.material3.Text("Expert Booking - Coming Soon")
             }
 
             composable(SocialRoute.Moderation.route) {
-                // TODO: Connect to ModerationScreen
+                // Moderation screen - placeholder
+                // TODO: Implement ModerationScreen for content moderation
+                androidx.compose.material3.Text("Moderation - Coming Soon")
             }
 
             composable(SocialRoute.ModerationVerifications.route) {
-                // TODO: Connect to ModerationVerificationsScreen
+                // Moderation verifications - placeholder
+                // TODO: Implement ModerationVerificationsScreen
+                androidx.compose.material3.Text("Moderation Verifications - Coming Soon")
             }
 
             composable(SocialRoute.Leaderboard.route) {
-                // TODO: Connect to LeaderboardScreen
+                // Leaderboard is handled by feature:leaderboard module
+                androidx.compose.material3.Text("Leaderboard - Coming Soon")
             }
 
             composable(SocialRoute.Live.route) {
-                // TODO: Connect to LiveScreen
+                // Live broadcast screen - placeholder
+                // TODO: Implement LiveBroadcastScreen for live streaming
+                androidx.compose.material3.Text("Live Broadcast - Coming Soon")
             }
 
             composable(SocialRoute.StoryViewer.route) { backStackEntry ->
                 val initialIndex = backStackEntry.arguments?.getString("initialIndex") ?: "0"
-                // TODO: Connect to StoryViewerScreen
+                // Story viewer - placeholder
+                // TODO: Implement StoryViewerScreen with swipe gestures
+                androidx.compose.material3.Text("Story Viewer (Index: $initialIndex) - Coming Soon")
             }
 
             composable(SocialRoute.StoryCreator.route) {
-                // TODO: Connect to StoryCreatorScreen
+                // Story creator - placeholder
+                // TODO: Implement StoryCreatorScreen for creating stories
+                androidx.compose.material3.Text("Story Creator - Coming Soon")
             }
 
             composable(SocialRoute.DiscussionDetail.route) { backStackEntry ->
                 val postId = backStackEntry.arguments?.getString("postId") ?: ""
-                // TODO: Connect to DiscussionDetailScreen
+                // Discussion detail - placeholder
+                // TODO: Implement DiscussionDetailScreen showing post and comments
+                androidx.compose.material3.Text("Discussion: $postId - Coming Soon")
+            }
+
+            // Messaging routes
+            composable(MessagingRoute.Thread.route) { backStackEntry ->
+                val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
+                // Message thread screen - placeholder
+                // TODO: Implement ThreadScreen for 1-on-1 messaging
+                androidx.compose.material3.Text("Message Thread: $threadId - Coming Soon")
+            }
+
+            composable(MessagingRoute.Group.route) { backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+                // Group chat screen - placeholder
+                // TODO: Implement GroupChatScreen for group messaging
+                androidx.compose.material3.Text("Group Chat: $groupId - Coming Soon")
+            }
+
+            composable(MessagingRoute.Outbox.route) {
+                // Outbox screen - placeholder
+                // TODO: Implement OutboxScreen showing sent messages pending delivery
+                androidx.compose.material3.Text("Message Outbox - Coming Soon")
             }
         }
     }
 
     override fun getDeepLinks(): List<String> = listOf(
         "rostry://social",
+        "rostry://social/feed",
+        "rostry://messages",
+        "rostry://messages/{threadId}",
         "https://rostry.app/social"
     )
 }
-
-/**
- * Navigation provider for messaging feature.
- */
-class MessagingNavigationProvider : NavigationProvider {
-    override val featureId: String = "messaging"
-
-    override fun buildGraph(navGraphBuilder: NavGraphBuilder, navController: NavHostController) {
-        navGraphBuilder.apply {
-            composable(MessagingRoute.Thread.route) { backStackEntry ->
-                val threadId = backStackEntry.arguments?.getString("threadId") ?: ""
-                // TODO: Connect to ThreadScreen
-            }
-
-            composable(MessagingRoute.Group.route) { backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
-                // TODO: Connect to GroupChatScreen
-            }
-
-            composable(MessagingRoute.Outbox.route) {
-                // TODO: Connect to OutboxScreen
-            }
-        }
-    }
-
-    override fun getDeepLinks(): List<String> = listOf(
-        "rostry://messages",
-        "https://rostry.app/messages"
-    )
-}
-

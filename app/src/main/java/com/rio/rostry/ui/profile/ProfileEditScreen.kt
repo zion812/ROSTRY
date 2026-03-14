@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.profile
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -57,6 +58,7 @@ import android.content.Intent
 import java.io.File
 import java.util.UUID
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.painterResource
 import com.rio.rostry.domain.model.UserType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -216,9 +218,11 @@ fun ProfileEditScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 AsyncImage(
-                    model = uiState.photoUri ?: "https://via.placeholder.com/80", // Placeholder
+                    model = uiState.photoUri,
                     contentDescription = "Current profile photo",
-                    modifier = Modifier.size(80.dp)
+                    modifier = Modifier.size(80.dp),
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_myplaces),
+                    error = painterResource(id = android.R.drawable.ic_menu_myplaces)
                 )
                 OutlinedButton(
                     onClick = { showPhotoSourceDialog = true },

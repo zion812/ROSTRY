@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.scan
+package com.rio.rostry.ui.scan
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -180,16 +181,15 @@ fun QrScannerScreen(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Enter Product ID")
             ElevatedCard {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = value,
                         onValueChange = { value = it },
                         label = { Text(hint) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (error != null) {
-                        Text(error!!, color = androidx.compose.ui.graphics.Color.Red)
-                        onError?.invoke(error!!)
+                    error?.let { err ->
+                        Text(err, color = androidx.compose.ui.graphics.Color.Red)
+                        onError?.invoke(err)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(onClick = { error = null }) { Text("Retry") }
                             TextButton(onClick = { value = "" }) { Text("Clear") }
@@ -212,20 +212,23 @@ fun QrScannerScreen(
                         
                         val productId = parseProductId(input)
                         if (productId.isBlank()) {
-                            error = "Invalid QR content"
-                            onError?.invoke(error!!)
+                            val errorMsg = "Invalid QR content"
+                            error = errorMsg
+                            onError?.invoke(errorMsg)
                             return@Button
                         }
                         CoroutineScope(Dispatchers.Main).launch {
                             val exists = vm.productExists(productId)
                             if (!exists || (onValidate != null && !onValidate(productId))) {
-                                error = "Product not found. Scan a valid ROSTRY QR code."
-                                onError?.invoke(error!!)
+                                val errorMsg = "Product not found. Scan a valid ROSTRY QR code."
+                                error = errorMsg
+                                onError?.invoke(errorMsg)
                                 return@launch
                             }
                             error = null
                             onResult(productId)
                         }
+                    }) { Text("Confirm") }
                     }) { Text("Confirm") }
                     TextButton(onClick = { value = "" }) { Text("Clear") }
                 }

@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.monitoring
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -43,8 +41,8 @@ class BiosecurityMonitoringViewModel @Inject constructor(
             
             repository.getActiveZones().collect { result ->
                 when (result) {
-                    is Resource.Success -> {
-                        val zones = result.data ?: emptyList()
+                    is com.rio.rostry.core.model.Result.Success -> {
+                        val zones = (result.data as? List<DiseaseZoneEntity>) ?: emptyList()
                         val activeZones = zones.filter { it.isActive }
                         _state.update { it.copy(
                             isLoading = false,
@@ -55,10 +53,9 @@ class BiosecurityMonitoringViewModel @Inject constructor(
                             lockdownZones = activeZones.count { z -> z.severity == ZoneSeverity.LOCKDOWN }
                         ) }
                     }
-                    is Resource.Error -> {
-                        _state.update { it.copy(isLoading = false, error = result.message) }
+                    is com.rio.rostry.core.model.Result.Error -> {
+                        _state.update { it.copy(isLoading = false, error = result.exception.message) }
                     }
-                    is Resource.Loading -> {}
                 }
             }
         }

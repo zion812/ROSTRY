@@ -1,5 +1,6 @@
 package com.rio.rostry.domain.model
 
+import com.rio.rostry.core.common.constants.BusinessConstants
 import com.rio.rostry.data.database.entity.FarmAssetEntity
 
 /**
@@ -28,7 +29,7 @@ data class ListingFormData(
 /**
  * Converts a FarmAssetEntity to pre-filled listing form data.
  * Used by CreateListingScreen for form pre-population.
- * 
+ *
  * The suggested title combines breed and name for marketing appeal.
  * The description is auto-generated from asset properties.
  */
@@ -57,7 +58,7 @@ private fun FarmAssetEntity.buildSuggestedTitle(): String {
         breed?.takeIf { it.isNotBlank() },
         name.takeIf { it.isNotBlank() }
     )
-    return parts.joinToString(" ").takeIf { it.isNotBlank() } 
+    return parts.joinToString(" ").takeIf { it.isNotBlank() }
         ?: "$category for sale"
 }
 
@@ -67,35 +68,35 @@ private fun FarmAssetEntity.buildSuggestedTitle(): String {
  */
 private fun FarmAssetEntity.buildSuggestedDescription(): String {
     if (description.isNotBlank()) return description
-    
+
     return buildString {
         append(category)
-        
+
         breed?.takeIf { it.isNotBlank() }?.let {
             append(" - $it")
         }
-        
+
         ageWeeks?.let {
             append(", $it weeks old")
         }
-        
+
         weightGrams?.let { weight ->
-            val kg = weight / 1000.0
+            val kg = BusinessConstants.gramsToKilograms(weight)
             if (kg >= 1.0) {
                 append(", %.1f kg".format(kg))
             } else {
                 append(", ${weight.toInt()}g")
             }
         }
-        
+
         if (healthStatus != "HEALTHY") {
             append(" (Status: $healthStatus)")
         }
-        
+
         gender?.let {
             append(". ${it.lowercase().replaceFirstChar { c -> c.uppercase() }}")
         }
-        
+
         color?.takeIf { it.isNotBlank() }?.let {
             append(", $it color")
         }
@@ -104,7 +105,7 @@ private fun FarmAssetEntity.buildSuggestedDescription(): String {
 
 /**
  * Checks if the asset can be listed for sale.
- * 
+ *
  * Rules:
  * - Not already listed (listingId == null)
  * - Not deleted
@@ -119,9 +120,9 @@ fun FarmAssetEntity.canBeListed(): Boolean =
 
 /**
  * Checks if the asset is ready for sale based on weight threshold.
- * Default threshold is 1500g for broilers, adjustable per category.
+ * Uses centralized BusinessConstants.MIN_BIRD_WEIGHT_GRAMS for consistency.
  */
-fun FarmAssetEntity.isMarketReady(minWeightGrams: Double = 1500.0): Boolean =
+fun FarmAssetEntity.isMarketReady(minWeightGrams: Double = BusinessConstants.MIN_BIRD_WEIGHT_GRAMS.toDouble()): Boolean =
     canBeListed() && (weightGrams ?: 0.0) >= minWeightGrams
 
 /**

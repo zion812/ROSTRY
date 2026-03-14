@@ -30,4 +30,8 @@ interface PaymentDao {
 
     @Query("SELECT * FROM payments WHERE orderId = :orderId ORDER BY createdAt DESC LIMIT 1")
     suspend fun findLatestByOrder(orderId: String): PaymentEntity?
+
+    // Snapshot methods for reports
+    @Query("SELECT * FROM payments ORDER BY paymentDate DESC LIMIT :limit")
+    suspend fun getAllPaymentsSnapshot(limit: Int): List<PaymentEntity>
 }

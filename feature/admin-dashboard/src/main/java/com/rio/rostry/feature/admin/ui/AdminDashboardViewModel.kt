@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -118,26 +116,25 @@ class AdminDashboardViewModel @Inject constructor(
     }
 
     private suspend fun loadProductMetrics() {
-        adminProductRepository.getAllProductsAdmin().first { resource ->
-            when (resource) {
-                is Resource.Success -> {
-                    val products = resource.data ?: emptyList()
-                    
+        adminProductRepository.getAllProductsAdmin().first { result ->
+            when (result) {
+                is com.rio.rostry.core.model.Result.Success -> {
+                    val products = result.data
+
                     _uiState.update { state ->
                         state.copy(
                             productMetrics = ProductMetrics(
                                 totalProducts = products.size,
-                                activeListings = products.count { it.status == "active" },
-                                flaggedProducts = products.count { it.adminFlagged == true },
-                                pendingReview = products.count { it.status == "pending" },
+                                activeListings = products.count { it.lifecycleStatus == "active" },
+                                flaggedProducts = 0, // Product domain model doesn't track admin flags
+                                pendingReview = products.count { it.lifecycleStatus == "pending" },
                                 soldThisMonth = 0 // Needs OrderItem correlation
                             )
                         )
                     }
                     true
                 }
-                is Resource.Error -> true
-                is Resource.Loading -> false
+                is com.rio.rostry.core.model.Result.Error -> true
             }
         }
     }
@@ -185,10 +182,13 @@ class AdminDashboardViewModel @Inject constructor(
         // Check pending/flagged products
         var flaggedProducts = 0
         adminProductRepository.getFlaggedProducts().first { 
-            if (it is Resource.Success) {
-                flaggedProducts = it.data?.size ?: 0
-                true
-            } else false
+            when (it) {
+                is com.rio.rostry.core.model.Result.Success -> {
+                    flaggedProducts = it.data.size
+                    true
+                }
+                is com.rio.rostry.core.model.Result.Error -> true
+            }
         }
         
         // Get pending upgrade requests

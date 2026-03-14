@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.navigation
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -12,7 +10,14 @@ import com.rio.rostry.core.common.session.CurrentUserProvider
 import com.rio.rostry.core.navigation.NavigationProvider
 import com.rio.rostry.feature.admin.ui.shell.AdminShell
 import com.rio.rostry.feature.admin.ui.shell.SyncStatus
-import com.rio.rostry.ui.session.SessionViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class AdminNavViewModel @Inject constructor(
+    val currentUserProvider: CurrentUserProvider
+) : ViewModel()
 
 /**
  * Navigation provider for admin feature.
@@ -52,32 +57,17 @@ class AdminNavigationProvider : NavigationProvider {
             
             // Admin Dashboard/Portal Entry Point
             composable(ADMIN_DASHBOARD) {
-                val sessionVm: SessionViewModel = hiltViewModel()
-                val state by sessionVm.uiState.collectAsState()
-                
-                // Admin Shell contains its own internal navigation (AdminNavHost)
+                // TODO: Restore SessionViewModel integration once extracted from app module
+                val adminNavViewModel: AdminNavViewModel = hiltViewModel()
                 AdminShell(
-                    onExitAdmin = { 
-                        // Navigate back to user's home screen based on their role
-                        val roleConfig = state.navConfig
-                        if (roleConfig != null) {
-                            navController.navigate(roleConfig.startDestination) {
-                                popUpTo(ADMIN_DASHBOARD) { inclusive = true }
-                            }
-                        } else {
-                            navController.popBackStack()
-                        }
-                    },
-                    onSignOut = { sessionVm.signOut() },
+                    onExitAdmin = { navController.popBackStack() },
+                    onSignOut = { /* TODO: Wire up sign out */ },
                     onSearchClick = { /* Search functionality */ },
                     onNotificationsClick = { navController.navigate(NOTIFICATIONS) },
-                    currentUserProvider = object : CurrentUserProvider {
-                        override fun getCurrentUserId(): String? = state.userId
-                        override fun getCurrentUserType(): com.rio.rostry.domain.model.UserType? = state.role
-                    },
-                    pendingVerificationsCount = state.pendingVerificationCount,
-                    syncStatus = SyncStatus.SYNCED, // TODO: Wire up actual sync status
-                    alertCount = 0 // TODO: Wire up actual alert count
+                    currentUserProvider = adminNavViewModel.currentUserProvider,
+                    pendingVerificationsCount = 0,
+                    syncStatus = SyncStatus.SYNCED,
+                    alertCount = 0
                 )
             }
             
@@ -85,15 +75,16 @@ class AdminNavigationProvider : NavigationProvider {
             
             // Content Moderation Screen
             composable(MODERATION) { 
-                com.rio.rostry.ui.moderation.ModerationScreen(
-                    onOpenVerifications = { navController.navigate(MODERATION_VERIFICATIONS) }
-                ) 
+                com.rio.rostry.feature.admin.ui.moderation.ModerationQueueScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             
             // Moderation Verifications Screen
             composable(MODERATION_VERIFICATIONS) {
-                // Re-use ModerationScreen with verifications tab
-                com.rio.rostry.ui.moderation.ModerationScreen(initialTab = 1) // Assuming 1 is verifications
+                com.rio.rostry.feature.admin.ui.moderation.ModerationQueueScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
         }
     }

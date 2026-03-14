@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.verification
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import timber.log.Timber
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
@@ -314,7 +315,7 @@ class VerificationViewModel @Inject constructor(
             
             file.absolutePath
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to cache file locally")
             null
         }
     }

@@ -1,6 +1,8 @@
-package com.rio.rostry.feature.onboarding.ui
+package com.rio.rostry.feature.onboarding.ui
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import timber.log.Timber
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -346,13 +348,13 @@ class OnboardFarmBirdViewModel @Inject constructor(
         }
         _state.value = s.copy(currentStep = next, validationErrors = emptyMap())
     }
-
     fun save() {
-        android.util.Log.d("OnboardBird", "save() called")
+        Timber.d("save() called")
         val uid = firebaseAuth.currentUser?.uid ?: run {
-            android.util.Log.e("OnboardBird", "save() aborted: Not signed in")
+            Timber.e("save() aborted: Not signed in")
             _state.value = _state.value.copy(error = "Not signed in")
             return
+        }   return
         }
         val s = _state.value
         if (s.ageGroup == null) {
@@ -412,13 +414,13 @@ class OnboardFarmBirdViewModel @Inject constructor(
             leadTimeDays = if (s.coreDetails.listForSale) s.coreDetails.leadTimeDays else null
         )
         _state.value = s.copy(saving = true, error = null)
-        android.util.Log.d("OnboardBird", "save(): starting addProduct, productId=$productId")
+        Timber.d("save(): starting addProduct, productId=$productId")
         viewModelScope.launch {
             try {
-                android.util.Log.d("OnboardBird", "save(): calling productRepository.addProduct")
+                Timber.d("save(): calling productRepository.addProduct")
                 when (val res = productRepository.addProduct(entity)) {
                     is Resource.Success<*> -> {
-                        android.util.Log.d("OnboardBird", "save(): SUCCESS - newId=${res.data}")
+                        Timber.d("save(): SUCCESS - newId=${res.data}")
                         val newId = res.data ?: productId
                         // Initialize monitoring seeds
                         farmOnboardingRepository.addProductToFarmMonitoring(newId, uid, s.coreDetails.healthStatus)
@@ -451,14 +453,14 @@ class OnboardFarmBirdViewModel @Inject constructor(
                         }
                         
                         _state.value = _state.value.copy(savedId = newId, saving = false)
-                        android.util.Log.d("OnboardBird", "save(): navigating")
+                        Timber.d("save(): navigating")
                         
                         runCatching { syncManager.syncAll() }
                         _navigationEvent.emit("farm_dashboard")
                         _refreshEvent.emit(Unit)
                     }
                     is Resource.Error<*> -> {
-                        android.util.Log.e("OnboardBird", "save(): ERROR - ${res.message}")
+                        Timber.e("save(): ERROR - ${res.message}")
                         
                         _state.value = _state.value.copy(
                             saving = false,

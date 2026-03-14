@@ -33,6 +33,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // CSV & PDF generation for reports
+    implementation(libs.opencsv)
+
     // Testing
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)

@@ -2,6 +2,11 @@ package com.rio.rostry.domain.account.repository
 
 import com.rio.rostry.core.model.Result
 import com.rio.rostry.core.model.User
+import com.rio.rostry.data.database.entity.UserEntity
+import com.rio.rostry.domain.model.UserType
+import com.rio.rostry.domain.model.VerificationStatus
+import com.rio.rostry.domain.model.VerificationSubmission
+import com.rio.rostry.utils.Resource
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -60,4 +65,39 @@ interface UserRepository {
      * @return Result indicating success or error
      */
     suspend fun deleteUser(userId: String): Result<Unit>
+
+    // ── Admin Features ──────────────────────────────────────────────
+
+    suspend fun getSystemUsers(limit: Int = 50): Resource<List<UserEntity>>
+
+    suspend fun suspendUser(userId: String, reason: String, durationMinutes: Long? = null): Resource<Unit>
+
+    suspend fun unsuspendUser(userId: String): Resource<Unit>
+
+    suspend fun updateUserType(userId: String, newType: UserType): Resource<Unit>
+
+    suspend fun updateVerificationStatus(userId: String, status: VerificationStatus): Resource<Unit>
+
+    suspend fun updateVerificationSubmissionStatus(
+        submissionId: String, userId: String, status: VerificationStatus,
+        reviewerId: String, rejectionReason: String? = null
+    ): Resource<Unit>
+
+    fun streamPendingVerifications(): Flow<Resource<List<VerificationSubmission>>>
+
+    fun getVerificationsByRoleAndStatus(role: UserType?, status: VerificationStatus?): Flow<Resource<List<VerificationSubmission>>>
+
+    suspend fun getUsersByVerificationStatus(status: VerificationStatus): Resource<List<UserEntity>>
+
+    // ── Analytics ────────────────────────────────────────────────────
+
+    suspend fun countAllUsers(): Int
+
+    suspend fun getNewUsersCount(since: Long): Int
+
+    suspend fun getActiveUsersCount(since: Long): Int
+
+    suspend fun getPendingVerificationCount(): Int
+
+    suspend fun getAudienceSize(role: UserType?): Int
 }

@@ -1,6 +1,7 @@
 package com.rio.rostry.ui.messaging
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
+import timber.log.Timber
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -187,7 +188,7 @@ class ThreadViewModel @Inject constructor(
                 sendMessage("Offer Accepted! Order created. Please wait for the bill.")
 
             } catch (e: Exception) {
-                e.printStackTrace()
+                Timber.e(e, "Failed to accept offer")
             }
         }
     }

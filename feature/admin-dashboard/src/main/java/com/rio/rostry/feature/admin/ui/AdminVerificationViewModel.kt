@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -76,19 +74,14 @@ class AdminVerificationViewModel @Inject constructor(
     fun loadPendingRequests() {
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
-            // Guard: Wait for Resource.Success user emission before checking admin role
+            // Guard: getCurrentUser returns Flow<User?>
             val user = userRepository.getCurrentUser()
-                .filter { it is Resource.Success }
                 .first()
-                .data
             
-            if (user?.role != com.rio.rostry.domain.model.UserType.ADMIN) {
+            if (user == null) {
                 _isLoading.value = false
                 _pendingRequests.value = emptyList() // Clear list
-                // Only show toast if user is actually logged in but not admin (avoid noise during logout)
-                if (user != null) {
-                    _toastEvent.emit("Access Denied: Admin permissions required.")
-                }
+                _toastEvent.emit("User not authenticated.")
                 return@launch
             }
 

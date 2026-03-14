@@ -291,7 +291,7 @@ class QuarantineViewModel @Inject constructor(
                 tempLocalPath == null -> medication ?: active.medicationScheduleJson
                 else -> {
                     val base = medication ?: active.medicationScheduleJson
-                    upsertAttachment(base, local = tempLocalPath!!, remote = null, at = now)
+                    upsertAttachment(base, local = tempLocalPath, remote = null, at = now)
                 }
             }
             val updated = active.copy(
@@ -314,8 +314,9 @@ class QuarantineViewModel @Inject constructor(
                     "quarantineId" to quarantineId,
                     "at" to now
                 ))
-                pendingUploads[remotePath] = PendingUpload(quarantineId = quarantineId, localPath = tempLocalPath!!, at = now)
-                mediaUploadManager.enqueueToOutbox(localPath = tempLocalPath!!, remotePath = remotePath, contextJson = ctxJson)
+                val localPath = tempLocalPath
+                pendingUploads[remotePath] = PendingUpload(quarantineId = quarantineId, localPath = localPath, at = now)
+                mediaUploadManager.enqueueToOutbox(localPath = localPath, remotePath = remotePath, contextJson = ctxJson)
             }
 
             // Complete existing pending quarantine-check tasks instead of scheduling new ones

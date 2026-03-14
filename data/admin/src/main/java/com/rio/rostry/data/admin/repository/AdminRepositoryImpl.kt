@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.rio.rostry.core.model.Result
 import com.rio.rostry.core.model.User
 import com.rio.rostry.core.model.AdminMetrics
+import com.rio.rostry.domain.admin.model.AdminUserProfile
 import com.rio.rostry.domain.admin.repository.AdminRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +58,23 @@ class AdminRepositoryImpl @Inject constructor(
                     it.toObject(User::class.java)
                 } ?: emptyList()
                 trySend(users)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override fun getUserFullProfile(userId: String): Flow<Result<AdminUserProfile>> = callbackFlow {
+        val listener = usersCollection.document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Result.Error(error))
+                    return@addSnapshotListener
+                }
+                val userEntity = snapshot?.toObject(com.rio.rostry.data.database.entity.UserEntity::class.java)
+                if (userEntity != null) {
+                    trySend(Result.Success(AdminUserProfile(user = userEntity)))
+                } else {
+                    trySend(Result.Error(Exception("User not found")))
+                }
             }
         awaitClose { listener.remove() }
     }

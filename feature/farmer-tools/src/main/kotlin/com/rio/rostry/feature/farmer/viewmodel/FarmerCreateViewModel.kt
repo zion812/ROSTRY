@@ -1,4 +1,6 @@
-package com.rio.rostry.ui.farmer
+package com.rio.rostry.ui.farmer
+
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 import com.rio.rostry.domain.monitoring.repository.VaccinationRepository
@@ -340,12 +342,13 @@ class FarmerCreateViewModel @Inject constructor(
                 val category = when {
                     product.category?.startsWith("ADOPTION") == true -> Category.Adoption
                     else -> Category.Meat // Default to Meat for MEAT, EGGS, BREEDING, etc.
-                }
-                
                 // Format vaccination summary
                 val vaccinationSummary = vaccinations
                     .filter { it.administeredAt != null }
                     .joinToString(", ") { 
+                        val date = it.administeredAt
+                        "${it.vaccineType} (${formatDate(date)})" 
+                    }joinToString(", ") { 
                         "${it.vaccineType} (${formatDate(it.administeredAt!!)})" 
                     }
                 
@@ -901,7 +904,8 @@ class FarmerCreateViewModel @Inject constructor(
 
             // Comment 2: Re-check quarantine status at submit time
             if (!prefillProductId.isNullOrBlank()) {
-                val inQuarantine = quarantineRepository.observe(prefillProductId!!).first()
+                val productId = prefillProductId
+                val inQuarantine = quarantineRepository.observe(productId).first()
                     .any { it.status == "ACTIVE" }
                 if (inQuarantine) {
                     _ui.value = UiState(
@@ -912,7 +916,7 @@ class FarmerCreateViewModel @Inject constructor(
                 }
 
                 // Additional lifecycle validation: block DECEASED or TRANSFERRED
-                val productRes = productRepository.getProductById(prefillProductId!!).first { it !is Resource.Loading }
+                val productRes = productRepository.getProductById(productId).first { it !is Resource.Loading }
                 val p = (productRes as? Resource.Success)?.data
                 if (p != null) {
                     val status = p.lifecycleStatus?.uppercase()
@@ -994,10 +998,10 @@ class FarmerCreateViewModel @Inject constructor(
                         listingDraftRepository.deleteDraft("${currentUser.userId}_current")
 
                         // Track analytics: listing submitted
-                        if (prefillProductId != null) {
+                        prefillProductId?.let { sourceId ->
                             analyticsRepository.trackFarmToMarketplaceListingSubmitted(
                                 currentUser.userId,
-                                prefillProductId!!,
+                                sourceId,
                                 listingId
                             )
                         }

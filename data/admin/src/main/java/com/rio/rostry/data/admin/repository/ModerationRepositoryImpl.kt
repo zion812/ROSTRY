@@ -105,4 +105,41 @@ class ModerationRepositoryImpl @Inject constructor(
             Result.Error(e)
         }
     }
+
+    override fun getModerationQueue(): Flow<List<com.rio.rostry.domain.admin.model.ModerationItem>> = callbackFlow {
+        val listener = moderationQueueCollection
+            .whereEqualTo("status", "PENDING")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                val items = snapshot?.documents?.mapNotNull { doc ->
+                    com.rio.rostry.domain.admin.model.ModerationItem(
+                        id = doc.id,
+                        type = com.rio.rostry.domain.admin.model.ContentType.valueOf(
+                            doc.getString("type") ?: "PRODUCT"
+                        ),
+                        title = doc.getString("title") ?: "",
+                        content = doc.getString("content") ?: "",
+                        flaggedAt = doc.getLong("flaggedAt") ?: 0L,
+                        reason = doc.getString("reason")
+                    )
+                } ?: emptyList()
+                trySend(items)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun approve(id: String, type: com.rio.rostry.domain.admin.model.ContentType) {
+        moderationQueueCollection.document(id)
+            .update("status", "APPROVED")
+            .await()
+    }
+
+    override suspend fun reject(id: String, type: com.rio.rostry.domain.admin.model.ContentType, reason: String) {
+        moderationQueueCollection.document(id)
+            .update(mapOf("status" to "REJECTED", "rejectionReason" to reason))
+            .await()
+    }
 }

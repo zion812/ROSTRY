@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui.biosecurity
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,10 +6,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import com.rio.rostry.core.model.DiseaseZone
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,8 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.database.entity.DiseaseZoneEntity
-import com.rio.rostry.data.database.entity.ZoneSeverity
+import com.rio.rostry.core.model.ZoneSeverity
 import com.rio.rostry.domain.monitoring.repository.BiosecurityRepository
 import com.rio.rostry.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,7 +36,7 @@ class BiosecurityManagementViewModel @Inject constructor(
     private val repository: BiosecurityRepository
 ) : ViewModel() {
 
-    private val _zones = MutableStateFlow<List<DiseaseZoneEntity>>(emptyList())
+    private val _zones = MutableStateFlow<List<DiseaseZone>>(emptyList())
     val zones = _zones.asStateFlow()
     
     // Add Zone Form State
@@ -51,8 +49,8 @@ class BiosecurityManagementViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.getActiveZones().collect { result ->
-                if (result is Resource.Success) {
-                    _zones.value = result.data ?: emptyList()
+                if (result is com.rio.rostry.core.model.Result.Success) {
+                    _zones.value = result.data
                 }
             }
         }
@@ -64,14 +62,15 @@ class BiosecurityManagementViewModel @Inject constructor(
         val radius = newRadius.toDoubleOrNull()
         
         if (lat != null && lng != null && radius != null && newReason.isNotBlank()) {
-            val zone = DiseaseZoneEntity(
+            val zone = DiseaseZone(
                 zoneId = UUID.randomUUID().toString(),
                 latitude = lat,
                 longitude = lng,
-                radiusMeters = radius,
+                radiusMeters = radius.toFloat(),
                 reason = newReason,
                 severity = newSeverity,
-                isActive = true
+                isActive = true,
+                createdAt = System.currentTimeMillis()
             )
             viewModelScope.launch {
                 repository.addZone(zone)
@@ -133,7 +132,7 @@ fun BiosecurityManagementScreen(
                 }
             }
             items(zones) { zone ->
-                DiseaseZoneCard(zone, onDelete = { viewModel.deactivateZone(zone.zoneId) })
+                DiseaseZoneCard(zone, onDelete = { viewModel.deactivateZone(zone.id) })
             }
         }
     }
@@ -195,7 +194,7 @@ fun BiosecurityManagementScreen(
 }
 
 @Composable
-fun DiseaseZoneCard(zone: DiseaseZoneEntity, onDelete: () -> Unit) {
+fun DiseaseZoneCard(zone: DiseaseZone, onDelete: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (zone.severity == ZoneSeverity.LOCKDOWN) 

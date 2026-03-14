@@ -26,6 +26,9 @@ dependencies {
     // Serialization
     implementation(libs.gson)
 
+    // Logging
+    implementation(libs.timber)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 

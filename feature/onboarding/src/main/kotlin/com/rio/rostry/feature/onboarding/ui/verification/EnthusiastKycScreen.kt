@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.verification
+package com.rio.rostry.ui.verification
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -49,13 +50,14 @@ fun EnthusiastKycScreen(
             try {
                 context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (e: Exception) { timber.log.Timber.w(e, "Failed to take persistable URI permission for KYC document") }
-            
-            if (currentUploadType != null) {
+            currentUploadType?.let { uploadType ->
+                val upgradeType = viewModel.ui.value.upgradeType ?: UpgradeType.FARMER_TO_ENTHUSIAST
                 if (currentUploadIsImage) {
-                     viewModel.uploadImage(it.toString(), currentUploadType!!, viewModel.ui.value.upgradeType ?: UpgradeType.FARMER_TO_ENTHUSIAST)
+                     viewModel.uploadImage(it.toString(), uploadType, upgradeType)
                 } else {
-                     viewModel.uploadDocument(it.toString(), currentUploadType!!, viewModel.ui.value.upgradeType ?: UpgradeType.FARMER_TO_ENTHUSIAST)
+                     viewModel.uploadDocument(it.toString(), uploadType, upgradeType)
                 }
+            }   }
             }
         }
     }

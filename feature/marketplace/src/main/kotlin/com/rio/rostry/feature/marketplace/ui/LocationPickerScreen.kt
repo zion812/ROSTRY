@@ -1,4 +1,5 @@
-package com.rio.rostry.feature.marketplace.ui
+package com.rio.rostry.feature.marketplace.ui
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -69,15 +70,15 @@ fun LocationPickerScreen(
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(p.name ?: p.formattedAddress ?: "Unknown")
-                        if (p.formattedAddress != null) Text(p.formattedAddress!!, style = MaterialTheme.typography.bodySmall)
+                        p.formattedAddress?.let { addr ->
+                            Text(addr, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }
         }
-
-        if (selected != null) {
+        selected?.let { s ->
             Spacer(Modifier.height(12.dp))
-            val s = selected!!
             Text("Selected: ${s.name ?: s.formattedAddress}")
             val lat = s.lat
             val lng = s.lng
@@ -91,6 +92,7 @@ fun LocationPickerScreen(
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = { onLocationPicked(lat, lng, s.formattedAddress) }) { Text("Use This Location") }
             }
+        }   }
         }
 
         if (error != null) {

@@ -1,11 +1,9 @@
 package com.rio.rostry.feature.admin.ui.moderation
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rio.rostry.data.repository.ContentType
-import com.rio.rostry.data.repository.ModerationItem
+import com.rio.rostry.domain.admin.model.ContentType
+import com.rio.rostry.domain.admin.model.ModerationItem
 import com.rio.rostry.domain.admin.repository.ModerationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

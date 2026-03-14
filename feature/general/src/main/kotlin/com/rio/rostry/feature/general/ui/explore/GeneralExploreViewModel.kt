@@ -1,7 +1,8 @@
 package com.rio.rostry.feature.general.ui.explore
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
-
+import com.rio.rostry.core.common.config.StorageConfig
+import timber.log.Timber
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -81,11 +82,11 @@ class GeneralExploreViewModel @Inject constructor(
             // Load educational content (Mock for now, but simulated async load)
             launch {
                 val content = listOf(
-                    com.rio.rostry.domain.model.EducationalContent("1", "Native Breeds: Nutritional Benefits", "Why native chicken meat is healthier.", com.rio.rostry.domain.model.ContentType.ARTICLE, "https://firebasestorage.googleapis.com/v0/b/rostry-dev.appspot.com/o/demo%2Fkadaknath.jpg?alt=media", duration = 5),
-                    com.rio.rostry.domain.model.EducationalContent("2", "Choosing the Right Bird for Your Dish", "Guide to selecting birds based on age and tenderness.", com.rio.rostry.domain.model.ContentType.GUIDE, "https://firebasestorage.googleapis.com/v0/b/rostry-dev.appspot.com/o/demo%2Fcooking_guide.jpg?alt=media", duration = 8),
-                    com.rio.rostry.domain.model.EducationalContent("3", "Backyard Farming 101", "Getting started with your own coop.", com.rio.rostry.domain.model.ContentType.TUTORIAL, "https://firebasestorage.googleapis.com/v0/b/rostry-dev.appspot.com/o/demo%2Fcoop_setup.jpg?alt=media", duration = 12),
-                    com.rio.rostry.domain.model.EducationalContent("4", "Video: Vaccinating Chicks", "Step-by-step video guide.", com.rio.rostry.domain.model.ContentType.VIDEO, "https://firebasestorage.googleapis.com/v0/b/rostry-dev.appspot.com/o/demo%2Fvaccination_thumb.jpg?alt=media", duration = 4),
-                    com.rio.rostry.domain.model.EducationalContent("5", "Recipe: Spicy Country Chicken", "Traditional slow-cooked recipe.", com.rio.rostry.domain.model.ContentType.GUIDE, "https://firebasestorage.googleapis.com/v0/b/rostry-dev.appspot.com/o/demo%2Fcurry.jpg?alt=media", duration = 45)
+                    com.rio.rostry.domain.model.EducationalContent("1", "Native Breeds: Nutritional Benefits", "Why native chicken meat is healthier.", com.rio.rostry.domain.model.ContentType.ARTICLE, StorageConfig.getDemoContentUrl("kadaknath.jpg"), duration = 5),
+                    com.rio.rostry.domain.model.EducationalContent("2", "Choosing the Right Bird for Your Dish", "Guide to selecting birds based on age and tenderness.", com.rio.rostry.domain.model.ContentType.GUIDE, StorageConfig.getDemoContentUrl("cooking_guide.jpg"), duration = 8),
+                    com.rio.rostry.domain.model.EducationalContent("3", "Backyard Farming 101", "Getting started with your own coop.", com.rio.rostry.domain.model.ContentType.TUTORIAL, StorageConfig.getDemoContentUrl("coop_setup.jpg"), duration = 12),
+                    com.rio.rostry.domain.model.EducationalContent("4", "Video: Vaccinating Chicks", "Step-by-step video guide.", com.rio.rostry.domain.model.ContentType.VIDEO, StorageConfig.getDemoContentUrl("vaccination_thumb.jpg"), duration = 4),
+                    com.rio.rostry.domain.model.EducationalContent("5", "Recipe: Spicy Country Chicken", "Traditional slow-cooked recipe.", com.rio.rostry.domain.model.ContentType.GUIDE, StorageConfig.getDemoContentUrl("curry.jpg"), duration = 45)
                 )
                 
                 val tip = com.rio.rostry.domain.model.EducationalContent(
@@ -111,7 +112,7 @@ class GeneralExploreViewModel @Inject constructor(
                     }.take(10)
                     _uiState.update { it.copy(nearbyFarmers = farmers) }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Timber.e(e, "Failed to load nearby farmers")
                 }
             }
         }

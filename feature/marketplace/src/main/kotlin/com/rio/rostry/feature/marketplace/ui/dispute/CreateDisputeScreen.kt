@@ -1,4 +1,5 @@
-package com.rio.rostry.feature.marketplace.ui.dispute
+package com.rio.rostry.feature.marketplace.ui.dispute
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -65,9 +66,9 @@ fun CreateDisputeScreen(
                 modifier = Modifier.fillMaxWidth().height(150.dp),
                 maxLines = 5
             )
-            
-            if (state.error != null) {
-                Text(state.error!!, color = MaterialTheme.colorScheme.error)
+            state.error?.let { error ->
+                Text(error, color = MaterialTheme.colorScheme.error)
+            }   Text(state.error!!, color = MaterialTheme.colorScheme.error)
             }
 
             Button(

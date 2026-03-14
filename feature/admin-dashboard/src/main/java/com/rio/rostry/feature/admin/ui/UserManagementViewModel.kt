@@ -1,6 +1,4 @@
 package com.rio.rostry.feature.admin.ui
-import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
-import com.rio.rostry.domain.error.ErrorHandler
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -107,9 +105,8 @@ class UserManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             when (val result = userRepository.deleteUser(userId)) {
-                is Resource.Success -> {
+                is com.rio.rostry.core.model.Result.Success -> {
                     _toastEvent.emit("User deleted successfully")
-                    // Remove from local list to avoid full reload
                     _uiState.update { state ->
                         val updatedList = state.users.filterNot { it.userId == userId }
                         state.copy(
@@ -119,11 +116,10 @@ class UserManagementViewModel @Inject constructor(
                         )
                     }
                 }
-                is Resource.Error -> {
+                is com.rio.rostry.core.model.Result.Error -> {
                     _uiState.update { it.copy(isLoading = false) }
-                    _toastEvent.emit("Failed to delete user: ${result.message}")
+                    _toastEvent.emit("Failed to delete user: ${result.exception.message}")
                 }
-                else -> Unit
             }
         }
     }

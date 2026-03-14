@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.painterResource
 import com.rio.rostry.data.database.entity.PostEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -152,13 +153,15 @@ fun ProfileHeader(
         ) {
             // Avatar
             AsyncImage(
-                model = user.profilePictureUrl ?: "https://via.placeholder.com/150",
-                contentDescription = "Go back",
+                model = user.profilePictureUrl,
+                contentDescription = "User profile picture",
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = android.R.drawable.ic_menu_myplaces),
+                error = painterResource(id = android.R.drawable.ic_menu_myplaces)
             )
 
             Spacer(Modifier.width(24.dp))

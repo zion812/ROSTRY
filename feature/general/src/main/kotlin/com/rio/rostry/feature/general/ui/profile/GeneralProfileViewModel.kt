@@ -1,4 +1,5 @@
-package com.rio.rostry.feature.general.ui.profile
+package com.rio.rostry.feature.general.ui.profile
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -158,7 +159,6 @@ class GeneralProfileViewModel @Inject constructor(
             }
         }
     }
-
     fun upgradeToFarmer(
         address: String,
         chickenCount: Int,
@@ -168,30 +168,30 @@ class GeneralProfileViewModel @Inject constructor(
         lat: Double?,
         lng: Double?
     ) {
-        android.util.Log.e("GeneralProfileViewModel", "upgradeToFarmer called with: address='$address', count=$chickenCount, loc=[$lat, $lng]")
+        Timber.e("upgradeToFarmer called with: address='$address', count=$chickenCount, loc=[$lat, $lng]")
         val current = uiState.value.profile
         if (current == null) {
-            android.util.Log.e("GeneralProfileViewModel", "Current profile is null! Aborting upgrade.")
+            Timber.e("Current profile is null! Aborting upgrade.")
             return
         }
 
-        if (current.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING || 
+        if (current.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.PENDING ||
             current.verificationStatus == com.rio.rostry.domain.model.VerificationStatus.VERIFIED) {
             _upgradeEvent.tryEmit(UpgradeEvent.Error("Verification is already pending or completed."))
             return
         }
-        android.util.Log.e("GeneralProfileViewModel", "Current profile: ${current.userId}, starting upgrade...")
+        Timber.e("Current profile: ${current.userId}, starting upgrade...")
 
         // Explicitly use IO dispatcher to ensure it runs
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                android.util.Log.e("GeneralProfileViewModel", "Coroutine started on thread: ${Thread.currentThread().name}")
+                Timber.e("Coroutine started on thread: ${Thread.currentThread().name}")
                 _isUpgrading.value = true
-                
+
                 // CRITICAL: Set upgrade flag BEFORE any database updates
                 // This prevents SessionViewModel from reacting to role changes
                 sessionManager.setUpgradeInProgress(true)
-                android.util.Log.e("GeneralProfileViewModel", "Set upgradeInProgress=true")
+                Timber.d("Set upgradeInProgress=true")
 
                 // Auto-verify location if GPS coordinates are provided
                 val isLocationVerified = lat != null && lng != null
@@ -214,41 +214,41 @@ class GeneralProfileViewModel @Inject constructor(
                     userType = com.rio.rostry.domain.model.UserType.FARMER.name
                 )
 
-                android.util.Log.e("GeneralProfileViewModel", "Saving profile with userType=FARMER...")
+                Timber.d("Saving profile with userType=FARMER...")
                 val saveResult = userRepository.updateUserProfile(updatedProfile)
-                
+
                 if (saveResult is Resource.Error) {
-                    android.util.Log.e("GeneralProfileViewModel", "Failed to save profile: ${saveResult.message}")
+                    Timber.e("Failed to save profile: ${saveResult.message}")
                     _upgradeEvent.emit(UpgradeEvent.Error(saveResult.message ?: "Failed to save profile data"))
                     return@launch
                 }
 
-                android.util.Log.e("GeneralProfileViewModel", "Profile saved successfully!")
+                Timber.e("Profile saved successfully!")
 
                 // ZERO-COST ARCHITECTURE: No more waiting for Cloud Functions!
                 // The Firestore security rules now read userType directly from the document.
                 // We can update the session role immediately without waiting for custom claims.
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
                     try {
-                        android.util.Log.e("GeneralProfileViewModel", "Updating SessionManager with FARMER role...")
+                        Timber.e("Updating SessionManager with FARMER role...")
                         sessionManager.markAuthenticated(
                             nowMillis = System.currentTimeMillis(),
                             userType = com.rio.rostry.domain.model.UserType.FARMER
                         )
 
-                        android.util.Log.e("GeneralProfileViewModel", "Upgrade complete! Emitting success event.")
+                        Timber.e("Upgrade complete! Emitting success event.")
                         _upgradeEvent.emit(UpgradeEvent.Success(com.rio.rostry.domain.model.UserType.FARMER))
                     } catch (e: Exception) {
-                        android.util.Log.e("GeneralProfileViewModel", "Failed to finalize Farmer upgrade: ${e.message}", e)
+                        Timber.e(e, "Failed to finalize Farmer upgrade: ${e.message}")
                         _upgradeEvent.emit(UpgradeEvent.Error("Failed to update session: ${e.message}"))
                     }
                 }
             } catch (t: Throwable) {
                 // Catch EVERYTHING including RuntimeExceptions and Errors
-                android.util.Log.e("GeneralProfileViewModel", "CRITICAL EXCEPTION in upgradeToFarmer: ${t.message}", t)
+                Timber.e(t, "CRITICAL EXCEPTION in upgradeToFarmer: ${t.message}")
                 _upgradeEvent.emit(UpgradeEvent.Error("Critical Error: ${t.message}"))
             } finally {
-                android.util.Log.e("GeneralProfileViewModel", "Setting isUpgrading=false and upgradeInProgress=false")
+                Timber.e("Setting isUpgrading=false and upgradeInProgress=false")
                 _isUpgrading.value = false
                 // CRITICAL: Clear the upgrade flag so SessionViewModel can sync again
                 sessionManager.setUpgradeInProgress(false)

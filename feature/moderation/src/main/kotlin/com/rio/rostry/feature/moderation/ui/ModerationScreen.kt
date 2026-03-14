@@ -1,4 +1,5 @@
-package com.rio.rostry.ui.moderation
+package com.rio.rostry.ui.moderation
+
 import com.rio.rostry.domain.monitoring.repository.ShowRecordRepository
 import com.rio.rostry.domain.error.ErrorHandler
 
@@ -103,44 +104,48 @@ fun ModerationScreen(
             }
         }
     }
-
-    if (selectedSubmission != null && !showRejectDialog) {
-        VerificationDetailDialog(
-            submission = selectedSubmission!!,
-            onDismiss = { selectedSubmission = null },
-            onApprove = { 
-                vm.approveVerification(selectedSubmission!!)
-                selectedSubmission = null
-            },
-            onReject = {
-                showRejectDialog = true
-            }
-        )
+    // Safe null handling for selected submission
+    selectedSubmission?.let { submission ->
+        if (!showRejectDialog) {
+            VerificationDetailDialog(
+                submission = submission,
+                onDismiss = { selectedSubmission = null },
+                onApprove = { 
+                    vm.approveVerification(submission)
+                    selectedSubmission = null
+                },
+                onReject = {
+                    showRejectDialog = true
+                }
+            )
+        }
     }
 
-    if (showRejectDialog && selectedSubmission != null) {
-        AlertDialog(
-            onDismissRequest = { showRejectDialog = false },
-            title = { Text("Reject Verification") },
-            text = {
-                Column {
-                    Text("Please provide a reason for rejection:")
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = rejectionReason,
-                        onValueChange = { rejectionReason = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        vm.rejectVerification(selectedSubmission!!, rejectionReason)
-                        showRejectDialog = false
-                        selectedSubmission = null
-                        rejectionReason = ""
+    if (showRejectDialog) {
+        selectedSubmission?.let { submission ->
+            AlertDialog(
+                onDismissRequest = { showRejectDialog = false },
+                title = { Text("Reject Verification") },
+                text = {
+                    Column {
+                        Text("Please provide a reason for rejection:")
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = rejectionReason,
+                            onValueChange = { rejectionReason = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            vm.rejectVerification(submission, rejectionReason)
+                            showRejectDialog = false
+                            selectedSubmission = null
+                            rejectionReason = ""
+                        },  rejectionReason = ""
                     },
                     enabled = rejectionReason.isNotBlank()
                 ) {
