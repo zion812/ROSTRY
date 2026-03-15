@@ -15,18 +15,18 @@ import androidx.room.PrimaryKey
 )
 data class BreedingPairEntity(
     @PrimaryKey val pairId: String,
-    val farmerId: String,
     val maleProductId: String,
     val femaleProductId: String,
-    val pairedAt: Long = System.currentTimeMillis(),
-    val status: String = "ACTIVE", // ACTIVE, RETIRED, SEPARATED
-    val hatchSuccessRate: Double = 0.0,
-    val eggsCollected: Int = 0,
-    val hatchedEggs: Int = 0,
+    val farmerId: String,
+    val status: String,
+    val pairedAt: Long,
+    val hatchSuccessRate: Double? = null,
+    val eggsCollected: Int? = null,
+    val hatchedEggs: Int? = null,
     val separatedAt: Long? = null,
     val notes: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis(),
     val dirty: Boolean = false,
-    val syncedAt: Long? = null
+    val syncedAt: Long? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
